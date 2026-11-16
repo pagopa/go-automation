@@ -1,7 +1,12 @@
 /**
  * Single-choice prompt that scales with the number of options.
  */
-import { Core } from '@go-automation/go-common';
+import {
+  GO_PROMPT_BACK,
+  type GOPromptAutocompleteOptions,
+  type GOPromptSelectOption,
+  type GOScript,
+} from '@go-automation/go-script';
 
 /** Above this many options a plain list stops being readable: switch to search. */
 const AUTOCOMPLETE_THRESHOLD = 12;
@@ -31,9 +36,9 @@ const SEARCH_BACK_SHORTCUT_HINT = ' · premi ← a filtro vuoto';
  * ```
  */
 export async function promptChoice<T>(
-  script: Core.GOScript,
+  script: GOScript,
   message: string,
-  choices: ReadonlyArray<Core.GOPromptSelectOption>,
+  choices: ReadonlyArray<GOPromptSelectOption>,
 ): Promise<T | undefined> {
   const answer = await askChoice<T>(script, message, choices);
   // The only abort the caller cannot explain: every other one logs its own
@@ -43,9 +48,9 @@ export async function promptChoice<T>(
 }
 
 async function askChoice<T>(
-  script: Core.GOScript,
+  script: GOScript,
   message: string,
-  choices: ReadonlyArray<Core.GOPromptSelectOption>,
+  choices: ReadonlyArray<GOPromptSelectOption>,
 ): Promise<T | undefined> {
   const options = [...choices];
   // Only menus offering the entry can honour the shortcut: it stands for that
@@ -54,7 +59,7 @@ async function askChoice<T>(
 
   if (options.length > AUTOCOMPLETE_THRESHOLD) {
     const searchMessage = `${message} (digita per filtrare)`;
-    const searchOptions: Core.GOPromptAutocompleteOptions = {
+    const searchOptions: GOPromptAutocompleteOptions = {
       limit: AUTOCOMPLETE_PAGE_SIZE,
       suggest: async (input, all) => Promise.resolve(filterChoices(input, all)),
     };
@@ -75,24 +80,21 @@ async function askChoice<T>(
 }
 
 /** Turns the shortcut sentinel into the value of the entry it stands for. */
-function resolveBack<T>(answer: T | typeof Core.GO_PROMPT_BACK | undefined): T | undefined {
+function resolveBack<T>(answer: T | typeof GO_PROMPT_BACK | undefined): T | undefined {
   // Safe: the caller compares the answer with BACK_CHOICE, the very value the
   // entry this shortcut stands for carries.
-  return answer === Core.GO_PROMPT_BACK ? (BACK_CHOICE as T) : answer;
+  return answer === GO_PROMPT_BACK ? (BACK_CHOICE as T) : answer;
 }
 
 /** Announces the keyboard shortcut on the entry it triggers, and only there. */
-function withBackShortcutHint(
-  choices: ReadonlyArray<Core.GOPromptSelectOption>,
-  hint: string,
-): Core.GOPromptSelectOption[] {
+function withBackShortcutHint(choices: ReadonlyArray<GOPromptSelectOption>, hint: string): GOPromptSelectOption[] {
   return choices.map((choice) =>
     choice.value === BACK_CHOICE ? { ...choice, title: `${choice.title}${hint}` } : choice,
   );
 }
 
 /** Case-insensitive substring filter over title and description. */
-function filterChoices(input: string, choices: ReadonlyArray<Core.GOPromptSelectOption>): Core.GOPromptSelectOption[] {
+function filterChoices(input: string, choices: ReadonlyArray<GOPromptSelectOption>): GOPromptSelectOption[] {
   const term = input.trim().toLowerCase();
   if (term === '') return [...choices];
   return choices.filter((choice) => {

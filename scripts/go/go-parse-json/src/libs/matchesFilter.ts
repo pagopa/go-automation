@@ -2,7 +2,7 @@
  * Simple key=value filter matcher for JSON objects.
  */
 
-import { Core } from '@go-automation/go-common';
+import { GOJSONFieldExtractor } from '@pagopa/go-common/json';
 
 /**
  * Checks if an object matches a simple key=value filter string.
@@ -16,7 +16,7 @@ export function matchesFilter(item: unknown, filter: string | undefined): boolea
   const [key, expectedValue] = filter.split('=');
   if (!key || expectedValue === undefined) return true;
 
-  const extractor = new Core.GOJSONFieldExtractor({ parseEmbeddedJson: true });
+  const extractor = new GOJSONFieldExtractor({ parseEmbeddedJson: true });
   const actualValue = extractor.extract(item, key.trim());
   return String(actualValue) === expectedValue.trim();
 }

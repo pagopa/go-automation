@@ -2,32 +2,66 @@
 
 Motore runbook dichiarativo: definisce ed esegue procedure operative
 strutturate come sequenze di step tipizzati, con branching condizionale,
-matching su casi noti e azioni associate.
+matching su casi noti e azioni associate. Contiene anche i toolkit per le
+famiglie di allarmi e i runbook concreti di SEND e INTEROP.
 
-## Responsabilità
+## Installazione
 
-Il package espone:
+Il package è pubblicato su **GitHub Packages** dell'organizzazione `pagopa`. Nel repository che lo usa serve un `.npmrc`:
 
-- **Core** (`RunbookEngine`, `ConditionEvaluator`) — esegue un `Runbook`
-  step dopo step, valuta i casi noti e produce un `RunbookExecutionResult`
-  con trace completa.
-- **Builder** (`RunbookBuilder`) — API fluente per comporre un runbook
-  (step, known case, fallback).
-- **Toolkit per dominio** (`apigw`, `lambda`, `service`, `downstream`,
-  `interop`) — step e helper pre-costruiti per le famiglie di allarmi più
-  comuni del repository.
-- **`catalog/`** (subpath export `@go-automation/go-runbook/catalog`) —
-  il catalogo concreto dei runbook, uno per `src/catalog/runbooks/<alarm-name>/`,
-  ciascuno con la propria `registration.ts` e `knownCases.ts`.
+```ini
+@pagopa:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
+```
 
-Consumato da `go-watchtower-runbook`, e dagli script che eseguono o
-analizzano runbook: `go-analyze-alarm`, `go-execute-runbook`,
-`go-rta-check`, `interop-analyze-alarms`.
+- **In locale:** un PAT _classic_ con `read:packages`, autorizzato SSO per l'organizzazione `pagopa`, esportato come `NODE_AUTH_TOKEN`.
+- **In GitHub Actions:** `permissions: { packages: read }` e `NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`. Il repository consumatore va abilitato in _Package settings → Manage Actions access_.
+
+Richiede Node.js `>=22.19.0` ed è solo ESM.
+
+```bash
+pnpm add @pagopa/go-runbook @pagopa/go-aws @pagopa/go-common
+# solo se si usa ./runtime: i peer di @pagopa/go-aws/all (niente client-ec2)
+pnpm add @aws-sdk/client-athena @aws-sdk/client-cloudwatch @aws-sdk/client-cloudwatch-logs \
+         @aws-sdk/client-dynamodb @aws-sdk/util-dynamodb @aws-sdk/client-ecs @aws-sdk/client-lambda \
+         @aws-sdk/client-s3 @aws-sdk/client-scheduler @aws-sdk/client-secrets-manager \
+         @aws-sdk/client-sqs @aws-sdk/client-ssm
+```
+
+Solo `./runtime` carica gli SDK: gli altri sei entrypoint funzionano senza nessun peer installato.
+
+## Entrypoint
+
+| Import                                | Contenuto                                                                                                                                                                   |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@pagopa/go-runbook`                  | **Engine**: tipi, contesto, condizioni, step di controllo, azioni, trace, `RunbookBuilder`, `RunbookEngine`. Non conosce AWS, prodotti, allarmi né Watchtower.              |
+| `@pagopa/go-runbook/output`           | Contratto dell'output dei runbook verso Watchtower (`RunbookOutput`, `classifyRunbookOutcome`, …).                                                                          |
+| `@pagopa/go-runbook/toolkits/common`  | Toolkit operativo comune: `OperationalRunbookEngine`, step AWS e HTTP, famiglie `apigw`, `lambda`, `service` senza dati di prodotto, account logici, helper di test.        |
+| `@pagopa/go-runbook/toolkits/send`    | Toolkit SEND: pipeline e profili SEND delle famiglie (`apigw`, `lambda`, `service`, `downstream`), `SEND_DOWNSTREAMS`, `SEND_ACCOUNTS`.                                     |
+| `@pagopa/go-runbook/toolkits/interop` | Toolkit INTEROP: famiglie `interop.apigw` e `interop.k8s`, ambienti e downstream INTEROP.                                                                                   |
+| `@pagopa/go-runbook/inventory`        | Runbook concreti e catalogo (`RUNBOOK_CATALOG`, `RUNBOOK_REGISTRY`, `RunbookDescriptor`, …).                                                                                |
+| `@pagopa/go-runbook/runtime`          | Composizione per l'esecuzione: `executeRunbookForOccurrence`, `createServiceRegistry`, `bindServicesToOccurrence`, porta degli account (`createAwsAccountsPort`), reporter. |
+
+Solo `./runtime` usa gli SDK AWS. Gli altri entrypoint usano i contratti senza
+SDK di `@pagopa/go-aws` (`./cloudwatch-logs/insights`, `./profiles`) e le porte
+di `ServiceRegistry`, che i servizi di go-aws soddisfano strutturalmente.
+
+## Runbook concreti
+
+I sorgenti stanno in `src/inventory/<prodotto>/<famiglia>/<alarm-name>/`
+(per esempio `src/inventory/send/apigw/pn-delivery-B2B-ApiGwAlarm/`). Ogni
+cartella contiene `runbook.ts` (con `buildRunbook()`), `registration.ts` e di
+solito `knownCases.ts` e `knownServices.ts`. Le registrazioni di ogni prodotto
+sono raccolte in `src/inventory/<prodotto>/manifest.ts`.
+
+Per crearne uno nuovo: `pnpm create:runbook` (vedi
+[bins/create-runbook/README.md](../../bins/create-runbook/README.md)).
 
 ## Esempio
 
 ```typescript
-import { RunbookBuilder, RunbookEngine, CloudWatchLogsQueryStep, logAction } from '@go-automation/go-runbook';
+import { RunbookBuilder, logAction } from '@pagopa/go-runbook';
+import { CloudWatchLogsQueryStep, OperationalRunbookEngine } from '@pagopa/go-runbook/toolkits/common';
 
 const runbook = RunbookBuilder.create('alarm-api-gw-5xx')
   .metadata({ name: 'API GW 5xx' /* ... */ })
@@ -36,20 +70,40 @@ const runbook = RunbookBuilder.create('alarm-api-gw-5xx')
   .fallback(logAction({/* ... */}))
   .build();
 
-const engine = new RunbookEngine(logger);
-const result = await engine.execute(runbook, params, services);
+const engine = new OperationalRunbookEngine(logger);
+const result = await engine.execute(runbook, params, services, {
+  invokedBy: 'manual',
+  awsProfiles: ['my-profile'],
+  region: 'eu-south-1',
+});
 ```
+
+`OperationalRunbookEngine` controlla, prima del primo step, che i servizi
+richiesti dagli step siano presenti e che gli account AWS logici siano
+configurati.
 
 ## Documentazione
 
-Reference completa del motore (step, condizioni, trace, builder API):
-`docs/RUNBOOKENGINE.md`. Convenzioni specifiche del catalogo (scaffolding
-con `pnpm create:runbook`, registrazione nel manifest, `knownCases.ts`):
-`packages/go-runbook/CLAUDE.md`.
+- Reference del motore (step, condizioni, trace, builder, servizi):
+  [docs/RUNBOOKENGINE.md](../../docs/RUNBOOKENGINE.md).
+- Account AWS logici (rubrica, ambienti, modi di accesso):
+  [docs/AWS_LOGICAL_ACCOUNTS.md](../../docs/AWS_LOGICAL_ACCOUNTS.md).
+- Riassetto del package (engine, toolkit, inventory, runtime):
+  [EVO-RBREORG-OPUS-01](../../docs/evolutions/EVO-RBREORG-OPUS-01.md).
+- Superficie pubblica di ogni entrypoint: cartella [`api/`](api/).
+- Controlli prima della pubblicazione (report API, smoke test, budget di import): [docs/PUBLISHED_PACKAGES_CHECKS.md](../../docs/PUBLISHED_PACKAGES_CHECKS.md).
+- Modifiche tra le versioni: `CHANGELOG.md`, creato al primo rilascio.
+
+## Consumatori
+
+`go-watchtower-runbook` e gli script che eseguono o analizzano runbook:
+`go-analyze-alarm`, `go-execute-runbook`, `go-rta-check`,
+`interop-analyze-alarms`. La Lambda `go-ExecuteRunbookLambda` lo usa tramite
+`go-execute-runbook`.
 
 ## Test e build
 
 ```bash
-pnpm --filter=@go-automation/go-runbook test
-pnpm --filter=@go-automation/go-runbook build
+pnpm --filter=@pagopa/go-runbook test
+pnpm --filter=@pagopa/go-runbook build
 ```

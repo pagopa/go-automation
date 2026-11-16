@@ -1,4 +1,4 @@
-import type { GOHttpRequestOptions } from '@go-automation/go-common/core';
+import type { GOHttpRequestOptions } from '@pagopa/go-common/http';
 
 import type { SENDApiVersion } from '../../services/notification/models/SENDApiVersion.js';
 import type { SENDNotificationCreationResponse } from '../../services/notification/models/SENDNotificationCreationResponse.js';

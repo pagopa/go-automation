@@ -4,7 +4,7 @@
 
 import path from 'path';
 
-import { Core } from '@go-automation/go-common';
+import type { GOPrompt } from '@go-automation/go-script';
 import type { SENDSafeStorageS3Service } from '@go-automation/go-send';
 
 import type { AttachmentDownloadTask } from '../types/AttachmentDownloadTask.js';
@@ -48,7 +48,7 @@ async function downloadAttachment(
 export async function runDownloads(
   tasks: ReadonlyArray<AttachmentDownloadTask>,
   safeStorage: SENDSafeStorageS3Service,
-  prompt: Core.GOPrompt,
+  prompt: GOPrompt,
 ): Promise<ReadonlyArray<DownloadResult>> {
   const results: DownloadResult[] = [];
   let completed = 0;

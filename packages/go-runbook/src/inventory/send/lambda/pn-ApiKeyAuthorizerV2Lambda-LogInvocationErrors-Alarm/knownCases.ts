@@ -1,0 +1,41 @@
+import { type KnownCase, varEquals } from '../../../../engine/index.js';
+import { knownCase, lambda, lambdaLogEvidenceMatches } from '../../../../toolkits/send/index.js';
+/**
+ * Known cases for the pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm runbook.
+ */
+export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
+  knownCase({
+    id: 'apikey-authorizer-timeout-single-occurrence',
+    description: 'Timeout della Lambda authorizer pn-ApiKeyAuthorizerV2Lambda',
+    priority: 110,
+    condition: varEquals('lambdaErrorCategory', 'timeout'),
+    title: 'Timeout pn-ApiKeyAuthorizerV2Lambda',
+    resolution: 'Il runbook descrive occorrenze singole per le quali non \u00E8 richiesta un\u2019azione specifica.',
+    details: [
+      ['Duration', '{{vars.lambdaDurationMs}} ms'],
+      ['requestId', '{{vars.lambdaRequestId}}'],
+    ],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
+    },
+  }),
+  ...lambda.LAMBDA_RUNTIME_KNOWN_CASES,
+  knownCase({
+    id: 'apikey-authorizer-get-key-econnreset',
+    description: 'Errore get key causato da interruzione connessione (ECONNRESET)',
+    priority: 90,
+    condition: lambdaLogEvidenceMatches('Error in get key[\\s\\S]*AxiosError:\\s*read ECONNRESET'),
+    title: 'pn-ApiKeyAuthorizerV2Lambda: Error in get key - AxiosError read ECONNRESET',
+    resolution: 'Il runbook descrive occorrenze singole per le quali non \u00E8 richiesta un\u2019azione specifica.',
+    details: [['requestId', '{{vars.lambdaRequestId}}']],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
+    },
+  }),
+];

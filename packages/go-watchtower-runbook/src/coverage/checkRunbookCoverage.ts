@@ -1,9 +1,11 @@
 import { createRequire } from 'node:module';
 
 import type { Ajv as AjvInstance, AnySchema, Options as AjvOptions, ValidateFunction } from 'ajv';
-import type { KnownCase, RunbookAnalysisDefaults, RunbookProduct } from '@go-automation/go-runbook';
-import { INTEROP_DOWNSTREAMS, SEND_DOWNSTREAMS } from '@go-automation/go-runbook';
-import type { RunbookCatalog } from '@go-automation/go-runbook/catalog';
+import type { KnownCase } from '@pagopa/go-runbook';
+import type { RunbookAnalysisDefaults, RunbookProduct } from '@pagopa/go-runbook/toolkits/common';
+import { INTEROP_DOWNSTREAMS } from '@pagopa/go-runbook/toolkits/interop';
+import { SEND_DOWNSTREAMS } from '@pagopa/go-runbook/toolkits/send';
+import type { RunbookCatalog } from '@pagopa/go-runbook/inventory';
 import type { IgnoreReasonDto, ProductCensus, ProductDto } from '@go-automation/go-watchtower-client';
 
 import type { CoverageIssue, CoverageIssueCode } from './CoverageIssue.js';

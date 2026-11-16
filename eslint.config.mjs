@@ -10,6 +10,8 @@ import globals from 'globals';
 import eslintPluginSecurity from 'eslint-plugin-security';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
 import sonarjs from 'eslint-plugin-sonarjs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 /**
  * Custom plugin: enforces that main.ts only contains the main() function.
@@ -168,6 +170,30 @@ const sharedRestrictedSyntaxRules = [
   },
 ];
 
+/**
+ * Source globs of the published packages (`packages/*` named `@pagopa/*`, not private), the
+ * same set `bins/check-published-sensitive-data` packs (EVO-AWSACCT-OPUS-01 §9, G-pub-3).
+ *
+ * @returns One `packages/<dir>/src/**\/*.ts` glob per published package
+ */
+function publishedPackageSources() {
+  // Resolved against this file, not the working directory: ESLint may run from a subdirectory.
+  const packagesRoot = join(import.meta.dirname, 'packages');
+  return readdirSync(packagesRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap((entry) => {
+      let manifest;
+      try {
+        manifest = JSON.parse(readFileSync(join(packagesRoot, entry.name, 'package.json'), 'utf8'));
+      } catch {
+        return [];
+      }
+      const published =
+        typeof manifest.name === 'string' && manifest.name.startsWith('@pagopa/') && manifest.private !== true;
+      return published ? [`packages/${entry.name}/src/**/*.ts`] : [];
+    });
+}
+
 const scriptRestrictedSyntaxRules = [
   // File writing → use go-common exporters
   {
@@ -199,7 +225,7 @@ const scriptRestrictedSyntaxRules = [
   {
     selector: "NewExpression[callee.name='EventEmitter']",
     message:
-      'Extend GOEventEmitterBase from @go-automation/go-common instead of using EventEmitter directly. See CONVENTIONS.md.',
+      'Extend GOEventEmitterBase from @pagopa/go-common/events instead of using EventEmitter directly. See CONVENTIONS.md.',
   },
 ];
 
@@ -423,6 +449,10 @@ export default tseslint.config(
   {
     files: [
       'packages/go-common/**/*.ts',
+      'packages/go-aws/**/*.ts',
+      'packages/go-script/**/*.ts',
+      'packages/go-documents/**/*.ts',
+      'packages/go-slack/**/*.ts',
       'packages/go-cli/**/*.ts',
       'packages/go-execute-runbook-contracts/**/*.ts',
       'packages/go-watchtower-client/**/*.ts',
@@ -449,6 +479,32 @@ export default tseslint.config(
       'no-console': 'off',
     },
   },
+
+  // EVO-AWSACCT-OPUS-01 §9 G-pub-3: no account id literal in the published packages' code.
+  {
+    files: publishedPackageSources(),
+    ignores: ['**/__tests__/**', '**/*.test.ts', '**/__baseline__/**'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...sharedRestrictedSyntaxRules,
+        {
+          selector: 'Literal[value=/^[0-9]{12}$/]',
+          message: 'account id nel codice pubblicato: usa un account logico (EVO-AWSACCT)',
+        },
+      ],
+    },
+  },
+
+  // EVO-RBREORG-OPUS-01 §10, import rules of go-runbook checked on the import specifier.
+  // dependency-cruiser keeps the path rules, but workspace packages resolve to dist/, which it
+  // excludes: on those imports it neither sees `import type` nor can be relied upon to keep the
+  // edge. These blocks enforce, independently of resolution:
+  // - go-aws-root-type-only: the go-aws root loads client-sts at runtime, types only;
+  // - only-runtime-touches-sdk: no @aws-sdk and no go-aws subpath but ./cloudwatch-logs/insights and ./profiles;
+  // - engine-is-a-foundation: the engine imports nothing from go-aws nor the go-common I/O areas;
+  // - no self-import of @pagopa/go-runbook, which would bypass every path rule.
+  ...goRunbookImportRules(),
 
   // ===== SonarJS: duplicated and redundant code =====
   // Added for the duplication family, which jscpd cannot cover: jscpd compares
@@ -516,7 +572,7 @@ export default tseslint.config(
   },
 
   // ===== Scripts: enforce go-common usage =====
-  // Prevents scripts from reimplementing features already provided by @go-automation/go-common.
+  // Prevents scripts from reimplementing features already provided by @pagopa/go-common and @go-automation/go-script.
   // Bypass with: // eslint-disable-next-line <rule> -- <justification>
   // See CONVENTIONS.md for the full mapping of go-common capabilities.
   {
@@ -531,131 +587,131 @@ export default tseslint.config(
             // CSV processing → GOCSVListExporter / GOCSVListImporter
             {
               name: 'csv-stringify',
-              message: 'Use GOCSVListExporter from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOCSVListExporter from @pagopa/go-common/exporters. See CONVENTIONS.md.',
             },
             {
               name: 'csv-stringify/sync',
-              message: 'Use GOCSVListExporter from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOCSVListExporter from @pagopa/go-common/exporters. See CONVENTIONS.md.',
             },
             {
               name: 'csv-parse',
-              message: 'Use GOCSVListImporter from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOCSVListImporter from @pagopa/go-common/importers. See CONVENTIONS.md.',
             },
             {
               name: 'csv-parse/sync',
-              message: 'Use GOCSVListImporter from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOCSVListImporter from @pagopa/go-common/importers. See CONVENTIONS.md.',
             },
             // Prompts → GOPrompt
             {
               name: 'prompts',
-              message: 'Use GOPrompt from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOPrompt from @go-automation/go-script. See CONVENTIONS.md.',
             },
             {
               name: '@inquirer/prompts',
-              message: 'Use GOPrompt from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOPrompt from @go-automation/go-script. See CONVENTIONS.md.',
             },
             {
               name: 'enquirer',
-              message: 'Use GOPrompt from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOPrompt from @go-automation/go-script. See CONVENTIONS.md.',
             },
             {
               name: 'inquirer',
-              message: 'Use GOPrompt from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOPrompt from @go-automation/go-script. See CONVENTIONS.md.',
             },
             // Spinners / progress → GOMultiSpinner / GOLoadingBar
             {
               name: 'ora',
-              message: 'Use GOMultiSpinner or GOLoadingBar from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOMultiSpinner or GOLoadingBar from @go-automation/go-script. See CONVENTIONS.md.',
             },
             {
               name: 'cli-spinners',
-              message: 'Use GOMultiSpinner or GOLoadingBar from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOMultiSpinner or GOLoadingBar from @go-automation/go-script. See CONVENTIONS.md.',
             },
             // Colors → GOLogger (handles colors internally)
             {
               name: 'chalk',
-              message: 'Use GOLogger from @go-automation/go-common for colored output. See CONVENTIONS.md.',
+              message: 'Use GOLogger from @pagopa/go-common/logging for colored output. See CONVENTIONS.md.',
             },
             {
               name: 'kleur',
-              message: 'Use GOLogger from @go-automation/go-common for colored output. See CONVENTIONS.md.',
+              message: 'Use GOLogger from @pagopa/go-common/logging for colored output. See CONVENTIONS.md.',
             },
             {
               name: 'picocolors',
-              message: 'Use GOLogger from @go-automation/go-common for colored output. See CONVENTIONS.md.',
+              message: 'Use GOLogger from @pagopa/go-common/logging for colored output. See CONVENTIONS.md.',
             },
             {
               name: 'colorette',
-              message: 'Use GOLogger from @go-automation/go-common for colored output. See CONVENTIONS.md.',
+              message: 'Use GOLogger from @pagopa/go-common/logging for colored output. See CONVENTIONS.md.',
             },
             // HTTP client → GOHttpClient
             {
               name: 'undici',
-              message: 'Use GOHttpClient from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOHttpClient from @pagopa/go-common/http. See CONVENTIONS.md.',
             },
             {
               name: 'node-fetch',
-              message: 'Use GOHttpClient from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOHttpClient from @pagopa/go-common/http. See CONVENTIONS.md.',
             },
             {
               name: 'axios',
-              message: 'Use GOHttpClient from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOHttpClient from @pagopa/go-common/http. See CONVENTIONS.md.',
             },
             {
               name: 'got',
-              message: 'Use GOHttpClient from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOHttpClient from @pagopa/go-common/http. See CONVENTIONS.md.',
             },
             // CLI argument parsing → GOScript / GOConfigReader
             {
               name: 'yargs',
-              message: 'Use GOScript config from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOScript config from @go-automation/go-script. See CONVENTIONS.md.',
             },
             {
               name: 'commander',
-              message: 'Use GOScript config from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOScript config from @go-automation/go-script. See CONVENTIONS.md.',
             },
             {
               name: 'minimist',
-              message: 'Use GOScript config from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOScript config from @go-automation/go-script. See CONVENTIONS.md.',
             },
             {
               name: 'meow',
-              message: 'Use GOScript config from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOScript config from @go-automation/go-script. See CONVENTIONS.md.',
             },
             // Tables → GOTableFormatter
             {
               name: 'cli-table3',
-              message: 'Use GOTableFormatter from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOTableFormatter from @pagopa/go-common/render. See CONVENTIONS.md.',
             },
             {
               name: 'table',
-              message: 'Use GOTableFormatter from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOTableFormatter from @pagopa/go-common/render. See CONVENTIONS.md.',
             },
             // Logging → GOLogger
             {
               name: 'winston',
-              message: 'Use GOLogger from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOLogger from @pagopa/go-common/logging. See CONVENTIONS.md.',
             },
             {
               name: 'pino',
-              message: 'Use GOLogger from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOLogger from @pagopa/go-common/logging. See CONVENTIONS.md.',
             },
             {
               name: 'bunyan',
-              message: 'Use GOLogger from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOLogger from @pagopa/go-common/logging. See CONVENTIONS.md.',
             },
             {
               name: 'log4js',
-              message: 'Use GOLogger from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOLogger from @pagopa/go-common/logging. See CONVENTIONS.md.',
             },
             // YAML → go-common utilities
             {
               name: 'yaml',
-              message: 'Use utilities from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use utilities from @pagopa/go-common. See CONVENTIONS.md.',
             },
             {
               name: 'js-yaml',
-              message: 'Use utilities from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use utilities from @pagopa/go-common. See CONVENTIONS.md.',
             },
           ],
         },
@@ -763,3 +819,60 @@ export default tseslint.config(
   // Prettier integration - MUST be last to override other configs
   eslintPluginPrettierRecommended,
 );
+
+/**
+ * ESLint blocks enforcing the go-runbook import rules of EVO-RBREORG-OPUS-01 §10 on the import specifier.
+ *
+ * @returns Flat-config blocks for toolkits/inventory, their named debt, and the engine
+ */
+function goRunbookImportRules() {
+  const RULE = '@typescript-eslint/no-restricted-imports';
+  const SPEC = '(EVO-RBREORG-OPUS-01 §10)';
+  const goAwsRootTypeOnly = {
+    name: '@pagopa/go-aws',
+    allowTypeImports: true,
+    message: `The go-aws root loads client-sts at runtime: import types only ${SPEC}.`,
+  };
+  const selfImport = {
+    group: ['@pagopa/go-runbook', '@pagopa/go-runbook/*'],
+    message: `Import go-runbook modules by relative path: a self-import bypasses the layer rules ${SPEC}.`,
+  };
+  const sdk = {
+    // Anchored: exempts exactly the SDK-free ./cloudwatch-logs/insights and ./profiles, not the parent ./cloudwatch-logs.
+    regex: '^(?:@aws-sdk/|@pagopa/go-aws/(?!(?:cloudwatch-logs/insights|profiles)$))',
+    message: `Only runtime/ uses the AWS SDK; outside it go-aws offers only ./cloudwatch-logs/insights and ./profiles ${SPEC}.`,
+  };
+  return [
+    {
+      files: ['packages/go-runbook/src/toolkits/**/*.ts', 'packages/go-runbook/src/inventory/**/*.ts'],
+      ignores: ['**/__tests__/**'],
+      rules: { [RULE]: ['error', { paths: [goAwsRootTypeOnly], patterns: [sdk, selfImport] }] },
+    },
+    {
+      files: ['packages/go-runbook/src/engine/**/*.ts'],
+      ignores: ['**/__tests__/**'],
+      rules: {
+        [RULE]: [
+          'error',
+          {
+            paths: [{ name: '@pagopa/go-aws', message: `The engine knows no AWS ${SPEC}.` }],
+            patterns: [
+              { group: ['@aws-sdk/*', '@pagopa/go-aws/*'], message: `The engine knows no AWS ${SPEC}.` },
+              {
+                group: [
+                  '@pagopa/go-common/http',
+                  '@pagopa/go-common/files',
+                  '@pagopa/go-common/importers',
+                  '@pagopa/go-common/exporters',
+                  '@pagopa/go-common/process',
+                ],
+                message: `The engine does no I/O: it imports no go-common I/O area ${SPEC}.`,
+              },
+              selfImport,
+            ],
+          },
+        ],
+      },
+    },
+  ];
+}

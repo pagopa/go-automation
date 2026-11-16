@@ -21,6 +21,8 @@ export interface RunbookAnswers {
   readonly tags: ReadonlyArray<string>;
   /** Watchtower product owning the alarms. */
   readonly product: RunbookProduct;
+  /** Inventory family: the folder under `inventory/<product>/`. */
+  readonly family: string;
   /** Automatic catalog categories. */
   readonly categories: ReadonlyArray<string>;
   /** Template-specific inputs, keyed by {@link TemplateInput.name}. */

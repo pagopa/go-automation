@@ -1,6 +1,6 @@
 import type { EC2Client } from '@aws-sdk/client-ec2';
 import type { SSMClient } from '@aws-sdk/client-ssm';
-import type { GOLogger } from '@go-automation/go-common/core';
+import type { GOLogger } from '@pagopa/go-common/logging';
 
 import type { SsmTunnelDefinition } from '../environment/SsmTunnelDefinition.js';
 import type { BastionStartConfirmFn } from './BastionStartConfirmFn.js';

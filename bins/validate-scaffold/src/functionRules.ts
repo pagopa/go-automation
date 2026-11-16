@@ -316,10 +316,10 @@ export const functionRules: ReadonlyArray<ScaffoldRule> = [
     },
   },
   {
-    name: 'Wrapper Lambda depends on go-common via workspace protocol',
+    name: 'Wrapper Lambda depends on go-script via workspace protocol',
     check: 'custom',
     validate: async (functionPath) => {
-      const ruleName = 'Wrapper Lambda depends on go-common via workspace protocol';
+      const ruleName = 'Wrapper Lambda depends on go-script via workspace protocol';
       const context = await loadFunctionContext(functionPath);
 
       if (!context?.isWrapper) {
@@ -327,7 +327,7 @@ export const functionRules: ReadonlyArray<ScaffoldRule> = [
       }
 
       const dependencies = getDependencies(context.packageJson);
-      if (dependencies['@go-automation/go-common'] === 'workspace:*') {
+      if (dependencies['@go-automation/go-script'] === 'workspace:*') {
         return { rule: ruleName, passed: true };
       }
 
@@ -335,8 +335,8 @@ export const functionRules: ReadonlyArray<ScaffoldRule> = [
         rule: ruleName,
         passed: false,
         file: 'package.json',
-        line: findLine(context.packageJsonContent, '@go-automation/go-common'),
-        message: 'Wrapper Lambdas should depend on @go-automation/go-common via workspace:*.',
+        line: findLine(context.packageJsonContent, '@go-automation/go-script'),
+        message: 'Wrapper Lambdas should depend on @go-automation/go-script via workspace:*.',
       };
     },
   },
@@ -371,20 +371,20 @@ export const functionRules: ReadonlyArray<ScaffoldRule> = [
     },
   },
   {
-    name: 'Wrapper Lambda tsconfig references go-common and the wrapped script',
+    name: 'Wrapper Lambda tsconfig references go-script and the wrapped script',
     check: 'custom',
     validate: async (functionPath) => {
-      const ruleName = 'Wrapper Lambda tsconfig references go-common and the wrapped script';
+      const ruleName = 'Wrapper Lambda tsconfig references go-script and the wrapped script';
       const context = await loadFunctionContext(functionPath);
 
       if (!context?.isWrapper) {
         return { rule: ruleName, passed: true };
       }
 
-      const hasGoCommonReference = context.tsconfigContent.includes('../../packages/go-common');
+      const hasGoScriptReference = context.tsconfigContent.includes('../../packages/go-script');
       const hasScriptReference = context.tsconfigContent.includes('../../scripts/');
 
-      if (hasGoCommonReference && hasScriptReference) {
+      if (hasGoScriptReference && hasScriptReference) {
         return { rule: ruleName, passed: true };
       }
 
@@ -392,7 +392,7 @@ export const functionRules: ReadonlyArray<ScaffoldRule> = [
         rule: ruleName,
         passed: false,
         file: 'tsconfig.json',
-        message: 'Wrapper Lambdas should reference both go-common and the wrapped script in tsconfig.json.',
+        message: 'Wrapper Lambdas should reference both go-script and the wrapped script in tsconfig.json.',
       };
     },
   },

@@ -1,4 +1,4 @@
-import type { GOChildProcessReadyOptions } from '@go-automation/go-common/core';
+import type { GOChildProcessReadyOptions } from '@pagopa/go-common/process';
 
 /**
  * The process holding the port forwarding (`aws ssm start-session`): the part

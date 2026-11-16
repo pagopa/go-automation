@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { KnownCase, KnownCaseAnalysis, Runbook, RunbookAnalysisDefaults } from '@go-automation/go-runbook';
-import { INTEROP_DOWNSTREAMS, SEND_DOWNSTREAMS } from '@go-automation/go-runbook';
-import { RunbookCatalog } from '@go-automation/go-runbook/catalog';
-import type { RunbookRegistration } from '@go-automation/go-runbook/catalog';
+import type { KnownCase, Runbook } from '@pagopa/go-runbook';
+import type { KnownCaseAnalysis } from '@pagopa/go-runbook/output';
+import type { RunbookAnalysisDefaults } from '@pagopa/go-runbook/toolkits/common';
+import { INTEROP_DOWNSTREAMS } from '@pagopa/go-runbook/toolkits/interop';
+import { SEND_DOWNSTREAMS } from '@pagopa/go-runbook/toolkits/send';
+import { RunbookCatalog } from '@pagopa/go-runbook/inventory';
+import type { RunbookRegistration } from '@pagopa/go-runbook/inventory';
 import type { IgnoreReasonDto, ProductCensus, ProductDto } from '@go-automation/go-watchtower-client';
 
 import { checkRunbookCoverage } from '../checkRunbookCoverage.js';
@@ -14,10 +17,7 @@ const INTEROP_PRODUCT_ID = 'product-interop';
 const ALARM = 'pn-delivery-B2B-ApiGwAlarm';
 const INTEROP_ALARM = 'interop-alarm';
 
-const PRODUCTS: ReadonlyArray<ProductDto> = [
-  product(SEND_PRODUCT_ID, 'SEND'),
-  product(INTEROP_PRODUCT_ID, 'INTEROP'),
-];
+const PRODUCTS: ReadonlyArray<ProductDto> = [product(SEND_PRODUCT_ID, 'SEND'), product(INTEROP_PRODUCT_ID, 'INTEROP')];
 
 describe('checkRunbookCoverage', () => {
   it('reports no error when every declared reference is censused', async () => {
@@ -196,10 +196,7 @@ describe('checkRunbookCoverage', () => {
       ignoreReasons: [],
     });
 
-    assert.strictEqual(
-      report.errors.filter((issue) => issue.code === 'ALARM_PRODUCT_MISMATCH').length,
-      2,
-    );
+    assert.strictEqual(report.errors.filter((issue) => issue.code === 'ALARM_PRODUCT_MISMATCH').length, 2);
   });
 
   it('blocks when a required Watchtower product is missing', async () => {
@@ -217,9 +214,7 @@ describe('checkRunbookCoverage', () => {
 
   it('blocks when two runbook products map to the same Watchtower product id', async () => {
     const sharedProductId = 'shared-product';
-    const census = [
-      { ...sendCensus(), productId: sharedProductId },
-    ] as unknown as ReadonlyArray<ProductCensus>;
+    const census = [{ ...sendCensus(), productId: sharedProductId }] as unknown as ReadonlyArray<ProductCensus>;
 
     const report = await checkRunbookCoverage({
       registry: registryOf([registration('rb', 'SEND', [ALARM], runbookOf({}, {}))]),
@@ -259,14 +254,7 @@ interface RunOptions {
 async function run(options: RunOptions): ReturnType<typeof checkRunbookCoverage> {
   const alarmNames = options.alarmNames ?? [ALARM];
   return await checkRunbookCoverage({
-    registry: registryOf([
-      registration(
-        'rb',
-        'SEND',
-        alarmNames,
-        runbookOf(options.defaults ?? {}, options.analysis),
-      ),
-    ]),
+    registry: registryOf([registration('rb', 'SEND', alarmNames, runbookOf(options.defaults ?? {}, options.analysis))]),
     products: PRODUCTS,
     census: [sendCensus(), interopCensus()] as unknown as ReadonlyArray<ProductCensus>,
     ignoreReasons: options.ignoreReasons ?? [],
@@ -274,7 +262,12 @@ async function run(options: RunOptions): ReturnType<typeof checkRunbookCoverage>
 }
 
 function registryOf(registrations: ReadonlyArray<RunbookRegistration>): RunbookCatalog {
-  return new RunbookCatalog(registrations);
+  return new RunbookCatalog(registrations, {
+    downstreamCatalogs: {
+      SEND: new Set<string>(Object.values(SEND_DOWNSTREAMS)),
+      INTEROP: new Set<string>(Object.values(INTEROP_DOWNSTREAMS)),
+    },
+  });
 }
 
 function registration(

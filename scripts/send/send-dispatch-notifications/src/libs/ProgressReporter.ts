@@ -2,7 +2,7 @@
  * Progress line updated in place during the run (§15).
  */
 
-import type { Core } from '@go-automation/go-common';
+import type { GOPrompt } from '@go-automation/go-script';
 import type { Dispatch } from '@go-automation/go-send';
 
 import type { PlannedWork } from '../types/PlannedWork.js';
@@ -28,7 +28,7 @@ export class ProgressReporter {
    * @param work - What the session does (rows and whether it sends)
    */
   constructor(
-    private readonly prompt: Core.GOPrompt,
+    private readonly prompt: GOPrompt,
     private readonly session: Dispatch.DispatchSession,
     private readonly work: PlannedWork,
   ) {

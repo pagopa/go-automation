@@ -17,10 +17,12 @@ function servicePlaceholders(answers: RunbookAnswers): ReadonlyMap<string, strin
 
 /**
  * Template for service-log alarm runbooks: emits knownServices, knownCases
- * and runbook files based on `service.createServiceAlarmRunbook`.
+ * and runbook files based on `service.createSendServiceAlarmRunbook`.
  */
 export const SERVICE_TEMPLATE: RunbookTemplate = {
   id: 'service',
+  products: ['SEND'],
+  family: 'service',
   label: 'Service log alarm (3 file)',
   description: 'Runbook generico per allarmi diagnosticati dai log applicativi di un servizio.',
   templateDir: 'service',

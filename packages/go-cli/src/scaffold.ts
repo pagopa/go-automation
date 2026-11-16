@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Core } from '@go-automation/go-common';
+import type { GOPrompt } from '@go-automation/go-script';
+import type { GOLogger } from '@pagopa/go-common/logging';
 import { getCategoryProductCode, getScaffoldCategoryChoices, getScriptShortcutBase } from './categories.js';
 
 const fileName = fileURLToPath(import.meta.url);
@@ -28,10 +29,10 @@ interface PackageJson {
  * Script Scaffolder - Generates new scripts from templates
  */
 export class Scaffolder {
-  private readonly prompt: Core.GOPrompt;
-  private readonly logger: Core.GOLogger;
+  private readonly prompt: GOPrompt;
+  private readonly logger: GOLogger;
 
-  constructor(prompt: Core.GOPrompt, logger: Core.GOLogger) {
+  constructor(prompt: GOPrompt, logger: GOLogger) {
     this.prompt = prompt;
     this.logger = logger;
   }
@@ -92,18 +93,7 @@ export class Scaffolder {
     await fs.mkdir(targetDir, { recursive: true });
     await fs.mkdir(path.join(targetDir, 'src/types'), { recursive: true });
 
-    // 1. Map templates to target files
-    const fileMap: Record<string, string> = {
-      'package.json.template': 'package.json',
-      'tsconfig.json.template': 'tsconfig.json',
-      'README.md.template': 'README.md',
-      'index.ts.template': 'src/index.ts',
-      'config.ts.template': 'src/config.ts',
-      'main.ts.template': 'src/main.ts',
-      'config-type.ts.template': 'src/types/index.ts',
-    };
-
-    // 2. Prepare replacements
+    // 1. Prepare names
     const title = options.name
       .split('-')
       .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
@@ -114,6 +104,18 @@ export class Scaffolder {
       .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
       .join('')}Config`;
 
+    // 2. Map templates to target files (same layout as bins/create-script.sh: one type per file)
+    const fileMap: Record<string, string> = {
+      'package.json.template': 'package.json',
+      'tsconfig.json.template': 'tsconfig.json',
+      'README.md.template': 'README.md',
+      'index.ts.template': 'src/index.ts',
+      'config.ts.template': 'src/config.ts',
+      'main.ts.template': 'src/main.ts',
+      'config-type.ts.template': `src/types/${configName}.ts`,
+    };
+
+    // 3. Prepare replacements
     const replacements: Record<string, string> = {
       '{{SCRIPT_NAME}}': options.name,
       '{{SCRIPT_TITLE}}': title,
@@ -121,9 +123,28 @@ export class Scaffolder {
       '{{SCRIPT_AUTHOR}}': options.author,
       '{{PRODUCT}}': options.product,
       '{{SCRIPT_CONFIG_NAME}}': configName,
+      // Same defaults as bins/create-script.sh without AWS parameters (shared templates).
+      '{{GO_SCRIPT_CONFIG_IMPORT}}':
+        "import type { GOConfigParameterOptions, GOScriptMetadata } from '@go-automation/go-script';",
+      '{{PARAMETERS_CONTENT}}': [
+        '  // Add your parameters here',
+        '  // Example:',
+        '  // {',
+        "  //   name: 'input.file',",
+        '  //   type: GOConfigParameterType.STRING,',
+        "  //   description: 'Path to input file',",
+        '  //   required: true,',
+        "  //   aliases: ['i'],",
+        '  // },',
+      ].join('\n'),
+      '{{CONFIG_INTERFACE_CONTENT}}': [
+        '  // Add your configuration fields here',
+        '  // Example:',
+        '  // readonly inputFile: string;',
+      ].join('\n'),
     };
 
-    // 3. Process files
+    // 4. Process files
     for (const [template, target] of Object.entries(fileMap)) {
       const templatePath = path.join(TEMPLATES_DIR, template);
       let content = await fs.readFile(templatePath, 'utf-8');
@@ -135,7 +156,13 @@ export class Scaffolder {
       await fs.writeFile(path.join(targetDir, target), content);
     }
 
-    // 4. Update root package.json
+    // 5. Barrel of the types directory, re-exporting the config interface
+    await fs.writeFile(
+      path.join(targetDir, 'src/types/index.ts'),
+      `export type { ${configName} } from './${configName}.js';\n`,
+    );
+
+    // 6. Update root package.json
     await this.updateRootPackageJson(options);
 
     this.logger.newline();

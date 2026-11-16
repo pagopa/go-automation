@@ -4,7 +4,8 @@
  * Shared with the `describe` action, which needs exactly the same fan-out.
  */
 
-import { AWS, type Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { AWSSchedulerService } from '@pagopa/go-aws/scheduler';
 
 import type { AwsScheduleEventbridgeConfig, ScheduleRead } from '../types/index.js';
 import { isScheduleNotFound } from './isScheduleNotFound.js';
@@ -52,7 +53,7 @@ function indexByProfile(
  * @returns One read per configured profile, in configuration order
  */
 export async function readSchedules(
-  script: Core.GOScript,
+  script: GOScript,
   config: AwsScheduleEventbridgeConfig,
 ): Promise<ReadonlyArray<ScheduleRead>> {
   const scheduleName = config.scheduleName;
@@ -69,7 +70,7 @@ export async function readSchedules(
       // Never `script.aws.services.scheduler`: the cached services all talk to
       // the first profile only, so inside the fan-out the client must come from
       // the provider handed to this callback.
-      const service = new AWS.AWSSchedulerService(clientProvider.scheduler);
+      const service = new AWSSchedulerService(clientProvider.scheduler);
 
       try {
         const schedule = await service.getSchedule(scheduleName, config.scheduleGroup);

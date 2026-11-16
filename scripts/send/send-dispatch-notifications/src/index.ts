@@ -7,7 +7,7 @@
  * - Main business logic execution
  */
 
-import { Core } from '@go-automation/go-common';
+import { GOScript } from '@go-automation/go-script';
 
 import { scriptMetadata, scriptParameters } from './config.js';
 import { DispatchShutdown } from './libs/DispatchShutdown.js';
@@ -19,7 +19,7 @@ const shutdown = new DispatchShutdown();
 /**
  * Create the GOScript instance with metadata and parameters from config
  */
-const script = new Core.GOScript({
+const script = new GOScript({
   metadata: scriptMetadata,
   config: {
     parameters: scriptParameters,

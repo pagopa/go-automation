@@ -2,8 +2,8 @@
  * Runbook: {{RUNBOOK_ID}}
  */
 
-import { service } from '../framework.js';
-import type { Runbook } from '../framework.js';
+import { service } from '../../../../toolkits/send/index.js';
+import type { Runbook } from '../../../../engine/index.js';
 
 import { SERVICE } from './knownServices.js';
 import { KNOWN_CASES } from './knownCases.js';
@@ -14,7 +14,7 @@ import { KNOWN_CASES } from './knownCases.js';
  * @returns A validated {@link Runbook} ready for execution
  */
 export function buildRunbook(): Runbook {
-  return service.createServiceAlarmRunbook({
+  return service.createSendServiceAlarmRunbook({
     id: '{{RUNBOOK_ID}}',
     metadata: {
       name: '{{METADATA_NAME}}',

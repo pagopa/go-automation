@@ -2,7 +2,9 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOBinaryFileExporter } from '@pagopa/go-common/exporters';
+import { GOTextFileImporter } from '@pagopa/go-common/importers';
 
 import type { SendDispatchNotificationsConfig } from '../../../types/SendDispatchNotificationsConfig.js';
 
@@ -170,7 +172,7 @@ class TestPaths {
 
 /** A GOScript double rooted in a temp directory. */
 export interface TestScript {
-  readonly script: Core.GOScript;
+  readonly script: GOScript;
   readonly logger: FakeLogger;
   readonly prompt: FakePrompt;
   readonly dir: string;
@@ -196,7 +198,7 @@ export async function createTestScript(answer: boolean | undefined = true): Prom
     logger,
     prompt,
     aws: { clients: { get: () => ({ dynamoDB: EMPTY_DYNAMO }) } },
-  } as unknown as Core.GOScript;
+  } as unknown as GOScript;
   return { script, logger, prompt, dir };
 }
 
@@ -207,7 +209,7 @@ export async function createTestScript(answer: boolean | undefined = true): Prom
  * @param content - Text
  */
 export async function writeFixture(filePath: string, content: string): Promise<void> {
-  await new Core.GOBinaryFileExporter({ outputPath: filePath }).export(Buffer.from(content, 'utf8'));
+  await new GOBinaryFileExporter({ outputPath: filePath }).export(Buffer.from(content, 'utf8'));
 }
 
 /**
@@ -217,5 +219,5 @@ export async function writeFixture(filePath: string, content: string): Promise<v
  * @returns Content, or `undefined` when missing
  */
 export async function readFixture(filePath: string): Promise<string | undefined> {
-  return new Core.GOTextFileImporter({ inputPath: filePath, optional: true }).import();
+  return new GOTextFileImporter({ inputPath: filePath, optional: true }).import();
 }

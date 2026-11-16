@@ -3,16 +3,18 @@
  * configured account.
  */
 
-import { AWS, Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { AWSSchedulerService, type ScheduleSummary } from '@pagopa/go-aws/scheduler';
+import { omitUndefined } from '@pagopa/go-common/utils';
 
 import type { AwsScheduleEventbridgeConfig } from '../types/index.js';
 import { displayScheduleTable } from './scheduleDisplay.js';
 
 /** Reports what each account contributed, so a quiet account is visible. */
 function reportPerProfile(
-  script: Core.GOScript,
+  script: GOScript,
   profiles: ReadonlyArray<string>,
-  results: ReadonlyMap<string, ReadonlyArray<AWS.ScheduleSummary>>,
+  results: ReadonlyMap<string, ReadonlyArray<ScheduleSummary>>,
   errors: ReadonlyMap<string, Error>,
 ): void {
   for (const profile of profiles) {
@@ -40,8 +42,8 @@ function reportPerProfile(
  * @param config - Validated script configuration
  * @throws When every profile failed
  */
-export async function runListSchedules(script: Core.GOScript, config: AwsScheduleEventbridgeConfig): Promise<void> {
-  const filters = Core.omitUndefined({
+export async function runListSchedules(script: GOScript, config: AwsScheduleEventbridgeConfig): Promise<void> {
+  const filters = omitUndefined({
     groupName: config.scheduleGroup,
     namePrefix: config.namePrefix,
     state: config.state,
@@ -50,11 +52,11 @@ export async function runListSchedules(script: Core.GOScript, config: AwsSchedul
   script.logger.info(`Listing schedules in group "${config.scheduleGroup}" (region ${config.awsRegion})`);
 
   const { results, errors } = await script.aws.clients.mapParallelSettled(
-    async (profile, clientProvider): Promise<ReadonlyArray<AWS.ScheduleSummary>> => {
+    async (profile, clientProvider): Promise<ReadonlyArray<ScheduleSummary>> => {
       script.prompt.spin(profile, `${profile}: listing schedules...`);
 
       // Never `script.aws.services.scheduler`: it only ever talks to the first profile.
-      const service = new AWS.AWSSchedulerService(clientProvider.scheduler);
+      const service = new AWSSchedulerService(clientProvider.scheduler);
       const summaries = await service.listSchedules(filters);
 
       script.prompt.spinSucceed(profile, `${profile}: ${summaries.length} schedule(s)`);

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Core } from '@go-automation/go-common';
+import { GOLogger } from '@pagopa/go-common/logging';
 import type { ProductDto, WatchtowerClient } from '@go-automation/go-watchtower-client';
 import type { CoverageIssue, CoverageIssueCode, CoverageReport } from '@go-automation/go-watchtower-runbook';
 
@@ -27,7 +27,7 @@ describe('runCoverageCheck', () => {
   it('returns 2 when no product is readable', async () => {
     const client = { listProducts: async () => await Promise.resolve([]) } as unknown as WatchtowerClient;
 
-    const result = await runCoverageCheck(new Core.GOLogger([]), client);
+    const result = await runCoverageCheck(new GOLogger([]), client);
 
     assert.deepStrictEqual(result, {
       kind: 'NOT_EXECUTABLE',
@@ -41,7 +41,7 @@ describe('runCoverageCheck', () => {
       getProductCensus: async () => await Promise.reject(new Error('invalid census response')),
     } as unknown as WatchtowerClient;
 
-    const result = await runCoverageCheck(new Core.GOLogger([]), client);
+    const result = await runCoverageCheck(new GOLogger([]), client);
 
     assert.deepStrictEqual(result, {
       kind: 'NOT_EXECUTABLE',

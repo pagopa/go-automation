@@ -7,6 +7,7 @@
  */
 export { checkOccurrence } from './check/checkOccurrence.js';
 export type { CheckOccurrenceInput, RunbookCheckContext } from './check/checkOccurrence.js';
+export type { RunbookCheckAccounts } from './check/RunbookCheckAccounts.js';
 export { checkOccurrences } from './check/checkOccurrences.js';
 export type { CheckOccurrencesInput } from './check/checkOccurrences.js';
 
@@ -20,6 +21,7 @@ export { resolveRunbookCacheDescriptor } from './cache/runbookFingerprint.js';
 export { runbookCheckCacheKey } from './cache/RunbookCheckCache.js';
 export type { RunbookCheckCache } from './cache/RunbookCheckCache.js';
 export type { CachedRunbookMeta } from './cache/CachedRunbookMeta.js';
+export type { CachedRunbookAccounts } from './cache/CachedRunbookAccounts.js';
 export type { CachedRunbookOutput } from './cache/CachedRunbookOutput.js';
 export type { RunbookCacheDescriptor } from './cache/RunbookCacheDescriptor.js';
 

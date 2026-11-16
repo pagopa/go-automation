@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOLogger } from '@pagopa/go-common/logging';
 import type { WatchtowerClient } from '@go-automation/go-watchtower-client';
 import type { CoverageReport } from '@go-automation/go-watchtower-runbook';
 
@@ -128,8 +129,8 @@ describe('runCoverageMode', () => {
   });
 });
 
-function script(): Core.GOScript {
-  return { logger: new Core.GOLogger([]) } as Core.GOScript;
+function script(): GOScript {
+  return { logger: new GOLogger([]) } as GOScript;
 }
 
 async function resolveConnection(): Promise<Connection> {

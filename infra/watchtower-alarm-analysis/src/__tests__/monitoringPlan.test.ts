@@ -63,6 +63,46 @@ describe('execute-runbook monitoring plan', () => {
     assert.deepStrictEqual(config.oamSourceAccountIds, ['170533023216']);
   });
 
+  it('reads the worker account directory and requires every account to be an OAM source', () => {
+    const env = { ...BASE_ENV, DEPLOY_REGION: 'eu-south-1', EXECUTE_RUNBOOK_WORKER_SUBNET_AZ: 'eu-south-1a' };
+    assert.deepStrictEqual(loadExecuteRunbookDeploymentConfig(env).executeRunbookAccountDirectory, []);
+    assert.deepStrictEqual(
+      loadExecuteRunbookDeploymentConfig({
+        ...env,
+        EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY: ' shop/core/prod=123456789012 , shop/extra/prod=210987654321',
+      }).executeRunbookAccountDirectory,
+      ['shop/core/prod=123456789012', 'shop/extra/prod=210987654321'],
+    );
+    assert.throws(
+      () =>
+        loadExecuteRunbookDeploymentConfig({
+          ...env,
+          EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY: 'shop/core/prod=000000000999',
+        }),
+      /not in OAM_SOURCE_ACCOUNT_IDS/,
+    );
+    assert.throws(
+      () => loadExecuteRunbookDeploymentConfig({ ...env, EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY: 'shop/core=123456789012' }),
+      /invalid entry/,
+    );
+    assert.throws(
+      () =>
+        loadExecuteRunbookDeploymentConfig({
+          ...env,
+          EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY: 'shop/core/prod=123456789012,shop/core/prod=210987654321',
+        }),
+      /declares shop\/core\/prod more than once/,
+    );
+    assert.throws(
+      () =>
+        loadExecuteRunbookDeploymentConfig({
+          ...env,
+          EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY: 'shop/core/prod=123456789012,shop/core/uat=123456789012',
+        }),
+      /to environments prod and uat/,
+    );
+  });
+
   it('rejects missing integration inputs and non-TLS Watchtower URLs', () => {
     assert.throws(() => loadExecuteRunbookDeploymentConfig({ DEPLOY_ENV: 'dev' }), /DEPLOY_REGION/);
     assert.throws(

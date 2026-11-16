@@ -1,5 +1,5 @@
-import type { Core } from '@go-automation/go-common';
-import { valueToString } from '@go-automation/go-common/core';
+import type { GOScript } from '@go-automation/go-script';
+import { valueToString } from '@pagopa/go-common/utils';
 
 import { renderCoverage } from '../report/renderCoverage.js';
 import { writeCoverageReport } from '../report/writeCoverageReport.js';
@@ -9,7 +9,7 @@ import type { Connection } from './resolveClient.js';
 import { COVERAGE_EXIT_CODES, runCoverageCheck } from './runCoverageCheck.js';
 import type { CoverageExitCode } from './runCoverageCheck.js';
 
-type ResolveConnectionFn = (script: Core.GOScript, config: GoRtaCheckConfig) => Promise<Connection | undefined>;
+type ResolveConnectionFn = (script: GOScript, config: GoRtaCheckConfig) => Promise<Connection | undefined>;
 
 interface CoverageModeDependencies {
   readonly resolveConnection: ResolveConnectionFn;
@@ -30,7 +30,7 @@ const DEFAULT_DEPENDENCIES: CoverageModeDependencies = {
  * credentials, authentication, network and response parsing all map to exit 2.
  */
 export async function runCoverageMode(
-  script: Core.GOScript,
+  script: GOScript,
   config: GoRtaCheckConfig,
   dependencies: CoverageModeDependencies = DEFAULT_DEPENDENCIES,
 ): Promise<CoverageExitCode> {

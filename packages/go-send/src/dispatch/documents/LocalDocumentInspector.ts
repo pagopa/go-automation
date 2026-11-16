@@ -1,12 +1,8 @@
 import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 
-import {
-  GOBinaryFileImporter,
-  GOFileTooLargeError,
-  GOPathOutsideRootError,
-  isEnoentError,
-} from '@go-automation/go-common/core';
+import { GOBinaryFileImporter, GOFileTooLargeError, GOPathOutsideRootError } from '@pagopa/go-common/importers';
+import { isEnoentError } from '@pagopa/go-common/utils';
 
 import type { DocumentInspection } from './DocumentInspection.js';
 

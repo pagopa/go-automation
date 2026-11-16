@@ -9,8 +9,20 @@
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
   "references": [
-    { "path": "../../../packages/go-common" },
-    { "path": "../../../packages/go-runbook" },
-    { "path": "../../../packages/go-watchtower-client" }
+    {
+      "path": "../../../packages/go-common"
+    },
+    {
+      "path": "../../../packages/go-runbook"
+    },
+    {
+      "path": "../../../packages/go-watchtower-client"
+    },
+    {
+      "path": "../../../packages/go-script"
+    },
+    {
+      "path": "../../../packages/go-aws"
+    }
   ]
 }

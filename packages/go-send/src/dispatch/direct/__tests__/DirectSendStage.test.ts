@@ -4,8 +4,8 @@ import * as os from 'node:os';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
-import { GORateLimiter } from '@go-automation/go-common/core';
-import type { GOHttpClientError } from '@go-automation/go-common/core';
+import { GORateLimiter } from '@pagopa/go-common/concurrency';
+import type { GOHttpClientError } from '@pagopa/go-common/http';
 
 import { httpError, transportError } from '../../__tests__/helpers/FakeB2BApi.js';
 import { MemorySink } from '../../__tests__/helpers/MemorySink.js';

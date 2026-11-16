@@ -1,10 +1,10 @@
 import type { ScheduledEvent } from 'aws-lambda';
 
-import { Core } from '@go-automation/go-common';
+import { GOScript } from '@go-automation/go-script';
 import { scriptMetadata, scriptParameters } from '{{WRAPPED_SCRIPT_PACKAGE_NAME}}/config';
 import { main } from '{{WRAPPED_SCRIPT_PACKAGE_NAME}}/main';
 
-const script = new Core.GOScript({
+const script = new GOScript({
   metadata: scriptMetadata,
   config: {
     parameters: scriptParameters,

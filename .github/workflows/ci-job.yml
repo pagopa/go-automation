@@ -57,6 +57,11 @@ on:
         required: false
         type: string
         default: ''
+      import-cost-time-factor:
+        description: 'Multiplier of the import-time budgets of check:import-cost (runners are slower than a workstation)'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -93,6 +98,7 @@ jobs:
           GO_COVERAGE_LINES_THRESHOLD: ${{ inputs.coverage-lines-threshold }}
           GO_COVERAGE_BRANCHES_THRESHOLD: ${{ inputs.coverage-branches-threshold }}
           GO_COVERAGE_FUNCTIONS_THRESHOLD: ${{ inputs.coverage-functions-threshold }}
+          IMPORT_COST_TIME_FACTOR: ${{ inputs.import-cost-time-factor }}
         run: pnpm ${{ inputs.command }}
 
       - name: Upload artifact

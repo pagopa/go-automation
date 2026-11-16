@@ -1,6 +1,7 @@
 import type { Context, SQSBatchItemFailure, SQSBatchResponse, SQSEvent } from 'aws-lambda';
 
-import { Core } from '@go-automation/go-common';
+import { GOScript } from '@go-automation/go-script';
+import { getErrorMessage } from '@pagopa/go-common/errors';
 import {
   buildExecuteRunbookDeps,
   classifyAutomationFailure,
@@ -27,7 +28,7 @@ type RemainingTimeFn = () => number;
 
 const LAMBDA_SHUTDOWN_SAFETY_MS = 30_000;
 
-const script = new Core.GOScript({ metadata: scriptMetadata, config: { parameters: scriptParameters } });
+const script = new GOScript({ metadata: scriptMetadata, config: { parameters: scriptParameters } });
 
 export const handler = script.createLambdaHandler<SQSEvent, SQSBatchResponse, Context>(async (event, context) => {
   const config = await script.getConfiguration<ExecuteRunbookConfig>();
@@ -35,7 +36,7 @@ export const handler = script.createLambdaHandler<SQSEvent, SQSBatchResponse, Co
   try {
     deps = await buildExecuteRunbookDeps(script, config);
   } catch (error: unknown) {
-    script.logger.error(`Failed to build ExecuteRunbook dependencies: ${Core.getErrorMessage(error)}`);
+    script.logger.error(`Failed to build ExecuteRunbook dependencies: ${getErrorMessage(error)}`);
     return { batchItemFailures: event.Records.map((record) => ({ itemIdentifier: record.messageId })) };
   }
   return await processExecuteRunbookBatch(event, deps, () => context?.getRemainingTimeInMillis() ?? 0);

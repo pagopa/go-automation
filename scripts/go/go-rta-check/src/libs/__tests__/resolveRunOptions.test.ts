@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Core } from '@go-automation/go-common';
+import { GOLogger } from '@pagopa/go-common/logging';
 
 import { resolveRunOptions } from '../resolveRunOptions.js';
 
@@ -9,7 +9,7 @@ describe('resolveRunOptions', () => {
   it('does not validate analyses-only matcher options in coverage mode', () => {
     let matcherWasResolved = false;
     const options = resolveRunOptions(
-      new Core.GOLogger([]),
+      new GOLogger([]),
       {
         mode: 'coverage',
         analysisMatcher: 'invalid',
@@ -27,7 +27,7 @@ describe('resolveRunOptions', () => {
   });
 
   it('still validates matcher options in analyses mode', () => {
-    const options = resolveRunOptions(new Core.GOLogger([]), {
+    const options = resolveRunOptions(new GOLogger([]), {
       mode: 'analyses',
       goAiSemanticThreshold: 101,
     });
@@ -39,7 +39,7 @@ describe('resolveRunOptions', () => {
     const invalidValues = [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, 0, -1, 1.5];
 
     for (const concurrency of invalidValues) {
-      const options = resolveRunOptions(new Core.GOLogger([]), {
+      const options = resolveRunOptions(new GOLogger([]), {
         mode: 'analyses',
         analysisMatcher: 'lexical',
         concurrency,

@@ -1,0 +1,12 @@
+{
+  "$comment": "EVO-AWSACCT-OPUS-01 §9: rules of bins/check-published-sensitive-data (pnpm check:published, check:published:sources). This file lives in the private repository and is never published.",
+  "allowedAccountIds": [
+    { "value": "000000000000", "reason": "Synthetic account id used by examples and JSDoc." },
+    { "value": "123456789012", "reason": "Account id of the AWS documentation examples." }
+  ],
+  "profileNames": [],
+  "profilePrefixes": ["sso_"],
+  "forbiddenPathSegments": ["__tests__", "__baseline__"],
+  "forbiddenSuffixes": [".tsbuildinfo"],
+  "exceptions": []
+}

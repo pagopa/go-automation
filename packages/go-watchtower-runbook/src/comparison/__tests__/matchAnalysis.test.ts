@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { RunbookOutput } from '@go-automation/go-runbook';
+import type { RunbookOutput } from '@pagopa/go-runbook/output';
 
 import { matchAnalysis } from '../matchAnalysis.js';
 import type { MatchAnalysisOptions } from '../matchAnalysis.js';

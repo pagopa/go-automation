@@ -3,8 +3,8 @@
  * SafeStorage bucket (confinfo account) using AWS credentials
  */
 
-import { GOBinaryFileExporter } from '@go-automation/go-common/core';
-import type { AWSS3Service } from '@go-automation/go-common/aws';
+import type { AWSS3Service } from '@pagopa/go-aws/s3';
+import { GOBinaryFileExporter } from '@pagopa/go-common/exporters';
 
 /** SafeStorage URI prefix */
 const SAFESTORAGE_URI_PREFIX = 'safestorage://';
@@ -25,7 +25,7 @@ const SAFESTORAGE_STAGING_BUCKET_MARKER = 'staging';
  *
  * @example
  * ```typescript
- * const safeStorage = new SENDSafeStorageS3Service(new AWS.AWSS3Service(script.aws.clients.s3));
+ * const safeStorage = new SENDSafeStorageS3Service(new AWSS3Service(script.aws.clients.s3));
  *
  * const key = SENDSafeStorageS3Service.extractKey('safestorage://PN_EXTERNAL_LEGAL_FACTS-abc123.bin');
  * await safeStorage.downloadToFile(key, '/tmp/downloads/PN_EXTERNAL_LEGAL_FACTS-abc123.bin');

@@ -1,4 +1,4 @@
-import type { GOSleeper } from '@go-automation/go-common/core';
+import type { GOSleeper } from '@pagopa/go-common/polling';
 
 /**
  * Time source of a run: wall-clock milliseconds, a monotonic counter and an

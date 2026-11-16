@@ -14,7 +14,7 @@
     "test:local": "pnpm --filter=send-monitor-athena-query build && tsx src/test-local.ts"
   },
   "dependencies": {
-    "@go-automation/go-common": "workspace:*",
+    "@go-automation/go-script": "workspace:*",
     "send-monitor-athena-query": "workspace:*"
   },
   "devDependencies": {

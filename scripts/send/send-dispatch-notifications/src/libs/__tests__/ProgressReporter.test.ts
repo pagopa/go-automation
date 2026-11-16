@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { Core } from '@go-automation/go-common';
+import type { GOPrompt } from '@go-automation/go-script';
 import type { Dispatch } from '@go-automation/go-send';
 
 import { ProgressReporter } from '../ProgressReporter.js';
@@ -68,7 +68,7 @@ const DURING = snapshot(
 describe('ProgressReporter', () => {
   it('shows sent/to send, rate, verification and requestId counters on one line', () => {
     const prompt = new FakePrompt();
-    const reporter = new ProgressReporter(prompt as unknown as Core.GOPrompt, session(snapshot([]), DURING), {
+    const reporter = new ProgressReporter(prompt as unknown as GOPrompt, session(snapshot([]), DURING), {
       rows: 20,
       sending: true,
     });
@@ -86,7 +86,7 @@ describe('ProgressReporter', () => {
   it('does not count the rows a previous session already sent (resume)', () => {
     const prompt = new FakePrompt();
     const before = snapshot([['ACCEPTED', 3]]);
-    const reporter = new ProgressReporter(prompt as unknown as Core.GOPrompt, session(before, DURING), {
+    const reporter = new ProgressReporter(prompt as unknown as GOPrompt, session(before, DURING), {
       rows: 7,
       sending: true,
     });
@@ -97,7 +97,7 @@ describe('ProgressReporter', () => {
 
   it('shows the rows to process when the session sends nothing', () => {
     const prompt = new FakePrompt();
-    const reporter = new ProgressReporter(prompt as unknown as Core.GOPrompt, session(snapshot([]), DURING), {
+    const reporter = new ProgressReporter(prompt as unknown as GOPrompt, session(snapshot([]), DURING), {
       rows: 12,
       sending: false,
     });

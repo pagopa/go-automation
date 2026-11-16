@@ -5,37 +5,62 @@ import * as path from 'node:path';
 
 import { applyManifestRegistration, renderRegistrationFile } from '../wiring/registerInCatalog.js';
 import type { RunbookRegistration } from '../wiring/registerInCatalog.js';
-import { CATALOG_MANIFEST_FILE, RUNBOOKS_DIR } from '../constants.js';
+import { manifestFile, runbookDir } from '../inventoryLayout.js';
 
 /**
  * The scaffolder patches the real manifest, so the tests read it from disk:
  * a fixture of its own would let the two drift apart unnoticed.
  */
-const MANIFEST = readFileSync(CATALOG_MANIFEST_FILE, 'utf8');
+const MANIFEST = readFileSync(manifestFile('SEND'), 'utf8');
+const INTEROP_MANIFEST = readFileSync(manifestFile('INTEROP'), 'utf8');
 
 const REGISTRATION: RunbookRegistration = {
   id: 'pn-foo-BAR-ApiGwAlarm',
   constName: 'FOO_BAR_API_GW_ALARM_REGISTRATION',
   product: 'SEND',
+  family: 'apigw',
   kind: 'APIGW',
   categories: ['DELIVERY'],
 };
 
 describe('applyManifestRegistration', () => {
-  it('adds the import after the last registration import', () => {
+  it('adds the import after the last import of its family', () => {
     const { content, changed } = applyManifestRegistration(MANIFEST, REGISTRATION);
 
     assert.strictEqual(changed, true);
     assert.match(
       content,
-      /\/registration\.js';\nimport \{ FOO_BAR_API_GW_ALARM_REGISTRATION \} from '\.\/runbooks\/pn-foo-BAR-ApiGwAlarm\/registration\.js';/u,
+      /\.\/apigw\/[^']+\/registration\.js';\nimport \{ FOO_BAR_API_GW_ALARM_REGISTRATION \} from '\.\/apigw\/pn-foo-BAR-ApiGwAlarm\/registration\.js';\n\/\/ Lambda/u,
     );
+  });
+
+  it('adds the entry at the end of the block of its family, not at the end of the array', () => {
+    const { content } = applyManifestRegistration(MANIFEST, REGISTRATION);
+
+    const entryIndex = content.indexOf('  FOO_BAR_API_GW_ALARM_REGISTRATION,\n');
+    const nextBlock = content.indexOf('  // Lambda\n');
+    assert.ok(entryIndex !== -1 && entryIndex < nextBlock, 'entry should close the API Gateway block');
+  });
+
+  it('opens the block of a family that has no runbook yet', () => {
+    const k8sOnly = applyManifestRegistration(MANIFEST, {
+      ...REGISTRATION,
+      id: 'pn-foo-new-family',
+      constName: 'FOO_NEW_FAMILY_REGISTRATION',
+      family: 'newfamily',
+    });
+
+    assert.match(
+      k8sOnly.content,
+      /\/\/ newfamily\nimport \{ FOO_NEW_FAMILY_REGISTRATION \} from '\.\/newfamily\/pn-foo-new-family\/registration\.js';/u,
+    );
+    assert.ok(k8sOnly.content.includes('  // newfamily\n  FOO_NEW_FAMILY_REGISTRATION,\n];'));
   });
 
   it('adds the entry inside the manifest array', () => {
     const { content } = applyManifestRegistration(MANIFEST, REGISTRATION);
 
-    const arrayStart = content.indexOf('export const CATALOG_MANIFEST');
+    const arrayStart = content.indexOf('export const SEND_MANIFEST');
     const entryIndex = content.indexOf('  FOO_BAR_API_GW_ALARM_REGISTRATION,\n', arrayStart);
     const closeIndex = content.indexOf('];', arrayStart);
 
@@ -73,20 +98,21 @@ describe('applyManifestRegistration', () => {
     assert.strictEqual(changed, true);
     assert.match(
       content,
-      /import \{ ONBOARDING_CONSUMER_REGISTRATION \} from '\.\/runbooks\/onboarding-consumer\/registration\.js';/u,
+      /import \{ ONBOARDING_CONSUMER_REGISTRATION \} from '\.\/apigw\/onboarding-consumer\/registration\.js';/u,
     );
   });
 
   it('rejects a constant another runbook already exports, which would not compile', () => {
     const collision: RunbookRegistration = {
       ...REGISTRATION,
+      product: 'INTEROP',
       id: 'another-runbook',
       constName: 'SELFCARE_APIGW_REGISTRATION',
     };
 
     assert.throws(
-      () => applyManifestRegistration(MANIFEST, collision),
-      /importa già SELFCARE_APIGW_REGISTRATION da runbooks\/interop-selfcare/u,
+      () => applyManifestRegistration(INTEROP_MANIFEST, collision),
+      /importa già SELFCARE_APIGW_REGISTRATION da apigw\/interop-selfcare/u,
     );
   });
 
@@ -110,10 +136,8 @@ describe('renderRegistrationFile', () => {
     assert.strictEqual(
       renderRegistrationFile(REGISTRATION),
       [
-        `import { RunbookKinds } from '../../../types/RunbookKind.js';`,
+        `import { RunbookKinds, RunbookProducts, type RunbookRegistration } from '../../../../toolkits/send/index.js';`,
         '',
-        `import type { RunbookRegistration } from '../../RunbookRegistration.js';`,
-        `import { RunbookProducts } from '../../../types/RunbookProduct.js';`,
         `import { buildRunbook } from './runbook.js';`,
         '',
         `const KEY = 'pn-foo-BAR-ApiGwAlarm';`,
@@ -138,7 +162,10 @@ describe('renderRegistrationFile', () => {
   });
 
   it('matches the field order of a hand-maintained registration', () => {
-    const existing = readFileSync(path.join(RUNBOOKS_DIR, 'pn-delivery-B2B-ApiGwAlarm', 'registration.ts'), 'utf8');
+    const existing = readFileSync(
+      path.join(runbookDir('SEND', 'apigw', 'pn-delivery-B2B-ApiGwAlarm'), 'registration.ts'),
+      'utf8',
+    );
     const fields = (source: string): ReadonlyArray<string> =>
       [...source.matchAll(/^ {2}(\w+):/gmu)].map((match) => match[1] ?? '');
 

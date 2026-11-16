@@ -2,10 +2,10 @@
  * Known cases for the {{RUNBOOK_ID}} runbook.
  */
 
-import type { KnownCase } from '../framework.js';
+import type { KnownCase } from '../../../../engine/index.js';
 // Uncomment with the example below:
-// import { knownCase } from '../framework.js';
-// import { stepEvidenceMatches } from '../common/evidenceConditions.js';
+// import { knownCase } from '../../../../toolkits/send/index.js';
+// import { stepEvidenceMatches } from '../../../../engine/index.js';
 
 /**
  * Known cases evaluated against service log analysis.

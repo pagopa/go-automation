@@ -1,4 +1,5 @@
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOFileListExporter } from '@pagopa/go-common/exporters';
 import type { SendPaperRequestErrorCheckConfig } from '../types/index.js';
 import type { PaperRequestReporter } from './reporter.js';
 import { resolveOutputPath } from '../utils/resolveOutputPath.js';
@@ -117,12 +118,7 @@ export function isNotificationExcluded(
  */
 export async function processTimelines<
   T extends { readonly iun?: string | undefined; readonly timeline?: ReadonlyArray<TimelineEvent> | undefined },
->(
-  data: ReadonlyArray<T>,
-  timestampThreshold: string,
-  script: Core.GOScript,
-  reporter: PaperRequestReporter,
-): Promise<T[]> {
+>(data: ReadonlyArray<T>, timestampThreshold: string, script: GOScript, reporter: PaperRequestReporter): Promise<T[]> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
   const cancelledOutput: string[] = [];
   const viewedOutput: string[] = [];
@@ -168,9 +164,9 @@ export async function processTimelines<
     const notificationViewedPath = resolveOutputPath(script.paths, 'NOTIFICATION_VIEWED.txt', config.outputDir);
     const refinementPath = resolveOutputPath(script.paths, 'REFINEMENT.txt', config.outputDir);
 
-    const cancelledExporter = new Core.GOFileListExporter({ outputPath: notificationCancelledPath });
-    const viewedExporter = new Core.GOFileListExporter({ outputPath: notificationViewedPath });
-    const refinementExporter = new Core.GOFileListExporter({ outputPath: refinementPath });
+    const cancelledExporter = new GOFileListExporter({ outputPath: notificationCancelledPath });
+    const viewedExporter = new GOFileListExporter({ outputPath: notificationViewedPath });
+    const refinementExporter = new GOFileListExporter({ outputPath: refinementPath });
 
     await cancelledExporter.export(cancelledOutput);
     await viewedExporter.export(viewedOutput);

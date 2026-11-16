@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { Core } from '@go-automation/go-common';
+import type { GOPromptSelectOption, GOScript } from '@go-automation/go-script';
 
 import { promptNextRun } from '../promptNextRun.js';
 
-type Choices = ReadonlyArray<Core.GOPromptSelectOption>;
+type Choices = ReadonlyArray<GOPromptSelectOption>;
 
 interface Harness {
-  readonly script: Core.GOScript;
+  readonly script: GOScript;
   readonly titles: string[][];
 }
 
@@ -23,7 +23,7 @@ function harness(answer: unknown): Harness {
         return Promise.resolve(answer);
       },
     },
-  } as unknown as Core.GOScript;
+  } as unknown as GOScript;
   return { script, titles };
 }
 

@@ -1,4 +1,5 @@
-import { GOConcurrencyPool, toError } from '@go-automation/go-common/core';
+import { GOConcurrencyPool } from '@pagopa/go-common/concurrency';
+import { toError } from '@pagopa/go-common/errors';
 
 import { decideRowAction } from './decideRowAction.js';
 import type { DispatchRunOptions } from './DispatchRunOptions.js';

@@ -260,6 +260,11 @@ export default $config({
           WATCHTOWER_SERVICE_ID: 'runbook-automation-worker',
           WATCHTOWER_SERVICE_SECRET_ARN: servicePrincipalSecretArn,
           EXECUTE_RUNBOOK_ARTIFACT_REVISION: workerArtifactRevision,
+          // Logical AWS accounts of multi-account runbooks, read through OAM (EVO-AWSACCT-OPUS-01 §8.2).
+          AWS_ACCOUNT_BINDING: 'oam',
+          ...(config.executeRunbookAccountDirectory.length === 0
+            ? {}
+            : { AWS_ACCOUNT_DIRECTORY: config.executeRunbookAccountDirectory.join(',') }),
         },
         tags: { ArtifactRevision: workerArtifactRevision },
         permissions: workerIam.map((statement) => ({

@@ -6,7 +6,8 @@
  * and writes results to a JSON file.
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOPathType } from '@pagopa/go-common/files';
 import { SENDTimelineService } from '@go-automation/go-send';
 
 import type { SendFetchTimelineFromIunConfig } from './types/SendFetchTimelineFromIunConfig.js';
@@ -26,7 +27,7 @@ import { parseIunLines } from './libs/IunParser.js';
  * await main(script);
  * ```
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<SendFetchTimelineFromIunConfig>();
 
   // Initialize Timeline service using script.aws provider
@@ -36,7 +37,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.section('Reading Input File');
   script.prompt.startSpinner(`Reading IUNs from ${config.sourceFile}...`);
 
-  const sourceFilePath = script.paths.resolvePathWithInfo(config.sourceFile, Core.GOPathType.INPUT);
+  const sourceFilePath = script.paths.resolvePathWithInfo(config.sourceFile, GOPathType.INPUT);
   const rawLines = await readIunFile(sourceFilePath.path);
   const parsedIuns = parseIunLines(rawLines);
 
@@ -65,7 +66,7 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   // Step 3: Write results to output file
   script.logger.section('Writing Results');
-  const outputPathInfo = script.paths.resolvePathWithInfo(config.destinationFile, Core.GOPathType.OUTPUT);
+  const outputPathInfo = script.paths.resolvePathWithInfo(config.destinationFile, GOPathType.OUTPUT);
   script.prompt.startSpinner(`Writing results to ${outputPathInfo.path}...`);
 
   await writeResultsFile(outputPathInfo.path, results);

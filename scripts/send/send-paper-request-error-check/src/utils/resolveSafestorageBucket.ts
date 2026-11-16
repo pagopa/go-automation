@@ -1,13 +1,13 @@
 import type { SendPaperRequestErrorCheckConfig } from '../types/index.js';
 import { getConfinfoS3Service } from './awsClients.js';
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 /**
  * Risolve il bucket S3 SafeStorage se non configurato esplicitamente.
  * Usa il profilo Confinfo per elencare i bucket (SafeStorage è nell'account Confinfo).
  */
 export async function resolveSafestorageBucket(
-  script: Core.GOScript,
+  script: GOScript,
   config: SendPaperRequestErrorCheckConfig,
   configuredBucket?: string,
 ): Promise<string> {

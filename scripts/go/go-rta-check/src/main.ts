@@ -12,7 +12,7 @@
  * Every mode reports its outcome as an exit code, so a run that could not be
  * executed never looks successful to a pipeline. Step logic lives under `libs/`.
  */
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import type { GoRtaCheckConfig } from './types/GoRtaCheckConfig.js';
 import { resolveRunOptions } from './libs/resolveRunOptions.js';
@@ -27,7 +27,7 @@ import { resolveProcessExitCode } from './libs/resolveProcessExitCode.js';
  *
  * @param script - The GOScript instance
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<GoRtaCheckConfig>();
   script.logger.section('Go RTA Check');
 

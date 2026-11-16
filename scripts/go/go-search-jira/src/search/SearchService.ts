@@ -2,7 +2,7 @@
  * Runs full-text or literal queries against the local FTS index and enriches
  * each hit with the per-attachment metadata (issue summary, URLs).
  */
-import { Core } from '@go-automation/go-common';
+import { type GOFtsIndex, GOFtsIndexSearchMode } from '@go-automation/go-documents';
 
 import type { AttachmentRepository } from '../storage/AttachmentRepository.js';
 import type { SearchResultItem } from '../types/SearchResultItem.js';
@@ -19,7 +19,7 @@ export interface IssueUrlBuilder {
 }
 
 export interface SearchServiceDeps {
-  readonly index: Core.GOFtsIndex;
+  readonly index: GOFtsIndex;
   readonly repository: AttachmentRepository;
   readonly issueUrlBuilder: IssueUrlBuilder;
 }
@@ -35,7 +35,7 @@ export class SearchService {
 
     const hits = this.deps.index.search({
       query: query.query,
-      mode: query.mode === 'literal' ? Core.GOFtsIndexSearchMode.LITERAL : Core.GOFtsIndexSearchMode.FULL_TEXT,
+      mode: query.mode === 'literal' ? GOFtsIndexSearchMode.LITERAL : GOFtsIndexSearchMode.FULL_TEXT,
       limit: query.limit,
       filter,
     });

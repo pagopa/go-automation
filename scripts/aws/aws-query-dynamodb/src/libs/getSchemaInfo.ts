@@ -2,7 +2,7 @@
  * Extracts and validates DynamoDB table/index key schema information.
  */
 
-import { AWS } from '@go-automation/go-common';
+import type { TableDescription } from '@pagopa/go-aws/dynamodb';
 
 /**
  * Schema information for a DynamoDB table or index.
@@ -20,7 +20,7 @@ interface SchemaInfo {
  * @returns Schema info with partition key and optional sort key
  * @throws If the index or key schema is not found
  */
-export function getSchemaInfo(table: AWS.TableDescription, indexName?: string): SchemaInfo {
+export function getSchemaInfo(table: TableDescription, indexName?: string): SchemaInfo {
   let keySchema = table.KeySchema;
 
   if (indexName) {

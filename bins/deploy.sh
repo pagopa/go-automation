@@ -57,7 +57,7 @@ show_help() {
     echo -e "${BOLD}DESCRIPTION:${NC}"
     echo "    This tool deploys scripts from the monorepo for standalone use."
     echo "    It uses pnpm deploy to bundle the script with all its dependencies,"
-    echo "    including the @go-automation/go-common workspace package."
+    echo "    including its workspace packages (@pagopa/go-common, @pagopa/go-aws, @go-automation/go-script, ...)."
     echo ""
     echo -e "    Deployed scripts are placed in: ${CYAN}artifacts/<script-name>/${NC}"
     echo ""
@@ -414,12 +414,12 @@ deploy_script() {
     # Create deploy directory
     mkdir -p "$DEPLOY_DIR"
 
-    # Step 1: Build the common library first
-    print_step "Building @go-automation/go-common..."
-    if pnpm --filter="@go-automation/go-common" build > /dev/null 2>&1; then
-        print_success "go-common built successfully"
+    # Step 1: Build the workspace packages the script depends on (go-common, go-aws, go-script, ...)
+    print_step "Building workspace dependencies of ${script_name}..."
+    if pnpm --filter="${script_name}^..." build > /dev/null 2>&1; then
+        print_success "Workspace dependencies built successfully"
     else
-        print_warning "go-common build had issues (may already be built)"
+        print_warning "Workspace dependencies build had issues (may already be built)"
     fi
 
     # Step 2: Build the script

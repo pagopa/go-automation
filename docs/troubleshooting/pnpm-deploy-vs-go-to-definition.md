@@ -21,7 +21,7 @@
 
 ## Descrizione del Problema
 
-In un monorepo pnpm con workspace packages (es. `@go-automation/go-common`), ci sono due requisiti che entrano in conflitto:
+In un monorepo pnpm con workspace packages (es. `@pagopa/go-common`), ci sono due requisiti che entrano in conflitto:
 
 ### Requisito 1: pnpm deploy funzionante
 
@@ -58,7 +58,7 @@ Senza `inject-workspace-packages=true`:
 1. pnpm usa **symlink** per i pacchetti workspace
 2. Durante `pnpm deploy`, i symlink non vengono risolti correttamente
 3. Il bundle deployato non trova il pacchetto workspace
-4. Errore: `Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@go-automation/go-common'`
+4. Errore: `Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@pagopa/go-common'`
 
 ---
 
@@ -73,8 +73,9 @@ Durante la risoluzione del problema, sono stati provati diversi approcci che **N
 {
   "compilerOptions": {
     "paths": {
-      "@go-automation/go-common": ["./packages/go-common/src/index.ts"],
-      "@go-automation/go-common/*": ["./packages/go-common/src/*"]
+      "@pagopa/go-common/*": ["./packages/go-common/src/*/index.ts"],
+      "@pagopa/go-aws/*": ["./packages/go-aws/src/*/index.ts"],
+      "@go-automation/go-script": ["./packages/go-script/src/index.ts"]
     }
   }
 }

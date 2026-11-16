@@ -2,7 +2,8 @@
  * File Service - Handles file I/O operations using go-common importers/exporters
  */
 
-import { Core } from '@go-automation/go-common';
+import { GOJSONListExporter } from '@pagopa/go-common/exporters';
+import { GOFileListImporter } from '@pagopa/go-common/importers';
 import type { SENDTimelineResult } from '@go-automation/go-send';
 
 /**
@@ -24,7 +25,7 @@ import type { SENDTimelineResult } from '@go-automation/go-send';
  * ```
  */
 export async function readIunFile(filePath: string): Promise<ReadonlyArray<string>> {
-  const importer = new Core.GOFileListImporter({ trim: false, skipEmptyLines: false });
+  const importer = new GOFileListImporter({ trim: false, skipEmptyLines: false });
   const result = await importer.import(filePath);
   return result.items;
 }
@@ -42,7 +43,7 @@ export async function readIunFile(filePath: string): Promise<ReadonlyArray<strin
  * ```
  */
 export async function writeResultsFile(filePath: string, results: ReadonlyArray<SENDTimelineResult>): Promise<void> {
-  const exporter = new Core.GOJSONListExporter<SENDTimelineResult>({
+  const exporter = new GOJSONListExporter<SENDTimelineResult>({
     outputPath: filePath,
     pretty: true,
     indent: 4,

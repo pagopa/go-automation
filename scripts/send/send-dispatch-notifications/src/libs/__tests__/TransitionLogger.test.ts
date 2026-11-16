@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { Core } from '@go-automation/go-common';
+import type { GOLogger } from '@pagopa/go-common/logging';
 
 import { TransitionLogger } from '../TransitionLogger.js';
 import { FakeLogger } from './helpers/testScript.js';
@@ -19,7 +19,7 @@ describe('TransitionLogger', () => {
     const sent = { ts: 't', event: 'SENT' as const, rowKey: 'S-2', iun: 'IUN', attempt: 1 };
 
     for (const target of [quiet, verbose]) {
-      const logger = new TransitionLogger(target as unknown as Core.GOLogger, target === verbose);
+      const logger = new TransitionLogger(target as unknown as GOLogger, target === verbose);
       logger.handle(failed);
       logger.handle(sent);
       logger.handle({ ts: 't', event: 'DOCUMENT_UPLOADED' });
@@ -32,7 +32,7 @@ describe('TransitionLogger', () => {
 
   it('always logs invalid rows with codes and fields only, never the row values', () => {
     const quiet = new FakeLogger();
-    const logger = new TransitionLogger(quiet as unknown as Core.GOLogger, false);
+    const logger = new TransitionLogger(quiet as unknown as GOLogger, false);
     const issues = [
       { code: 'INVALID_FORMAT', field: 'recipient.taxId', message: 'recipient.taxId "RSSMRA80" must be a tax id' },
       { code: 'MISSING_FIELD', field: 'subject', message: 'subject is required' },
@@ -61,7 +61,7 @@ describe('TransitionLogger', () => {
   });
   it('logs only the codes of the errors returned by SEND, never their detail', () => {
     const quiet = new FakeLogger();
-    const logger = new TransitionLogger(quiet as unknown as Core.GOLogger, false);
+    const logger = new TransitionLogger(quiet as unknown as GOLogger, false);
     const sendErrors = [
       { code: 'PN_INVALID_TAXID', element: 'recipients[0].taxId', detail: 'taxId RSSMRA80A01H501U not valid' },
     ];

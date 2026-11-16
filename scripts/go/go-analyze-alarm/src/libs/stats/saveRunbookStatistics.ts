@@ -2,7 +2,9 @@
  * Utility for persisting the offline runbook statistics report to disk.
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOJSONFileExporter } from '@pagopa/go-common/exporters';
+import { GOPathType } from '@pagopa/go-common/files';
 
 import type { RunbookStatisticsReport } from '../../types/RunbookStatisticsReport.js';
 
@@ -20,16 +22,16 @@ const REPORT_FILE_PREFIX = 'runbook-stats';
  * @returns Absolute path of the written file
  */
 export async function saveRunbookStatistics(
-  script: Core.GOScript,
+  script: GOScript,
   report: RunbookStatisticsReport,
   product?: string,
 ): Promise<string> {
   const normalized = product?.trim().toUpperCase();
   const suffix = normalized === undefined || normalized === '' ? '' : `-${normalized.toLowerCase()}`;
   const fileName = `${REPORT_FILE_PREFIX}${suffix}.json`;
-  const reportPath = script.paths.resolvePathWithInfo(fileName, Core.GOPathType.OUTPUT).path;
+  const reportPath = script.paths.resolvePathWithInfo(fileName, GOPathType.OUTPUT).path;
 
-  const exporter = new Core.GOJSONFileExporter({ outputPath: reportPath, pretty: true, indent: 2 });
+  const exporter = new GOJSONFileExporter({ outputPath: reportPath, pretty: true, indent: 2 });
   await exporter.export(report);
 
   script.logger.info(`Statistics report saved: ${reportPath}`);

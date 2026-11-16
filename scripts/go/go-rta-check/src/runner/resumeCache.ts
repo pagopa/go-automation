@@ -1,4 +1,7 @@
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOJSONFileExporter } from '@pagopa/go-common/exporters';
+import { GOPathType } from '@pagopa/go-common/files';
+import { GOJSONFileImporter } from '@pagopa/go-common/importers';
 import * as nodePath from 'node:path';
 
 import type { CachedRunbookOutput, RunbookCheckCache } from '@go-automation/go-watchtower-runbook';
@@ -12,10 +15,10 @@ import type { CachedRunbookOutput, RunbookCheckCache } from '@go-automation/go-w
  * `cache/runbook/<alarmName>/<eventId>.json`.
  */
 export class GOScriptRunbookCheckCache implements RunbookCheckCache {
-  constructor(private readonly script: Core.GOScript) {}
+  constructor(private readonly script: GOScript) {}
 
   async get(key: string): Promise<CachedRunbookOutput | undefined> {
-    const importer = new Core.GOJSONFileImporter<CachedRunbookOutput>({
+    const importer = new GOJSONFileImporter<CachedRunbookOutput>({
       inputPath: this.resolve(key),
       optional: true,
     });
@@ -23,7 +26,7 @@ export class GOScriptRunbookCheckCache implements RunbookCheckCache {
   }
 
   async set(key: string, value: CachedRunbookOutput): Promise<void> {
-    const exporter = new Core.GOJSONFileExporter({
+    const exporter = new GOJSONFileExporter({
       outputPath: this.resolve(key),
       pretty: true,
       indent: 2,
@@ -38,7 +41,7 @@ export class GOScriptRunbookCheckCache implements RunbookCheckCache {
     const eventId = separator === -1 ? key : key.slice(separator + 1);
     return this.script.paths.resolvePath(
       nodePath.join('runbook', sanitizeSegment(alarmName), `${sanitizeSegment(eventId)}.json`),
-      Core.GOPathType.CACHE,
+      GOPathType.CACHE,
     );
   }
 }

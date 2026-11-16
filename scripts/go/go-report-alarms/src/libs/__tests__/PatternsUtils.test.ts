@@ -10,7 +10,8 @@ import assert from 'node:assert/strict';
 import * as path from 'path';
 
 import { loadIgnorePatterns } from '../PatternsUtils.js';
-import { Core } from '@go-automation/go-common';
+import { type GOConfigFallbackContext, GOPaths } from '@go-automation/go-script';
+import { GOJSONFileImporter } from '@pagopa/go-common/importers';
 
 const FIXTURES_DIR = path.join(import.meta.dirname, '__fixtures__');
 
@@ -19,7 +20,7 @@ describe('PatternsUtils', () => {
     it('returns default patterns when config file does not exist', async () => {
       // GOPaths resolves to configs/ where ignore-patterns.json doesn't exist
       // so loadIgnorePatterns should return the built-in defaults
-      const context: Core.GOConfigFallbackContext = { paths: new Core.GOPaths('go-report-alarms') };
+      const context: GOConfigFallbackContext = { paths: new GOPaths('go-report-alarms') };
       const patterns = await loadIgnorePatterns(context);
 
       assert.ok(patterns.length > 0);
@@ -29,7 +30,7 @@ describe('PatternsUtils', () => {
     });
 
     it('returns a readonly array', async () => {
-      const context: Core.GOConfigFallbackContext = { paths: new Core.GOPaths('go-report-alarms') };
+      const context: GOConfigFallbackContext = { paths: new GOPaths('go-report-alarms') };
       const patterns = await loadIgnorePatterns(context);
 
       assert.ok(Array.isArray(patterns));
@@ -37,7 +38,7 @@ describe('PatternsUtils', () => {
     });
 
     it('fixture config file is valid and parseable', async () => {
-      const importer = new Core.GOJSONFileImporter<{ ignorePatterns: string[] }>({
+      const importer = new GOJSONFileImporter<{ ignorePatterns: string[] }>({
         inputPath: path.join(FIXTURES_DIR, 'ignore-patterns-config.json'),
       });
       const config = await importer.import();

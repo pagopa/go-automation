@@ -1,4 +1,4 @@
-import { GOPollingError } from '@go-automation/go-common/core';
+import { GOPollingError } from '@pagopa/go-common/polling';
 
 import type { DispatchClock } from '../../model/DispatchClock.js';
 

@@ -14,7 +14,7 @@
     "test:local": "pnpm --filter={{WRAPPED_SCRIPT_PACKAGE_NAME}} build && tsx src/test-local.ts"
   },
   "dependencies": {
-    "@go-automation/go-common": "workspace:*",
+    "@go-automation/go-script": "workspace:*",
     "{{WRAPPED_SCRIPT_PACKAGE_NAME}}": "workspace:*"
   },
   "devDependencies": {

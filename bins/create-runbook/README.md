@@ -1,7 +1,11 @@
 # create-runbook
 
-Scaffolds a new runbook for `go-analyze-alarm` from a template and — by
-default — registers it in the analyzer's `RUNBOOK_REGISTRY` (`main.ts`).
+Scaffolds a new runbook in the go-runbook inventory
+(`packages/go-runbook/src/inventory/<product>/<family>/<id>/`) from a template and,
+by default, registers it in the manifest of its product
+(`packages/go-runbook/src/inventory/<product>/manifest.ts`). Every consumer of the
+catalog (`go-analyze-alarm`, `go-execute-runbook`, `go-rta-check`, the Lambda) then
+sees it.
 
 ## Usage
 
@@ -46,6 +50,19 @@ is generated too, declaring the runbook's catalog identity.
 Template sources live in `bins/runbook-templates/<id>/*.template` and use
 `{{TOKEN}}` placeholders.
 
+## AWS accounts
+
+Runbooks ship in the published `@pagopa/go-runbook`: no generated file may contain an
+AWS account id, an ARN with an account or an AWS profile name. The scaffolder refuses
+to write a runbook whose answers would put one there (only the synthetic ids
+`000000000000` and `123456789012` are accepted).
+
+A runbook that reads accounts other than the occurrence's declares **logical accounts**
+(`<product>/<account>`, e.g. `SEND_ACCOUNTS.core`) through `accountSelections()`; the
+account ids live in the execution configuration (`aws.account.directory`). See
+[docs/RUNBOOKENGINE.md §7.1](../../docs/RUNBOOKENGINE.md#71-account-ambienti-e-permessi) and
+[EVO-AWSACCT-OPUS-01](../../docs/evolutions/EVO-AWSACCT-OPUS-01.md).
+
 ## Adding a new template type
 
 1. Create `bins/runbook-templates/<new-id>/` with the `*.template` files.
@@ -56,24 +73,27 @@ No changes to the generator engine are required.
 
 ## Flags
 
-| flag                   | description                                                                         |
-| ---------------------- | ----------------------------------------------------------------------------------- |
-| `--type <id>`          | Template id (`api-gateway` \| `lambda` \| `service` \| `base`); prompted if omitted |
-| `--id <runbook-id>`    | Runbook id and directory name                                                       |
-| `--description <text>` | Runbook metadata description                                                        |
-| `--version <semver>`   | Runbook metadata version (default: `1.0.0`)                                         |
-| `--team <team>`        | Runbook metadata team (default: `GO`)                                               |
-| `--tags <csv>`         | Comma-separated metadata tags                                                       |
-| `--product <name>`     | Watchtower product: `SEND` \| `INTEROP` (default `SEND`)                            |
-| `--categories <csv>`   | Comma-separated automatic catalog categories                                        |
-| `--no-wire`            | Do not generate `registration.ts` nor touch `catalogManifest.ts`                    |
-| `--dry-run`            | Render and print without writing or wiring                                          |
-| `--yes`                | Skip the confirmation prompt                                                        |
+| flag                   | description                                                                                                                                                 |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--type <id>`          | Template id (`api-gateway` \| `lambda` \| `service` \| `base`); prompted if omitted                                                                         |
+| `--id <runbook-id>`    | Runbook id and directory name                                                                                                                               |
+| `--description <text>` | Runbook metadata description                                                                                                                                |
+| `--version <semver>`   | Runbook metadata version (default: `1.0.0`)                                                                                                                 |
+| `--team <team>`        | Runbook metadata team (default: `GO`)                                                                                                                       |
+| `--tags <csv>`         | Comma-separated metadata tags                                                                                                                               |
+| `--product <name>`     | Watchtower product: `SEND` \| `INTEROP`; prompted if omitted. It chooses the inventory folder; the SEND templates reject `INTEROP`                          |
+| `--family <name>`      | Inventory family, required by the `base` template (SEND: `apigw`, `lambda`, `downstream`, `service`; INTEROP: `apigw`, `k8s`); fixed by the other templates |
+| `--categories <csv>`   | Comma-separated automatic catalog categories                                                                                                                |
+| `--no-wire`            | Do not generate `registration.ts` nor touch the product `manifest.ts`                                                                                       |
+| `--dry-run`            | Render and print without writing or wiring                                                                                                                  |
+| `--yes`                | Skip the confirmation prompt                                                                                                                                |
 
 API Gateway template inputs: `--api-gw-log-group`, `--entry-service`,
 `--var-prefix`, `--log-group`, `--execution-log-group`, `--authorizer`.
 
 Lambda template inputs: `--entry-lambda`, `--var-prefix`, `--event-source`.
+
+Service template inputs: `--service-name`, `--var-prefix`, `--log-group`.
 
 ## Tests
 

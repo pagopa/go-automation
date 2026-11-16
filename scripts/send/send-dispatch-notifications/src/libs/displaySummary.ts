@@ -2,7 +2,7 @@
  * Final summary and exit code (§12.4, §15).
  */
 
-import type { Core } from '@go-automation/go-common';
+import type { GOLogger } from '@pagopa/go-common/logging';
 import type { Dispatch } from '@go-automation/go-send';
 
 import type { SummaryContext } from '../types/SummaryContext.js';
@@ -31,7 +31,7 @@ const MESSAGE_PREVIEW = 100;
  * @param logger - Script logger
  * @param context - Final figures of the session
  */
-export function displaySummary(logger: Core.GOLogger, context: SummaryContext): void {
+export function displaySummary(logger: GOLogger, context: SummaryContext): void {
   const { progress, statistics } = context;
   const count = (status: Dispatch.RowStatus): number => progress.byStatus.get(status) ?? 0;
   const { accepted, refused, sent } = countOutcomes(progress);

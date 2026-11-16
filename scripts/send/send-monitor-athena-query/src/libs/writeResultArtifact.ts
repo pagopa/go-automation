@@ -1,14 +1,16 @@
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 
-import { Core } from '@go-automation/go-common';
+import type { GOPaths } from '@go-automation/go-script';
+import { GOCSVListExporter, GOJSONListExporter } from '@pagopa/go-common/exporters';
+import { GOPathType } from '@pagopa/go-common/files';
 
 import type { ReportArtifact, ReportFormat, SendMonitorAthenaQueryConfig } from '../types/index.js';
 
 export async function writeResultArtifact(
   rows: ReadonlyArray<Record<string, string>>,
   config: SendMonitorAthenaQueryConfig,
-  paths: Core.GOPaths,
+  paths: GOPaths,
 ): Promise<ReportArtifact> {
   const format: ReportFormat = config.outputFormat;
   const extension = format === 'jsonl' ? 'jsonl' : format;
@@ -19,13 +21,13 @@ export async function writeResultArtifact(
   await mkdir(path.dirname(filePath), { recursive: true });
 
   if (format === 'csv') {
-    const exporter = new Core.GOCSVListExporter<Record<string, unknown>>({
+    const exporter = new GOCSVListExporter<Record<string, unknown>>({
       outputPath: filePath,
       includeHeader: true,
     });
     await exporter.export(rows.map((row) => ({ ...row })));
   } else {
-    const exporter = new Core.GOJSONListExporter<Record<string, string>>({
+    const exporter = new GOJSONListExporter<Record<string, string>>({
       outputPath: filePath,
       pretty: format === 'json',
       jsonl: format === 'jsonl',
@@ -41,10 +43,10 @@ export async function writeResultArtifact(
   };
 }
 
-function resolveOutputPath(outputFolder: string, fileName: string, paths: Core.GOPaths): string {
+function resolveOutputPath(outputFolder: string, fileName: string, paths: GOPaths): string {
   return path.isAbsolute(outputFolder)
     ? path.join(outputFolder, fileName)
-    : paths.resolvePath(path.join(outputFolder, fileName), Core.GOPathType.OUTPUT);
+    : paths.resolvePath(path.join(outputFolder, fileName), GOPathType.OUTPUT);
 }
 
 function sanitizeFilePrefix(prefix: string): string {

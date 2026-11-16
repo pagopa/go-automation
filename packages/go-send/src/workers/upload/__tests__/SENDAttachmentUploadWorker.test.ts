@@ -1,15 +1,9 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { GOEventEmitterBase } from '@go-automation/go-common/core';
-import type {
-  GOListExporter,
-  GOListExporterEventMap,
-  GOListExporterStreamWriter,
-  GOListImporter,
-  GOListImporterEventMap,
-  GOListImporterResult,
-} from '@go-automation/go-common/core';
+import { GOEventEmitterBase } from '@pagopa/go-common/events';
+import type { GOListExporter, GOListExporterEventMap, GOListExporterStreamWriter } from '@pagopa/go-common/exporters';
+import type { GOListImporter, GOListImporterEventMap, GOListImporterResult } from '@pagopa/go-common/importers';
 
 import type { SENDNotifications } from '../../../SENDNotifications.js';
 import type { SENDAttachmentResult } from '../../../services/attachment/models/SENDAttachmentResult.js';

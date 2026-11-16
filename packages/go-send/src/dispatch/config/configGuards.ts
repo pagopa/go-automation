@@ -8,7 +8,7 @@
  * Strings are always trimmed, and a blank string is as invalid as a missing one.
  */
 
-import { isNonBlankString, isPlainObject } from '@go-automation/go-common/core';
+import { isNonBlankString, isPlainObject } from '@pagopa/go-common/utils';
 
 /**
  * Checks that a value is a plain object (not an array, not `null`).

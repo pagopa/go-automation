@@ -1,4 +1,5 @@
-import { getErrorMessage, GOHttpClientError } from '@go-automation/go-common/core';
+import { getErrorMessage } from '@pagopa/go-common/errors';
+import { GOHttpClientError } from '@pagopa/go-common/http';
 
 import { buildNotificationRequest } from '../channels/buildNotificationRequest.js';
 import { classifySendFailure } from '../channels/classifySendFailure.js';

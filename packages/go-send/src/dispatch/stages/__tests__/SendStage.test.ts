@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import * as os from 'node:os';
 
-import { GORateLimiter } from '@go-automation/go-common/core';
+import { GORateLimiter } from '@pagopa/go-common/concurrency';
 
 import { FakeB2BApi, httpError, transportError } from '../../__tests__/helpers/FakeB2BApi.js';
 import { MemorySink } from '../../__tests__/helpers/MemorySink.js';

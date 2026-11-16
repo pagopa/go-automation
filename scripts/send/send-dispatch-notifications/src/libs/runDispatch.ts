@@ -3,7 +3,7 @@
  * confirmation → send/verify → materialization → summary.
  */
 
-import { Core } from '@go-automation/go-common';
+import { GOPromptInterruptedError, type GOScript } from '@go-automation/go-script';
 import { Dispatch } from '@go-automation/go-send';
 
 import type { ConfirmOutcome } from '../types/ConfirmOutcome.js';
@@ -46,7 +46,7 @@ const EXIT_PROBLEMS = 2;
  *   opens, or by preflight/validation (logged by `main`)
  */
 export async function runDispatch(
-  script: Core.GOScript,
+  script: GOScript,
   config: ValidatedConfig,
   target: DispatchTarget,
   shutdown: DispatchShutdown,
@@ -93,7 +93,7 @@ function blockingProblem(summary: Dispatch.ValidationSummary, failFast: boolean)
 }
 
 async function runSession(
-  script: Core.GOScript,
+  script: GOScript,
   config: ValidatedConfig,
   target: DispatchTarget,
   prepared: PreparedSession,
@@ -181,13 +181,13 @@ async function confirmBeforeSending(session: Dispatch.DispatchSession, confirm: 
   try {
     return await confirm();
   } catch (error: unknown) {
-    if (error instanceof Core.GOPromptInterruptedError) await session.materialize();
+    if (error instanceof GOPromptInterruptedError) await session.materialize();
     throw error;
   }
 }
 
 async function stoppedBeforeSending(
-  script: Core.GOScript,
+  script: GOScript,
   run: ResolvedRun,
   session: Dispatch.DispatchSession,
   options: Dispatch.DispatchSessionOptions,
@@ -199,7 +199,7 @@ async function stoppedBeforeSending(
   return EXIT_ERROR;
 }
 
-async function execute(script: Core.GOScript, context: ExecutionContext): Promise<number> {
+async function execute(script: GOScript, context: ExecutionContext): Promise<number> {
   const { session, run, options, work, shutdown } = context;
   script.logger.section(work.sending ? 'Invio' : 'Elaborazione');
   const reporter = new ProgressReporter(script.prompt, session, work);

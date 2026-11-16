@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { Core } from '@go-automation/go-common';
+import { SET_TIMEOUT_MAX_MS } from '@pagopa/go-common/dates';
 
 import { DispatchUsageError } from '../DispatchUsageError.js';
 import { parseDurations, validateConfig } from '../validateConfig.js';
@@ -113,6 +113,6 @@ describe('parseDurations', () => {
   it('treats upload.reuse.max.age as an age: 0 and values beyond the setTimeout maximum are allowed', () => {
     assert.equal(parseDurations({ ...RAW_CONFIG, uploadReuseMaxAge: '0s' }).uploadReuseMaxAgeMs, 0);
     const longAge = parseDurations({ ...RAW_CONFIG, uploadReuseMaxAge: '30d' }).uploadReuseMaxAgeMs;
-    assert.ok(longAge > Core.SET_TIMEOUT_MAX_MS);
+    assert.ok(longAge > SET_TIMEOUT_MAX_MS);
   });
 });

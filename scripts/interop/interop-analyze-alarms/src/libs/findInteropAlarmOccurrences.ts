@@ -1,5 +1,5 @@
-import { trimToUndefined } from '@go-automation/go-common/core';
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { trimToUndefined } from '@pagopa/go-common/utils';
 
 import type { InteropAlarmOccurrence } from '../types/index.js';
 
@@ -10,7 +10,7 @@ interface FindInteropAlarmOccurrencesConfig {
 }
 
 export async function findInteropAlarmOccurrences(
-  script: Core.GOScript,
+  script: GOScript,
   config: FindInteropAlarmOccurrencesConfig,
 ): Promise<ReadonlyArray<InteropAlarmOccurrence>> {
   const start = parseDate(config.startDate, 'startDate');

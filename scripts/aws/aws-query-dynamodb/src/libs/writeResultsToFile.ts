@@ -2,7 +2,7 @@
  * Writes query results to a file in the specified output format.
  */
 
-import { Core } from '@go-automation/go-common';
+import { GOCSVListExporter, GOFileListExporter, GOJSONListExporter } from '@pagopa/go-common/exporters';
 
 import { formatForCsv, formatForText } from './OutputFormatter.js';
 import type { ResultMap } from '../types/ResultMap.js';
@@ -29,7 +29,7 @@ export async function writeResultsToFile(
     case 'dynamo-json':
     case 'ndjson': {
       const isNdjson = format === 'ndjson';
-      const exporter = new Core.GOJSONListExporter<unknown>({
+      const exporter = new GOJSONListExporter<unknown>({
         outputPath,
         pretty: !isNdjson,
         indent: 4,
@@ -40,7 +40,7 @@ export async function writeResultsToFile(
     }
     case 'csv': {
       const csvData = formatForCsv(resultMap, pkKey);
-      const exporter = new Core.GOCSVListExporter<Record<string, unknown>>({
+      const exporter = new GOCSVListExporter<Record<string, unknown>>({
         outputPath,
         includeHeader: true,
       });
@@ -50,7 +50,7 @@ export async function writeResultsToFile(
     case 'text': {
       const text = formatForText(resultMap);
       const textLines = text.split('\n').filter((line) => line.length > 0);
-      const textExporter = new Core.GOFileListExporter({ outputPath });
+      const textExporter = new GOFileListExporter({ outputPath });
       await textExporter.export(textLines);
       break;
     }

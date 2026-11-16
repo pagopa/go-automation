@@ -1,0 +1,265 @@
+import { all, any, type KnownCase, stepEvidenceMatches, varEquals, varMatches } from '../../../../engine/index.js';
+import { apiGwStatusIs, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+/**
+ * Known cases for the pn-address-book-io-IO-ApiGwAlarm runbook.
+ */
+export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
+  // ── Gateway Timeout 504 senza log applicativi su pn-user-attributes ────
+  // V02 §5.4: irrigidito ad AND status==504 + userAttributesLogCount==0.
+  knownCase({
+    id: 'gateway-timeout-504',
+    description: 'Gateway Timeout 504 senza log applicativi su pn-user-attributes',
+    priority: 105,
+    condition: all(apiGwStatusIs('504'), varEquals('userAttributesLogCount', '0')),
+    resolution: 'Nessuna azione possibile. Classificare come transitorio, monitorare',
+    details: [['Status Code', '{{vars.apiGwStatusCode}}']],
+    analysis: {
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
+    },
+  }),
+  // ── API GW Endpoint request timed out (500) senza log applicativi ──────
+  // L'API GW chiude la richiesta in timeout verso l'integrazione (il
+  // backend non risponde entro il limite, tipicamente 29s) e produce un
+  // `Endpoint request timed out` con status=500 nel proprio AccessLog.
+  // pn-user-attributes non logga nulla perché la chiamata viene tagliata
+  // a monte. Distinto dal `gateway-timeout-504` perché qui lo status è
+  // 500 e la causa è il timeout di integrazione lato API Gateway.
+  knownCase({
+    id: 'apigw-endpoint-timeout-no-logs',
+    description: 'API GW endpoint timeout senza log applicativi su pn-user-attributes',
+    priority: 103,
+    condition: all(
+      apiGwStatusIs('500'),
+      varEquals('userAttributesLogCount', '0'),
+      varMatches('apiGwErrorMessage', 'Endpoint request timed out'),
+    ),
+    resolution: 'Risoluzione non documentata.',
+    details: [
+      ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
+      ['Status Code', '{{vars.apiGwStatusCode}}'],
+      ['Error', '{{vars.apiGwErrorMessage}}'],
+    ],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
+    },
+  }),
+  // ── PDV 404: Record mancante su Personal Data Vault ────────────────────
+  knownCase({
+    id: 'pdv-404',
+    description: 'Record mancante su PDV (Personal Data Vault)',
+    priority: 100,
+    condition: any(
+      varMatches('userAttributesErrorMsg', 'Service PersonalDataVault_Tokenizer returned errors=404 Not Found'),
+      varMatches('dataVaultErrorMsg', 'Service PersonalDataVault_Tokenizer returned errors=404 Not Found'),
+    ),
+    resolution: 'Scenario di errore gi\u00E0 noto ed in via di risoluzione sul codice applicativo PN-15981',
+    details: [
+      ['Task JIRA', 'PN-15981'],
+      ['Errore', '{{vars.userAttributesErrorMsg}}'],
+    ],
+    analysis: {
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
+    },
+  }),
+  knownCase({
+    id: 'appio-downstream-500',
+    description: 'Allarme scattato per un 500 ricevuto da AppIO - Internal Server Error',
+    priority: 89,
+    // Scansiona TUTTI i row dei log di pn-external-registries (non solo
+    // il messaggio rappresentativo in `externalRegistriesErrorMsg`).
+    // Il caso matcha sia POST sia PUT e l'enumerazione completa delle
+    // righe matchate finisce nel trace via `contains.regex`.
+    condition: stepEvidenceMatches(
+      'query-pn-external-registries',
+      '\\[DOWNSTREAM\\] Service IO returned errors=500 Internal Server Error from (POST|PUT)',
+    ),
+    title: '500 da AppIO - Internal Server Error',
+    resolution: 'Risoluzione non documentata.',
+    details: [['Downstream', 'AppIO']],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      downstreams: [SEND_DOWNSTREAMS.APP_IO],
+      finalActions: [],
+      links: [],
+    },
+  }),
+  // ── AppIO 404: Activation not found ────────────────────────────────────
+  knownCase({
+    id: 'appio-activation-not-found',
+    description: 'Allarme scattato per un 404 ricevuto da AppIO - Activation not found for the user',
+    priority: 90,
+    condition: any(
+      varMatches(
+        'externalRegistriesErrorMsg',
+        'Service IO returned errors=404 Not Found.*Activation not found for the user',
+      ),
+      varMatches(
+        'externalRegistriesErrorMsg',
+        'Service IO returned errors=404 Not Found from POST.*activations.*Activation not found for the user',
+      ),
+      varMatches(
+        'externalRegistriesErrorMsg',
+        '404 Not Found from POST https://api\\.io\\.pagopa\\.it/api/v1/activations',
+      ),
+    ),
+    title: '404 da AppIO - Activation not found for the user',
+    resolution: 'Chiusura: caso noto',
+    details: [['Downstream', 'AppIO']],
+    analysis: {
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      downstreams: [SEND_DOWNSTREAMS.APP_IO],
+      finalActions: [],
+      links: [],
+    },
+  }),
+  // ── AppIO 500: Cosmos DB rate limit (429) ──────────────────────────────
+  knownCase({
+    id: 'appio-cosmos-429',
+    description: 'AppIO Cosmos DB rate limit exceeded (429)',
+    priority: 85,
+    condition: varMatches(
+      'externalRegistriesErrorMsg',
+      'Service IO returned errors=500 Internal Server Error.*COSMOS_ERROR_RESPONSE.*429.*request rate is too large',
+    ),
+    resolution: 'Risoluzione non documentata.',
+    details: [['Errore', '{{vars.externalRegistriesErrorMsg}}']],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      downstreams: [SEND_DOWNSTREAMS.APP_IO],
+      finalActions: [],
+      links: [],
+    },
+  }),
+  // ── io-activation-service failed + PDV 404 ─────────────────────────────
+  knownCase({
+    id: 'io-activation-save-failed-pdv',
+    description: 'Salvataggio io-activation-service fallito (PDV 404)',
+    priority: 80,
+    condition: varMatches(
+      'userAttributesErrorMsg',
+      'Saving to io-activation-service failed.*deleting from addressbook appio channeltype',
+    ),
+    title: 'Salvataggio io-activation-service fallito con errore PDV 404',
+    resolution: 'PN-16877',
+    details: [
+      ['Task JIRA', 'PN-16877'],
+      ['Errore', '{{vars.userAttributesErrorMsg}}'],
+    ],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
+    },
+  }),
+  // ── io-status activated, re-adding to addressbook ──────────────────────
+  knownCase({
+    id: 'io-status-activated-readding',
+    description: 'Re-inserimento in addressbook dopo attivazione IO',
+    priority: 75,
+    condition: varMatches(
+      'userAttributesErrorMsg',
+      'outcome io-status is activated, re-adding to addressbook appio channeltype',
+    ),
+    resolution: 'Risoluzione non documentata.',
+    details: [['Errore', '{{vars.userAttributesErrorMsg}}']],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
+    },
+  }),
+  // ── DynamoDB TransactionConflict (400) ─────────────────────────────────
+  knownCase({
+    id: 'dynamodb-transaction-conflict',
+    description: 'Errore su transazione DynamoDB - TransactionConflict',
+    priority: 70,
+    condition: varMatches(
+      'userAttributesErrorMsg',
+      'AUD_AB_DA_IO_INSUP.*FAILURE.*Transaction cancelled.*TransactionConflict',
+    ),
+    resolution: 'Thread Slack: 30/10/2025 20/11/2025 PN-17228',
+    details: [
+      ['Task JIRA', 'PN-17228'],
+      ['Errore', '{{vars.userAttributesErrorMsg}}'],
+    ],
+    analysis: {
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
+    },
+  }),
+  // ── InternalError / SQS sendMessageBatch ───────────────────────────────
+  knownCase({
+    id: 'internal-error-sqs',
+    description: 'Errore interno - probabile problema SQS sendMessageBatch',
+    priority: 65,
+    condition: varMatches(
+      'userAttributesErrorMsg',
+      'AUD_AB_DA_IO_INSUP.*FAILURE.*failed saving exception=InternalError',
+    ),
+    resolution: 'PN-16131',
+    details: [
+      ['Task JIRA', 'PN-16131'],
+      ['Errore', '{{vars.userAttributesErrorMsg}}'],
+    ],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
+    },
+  }),
+  // ── Errore generico 500 da pn-external-registries via ext-registry-private ──
+  // pn-user-attributes propaga la risposta `500 Internal Server Error` dal
+  // downstream interno `ext-registry-private/io/v1/activations`. Il body
+  // include `PN_GENERIC_ERROR` e l'indicazione esplicita
+  // `See logs for details in PN-EXTERNAL-REGISTRIES`, oltre al
+  // `FALLBACK-UUID` da usare per cercare il dettaglio nei log del
+  // microservizio downstream.
+  //
+  // Distinto dal caso #11 (`ext-registry-private-readtimeout`) perché la
+  // causa qui non è un timeout di rete ma un errore applicativo lato
+  // pn-external-registries (e va indagato sui suoi log).
+  // ── #11 NUOVO: ReadTimeout su ext-registry-private ─────────────────────
+  // Il campo `error_message` del JSON canonico recita
+  //   "error upserting service activation message=...ReadTimeoutException",
+  // ma in produzione il messaggio del log che vince per lunghezza in
+  // `scanServiceLogs().errorMessage` è in realtà
+  //   "[AUD_AB_DA_IO_INSUP] FAILURE - failed saving exception=...ReadTimeoutException".
+  // Le due varianti sono lo stesso scenario (timeout di rete chiamando
+  // ext-registry-private); copriamo entrambe le firme per robustezza.
+  knownCase({
+    id: 'ext-registry-private-readtimeout',
+    description: 'ReadTimeout su ext-registry-private da pn-user-attributes',
+    priority: 60,
+    condition: any(
+      varMatches('userAttributesErrorMsg', 'AUD_AB_DA_IO_INSUP.*ReadTimeoutException'),
+      varMatches('userAttributesErrorMsg', 'error upserting service activation message=.*ReadTimeoutException'),
+      varMatches('userAttributesErrorMsg', '_setCourtesyAddressIo.*ReadTimeoutException'),
+    ),
+    title: 'ReadTimeout di rete su ext-registry-private da pn-user-attributes',
+    resolution: 'Risoluzione non documentata.',
+    details: [['Errore', '{{vars.userAttributesErrorMsg}}']],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
+    },
+  }),
+];

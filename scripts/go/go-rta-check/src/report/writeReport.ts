@@ -1,4 +1,6 @@
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOHTMLListExporter, GOJSONFileExporter } from '@pagopa/go-common/exporters';
+import { GOPathType } from '@pagopa/go-common/files';
 import * as fs from 'node:fs/promises';
 import * as nodePath from 'node:path';
 
@@ -40,13 +42,13 @@ interface ReportHtmlRow extends Record<string, unknown> {
  * @returns The list of written file paths
  */
 export async function writeReport(
-  script: Core.GOScript,
+  script: GOScript,
   report: RtaCheckReport,
   formats: ReadonlyArray<OutputFormat>,
   subdirectory?: string,
 ): Promise<ReadonlyArray<string>> {
   const written: string[] = [];
-  const resultsInfo = script.paths.resolvePathWithInfo('results.json', Core.GOPathType.OUTPUT);
+  const resultsInfo = script.paths.resolvePathWithInfo('results.json', GOPathType.OUTPUT);
   const baseDir = nodePath.dirname(resultsInfo.path);
   const outDir = subdirectory === undefined ? baseDir : nodePath.join(baseDir, subdirectory);
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is confined to the execution output directory resolved by GOPaths.
@@ -54,11 +56,11 @@ export async function writeReport(
 
   if (formats.includes('json')) {
     const resultsPath = nodePath.join(outDir, 'results.json');
-    await new Core.GOJSONFileExporter({ outputPath: resultsPath, pretty: true, indent: 2 }).export(report);
+    await new GOJSONFileExporter({ outputPath: resultsPath, pretty: true, indent: 2 }).export(report);
     written.push(resultsPath);
 
     const summaryPath = nodePath.join(outDir, 'summary.json');
-    await new Core.GOJSONFileExporter({ outputPath: summaryPath, pretty: true, indent: 2 }).export({
+    await new GOJSONFileExporter({ outputPath: summaryPath, pretty: true, indent: 2 }).export({
       schemaVersion: report.schemaVersion,
       generatedAt: report.generatedAt,
       input: report.input,
@@ -70,7 +72,7 @@ export async function writeReport(
   if (formats.includes('html')) {
     const htmlPath = nodePath.join(outDir, 'report.html');
     const rows: ReadonlyArray<ReportHtmlRow> = report.rows.map(toHtmlRow);
-    await new Core.GOHTMLListExporter<ReportHtmlRow>({ outputPath: htmlPath }).export(rows);
+    await new GOHTMLListExporter<ReportHtmlRow>({ outputPath: htmlPath }).export(rows);
     written.push(htmlPath);
   }
 

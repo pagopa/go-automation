@@ -1,4 +1,6 @@
-import { getErrorMessage, GOHttpClientError, isPlainObject } from '@go-automation/go-common/core';
+import { getErrorMessage } from '@pagopa/go-common/errors';
+import { GOHttpClientError } from '@pagopa/go-common/http';
+import { isPlainObject } from '@pagopa/go-common/utils';
 
 import type { ProblemErrorItem } from './ProblemErrorItem.js';
 import type { SendFailure } from './SendFailure.js';

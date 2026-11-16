@@ -2,8 +2,8 @@
  * Notification Service for sending and managing notifications
  */
 
-import type { GOAbortableRequest, GOHttpRequestOptions } from '@go-automation/go-common/core';
-import { GOBackoff, GOHttpClient, GOPoller, GOPollingError } from '@go-automation/go-common/core';
+import { type GOAbortableRequest, GOHttpClient, type GOHttpRequestOptions } from '@pagopa/go-common/http';
+import { GOBackoff, GOPoller, GOPollingError } from '@pagopa/go-common/polling';
 
 import type { SENDNotificationCreationResponse } from './models/SENDNotificationCreationResponse.js';
 import type { SENDNotificationRequest } from './models/SENDNotificationRequest.js';

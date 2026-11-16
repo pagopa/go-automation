@@ -8,5 +8,15 @@
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "configs", "logs", "reports"],
-  "references": [{ "path": "../../../packages/go-common" }, { "path": "../../../packages/go-runbook" }]
+  "references": [
+    {
+      "path": "../../../packages/go-common"
+    },
+    {
+      "path": "../../../packages/go-runbook"
+    },
+    {
+      "path": "../../../packages/go-script"
+    }
+  ]
 }

@@ -2,7 +2,7 @@
  * Send Paper Request Error Check - Input Lines Reader
  */
 
-import { Core } from '@go-automation/go-common';
+import { GOFileListImporter } from '@pagopa/go-common/importers';
 
 /**
  * Legge i requestId o IUN da un file di input specificato.
@@ -15,7 +15,7 @@ export async function readInputLines(filePath?: string): Promise<string[]> {
     return [];
   }
 
-  const importer = new Core.GOFileListImporter({ trim: true, skipEmptyLines: true, commentPrefix: '#' });
+  const importer = new GOFileListImporter({ trim: true, skipEmptyLines: true, commentPrefix: '#' });
   const { items } = await importer.import(filePath);
   return items;
 }

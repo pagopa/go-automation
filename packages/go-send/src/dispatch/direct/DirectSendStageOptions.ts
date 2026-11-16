@@ -1,4 +1,4 @@
-import type { GORateLimiter } from '@go-automation/go-common/core';
+import type { GORateLimiter } from '@pagopa/go-common/concurrency';
 
 import type { DocumentResolver } from '../documents/DocumentResolver.js';
 import type { RowLedger } from '../journal/RowLedger.js';

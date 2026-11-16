@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { Core } from '@go-automation/go-common';
+import type { GOLogger } from '@pagopa/go-common/logging';
 import type { Dispatch } from '@go-automation/go-send';
 
 import { displaySummary, exitCodeFor, formatDuration, unprocessedRows } from '../displaySummary.js';
@@ -80,7 +80,7 @@ describe('displaySummary helpers', () => {
 describe('displaySummary', () => {
   it('separates the rows in flight at the interruption from the rows not sent', () => {
     const logger = new FakeLogger();
-    displaySummary(logger as unknown as Core.GOLogger, {
+    displaySummary(logger as unknown as GOLogger, {
       progress: progress([
         ['ACCEPTED', 2],
         ['SENDING', 1],
@@ -104,7 +104,7 @@ describe('displaySummary', () => {
   it('does not report as accepted a REQUEST_ID_NOT_FOUND row whose timeline ended with REQUEST_REFUSED', () => {
     // --phases request-id: no verification, the refusal comes from the timeline.
     const logger = new FakeLogger();
-    displaySummary(logger as unknown as Core.GOLogger, {
+    displaySummary(logger as unknown as GOLogger, {
       progress: progress([['REQUEST_ID_NOT_FOUND', 1]], [['REFUSED', 1]]),
       totalRows: 1,
       failures: [],

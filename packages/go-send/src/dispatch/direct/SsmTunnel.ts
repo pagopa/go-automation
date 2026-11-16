@@ -1,6 +1,6 @@
 import { DescribeInstancesCommand, StartInstancesCommand } from '@aws-sdk/client-ec2';
 import { DescribeInstanceInformationCommand } from '@aws-sdk/client-ssm';
-import { GOChildProcess, GOChildProcessError, isTcpPortOpen } from '@go-automation/go-common/core';
+import { GOChildProcess, GOChildProcessError, isTcpPortOpen } from '@pagopa/go-common/process';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 import { DispatchError } from '../DispatchError.js';

@@ -1,4 +1,6 @@
-import { Core, AWS } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import type { AWSDynamoDBService } from '@pagopa/go-aws/dynamodb';
+import { GOFileListExporter, type GOListExporterStreamWriter } from '@pagopa/go-common/exporters';
 import { getCoreDynamoDBService } from '../utils/awsClients.js';
 import type { SendPaperRequestErrorCheckConfig, RetrieveAttachmentsResult } from '../types/index.js';
 import { get, iunFromRid } from '../utils/get.js';
@@ -24,9 +26,9 @@ interface NotificationAarData {
  * Recupera le chiavi S3 degli allegati e la data di invio (sentAt) per una notifica da pn-Notifications.
  */
 async function retrieveNotificationAttachments(
-  dynamoDbService: AWS.AWSDynamoDBService,
+  dynamoDbService: AWSDynamoDBService,
   iun: string,
-  attachmentsStream: Core.GOListExporterStreamWriter<string>,
+  attachmentsStream: GOListExporterStreamWriter<string>,
 ): Promise<NotificationAttachmentsData> {
   const items = await dynamoDbService.query(NOTIFICATIONS_TABLE_NAME, 'iun = :val', {
     ':val': { S: iun },
@@ -86,9 +88,9 @@ async function retrieveNotificationAttachments(
  * Recupera i documenti AAR (AAR_GENERATION) e la lista eventi timeline per un IUN da pn-Timelines.
  */
 async function retrieveAARs(
-  dynamoDbService: AWS.AWSDynamoDBService,
+  dynamoDbService: AWSDynamoDBService,
   iun: string,
-  aarStream: Core.GOListExporterStreamWriter<string>,
+  aarStream: GOListExporterStreamWriter<string>,
 ): Promise<NotificationAarData> {
   const items = await dynamoDbService.query(TIMELINES_TABLE_NAME, 'iun = :val', {
     ':val': { S: iun },
@@ -135,12 +137,12 @@ async function retrieveAARs(
 /**
  * Modulo per il recupero massivo e classificazione di allegati ed AAR via IUN.
  *
- * @param script - Istanza di Core.GOScript per accedere ai client ed al logger
+ * @param script - Istanza di GOScript per accedere ai client ed al logger
  * @param iuns - Elenco degli IUN da elaborare
  * @returns Risultati dell'estrazione (allegati ed AAR con separazione Glacier e Validazione PDF)
  */
 export async function retrieveAttachmentsFromIun(
-  script: Core.GOScript,
+  script: GOScript,
   iuns: ReadonlyArray<string>,
 ): Promise<RetrieveAttachmentsResult> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
@@ -161,11 +163,11 @@ export async function retrieveAttachmentsFromIun(
     config.outputDir,
   );
 
-  const attachmentsExporter = new Core.GOFileListExporter({ outputPath: attachmentsFilePath });
-  const aarExporter = new Core.GOFileListExporter({ outputPath: aarFilePath });
-  const glacierEligibleExporter = new Core.GOFileListExporter({ outputPath: glacierEligibleFilePath });
-  const validPdfAttachmentsExporter = new Core.GOFileListExporter({ outputPath: validPdfAttachmentsFilePath });
-  const skippedAttachmentsExporter = new Core.GOFileListExporter({ outputPath: skippedAttachmentsFilePath });
+  const attachmentsExporter = new GOFileListExporter({ outputPath: attachmentsFilePath });
+  const aarExporter = new GOFileListExporter({ outputPath: aarFilePath });
+  const glacierEligibleExporter = new GOFileListExporter({ outputPath: glacierEligibleFilePath });
+  const validPdfAttachmentsExporter = new GOFileListExporter({ outputPath: validPdfAttachmentsFilePath });
+  const skippedAttachmentsExporter = new GOFileListExporter({ outputPath: skippedAttachmentsFilePath });
 
   const attachmentsStream = await attachmentsExporter.exportStream();
   const aarStream = await aarExporter.exportStream();

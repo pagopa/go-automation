@@ -1,5 +1,5 @@
-import type { Core } from '@go-automation/go-common';
-import { valueToString } from '@go-automation/go-common/core';
+import type { GOLogger } from '@pagopa/go-common/logging';
+import { valueToString } from '@pagopa/go-common/utils';
 
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
 import { resolveAnalysisMatcher } from './resolveAnalysisMatcher.js';
@@ -46,7 +46,7 @@ function resolveConcurrency(value: number | undefined): number {
  * @returns The resolved options, or `undefined` when the configuration is invalid
  */
 export function resolveRunOptions(
-  logger: Core.GOLogger,
+  logger: GOLogger,
   config: GoRtaCheckConfig,
   resolveMatcher: AnalysisMatcherResolver = resolveAnalysisMatcher,
 ): RunOptions | undefined {

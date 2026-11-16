@@ -638,7 +638,7 @@ const CONFIGS_DEST = path.join(ARTIFACT_DIR, 'configs');"
     fi
 
     TSCONFIG_REFERENCES_BLOCK=",
-  \"references\": [{ \"path\": \"../../scripts/$WRAPPED_SCRIPT_RELATIVE_PATH\" }, { \"path\": \"../../packages/go-common\" }]"
+  \"references\": [{ \"path\": \"../../scripts/$WRAPPED_SCRIPT_RELATIVE_PATH\" }, { \"path\": \"../../packages/go-script\" }]"
 else
     WRAPPED_SCRIPT_CONFIG_DECLARATION_BLOCK="// No additional assets to copy."
     WRAPPED_SCRIPT_CONFIG_COPY_STATEMENT="// No additional assets to copy."

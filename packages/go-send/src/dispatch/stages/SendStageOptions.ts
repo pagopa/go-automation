@@ -1,4 +1,4 @@
-import type { GORateLimiter } from '@go-automation/go-common/core';
+import type { GORateLimiter } from '@pagopa/go-common/concurrency';
 
 import type { SENDApiVersion } from '../../services/notification/models/SENDApiVersion.js';
 import type { B2BApi } from '../channels/B2BApi.js';

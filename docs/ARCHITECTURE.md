@@ -23,7 +23,7 @@
 
 GO Automation è un **monorepo TypeScript** gestito con **pnpm workspaces**. Oggi il repository è organizzato in quattro layer principali:
 
-- **Libreria condivisa**: `@go-automation/go-common` - framework script, utilities core, adapter AWS, import/export, JSON utilities e messaging (SEND e Runbook sono oggi package standalone, `go-send` e `go-runbook`)
+- **Libreria condivisa**: `@pagopa/go-common` - framework script, utilities core, adapter AWS, import/export, JSON utilities e messaging (SEND e Runbook sono oggi package standalone, `go-send` e `go-runbook`)
 - **Script CLI**: package eseguibili organizzati per team/prodotto (GO, SEND, INTEROP)
 - **Functions serverless**: package in `functions/*` che riusano la business logic degli script tramite `GOScript.createLambdaHandler()`
 - **Toolchain centralizzata**: TypeScript strict, ESLint flat config, scaffold validation, CI riutilizzabile, coverage e security audit
@@ -515,11 +515,11 @@ allowBuilds:
 
 ### Naming Conventions
 
-| Tipo      | Pattern                   | Esempio                                                 |
-| --------- | ------------------------- | ------------------------------------------------------- |
-| Packages  | `@go-automation/{name}`   | `@go-automation/go-common`, `@go-automation/go-runbook` |
-| Scripts   | `{team}-{name}`           | `go-report-alarms`, `send-import-notifications`         |
-| Functions | `go-{descrizione}-lambda` | `go-send-monitor-athena-query-lambda`                   |
+| Tipo      | Pattern                   | Esempio                                         |
+| --------- | ------------------------- | ----------------------------------------------- |
+| Packages  | `@go-automation/{name}`   | `@pagopa/go-common`, `@pagopa/go-runbook`       |
+| Scripts   | `{team}-{name}`           | `go-report-alarms`, `send-import-notifications` |
+| Functions | `go-{descrizione}-lambda` | `go-send-monitor-athena-query-lambda`           |
 
 ### Comandi Workspace
 
@@ -549,7 +549,7 @@ Per aggiungere `go-common` come dipendenza di uno script:
 
 ```bash
 # Dalla directory dello script
-pnpm add @go-automation/go-common@workspace:*
+pnpm add @go-automation/go-script@workspace:* @pagopa/go-common@workspace:*
 ```
 
 Questo crea una dipendenza locale che viene risolta dal workspace, non da npm registry.
@@ -558,7 +558,8 @@ Questo crea una dipendenza locale che viene risolta dal workspace, non da npm re
 // package.json dello script
 {
   "dependencies": {
-    "@go-automation/go-common": "workspace:*"
+    "@go-automation/go-script": "workspace:*",
+    "@pagopa/go-common": "workspace:*"
   }
 }
 ```
@@ -568,7 +569,8 @@ Le function possono referenziare **sia** `go-common` **sia** uno script workspac
 ```json
 {
   "dependencies": {
-    "@go-automation/go-common": "workspace:*",
+    "@go-automation/go-script": "workspace:*",
+    "@pagopa/go-common": "workspace:*",
     "send-monitor-athena-query": "workspace:*"
   }
 }
@@ -632,7 +634,7 @@ pnpm --filter=go-send-monitor-athena-query-lambda build
   "scripts": {
     "build": "pnpm build:common && pnpm build:scripts",
     "build:all": "pnpm build:common && pnpm build:scripts && pnpm build:functions",
-    "build:common": "pnpm --filter=@go-automation/go-common build",
+    "build:common": "pnpm --filter=@pagopa/go-common build",
     "build:scripts": "pnpm -r --filter='./scripts/**' build",
     "build:functions": "pnpm -r --filter='./functions/**' build",
     "test": "pnpm test:common && pnpm test:scripts",
@@ -678,7 +680,7 @@ La build non è più solo compilazione: il monorepo usa una pipeline centralizza
                             │
                             ▼
 ┌──────────────────────────────┐
-│ @go-automation/go-common     │
+│ @pagopa/go-common            │
 │ Core + AWS + Messaging       │
 └──────────────┬───────────────┘
                │
@@ -693,7 +695,7 @@ La build non è più solo compilazione: il monorepo usa una pipeline centralizza
 │ entry point di `pnpm go`     │
 ├──────────────────────────────┤
 │ importa:                     │
-│ - @go-automation/go-common   │
+│ - @pagopa/go-common          │
 │   (Core)                     │
 └──────────────────────────────┘
 
@@ -712,7 +714,7 @@ La build non è più solo compilazione: il monorepo usa una pipeline centralizza
 ├──────────────────────────────┤
 │ importano:                   │
 │ - uno script workspace       │
-│ - @go-automation/go-common   │
+│ - @pagopa/go-common          │
 └──────────────────────────────┘
 
 ┌─────────────────────────────────┐
@@ -775,7 +777,7 @@ La build non è più solo compilazione: il monorepo usa una pipeline centralizza
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../../../packages/go-common" }]
+  "references": [{ "path": "../../../packages/go-common" }, { "path": "../../../packages/go-script" }]
 }
 ```
 
@@ -998,12 +1000,12 @@ script/
 - invocare `main(script)`
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { GOScript } from '@go-automation/go-script';
 
 import { scriptMetadata, scriptParameters } from './config.js';
 import { main } from './main.js';
 
-const script = new Core.GOScript({
+const script = new GOScript({
   metadata: scriptMetadata,
   config: {
     parameters: scriptParameters,
@@ -1027,19 +1029,19 @@ script
 - **`scriptParameters`**: definizione parametri CLI/config con tipo, alias, default, `required`
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { type GOConfigParameterOptions, GOConfigParameterType, type GOScriptMetadata } from '@go-automation/go-script';
 
-export const scriptMetadata: Core.GOScriptMetadata = {
+export const scriptMetadata: GOScriptMetadata = {
   name: 'My Script',
   version: '1.0.0',
   description: 'Descrizione dello script',
   authors: ['Team GO - Gestione Operativa'],
 };
 
-export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
+export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
   {
     name: 'input.file',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Path del file di input',
     required: true,
     aliases: ['i'],
@@ -1070,12 +1072,12 @@ Questo rende i tipi riutilizzabili da `main.ts`, test, helper e adapter Lambda s
 Il file `main.ts` deve esportare la sola funzione `main()` e delegare ogni helper complesso a `src/libs/`.
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import type { MyScriptConfig } from './types/index.js';
 import { MyService } from './libs/MyService.js';
 
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<MyScriptConfig>();
   const service = new MyService(config);
 
@@ -1167,25 +1169,31 @@ Gli script supportano due modalità runtime principali, **monorepo** e **standal
 
 ### Rilevamento Automatico
 
-Il sistema rileva automaticamente la modalità cercando marker del monorepo:
+Il sistema rileva automaticamente la modalità cercando **la root di go-automation**, non un workspace qualsiasi:
 
 ```
+0. GOScript({ paths: { rootDir } }) → root esplicita per quello script → MONOREPO
+   (solo per l'istanza: non cambia variabili d'ambiente né la cache di rilevamento)
+   ↓
 1. GO_DEPLOYMENT_MODE env → usa valore esplicito se presente
    ↓
-2. Cerca pnpm-workspace.yaml salendo dalla cwd
-   → Trovato → MONOREPO
+2. GO_ROOT_DIR env → quella directory è la root → MONOREPO
    ↓
-3. Cerca package.json con "workspaces" o name="go-automation"
+3. Cerca, salendo dalla cwd, il file marcatore .go-automation-root
+   oppure un package.json con name="go-automation"
    → Trovato → MONOREPO
    ↓
 4. Default → STANDALONE
 ```
+
+Un `pnpm-workspace.yaml` o un `package.json` con `workspaces` di **un altro repository** non rende la root un monorepo go-automation: lo script gira in standalone e non scrive `data/` nella root di quel repository (EVO-PKGPUB-OPUS-01, K6).
 
 ### Variabili d'Ambiente
 
 | Variabile            | Descrizione                 | Esempio                   |
 | -------------------- | --------------------------- | ------------------------- |
 | `GO_DEPLOYMENT_MODE` | Forza modalità deployment   | `monorepo` o `standalone` |
+| `GO_ROOT_DIR`        | Root esplicita del monorepo | `/repos/go-automation`    |
 | `GO_BASE_DIR`        | Base directory (standalone) | `/app`                    |
 | `GO_DATA_DIR`        | Override data directory     | `/app/data`               |
 | `GO_CONFIG_DIR`      | Override config directory   | `/app/configs`            |
@@ -1247,17 +1255,17 @@ go-automation/                    # Monorepo root (rilevato automaticamente)
 ### Uso Programmatico
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { GOExecutionEnvironment, GOPaths } from '@go-automation/go-script';
 
 // Via GOPaths
-const paths = new Core.GOPaths('my-script');
+const paths = new GOPaths('my-script');
 console.log('Mode:', paths.getDeploymentMode());
 console.log('Is standalone:', paths.isStandalone());
 console.log('Base dir:', paths.getBaseDir());
 
 // Via GOExecutionEnvironment
-console.log('Mode:', Core.GOExecutionEnvironment.detect().deploymentMode);
-console.log('Is monorepo:', Core.GOExecutionEnvironment.isMonorepo());
+console.log('Mode:', GOExecutionEnvironment.detect().deploymentMode);
+console.log('Is monorepo:', GOExecutionEnvironment.isMonorepo());
 ```
 
 ### Deployment Standalone
@@ -1285,7 +1293,7 @@ pnpm --filter=go-send-monitor-athena-query-lambda build
 pnpm --filter=go-send-monitor-athena-query-lambda test:local
 ```
 
-Il package function dipende sia da `@go-automation/go-common` sia dallo script `send-monitor-athena-query`, quindi il deploy Lambda eredita automaticamente la business logic e il contratto di configurazione dello script sorgente.
+Il package function dipende sia da `@pagopa/go-common` sia dallo script `send-monitor-athena-query`, quindi il deploy Lambda eredita automaticamente la business logic e il contratto di configurazione dello script sorgente.
 
 ---
 

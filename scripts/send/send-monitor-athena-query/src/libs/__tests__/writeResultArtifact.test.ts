@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 
-import { Core } from '@go-automation/go-common';
+import { GOPaths } from '@go-automation/go-script';
 
 import { writeResultArtifact } from '../writeResultArtifact.js';
 import type { SendMonitorAthenaQueryConfig } from '../../types/index.js';
@@ -20,7 +20,7 @@ describe('writeResultArtifact', () => {
           outputFolder: outputDir,
           outputFilePrefix: '---bad prefix !! name---',
         }),
-        new Core.GOPaths({ scriptName: 'send-monitor-athena-query', baseDir: outputDir }),
+        new GOPaths({ scriptName: 'send-monitor-athena-query', baseDir: outputDir }),
       );
 
       assert.match(artifact.fileName, /^bad-prefix-name_/);

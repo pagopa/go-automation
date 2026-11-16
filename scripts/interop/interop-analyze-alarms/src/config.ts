@@ -4,12 +4,12 @@
  * Contains script metadata and parameters definition.
  */
 
-import { Core } from '@go-automation/go-common';
+import { type GOConfigParameterOptions, GOConfigParameterType, type GOScriptMetadata } from '@go-automation/go-script';
 
 /**
  * Script metadata
  */
-export const scriptMetadata: Core.GOScriptMetadata = {
+export const scriptMetadata: GOScriptMetadata = {
   name: 'Interop Analyze Alarms',
   version: '1.0.0',
   description: 'Execute automatic queries for simple alarm analysis.',
@@ -19,17 +19,17 @@ export const scriptMetadata: Core.GOScriptMetadata = {
 /**
  * Script parameter definitions
  */
-export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
+export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
   {
     name: 'aws.profile',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'AWS SSO profile name',
     required: true,
     aliases: ['ap'],
   },
   {
     name: 'alarmName',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description:
       'AWS CloudWatch alarm name. If omitted, the script analyzes every INTEROP k8s alarm occurrence found in the range.',
     required: false,
@@ -37,14 +37,14 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'startDate',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Start date in format ISO 8601',
     required: true,
     aliases: ['sd'],
   },
   {
     name: 'endDate',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'End date in format ISO 8601',
     required: true,
     aliases: ['ed'],

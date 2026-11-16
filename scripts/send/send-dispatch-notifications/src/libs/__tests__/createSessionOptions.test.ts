@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import * as path from 'node:path';
 
-import { Core } from '@go-automation/go-common';
+import { GOJSONFileExporter } from '@pagopa/go-common/exporters';
 import { Dispatch } from '@go-automation/go-send';
 
 import { scriptMetadata } from '../../config.js';
@@ -50,7 +50,7 @@ async function previousRun(dir: string, input: string, parameters: Readonly<Reco
     journalFiles: [],
     parameters,
   };
-  await new Core.GOJSONFileExporter({ outputPath: path.join(runDir, 'run.json'), pretty: true }).export(info);
+  await new GOJSONFileExporter({ outputPath: path.join(runDir, 'run.json'), pretty: true }).export(info);
   return runDir;
 }
 

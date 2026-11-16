@@ -4,7 +4,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 
-import type { AWSS3BucketEntry, AWSS3Service } from '@go-automation/go-common/aws';
+import type { AWSS3BucketEntry, AWSS3Service } from '@pagopa/go-aws/s3';
 import { SENDSafeStorageS3Service } from '../SENDSafeStorageS3Service.js';
 
 interface RecordedDownload {

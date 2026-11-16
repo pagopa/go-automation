@@ -3,8 +3,8 @@
  */
 
 import { createHash } from 'crypto';
-import { GOBinaryFileImporter, GOHttpClient } from '@go-automation/go-common/core';
-import type { GOAbortableRequest, GOHttpRequestOptions } from '@go-automation/go-common/core';
+import { type GOAbortableRequest, GOHttpClient, type GOHttpRequestOptions } from '@pagopa/go-common/http';
+import { GOBinaryFileImporter } from '@pagopa/go-common/importers';
 import type { SENDPreloadResponse } from './models/SENDPreloadResponse.js';
 import type { SENDPreloadRequest } from './models/SENDPreloadRequest.js';
 import type { SENDAttachmentResult } from './models/SENDAttachmentResult.js';

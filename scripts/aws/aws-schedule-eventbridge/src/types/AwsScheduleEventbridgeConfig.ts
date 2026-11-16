@@ -1,4 +1,4 @@
-import type { AWS } from '@go-automation/go-common';
+import type { ScheduleState } from '@pagopa/go-aws/scheduler';
 
 import type { ScheduleAction } from './ScheduleAction.js';
 
@@ -26,7 +26,7 @@ export interface AwsScheduleEventbridgeConfig {
   readonly namePrefix?: string;
 
   /** State filter, applied by the `list` action only */
-  readonly state?: AWS.ScheduleState;
+  readonly state?: ScheduleState;
 
   /** Skip the interactive confirmation before a mutation */
   readonly yes: boolean;

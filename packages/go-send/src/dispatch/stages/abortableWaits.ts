@@ -1,4 +1,4 @@
-import type { GORateLimiter } from '@go-automation/go-common/core';
+import type { GORateLimiter } from '@pagopa/go-common/concurrency';
 
 import type { DispatchClock } from '../model/DispatchClock.js';
 

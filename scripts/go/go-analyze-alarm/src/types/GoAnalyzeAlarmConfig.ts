@@ -30,6 +30,14 @@ export interface GoAnalyzeAlarmConfig {
    * mode runs fully offline and ignores them.
    */
   readonly awsProfiles?: ReadonlyArray<string>;
+  /** Account directory of the logical AWS accounts (`aws.account.directory`). */
+  readonly awsAccountDirectory?: ReadonlyArray<string>;
+  /** How logical accounts are reached (`aws.account.binding`). */
+  readonly awsAccountBinding?: string;
+  /** Environment of the account directory to read (`aws.account.environment`). */
+  readonly awsAccountEnvironment?: string;
+  /** Preferred SSO permission sets (`aws.account.permission.sets`). */
+  readonly awsAccountPermissionSets?: ReadonlyArray<string>;
   /** Include the per-runbook detail table in `stats` mode */
   readonly statsDetail: boolean;
   /** Write the `stats` mode report as a JSON artifact */

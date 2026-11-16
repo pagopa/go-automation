@@ -1,6 +1,7 @@
 {
   "name": "@go-automation/go-ai",
   "version": "1.0.0",
+  "private": true,
   "type": "module",
   "description": "GO-AI: Bedrock-powered AI module for operational intelligence",
   "main": "dist/index.js",
@@ -29,7 +30,7 @@
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "catalog:",
     "@aws-sdk/credential-provider-ini": "catalog:",
-    "@go-automation/go-common": "workspace:*"
+    "@pagopa/go-common": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:"

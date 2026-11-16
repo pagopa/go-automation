@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Core } from '@go-automation/go-common';
-import type { AWS } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import type { AlarmHistoryItem } from '@pagopa/go-aws/cloudwatch-alarms';
 
 import type { AlarmTimelineEntry } from '../../types/alarms.types.js';
 import type { GoReportAlarmsConfig } from '../../types/GoReportAlarmsConfig.js';
@@ -30,7 +30,7 @@ const CONFIG: GoReportAlarmsConfig = {
   awsProfiles: ['prod'],
 };
 
-function createScript(): { readonly script: Core.GOScript; readonly calls: LoggerCall[] } {
+function createScript(): { readonly script: GOScript; readonly calls: LoggerCall[] } {
   const calls: LoggerCall[] = [];
   const script = {
     logger: {
@@ -50,7 +50,7 @@ function createScript(): { readonly script: Core.GOScript; readonly calls: Logge
         calls.push({ method: 'newline' });
       },
     },
-  } as unknown as Core.GOScript;
+  } as unknown as GOScript;
 
   return { script, calls };
 }
@@ -62,7 +62,7 @@ function messages(calls: ReadonlyArray<LoggerCall>, method?: string): ReadonlyAr
     .filter((message): message is string => message !== undefined);
 }
 
-function alarm(name: string, timestamp = '2026-07-01T12:00:00.000Z'): AWS.AlarmHistoryItem {
+function alarm(name: string, timestamp = '2026-07-01T12:00:00.000Z'): AlarmHistoryItem {
   return { AlarmName: name, Timestamp: new Date(timestamp) };
 }
 

@@ -16,6 +16,7 @@
     "@types/node": "catalog:"
   },
   "dependencies": {
-    "@go-automation/go-common": "workspace:*"
+    "@go-automation/go-script": "workspace:*",
+    "@pagopa/go-aws": "workspace:*"
   }
 }

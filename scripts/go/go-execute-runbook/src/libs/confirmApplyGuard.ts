@@ -1,10 +1,10 @@
-import { Core } from '@go-automation/go-common';
+import { GOConfigKeyTransformer, type GOScript } from '@go-automation/go-script';
 
 import type { ExecuteRunbookConfig } from '../types/ExecuteRunbookConfig.js';
 import type { WatchtowerApplyMode } from '../types/WatchtowerApplyMode.js';
 
 export async function confirmApplyGuard(
-  script: Core.GOScript,
+  script: GOScript,
   config: ExecuteRunbookConfig,
   applyMode: WatchtowerApplyMode,
 ): Promise<void> {
@@ -19,7 +19,7 @@ export async function confirmApplyGuard(
         : false);
     if (!confirmed) {
       throw new Error(
-        `${Core.GOConfigKeyTransformer.toCLIFlag('confirm.apply')} is required for apply mode against a non-local Watchtower URL`,
+        `${GOConfigKeyTransformer.toCLIFlag('confirm.apply')} is required for apply mode against a non-local Watchtower URL`,
       );
     }
   }

@@ -1,4 +1,6 @@
-import { AWS, Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import type { AWSS3Service } from '@pagopa/go-aws/s3';
+import { GOFileListExporter } from '@pagopa/go-common/exporters';
 import { getConfinfoS3Service, getConfinfoDynamoDBService, getCoreDynamoDBService } from '../utils/awsClients.js';
 import type { SendPaperRequestErrorCheckConfig, GetNotificationAttachmentsResult } from '../types/index.js';
 import { get, iunFromRid } from '../utils/get.js';
@@ -19,7 +21,7 @@ interface S3ObjectState {
  * Recupera lo stato dell'oggetto su S3 SafeStorage (versioni e delete markers).
  */
 async function checkS3ObjectState(
-  s3Service: AWS.AWSS3Service,
+  s3Service: AWSS3Service,
   bucket: string,
   documentKey: string,
 ): Promise<S3ObjectState> {
@@ -48,12 +50,12 @@ async function checkS3ObjectState(
 /**
  * Esegue la verifica e il ripristino opzionale degli allegati di notifica via IUN.
  *
- * @param script - Istanza di Core.GOScript per logging e client AWS
+ * @param script - Istanza di GOScript per logging e client AWS
  * @param iuns - Elenco degli IUN da elaborare
  * @returns Risultati dell'elaborazione
  */
 export async function getNotificationAttachments(
-  script: Core.GOScript,
+  script: GOScript,
   iuns: ReadonlyArray<string>,
 ): Promise<GetNotificationAttachmentsResult> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
@@ -82,10 +84,10 @@ export async function getNotificationAttachments(
   );
   const errorAttachmentsFile = resolveOutputPath(script.paths, `error_attachments_${timestamp}.csv`, config.outputDir);
 
-  const csvExporter = new Core.GOFileListExporter({ outputPath: csvFile });
-  const notFoundNotificationsExporter = new Core.GOFileListExporter({ outputPath: notFoundNotificationsFile });
-  const notFoundAttachmentsExporter = new Core.GOFileListExporter({ outputPath: notFoundAttachmentsFile });
-  const errorAttachmentsExporter = new Core.GOFileListExporter({ outputPath: errorAttachmentsFile });
+  const csvExporter = new GOFileListExporter({ outputPath: csvFile });
+  const notFoundNotificationsExporter = new GOFileListExporter({ outputPath: notFoundNotificationsFile });
+  const notFoundAttachmentsExporter = new GOFileListExporter({ outputPath: notFoundAttachmentsFile });
+  const errorAttachmentsExporter = new GOFileListExporter({ outputPath: errorAttachmentsFile });
 
   const csvStream = await csvExporter.exportStream();
   const notFoundNotificationsStream = await notFoundNotificationsExporter.exportStream();

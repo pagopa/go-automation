@@ -1,4 +1,4 @@
-import { toError } from '@go-automation/go-common/core';
+import { toError } from '@pagopa/go-common/errors';
 
 /**
  * Set of row tasks running in background (verification, requestId), with a

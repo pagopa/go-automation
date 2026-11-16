@@ -1,4 +1,4 @@
-import type { AWS } from '@go-automation/go-common';
+import type { ScheduleState } from '@pagopa/go-aws/scheduler';
 
 import type { ScheduleSweepEntry } from './ScheduleSweepEntry.js';
 
@@ -7,7 +7,7 @@ import type { ScheduleSweepEntry } from './ScheduleSweepEntry.js';
  */
 export interface ScheduleSweepPlan {
   /** State every account must end up in */
-  readonly targetState: AWS.ScheduleState;
+  readonly targetState: ScheduleState;
 
   /** One entry per configured profile, in configuration order */
   readonly entries: ReadonlyArray<ScheduleSweepEntry>;

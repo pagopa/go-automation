@@ -15,7 +15,7 @@
  * environment falls back to every environment in scope, while an ambiguous
  * product or runbook aborts with an explicit error instead of hanging.
  */
-import type { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 import type {
   AlarmDto,
   AlarmEventsQuery,
@@ -96,7 +96,7 @@ type WizardStepName = 'PRODUCT' | 'ENVIRONMENT' | 'ALARM';
  *   already been logged by the step that caused it
  */
 export async function selectTarget(
-  script: Core.GOScript,
+  script: GOScript,
   client: WatchtowerClient,
   config: GoRtaCheckConfig,
   allowPrompt: boolean,

@@ -11,8 +11,8 @@ import assert from 'node:assert/strict';
 import * as path from 'path';
 
 import { AlarmAnalyzer } from '../AlarmAnalyzer.js';
-import { Core } from '@go-automation/go-common';
-import type { AWS } from '@go-automation/go-common';
+import type { AlarmHistoryItem, HistoryItemType } from '@pagopa/go-aws/cloudwatch-alarms';
+import { GOJSONFileImporter } from '@pagopa/go-common/importers';
 
 const FIXTURES_DIR = path.join(import.meta.dirname, '__fixtures__');
 
@@ -26,8 +26,8 @@ interface AlarmFixture {
   }>;
 }
 
-async function loadAlarmItems(): Promise<AWS.AlarmHistoryItem[]> {
-  const importer = new Core.GOJSONFileImporter<AlarmFixture>({
+async function loadAlarmItems(): Promise<AlarmHistoryItem[]> {
+  const importer = new GOJSONFileImporter<AlarmFixture>({
     inputPath: path.join(FIXTURES_DIR, 'alarm-history-items.json'),
   });
   const fixture = await importer.import();
@@ -36,7 +36,7 @@ async function loadAlarmItems(): Promise<AWS.AlarmHistoryItem[]> {
   return fixture.items.map((item) => ({
     ...item,
     Timestamp: new Date(item.Timestamp),
-    HistoryItemType: item.HistoryItemType as AWS.HistoryItemType,
+    HistoryItemType: item.HistoryItemType as HistoryItemType,
   }));
 }
 
@@ -92,7 +92,7 @@ describe('AlarmAnalyzer', () => {
     });
 
     it('handles items with missing HistoryData', () => {
-      const items: AWS.AlarmHistoryItem[] = [
+      const items: AlarmHistoryItem[] = [
         { AlarmName: 'no-data-alarm', Timestamp: new Date(), HistoryItemType: 'Action' },
       ];
       const result = analyzer.filterAlarms(items, []);
@@ -102,7 +102,7 @@ describe('AlarmAnalyzer', () => {
     });
 
     it('handles items with malformed HistoryData JSON', () => {
-      const items: AWS.AlarmHistoryItem[] = [
+      const items: AlarmHistoryItem[] = [
         {
           AlarmName: 'bad-json-alarm',
           Timestamp: new Date(),
@@ -163,7 +163,7 @@ describe('AlarmAnalyzer', () => {
     });
 
     it('skips items without AlarmName', () => {
-      const items: AWS.AlarmHistoryItem[] = [{ Timestamp: new Date(), HistoryItemType: 'Action' }];
+      const items: AlarmHistoryItem[] = [{ Timestamp: new Date(), HistoryItemType: 'Action' }];
       const summary = analyzer.generateSummary(items);
       assert.deepStrictEqual(summary, []);
     });

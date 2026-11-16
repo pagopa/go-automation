@@ -2,7 +2,8 @@
  * Registers event listeners for monitoring upload workflow progress.
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOPrompt } from '@go-automation/go-script';
+import type { GOListImporter } from '@pagopa/go-common/importers';
 import type { SENDAttachmentUploadRow, SENDAttachmentUploadWorker } from '@go-automation/go-send';
 
 /** Spinner identifier for the overall upload progress */
@@ -17,8 +18,8 @@ const PROGRESS_SPINNER_ID = 'uploading';
  */
 export function setupEventListeners(
   worker: SENDAttachmentUploadWorker,
-  importer: Core.GOListImporter<SENDAttachmentUploadRow>,
-  prompt: Core.GOPrompt,
+  importer: GOListImporter<SENDAttachmentUploadRow>,
+  prompt: GOPrompt,
 ): void {
   // Worker events
   worker.on('worker:progress', (event) => {

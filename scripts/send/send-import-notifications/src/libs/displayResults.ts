@@ -2,7 +2,7 @@
  * Display helpers for import workflow results.
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 import type { SENDNotificationImportWorkerResult, SENDNotificationImportWorkerError } from '@go-automation/go-send';
 
 /**
@@ -13,7 +13,7 @@ import type { SENDNotificationImportWorkerResult, SENDNotificationImportWorkerEr
  * @param exportFilePath - Path to the export file (optional)
  */
 export function displayResults(
-  script: Core.GOScript,
+  script: GOScript,
   result: SENDNotificationImportWorkerResult,
   exportFilePath?: string,
 ): void {

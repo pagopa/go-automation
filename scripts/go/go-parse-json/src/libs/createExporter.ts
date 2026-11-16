@@ -4,7 +4,13 @@
  * Creates the appropriate GOListExporter based on the requested output format.
  */
 
-import { Core } from '@go-automation/go-common';
+import {
+  GOCSVListExporter,
+  type GOExportFormat,
+  GOFileListExporter,
+  GOHTMLListExporter,
+  GOJSONListExporter,
+} from '@pagopa/go-common/exporters';
 
 /**
  * Validates the output format and exports extracted values to a file.
@@ -17,7 +23,7 @@ import { Core } from '@go-automation/go-common';
 export async function exportValues(
   data: ReadonlyArray<Record<string, unknown>>,
   outputPath: string,
-  format: Core.GOExportFormat,
+  format: GOExportFormat,
   fieldNames: string[],
 ): Promise<void> {
   switch (format) {
@@ -28,25 +34,25 @@ export async function exportValues(
         const val = row[firstField];
         return typeof val === 'string' ? val : JSON.stringify(val);
       });
-      const exporter = new Core.GOFileListExporter({ outputPath });
+      const exporter = new GOFileListExporter({ outputPath });
       await exporter.export(lines);
       return;
     }
 
     case 'json': {
-      const exporter = new Core.GOJSONListExporter<Record<string, unknown>>({ outputPath, pretty: true });
+      const exporter = new GOJSONListExporter<Record<string, unknown>>({ outputPath, pretty: true });
       await exporter.export(data);
       return;
     }
 
     case 'jsonl': {
-      const exporter = new Core.GOJSONListExporter<Record<string, unknown>>({ outputPath, jsonl: true });
+      const exporter = new GOJSONListExporter<Record<string, unknown>>({ outputPath, jsonl: true });
       await exporter.export(data);
       return;
     }
 
     case 'csv': {
-      const exporter = new Core.GOCSVListExporter<Record<string, unknown>>({
+      const exporter = new GOCSVListExporter<Record<string, unknown>>({
         outputPath,
         includeHeader: true,
         columns: fieldNames,
@@ -56,7 +62,7 @@ export async function exportValues(
     }
 
     case 'html': {
-      const exporter = new Core.GOHTMLListExporter<Record<string, unknown>>({ outputPath });
+      const exporter = new GOHTMLListExporter<Record<string, unknown>>({ outputPath });
       await exporter.export(data);
       return;
     }

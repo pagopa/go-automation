@@ -15,7 +15,8 @@
     "test:local": "tsx src/test-local.ts"
   },
   "dependencies": {
-    "@go-automation/go-common": "workspace:*",
+    "@go-automation/go-script": "workspace:*",
+    "@pagopa/go-common": "workspace:*",
     "go-execute-runbook": "workspace:*"
   },
   "devDependencies": {

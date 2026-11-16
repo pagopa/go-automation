@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
-import { GOBinaryFileImporter, GOJSONFileExporter, GOJSONFileImporter } from '@go-automation/go-common/core';
+import { GOJSONFileExporter } from '@pagopa/go-common/exporters';
+import { GOBinaryFileImporter, GOJSONFileImporter } from '@pagopa/go-common/importers';
 
 import type { RunInfo } from './RunInfo.js';
 

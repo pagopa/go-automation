@@ -9,5 +9,12 @@
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../../scripts/send/send-monitor-athena-query" }, { "path": "../../packages/go-common" }]
+  "references": [
+    {
+      "path": "../../scripts/send/send-monitor-athena-query"
+    },
+    {
+      "path": "../../packages/go-script"
+    }
+  ]
 }

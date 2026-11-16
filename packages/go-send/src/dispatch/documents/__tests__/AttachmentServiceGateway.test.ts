@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import * as path from 'node:path';
 
-import type { GOHttpRequestOptions } from '@go-automation/go-common/core';
+import type { GOHttpRequestOptions } from '@pagopa/go-common/http';
 
 import type { SENDPreloadRequest } from '../../../services/attachment/models/SENDPreloadRequest.js';
 import type { SENDPreloadResponse } from '../../../services/attachment/models/SENDPreloadResponse.js';

@@ -6,7 +6,9 @@
 import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOPathType } from '@pagopa/go-common/files';
+import { GOJSONFileImporter } from '@pagopa/go-common/importers';
 import { Dispatch, SENDNotifications, SENDTimelineService, loadUploadedAttachments } from '@go-automation/go-send';
 
 import { scriptMetadata } from '../config.js';
@@ -83,10 +85,10 @@ export function resolveOutputFormat(
  * @returns Identity, directory and input of the session
  * @throws DispatchUsageError when the `run.json` to resume cannot be read
  */
-async function resolveRun(script: Core.GOScript, config: ValidatedConfig): Promise<ResolvedRun> {
+async function resolveRun(script: GOScript, config: ValidatedConfig): Promise<ResolvedRun> {
   if (config.resume === undefined) {
     const runDir = script.paths.createExecutionOutputDir();
-    const inputFile = script.paths.resolvePath(config.inputFile ?? '', Core.GOPathType.INPUT);
+    const inputFile = script.paths.resolvePath(config.inputFile ?? '', GOPathType.INPUT);
     return { runId: Dispatch.createRunId(new Date()), runDir, runName: path.basename(runDir), inputFile };
   }
   const previousDir = path.isAbsolute(config.resume)
@@ -108,7 +110,7 @@ async function resolveRun(script: Core.GOScript, config: ValidatedConfig): Promi
   const inputFile =
     config.inputFile === undefined
       ? previousRun.inputPath
-      : script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT);
+      : script.paths.resolvePath(config.inputFile, GOPathType.INPUT);
   return {
     runId: previousRun.runId,
     runDir,
@@ -127,12 +129,12 @@ async function resolveRun(script: Core.GOScript, config: ValidatedConfig): Promi
  * @param nameOrPath - `--mapping-profile`
  * @returns The validated profile
  */
-async function loadMappingProfile(script: Core.GOScript, nameOrPath: string): Promise<LoadedProfile> {
+async function loadMappingProfile(script: GOScript, nameOrPath: string): Promise<LoadedProfile> {
   const builtIn = Dispatch.BUILT_IN_PROFILES.get(nameOrPath);
   if (builtIn !== undefined) return { profile: builtIn };
-  const file = script.paths.resolvePath(nameOrPath, Core.GOPathType.CONFIG);
+  const file = script.paths.resolvePath(nameOrPath, GOPathType.CONFIG);
   try {
-    const content = await new Core.GOJSONFileImporter<unknown>({ inputPath: file }).import();
+    const content = await new GOJSONFileImporter<unknown>({ inputPath: file }).import();
     const sha256 = createHash('sha256').update(JSON.stringify(content)).digest('hex');
     return { profile: Dispatch.parseMappingProfile(content, file), sha256 };
   } catch (error: unknown) {
@@ -152,7 +154,7 @@ async function loadMappingProfile(script: Core.GOScript, nameOrPath: string): Pr
  *   `--aws-profiles` or an unknown input format
  */
 export async function createSessionOptions(
-  script: Core.GOScript,
+  script: GOScript,
   config: ValidatedConfig,
   target: DispatchTarget,
 ): Promise<PreparedSession> {
@@ -178,7 +180,7 @@ export async function createSessionOptions(
   const attachmentsFile =
     config.attachmentsFile === undefined
       ? undefined
-      : script.paths.resolvePath(config.attachmentsFile, Core.GOPathType.INPUT);
+      : script.paths.resolvePath(config.attachmentsFile, GOPathType.INPUT);
   // Documents matter only when the session sends: without `send` the rows are presets.
   const attachments =
     send && attachmentsFile !== undefined
@@ -193,7 +195,7 @@ export async function createSessionOptions(
   const documentsDir =
     config.documentsDir === undefined
       ? path.dirname(inputFile)
-      : script.paths.resolvePath(config.documentsDir, Core.GOPathType.INPUT);
+      : script.paths.resolvePath(config.documentsDir, GOPathType.INPUT);
   const cliValues = cliFieldValues(config);
   const environmentValues = Dispatch.environmentFieldValues(target);
 
@@ -282,7 +284,7 @@ export async function createSessionOptions(
       outputPath:
         config.outputFile === undefined
           ? script.paths.getExecutionOutputFilePath(`output.${outputFormat}`)
-          : script.paths.resolvePath(config.outputFile, Core.GOPathType.OUTPUT),
+          : script.paths.resolvePath(config.outputFile, GOPathType.OUTPUT),
       reportPath: script.paths.getExecutionOutputFilePath(`report.${outputFormat}`),
       ...(profile.outputColumns !== undefined && { outputColumns: profile.outputColumns }),
       includeStatus: config.outputIncludeStatus,
@@ -296,10 +298,10 @@ export async function createSessionOptions(
   return { run, options, ...(awsProfile !== undefined && { timelinesProfile: awsProfile }) };
 }
 
-function cliSharedDocument(script: Core.GOScript, config: ValidatedConfig): Dispatch.SharedDocumentConfig | undefined {
+function cliSharedDocument(script: GOScript, config: ValidatedConfig): Dispatch.SharedDocumentConfig | undefined {
   if (config.documentFile === undefined || config.documentFile.length === 0) return undefined;
   return {
-    files: config.documentFile.map((file) => script.paths.resolvePath(file, Core.GOPathType.INPUT)),
+    files: config.documentFile.map((file) => script.paths.resolvePath(file, GOPathType.INPUT)),
     ...(config.documentTitle !== undefined && { title: config.documentTitle }),
   };
 }
@@ -352,7 +354,7 @@ function runParameters(
  * rule of §8.3, one credential-error detector for the run.
  */
 function requestIdOptions(
-  script: Core.GOScript,
+  script: GOScript,
   config: ValidatedConfig,
   awsProfile: string,
 ): Dispatch.DispatchRequestIdOptions {

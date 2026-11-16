@@ -6,7 +6,7 @@
  * resume, output 1:1 with the input.
  */
 
-import type { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 import { Dispatch } from '@go-automation/go-send';
 
 import type { DispatchShutdown } from './libs/DispatchShutdown.js';
@@ -28,7 +28,7 @@ import type { SendDispatchNotificationsConfig } from './types/SendDispatchNotifi
  * @param script - The GOScript instance for logging and prompts
  * @param shutdown - Graceful-stop coordinator, wired to the GOScript cleanup hook
  */
-export async function main(script: Core.GOScript, shutdown: DispatchShutdown): Promise<void> {
+export async function main(script: GOScript, shutdown: DispatchShutdown): Promise<void> {
   const raw = await script.getConfiguration<SendDispatchNotificationsConfig>();
   try {
     const loader = createEnvironmentLoader(script);

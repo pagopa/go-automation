@@ -1,4 +1,4 @@
-import type { AWS } from '@go-automation/go-common';
+import type { GetScheduleCommandOutput } from '@pagopa/go-aws/scheduler';
 
 import type { ScheduleReadStatus } from './ScheduleReadStatus.js';
 
@@ -17,7 +17,7 @@ export interface ScheduleRead {
   readonly accountId: string | undefined;
 
   /** The schedule, present only when `status` is `found` */
-  readonly schedule: AWS.GetScheduleCommandOutput | undefined;
+  readonly schedule: GetScheduleCommandOutput | undefined;
 
   /** How the read ended */
   readonly status: ScheduleReadStatus;

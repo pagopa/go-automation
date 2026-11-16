@@ -452,3 +452,18 @@ La CLI locale non ha la coda SQS che ritenta automaticamente. Se il processo cad
 - `--apply known` e `--apply all` possono creare o aggiornare `AlarmAnalysis` reali; contro URL non locali usa `--confirm-apply` solo dopo verifica esplicita.
 - `--dry-run` non scrive su Watchtower, ma può leggere log di produzione e generare costi/query AWS.
 - Ricorda che `--alarm-event-id` e `--execution-id` non sono segreti, ma identificano dati operativi reali: evita di incollarli in canali pubblici.
+
+## Account AWS logici
+
+I runbook multi-account dichiarano solo account logici (`send/core`, `send/confinfo`).
+La rubrica che li collega agli account id sta nella configurazione (EVO-AWSACCT-OPUS-01):
+
+| Chiave                        | Variabile d'ambiente          | Descrizione                                                                                    |
+| ----------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------- |
+| `aws.account.directory`       | `AWS_ACCOUNT_DIRECTORY`       | Voci `<prodotto>/<account>/<ambiente>=<id>`; l'ambiente si ricava dall'account dell'occorrenza |
+| `aws.account.binding`         | `AWS_ACCOUNT_BINDING`         | `profiles` (profili abbinati via STS) oppure `oam` (sempre `oam` nella Lambda)                 |
+| `aws.account.permission.sets` | `AWS_ACCOUNT_PERMISSION_SETS` | Permission set SSO preferiti, solo per `profiles`                                              |
+
+Il formato è documentato con id sintetici in
+`scripts/go/go-analyze-alarm/configs/aws-accounts.example.env`.
+Nella Lambda la rubrica arriva da `EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY` del deploy, che verifica che ogni account sia una sorgente OAM.

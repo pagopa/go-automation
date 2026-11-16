@@ -1,4 +1,5 @@
-import type { AWS, Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import type { ResultField } from '@pagopa/go-aws/cloudwatch-logs';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -6,7 +7,7 @@ import { main } from '../../main.js';
 import type { InteropTokenHashVerificationConfig } from '../../types/index.js';
 
 interface ScriptHarness {
-  readonly script: Core.GOScript;
+  readonly script: GOScript;
   readonly queries: string[];
 }
 
@@ -32,7 +33,7 @@ function createScript(applicationLog: string | undefined): ScriptHarness {
           async query(
             _groups: ReadonlyArray<string>,
             query: string,
-          ): Promise<ReadonlyArray<ReadonlyArray<AWS.ResultField>>> {
+          ): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> {
             await Promise.resolve();
             queries.push(query);
             return queries.length === 1 && applicationLog !== undefined
@@ -49,7 +50,7 @@ function createScript(applicationLog: string | undefined): ScriptHarness {
     },
     logger: { section() {}, info() {} },
     prompt: { startSpinner() {}, stopSpinner() {} },
-  } as unknown as Core.GOScript;
+  } as unknown as GOScript;
   return { script, queries };
 }
 

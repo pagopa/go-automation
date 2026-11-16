@@ -1,5 +1,4 @@
-import { GOCSVListExporter, GOJSONListExporter } from '@go-automation/go-common/core';
-import type { GOListExporter } from '@go-automation/go-common/core';
+import { GOCSVListExporter, GOJSONListExporter, type GOListExporter } from '@pagopa/go-common/exporters';
 
 import { resolveRowKey } from '../ids/identifiers.js';
 import type { InputFormat } from '../input/InputFormat.js';

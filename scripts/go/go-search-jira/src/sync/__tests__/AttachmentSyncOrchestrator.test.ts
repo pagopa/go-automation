@@ -6,7 +6,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { Core } from '@go-automation/go-common';
+import {
+  GOFtsIndex,
+  GOPdfTextExtractor,
+  GOPlainTextExtractor,
+  GOTextExtractorRegistry,
+} from '@go-automation/go-documents';
+import { GOFileDownloaderError } from '@pagopa/go-common/http';
+import type { GOLogger } from '@pagopa/go-common/logging';
 
 import { AttachmentSyncOrchestrator } from '../AttachmentSyncOrchestrator.js';
 import { AttachmentCachePaths } from '../AttachmentCachePaths.js';
@@ -77,7 +84,7 @@ const NOOP_LOGGER = {
   newline: () => undefined,
   log: () => undefined,
   table: () => undefined,
-} as unknown as Core.GOLogger;
+} as unknown as GOLogger;
 
 type PredicateFn = () => boolean;
 
@@ -92,7 +99,7 @@ async function waitUntil(predicate: PredicateFn, description: string): Promise<v
 describe('AttachmentSyncOrchestrator — handleSkipDecision', () => {
   it('preserves indexed status when re-syncing an already-indexed attachment', async () => {
     // Setup: open an in-memory index + schema + repository.
-    const index = new Core.GOFtsIndex({
+    const index = new GOFtsIndex({
       databasePath: ':memory:',
       ftsTableName: 'attachments_fts',
       metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
@@ -131,9 +138,9 @@ describe('AttachmentSyncOrchestrator — handleSkipDecision', () => {
 
     // Run the orchestrator with the SAME attachment — planner returns
     // skip(already_indexed) because the row is in the index.
-    const registry = new Core.GOTextExtractorRegistry();
-    registry.register(new Core.GOPlainTextExtractor());
-    registry.register(new Core.GOPdfTextExtractor()); // makes canHandle('application/pdf') true
+    const registry = new GOTextExtractorRegistry();
+    registry.register(new GOPlainTextExtractor());
+    registry.register(new GOPdfTextExtractor()); // makes canHandle('application/pdf') true
 
     const orchestrator = new AttachmentSyncOrchestrator({
       logger: NOOP_LOGGER,
@@ -179,7 +186,7 @@ describe('AttachmentSyncOrchestrator — handleSkipDecision', () => {
 
 describe('AttachmentSyncOrchestrator — dry-run reporting', () => {
   it('counts planned downloads separately from skipped attachments', async () => {
-    const index = new Core.GOFtsIndex({
+    const index = new GOFtsIndex({
       databasePath: ':memory:',
       ftsTableName: 'attachments_fts',
       metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
@@ -193,8 +200,8 @@ describe('AttachmentSyncOrchestrator — dry-run reporting', () => {
       const unsupported = makeAttachment({ id: 'dry-skip', filename: 'image.png', mimeType: 'image/png' });
       const issue = makeIssue([downloadable, unsupported]);
 
-      const registry = new Core.GOTextExtractorRegistry();
-      registry.register(new Core.GOPlainTextExtractor());
+      const registry = new GOTextExtractorRegistry();
+      registry.register(new GOPlainTextExtractor());
 
       const orchestrator = new AttachmentSyncOrchestrator({
         logger: NOOP_LOGGER,
@@ -230,7 +237,7 @@ describe('AttachmentSyncOrchestrator — dry-run reporting', () => {
 
 describe('AttachmentSyncOrchestrator — hard task failures', () => {
   it('rethrows unexpected download/index task failures instead of swallowing them', async () => {
-    const index = new Core.GOFtsIndex({
+    const index = new GOFtsIndex({
       databasePath: ':memory:',
       ftsTableName: 'attachments_fts',
       metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
@@ -243,8 +250,8 @@ describe('AttachmentSyncOrchestrator — hard task failures', () => {
       const attachment = makeAttachment({ id: '99', filename: 'notes.txt', mimeType: 'text/plain' });
       const issue = makeIssue([attachment]);
 
-      const registry = new Core.GOTextExtractorRegistry();
-      registry.register(new Core.GOPlainTextExtractor());
+      const registry = new GOTextExtractorRegistry();
+      registry.register(new GOPlainTextExtractor());
 
       const hardError = new Error('sqlite write failed');
       const orchestrator = new AttachmentSyncOrchestrator({
@@ -286,7 +293,7 @@ describe('AttachmentSyncOrchestrator — hard task failures', () => {
 
 describe('AttachmentSyncOrchestrator — force refresh failures', () => {
   it('keeps a previous indexed document searchable when a forced download fails', async () => {
-    const index = new Core.GOFtsIndex({
+    const index = new GOFtsIndex({
       databasePath: ':memory:',
       ftsTableName: 'attachments_fts',
       metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
@@ -318,8 +325,8 @@ describe('AttachmentSyncOrchestrator — force refresh failures', () => {
         },
       });
 
-      const registry = new Core.GOTextExtractorRegistry();
-      registry.register(new Core.GOPlainTextExtractor());
+      const registry = new GOTextExtractorRegistry();
+      registry.register(new GOPlainTextExtractor());
       const orchestrator = new AttachmentSyncOrchestrator({
         logger: NOOP_LOGGER,
         index,
@@ -358,7 +365,7 @@ describe('AttachmentSyncOrchestrator — force refresh failures', () => {
   });
 
   it('keeps a previous indexed document searchable when forced extraction fails', async () => {
-    const index = new Core.GOFtsIndex({
+    const index = new GOFtsIndex({
       databasePath: ':memory:',
       ftsTableName: 'attachments_fts',
       metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
@@ -390,8 +397,8 @@ describe('AttachmentSyncOrchestrator — force refresh failures', () => {
         },
       });
 
-      const registry = new Core.GOTextExtractorRegistry();
-      registry.register(new Core.GOPlainTextExtractor());
+      const registry = new GOTextExtractorRegistry();
+      registry.register(new GOPlainTextExtractor());
       const orchestrator = new AttachmentSyncOrchestrator({
         logger: NOOP_LOGGER,
         index,
@@ -435,7 +442,7 @@ describe('AttachmentSyncOrchestrator — force refresh failures', () => {
 
 describe('AttachmentSyncOrchestrator — forbidden downloads', () => {
   it('records 403 attachment downloads as skipped/forbidden', async () => {
-    const index = new Core.GOFtsIndex({
+    const index = new GOFtsIndex({
       databasePath: ':memory:',
       ftsTableName: 'attachments_fts',
       metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
@@ -448,8 +455,8 @@ describe('AttachmentSyncOrchestrator — forbidden downloads', () => {
       const attachment = makeAttachment({ id: '403', filename: 'private.txt', mimeType: 'text/plain' });
       const issue = makeIssue([attachment]);
 
-      const registry = new Core.GOTextExtractorRegistry();
-      registry.register(new Core.GOPlainTextExtractor());
+      const registry = new GOTextExtractorRegistry();
+      registry.register(new GOPlainTextExtractor());
       const orchestrator = new AttachmentSyncOrchestrator({
         logger: NOOP_LOGGER,
         index,
@@ -458,7 +465,7 @@ describe('AttachmentSyncOrchestrator — forbidden downloads', () => {
         client: {
           downloadAttachment: async () => {
             await Promise.resolve();
-            throw new Core.GOFileDownloaderError('Download failed: HTTP 403 Forbidden', attachment.contentUrl, 1, 403);
+            throw new GOFileDownloaderError('Download failed: HTTP 403 Forbidden', attachment.contentUrl, 1, 403);
           },
         } as unknown as JiraClient,
         discovery: new FakeDiscovery([issue]),
@@ -487,7 +494,7 @@ describe('AttachmentSyncOrchestrator — forbidden downloads', () => {
   });
 
   it('keeps a previous indexed document searchable when a forced download is forbidden', async () => {
-    const index = new Core.GOFtsIndex({
+    const index = new GOFtsIndex({
       databasePath: ':memory:',
       ftsTableName: 'attachments_fts',
       metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
@@ -519,8 +526,8 @@ describe('AttachmentSyncOrchestrator — forbidden downloads', () => {
         },
       });
 
-      const registry = new Core.GOTextExtractorRegistry();
-      registry.register(new Core.GOPlainTextExtractor());
+      const registry = new GOTextExtractorRegistry();
+      registry.register(new GOPlainTextExtractor());
       const orchestrator = new AttachmentSyncOrchestrator({
         logger: NOOP_LOGGER,
         index,
@@ -529,12 +536,7 @@ describe('AttachmentSyncOrchestrator — forbidden downloads', () => {
         client: {
           downloadAttachment: async () => {
             await Promise.resolve();
-            throw new Core.GOFileDownloaderError(
-              'Download failed: HTTP 401 Unauthorized',
-              attachment.contentUrl,
-              1,
-              401,
-            );
+            throw new GOFileDownloaderError('Download failed: HTTP 401 Unauthorized', attachment.contentUrl, 1, 401);
           },
         } as unknown as JiraClient,
         discovery: new FakeDiscovery([issue]),
@@ -566,7 +568,7 @@ describe('AttachmentSyncOrchestrator — forbidden downloads', () => {
 
 describe('AttachmentSyncOrchestrator — download scheduling', () => {
   it('does not queue every attachment before a download slot is available', async () => {
-    const index = new Core.GOFtsIndex({
+    const index = new GOFtsIndex({
       databasePath: ':memory:',
       ftsTableName: 'attachments_fts',
       metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
@@ -587,8 +589,8 @@ describe('AttachmentSyncOrchestrator — download scheduling', () => {
       let activeDownloads = 0;
       let maxActiveDownloads = 0;
 
-      const registry = new Core.GOTextExtractorRegistry();
-      registry.register(new Core.GOPlainTextExtractor());
+      const registry = new GOTextExtractorRegistry();
+      registry.register(new GOPlainTextExtractor());
       const orchestrator = new AttachmentSyncOrchestrator({
         logger: NOOP_LOGGER,
         index,

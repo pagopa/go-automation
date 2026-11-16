@@ -4,7 +4,7 @@
  * Contains script metadata and parameters definition.
  */
 
-import { Core } from '@go-automation/go-common';
+import { type GOConfigParameterOptions, GOConfigParameterType, type GOScriptMetadata } from '@go-automation/go-script';
 
 import { SCHEDULE_ACTIONS } from './types/index.js';
 import { isScheduleAction } from './libs/isScheduleAction.js';
@@ -13,7 +13,7 @@ import { SCHEDULE_STATES, isScheduleState } from './libs/isScheduleState.js';
 /**
  * Script metadata
  */
-export const scriptMetadata: Core.GOScriptMetadata = {
+export const scriptMetadata: GOScriptMetadata = {
   name: 'AWS Schedule EventBridge',
   version: '1.0.0',
   description:
@@ -24,10 +24,10 @@ export const scriptMetadata: Core.GOScriptMetadata = {
 /**
  * Script parameter definitions
  */
-export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
+export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
   {
     name: 'aws.profiles',
-    type: Core.GOConfigParameterType.STRING_ARRAY,
+    type: GOConfigParameterType.STRING_ARRAY,
     description: 'AWS SSO profile names, one per account to sweep (comma-separated)',
     required: true,
     aliases: ['aps'],
@@ -42,7 +42,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'aws.region',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'AWS region hosting the schedules',
     required: false,
     defaultValue: 'eu-south-1',
@@ -50,7 +50,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'action',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: `Action to perform: ${SCHEDULE_ACTIONS.join(', ')}`,
     required: true,
     aliases: ['a'],
@@ -59,14 +59,14 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'schedule.name',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Name of the schedule to target (required for describe, enable and disable)',
     required: false,
     aliases: ['n'],
   },
   {
     name: 'schedule.group',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Schedule group owning the schedule',
     required: false,
     defaultValue: 'default',
@@ -74,14 +74,14 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'name.prefix',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Name prefix filter, applied by the list action only',
     required: false,
     aliases: ['p'],
   },
   {
     name: 'state',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: `State filter, applied by the list action only: ${SCHEDULE_STATES.join(', ')}`,
     required: false,
     aliases: ['s'],
@@ -90,7 +90,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'yes',
-    type: Core.GOConfigParameterType.BOOL,
+    type: GOConfigParameterType.BOOL,
     description: 'Skip the interactive confirmation that covers the whole batch of accounts',
     required: false,
     defaultValue: false,
@@ -98,7 +98,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'fail.on.missing',
-    type: Core.GOConfigParameterType.BOOL,
+    type: GOConfigParameterType.BOOL,
     description: 'Treat an account that does not have the schedule as a failure instead of drift',
     required: false,
     defaultValue: false,

@@ -25,7 +25,7 @@ ha uno: `packages/*` (incluso `go-cli`), `scripts/go/*`, `scripts/send/*`,
 
 - `packages/go-watchtower-runbook`, `scripts/go/go-execute-runbook` e
   `scripts/go/go-rta-check` anteponono un build step:
-  `pnpm --filter=@go-automation/go-runbook build && node --import tsx/esm --test ...`.
+  `pnpm --filter=@pagopa/go-runbook build && node --import tsx/esm --test ...`.
   Dipendono da `go-runbook` compilato, non dai suoi sorgenti TypeScript.
 - `bins/` non sono package pnpm del workspace (non hanno `package.json` nel
   grafo `references[]`): dove hanno test, usano glob più permissivi e un
@@ -104,13 +104,27 @@ file in tutto il repo) dove un fake scritto a mano sarebbe più verboso di uno
 spy.
 
 `go-runbook` ha un helper DI dedicato,
-[`createTestServiceRegistry`](../packages/go-runbook/src/registry/createTestServiceRegistry.ts),
-che costruisce un `ServiceRegistry` con stub per ogni servizio (CloudWatch
-Logs, Watchtower client, ecc.) e override selettivi:
+[`createTestServiceRegistry`](../packages/go-runbook/src/toolkits/common/testing/createTestServiceRegistry.ts),
+esportato da `@pagopa/go-runbook/toolkits/common`, che costruisce un
+`ServiceRegistry` completo con override selettivi:
 
 ```typescript
 const services = createTestServiceRegistry({ cloudWatchLogs });
 ```
+
+Ogni servizio è un falso con tutti i metodi richiesti dal motore; gli override
+si fondono metodo per metodo. Per i metodi non forniti valgono tre regole:
+
+- `forTarget` e `forExecution` restituiscono lo stesso falso e registrano gli
+  argomenti, così il test può verificare account, regione e cancellazione;
+- per CloudWatch Logs, `query` e `queryWithStatistics` sono due viste della
+  stessa lettura: se il test ne fornisce una, l'altra viene ricavata. Quella
+  ricavata da `query` restituisce statistiche a zero e nessuna esecuzione;
+- ogni altro metodo, se chiamato, lancia `UnexpectedServiceCallError` con il
+  suo nome, così il test fallisce in modo esplicito.
+
+La porta opzionale degli account AWS logici (`awsAccounts`) c'è solo se il test
+la passa, di solito come `InMemoryAwsAccountsPort` con id finti.
 
 È il pattern usato da oltre cento file di test dentro `packages/go-runbook` e
 dai package che ne dipendono (`go-watchtower-runbook`, `scripts/go/go-rta-check`,

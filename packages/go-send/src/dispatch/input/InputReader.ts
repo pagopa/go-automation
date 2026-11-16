@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 
-import { GOCSVListImporter, GOJSONListImporter, isPlainObject } from '@go-automation/go-common/core';
+import { GOCSVListImporter, GOJSONListImporter } from '@pagopa/go-common/importers';
+import { isPlainObject } from '@pagopa/go-common/utils';
 
 import type { InputFormat } from './InputFormat.js';
 import type { InputReaderOptions } from './InputReaderOptions.js';

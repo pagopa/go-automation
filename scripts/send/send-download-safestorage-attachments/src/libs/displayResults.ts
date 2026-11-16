@@ -2,7 +2,7 @@
  * Display helpers for download result summaries.
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import type { DownloadResult } from '../types/DownloadResult.js';
 
@@ -13,11 +13,7 @@ import type { DownloadResult } from '../types/DownloadResult.js';
  * @param results - Download results to summarize
  * @param reportPath - Path where the JSONL report was saved
  */
-export function displayResults(
-  script: Core.GOScript,
-  results: ReadonlyArray<DownloadResult>,
-  reportPath: string,
-): void {
+export function displayResults(script: GOScript, results: ReadonlyArray<DownloadResult>, reportPath: string): void {
   script.logger.newline();
   script.logger.section('Download Results');
 

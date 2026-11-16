@@ -1,5 +1,6 @@
-import { GOJSONListExporter, GOJSONListImporter, toError } from '@go-automation/go-common/core';
-import type { GOListExporterStreamWriter } from '@go-automation/go-common/core';
+import { toError } from '@pagopa/go-common/errors';
+import { GOJSONListExporter, type GOListExporterStreamWriter } from '@pagopa/go-common/exporters';
+import { GOJSONListImporter } from '@pagopa/go-common/importers';
 
 import type { JournalEntry } from './JournalEntry.js';
 import type { JournalSink } from './JournalSink.js';

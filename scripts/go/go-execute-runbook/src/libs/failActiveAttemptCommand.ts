@@ -1,4 +1,4 @@
-import { Core } from '@go-automation/go-common';
+import { GOHttpClientError } from '@pagopa/go-common/http';
 
 import type { FailExecutionRequest } from '@go-automation/go-watchtower-client';
 
@@ -20,7 +20,7 @@ const TYPED_CONFLICT_STATUS = 409;
  * @param error - Errore sollevato dalla chiamata di callback
  */
 export function isPermanentCallbackRejection(error: unknown): boolean {
-  if (!(error instanceof Core.GOHttpClientError)) return false;
+  if (!(error instanceof GOHttpClientError)) return false;
   const status = error.statusCode;
   if (status === undefined) return false;
   if (status < 400 || status >= 500) return false;

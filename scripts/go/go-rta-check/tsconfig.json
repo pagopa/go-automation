@@ -9,10 +9,23 @@
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
   "references": [
-    { "path": "../../../packages/go-ai" },
-    { "path": "../../../packages/go-common" },
-    { "path": "../../../packages/go-runbook" },
-    { "path": "../../../packages/go-watchtower-client" },
-    { "path": "../../../packages/go-watchtower-runbook" }
+    {
+      "path": "../../../packages/go-ai"
+    },
+    {
+      "path": "../../../packages/go-common"
+    },
+    {
+      "path": "../../../packages/go-runbook"
+    },
+    {
+      "path": "../../../packages/go-watchtower-client"
+    },
+    {
+      "path": "../../../packages/go-watchtower-runbook"
+    },
+    {
+      "path": "../../../packages/go-script"
+    }
   ]
 }

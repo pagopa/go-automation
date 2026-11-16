@@ -1,6 +1,6 @@
-import type { Core } from '@go-automation/go-common';
-import { valueToString } from '@go-automation/go-common/core';
-import { RUNBOOK_CATALOG } from '@go-automation/go-runbook/catalog';
+import type { GOLogger } from '@pagopa/go-common/logging';
+import { valueToString } from '@pagopa/go-common/utils';
+import { RUNBOOK_CATALOG } from '@pagopa/go-runbook/inventory';
 import type { ProductCensus, WatchtowerClient } from '@go-automation/go-watchtower-client';
 import type { CoverageReport } from '@go-automation/go-watchtower-runbook';
 import { checkRunbookCoverage, COVERAGE_ERROR_CODES } from '@go-automation/go-watchtower-runbook';
@@ -44,7 +44,7 @@ const INCOMPLETE_CENSUS_CODES = new Set<string>([
  * @param client - Authenticated Watchtower client
  * @returns A report plus exit code when evaluated, otherwise a non-executable outcome
  */
-export async function runCoverageCheck(logger: Core.GOLogger, client: WatchtowerClient): Promise<CoverageCheckResult> {
+export async function runCoverageCheck(logger: GOLogger, client: WatchtowerClient): Promise<CoverageCheckResult> {
   try {
     logger.info('Caricamento censimento Watchtower …');
     const products = await client.listProducts();

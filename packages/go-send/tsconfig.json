@@ -11,6 +11,9 @@
   "references": [
     {
       "path": "../go-common"
+    },
+    {
+      "path": "../go-aws"
     }
   ]
 }

@@ -6,7 +6,8 @@
  * an operational boundary: `--environment-id` is validated against it and
  * against the product, never taken on trust.
  */
-import type { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import type { GOLogger } from '@pagopa/go-common/logging';
 import type { EnvironmentDto, WatchtowerClient } from '@go-automation/go-watchtower-client';
 
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
@@ -27,7 +28,7 @@ const ALL_CHOICE = '\u0000all';
 export type EnvironmentReader = Pick<WatchtowerClient, 'listProductEnvironments'>;
 
 export interface SelectEnvironmentOptions {
-  readonly script: Core.GOScript;
+  readonly script: GOScript;
   readonly client: EnvironmentReader;
   readonly product: SelectedProduct;
   readonly scope: ReadonlyArray<ScopeTarget>;
@@ -106,7 +107,7 @@ export async function selectEnvironment(options: SelectEnvironmentOptions): Prom
  * zero occurrences, so it is rejected instead.
  */
 function pinnedEnvironment(
-  logger: Core.GOLogger,
+  logger: GOLogger,
   product: SelectedProduct,
   environments: ReadonlyArray<EnvironmentDto>,
   available: ReadonlyArray<EnvironmentDto>,
@@ -126,7 +127,7 @@ function pinnedEnvironment(
 
 /** Environments of the product allowed by the scope, ordered as Watchtower orders them. */
 function availableEnvironments(
-  logger: Core.GOLogger,
+  logger: GOLogger,
   environments: ReadonlyArray<EnvironmentDto>,
   allowed: ReadonlyArray<string> | undefined,
 ): ReadonlyArray<EnvironmentDto> {

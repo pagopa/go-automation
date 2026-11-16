@@ -1,7 +1,7 @@
 /**
  * Occurrence counting used to rank the runbooks offered for an environment.
  */
-import { Core } from '@go-automation/go-common';
+import { GOConcurrencyPool } from '@pagopa/go-common/concurrency';
 import type { AlarmDto, WatchtowerClient } from '@go-automation/go-watchtower-client';
 
 /** How many alarm-event counts are requested at the same time. */
@@ -55,7 +55,7 @@ export async function countAlarmOccurrences(
 ): Promise<AlarmOccurrencesReport> {
   const entries: AlarmOccurrences[] = new Array<AlarmOccurrences>(alarms.length);
   const errors: string[] = [];
-  const pool = new Core.GOConcurrencyPool(COUNT_CONCURRENCY);
+  const pool = new GOConcurrencyPool(COUNT_CONCURRENCY);
 
   await pool.runEach(alarms, async (alarm, index) => {
     const outcome = await safeCount(client, alarm.id, environmentIds);

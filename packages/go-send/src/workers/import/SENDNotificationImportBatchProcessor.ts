@@ -2,8 +2,8 @@
  * Batch Processor - Handles concurrent batch processing
  */
 
-import { GOEventEmitterBase } from '@go-automation/go-common/core';
-import { getErrorMessage } from '@go-automation/go-common/core';
+import { getErrorMessage } from '@pagopa/go-common/errors';
+import { GOEventEmitterBase } from '@pagopa/go-common/events';
 
 import {
   SENDNotificationImportRowProcessor,

@@ -1,4 +1,4 @@
-import type { AWSCloudWatchLogsTimeRange } from '@go-automation/go-common/aws';
+import type { AWSCloudWatchLogsTimeRange } from '@pagopa/go-aws/cloudwatch-logs';
 
 export function createOccurrenceTimeRange(
   timestamp: string,

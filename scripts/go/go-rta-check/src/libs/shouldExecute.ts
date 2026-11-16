@@ -5,13 +5,13 @@
  * stops before touching AWS: there is nothing to analyse, the caller asked for a
  * preview only (`--dry-run`), or the confirmation was declined.
  */
-import type { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
 import { confirmRun } from './promptInputs.js';
 
 export interface ShouldExecuteOptions {
-  readonly script: Core.GOScript;
+  readonly script: GOScript;
   readonly config: GoRtaCheckConfig;
   /** Occurrences found in the period, before `--limit`. */
   readonly totalEvents: number;

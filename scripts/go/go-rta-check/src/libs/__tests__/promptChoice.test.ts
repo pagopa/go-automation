@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Core } from '@go-automation/go-common';
+import {
+  GO_PROMPT_BACK,
+  type GOPromptAutocompleteOptions,
+  type GOPromptSelectOption,
+  type GOScript,
+} from '@go-automation/go-script';
 
 import { BACK_CHOICE, promptChoice } from '../promptChoice.js';
 
@@ -12,16 +17,16 @@ interface AskedPrompt {
   readonly kind: string;
   readonly message: string;
   readonly titles: ReadonlyArray<string>;
-  readonly options?: Core.GOPromptAutocompleteOptions;
+  readonly options?: GOPromptAutocompleteOptions;
 }
 
 interface Harness {
-  readonly script: Core.GOScript;
+  readonly script: GOScript;
   readonly asked: AskedPrompt[];
   readonly warnings: string[];
 }
 
-function menu(size: number, withBack: boolean): Core.GOPromptSelectOption[] {
+function menu(size: number, withBack: boolean): GOPromptSelectOption[] {
   const entries = Array.from({ length: size }, (_, index) => ({
     title: `runbook-${String(index)}`,
     value: `runbook-${String(index)}`,
@@ -37,8 +42,8 @@ function harness(answer: unknown): Harness {
     (kind: string) =>
     async (
       message: string,
-      choices: ReadonlyArray<Core.GOPromptSelectOption>,
-      options?: Core.GOPromptAutocompleteOptions,
+      choices: ReadonlyArray<GOPromptSelectOption>,
+      options?: GOPromptAutocompleteOptions,
     ): Promise<unknown> => {
       asked.push({
         kind,
@@ -61,7 +66,7 @@ function harness(answer: unknown): Harness {
       autocomplete: record('autocomplete'),
       autocompleteWithBack: record('autocompleteWithBack'),
     },
-  } as unknown as Core.GOScript;
+  } as unknown as GOScript;
 
   return { script, asked, warnings };
 }
@@ -117,7 +122,7 @@ describe('promptChoice', () => {
 
   describe('answering', () => {
     it('reports the shortcut of the searchable prompt as the entry it stands for', async () => {
-      const { script } = harness(Core.GO_PROMPT_BACK);
+      const { script } = harness(GO_PROMPT_BACK);
 
       const answer = await promptChoice<string>(script, 'Seleziona', menu(LONG_MENU_SIZE, true));
 
@@ -125,7 +130,7 @@ describe('promptChoice', () => {
     });
 
     it('reports the shortcut of the plain list as the entry it stands for', async () => {
-      const { script } = harness(Core.GO_PROMPT_BACK);
+      const { script } = harness(GO_PROMPT_BACK);
 
       const answer = await promptChoice<string>(script, 'Seleziona', menu(3, true));
 

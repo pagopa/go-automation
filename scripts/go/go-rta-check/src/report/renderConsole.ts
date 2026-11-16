@@ -1,4 +1,4 @@
-import type { Core } from '@go-automation/go-common';
+import type { GOLogger } from '@pagopa/go-common/logging';
 
 import type { AnalysisMatchSource, RtaCheckReport, RtaCheckRow, V1Status } from '@go-automation/go-watchtower-runbook';
 
@@ -17,7 +17,7 @@ export interface RunPreview {
 const CRITICAL_V1_ORDER: ReadonlyArray<V1Status> = ['EXECUTION-ERROR', 'CONFIG-ERROR', 'MISS'];
 
 /** Renders the selection + preview block. */
-export function renderPreview(logger: Core.GOLogger, preview: RunPreview): void {
+export function renderPreview(logger: GOLogger, preview: RunPreview): void {
   logger.section('RTA Check');
   logger.info(`Prodotto: ${preview.productName}`);
   logger.info(`Ambiente: ${preview.environmentName}`);
@@ -47,7 +47,7 @@ export function productEnvLabel(productName: string, environmentName: string | u
 }
 
 /** Prints the header of the live per-execution table (call once before the loop). */
-export function renderResultsHeader(logger: Core.GOLogger): void {
+export function renderResultsHeader(logger: GOLogger): void {
   logger.section('Esecuzioni');
   logger.text(RESULT_COLUMNS.map((column) => cell(column.header, column.width)).join(' │ '));
   logger.text(RESULT_COLUMNS.map((column) => '─'.repeat(column.width)).join('─┼─'));
@@ -82,12 +82,7 @@ export function formatVerificationCell(row: RtaCheckRow): string {
 }
 
 /** Prints one row of the live per-execution table as each occurrence completes. */
-export function renderResultsRow(
-  logger: Core.GOLogger,
-  productName: string,
-  alarmName: string,
-  row: RtaCheckRow,
-): void {
+export function renderResultsRow(logger: GOLogger, productName: string, alarmName: string, row: RtaCheckRow): void {
   const esito =
     row.runbook.status === 'HIT' && row.runbook.primaryCaseId !== undefined
       ? `HIT · ${row.runbook.primaryCaseId}`
@@ -104,7 +99,7 @@ export function renderResultsRow(
 }
 
 /** Renders the final summary table + the "to investigate" list ordered by criticality. */
-export function renderSummary(logger: Core.GOLogger, report: RtaCheckReport): void {
+export function renderSummary(logger: GOLogger, report: RtaCheckReport): void {
   const summary = report.summary;
   const total = summary.totalEvents === 0 ? 1 : summary.totalEvents;
   const percent = (value: number): string => `${((value / total) * 100).toFixed(1)}%`;
@@ -132,7 +127,7 @@ export function renderSummary(logger: Core.GOLogger, report: RtaCheckReport): vo
   renderCritical(logger, report.rows);
 }
 
-function renderAiErrors(logger: Core.GOLogger, rows: ReadonlyArray<RtaCheckRow>): void {
+function renderAiErrors(logger: GOLogger, rows: ReadonlyArray<RtaCheckRow>): void {
   const rowsWithErrors = rows.filter((row) => row.comparison.aiError !== undefined);
   if (rowsWithErrors.length === 0) return;
 
@@ -144,7 +139,7 @@ function renderAiErrors(logger: Core.GOLogger, rows: ReadonlyArray<RtaCheckRow>)
   if (rowsWithErrors.length > 20) logger.text(`  … e altri ${rowsWithErrors.length - 20} errori GO-AI (vedi report).`);
 }
 
-function renderCritical(logger: Core.GOLogger, rows: ReadonlyArray<RtaCheckRow>): void {
+function renderCritical(logger: GOLogger, rows: ReadonlyArray<RtaCheckRow>): void {
   const lines: string[] = [];
   for (const status of CRITICAL_V1_ORDER) {
     for (const row of rows.filter((candidate) => candidate.runbook.status === status)) {

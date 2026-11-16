@@ -1,0 +1,146 @@
+import type { Step } from '../../../../../engine/types/Step.js';
+import type { StepKind } from '../../../../../engine/types/StepKind.js';
+import type { StepResult } from '../../../../../engine/types/StepResult.js';
+import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
+import type { RunbookMetricDatapoint } from '../../../services/ports/RunbookMetricDatapoint.js';
+import type { RunbookMetricDimension } from '../../../services/ports/RunbookMetricDimension.js';
+import type { TimeRangeFromParams } from '../../../time/TimeRangeFromParams.js';
+import { interpolatePlaceholders } from '../../../../../engine/context/templatePlaceholders.js';
+import { resolveTimeRange } from '../../../time/resolveTimeRange.js';
+import { executeStep } from '../../../../../engine/steps/execution/executeStep.js';
+import { OperationalStep } from '../../OperationalStep.js';
+import type { OperationalContext } from '../../../services/OperationalContext.js';
+import type { OperationalServiceName } from '../../../services/OperationalServiceName.js';
+
+/**
+ * Configuration for the CloudWatch Metrics data step.
+ */
+export interface CloudWatchMetricsConfig {
+  /** Unique step identifier */
+  readonly id: string;
+  /** Human-readable label for logs and UI */
+  readonly label: string;
+  /** CloudWatch namespace (e.g. 'AWS/ApiGateway') */
+  readonly namespace: string;
+  /** Metric name (e.g. '5XXError') */
+  readonly metricName: string;
+  /** Metric dimensions (supports {{params.xxx}} and {{vars.xxx}} in values) */
+  readonly dimensions: ReadonlyArray<RunbookMetricDimension>;
+  /** Aggregation period in seconds (default 300) */
+  readonly periodSeconds?: number;
+  /** Statistic to retrieve (default 'Sum') */
+  readonly stat?: string;
+  /** Parameter names to resolve start/end dates from context.params */
+  readonly timeRangeFromParams: TimeRangeFromParams;
+}
+
+/**
+ * Data step that retrieves CloudWatch metric datapoints.
+ * Resolves the time range from context parameters and interpolates template variables in dimension values.
+ *
+ * @example
+ * ```typescript
+ * const step = new CloudWatchMetricsStep({
+ *   id: 'fetch-errors',
+ *   label: 'Fetch 5XX errors',
+ *   namespace: 'AWS/ApiGateway',
+ *   metricName: '5XXError',
+ *   dimensions: [{ name: 'ApiName', value: '{{params.apiName}}' }],
+ *   timeRangeFromParams: { start: 'startDate', end: 'endDate' },
+ * });
+ * ```
+ */
+export class CloudWatchMetricsStep
+  extends OperationalStep<ReadonlyArray<RunbookMetricDatapoint>>
+  implements Step<ReadonlyArray<RunbookMetricDatapoint>>
+{
+  readonly id: string;
+  readonly label: string;
+  readonly kind: StepKind = 'data';
+
+  private readonly namespace: string;
+  private readonly metricName: string;
+  private readonly dimensions: ReadonlyArray<RunbookMetricDimension>;
+  private readonly periodSeconds: number;
+  private readonly stat: string;
+  private readonly timeRangeFromParams: TimeRangeFromParams;
+
+  constructor(config: CloudWatchMetricsConfig) {
+    super();
+    this.id = config.id;
+    this.label = config.label;
+    this.namespace = config.namespace;
+    this.metricName = config.metricName;
+    this.dimensions = config.dimensions;
+    this.periodSeconds = config.periodSeconds ?? 300;
+    this.stat = config.stat ?? 'Sum';
+    this.timeRangeFromParams = config.timeRangeFromParams;
+  }
+
+  /**
+   * Returns resolved CloudWatch Metrics configuration for the execution trace.
+   *
+   * @param context - The runbook execution context
+   * @returns Trace info with namespace, metric name, dimensions, period, stat, and time range
+   */
+  getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
+    const startStr = context.params.get(this.timeRangeFromParams.start);
+    const endStr = context.params.get(this.timeRangeFromParams.end);
+
+    return {
+      namespace: this.namespace,
+      metricName: this.metricName,
+      dimensions: resolveDimensions(this.dimensions, context),
+      periodSeconds: this.periodSeconds,
+      stat: this.stat,
+      timeRange: { start: startStr ?? null, end: endStr ?? null },
+    };
+  }
+
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchMetrics'];
+  }
+
+  /**
+   * Retrieves metric datapoints from CloudWatch Metrics.
+   *
+   * @param context - The runbook execution context
+   * @returns Step result containing an array of metric datapoints
+   */
+  override async execute(context: OperationalContext): Promise<StepResult<ReadonlyArray<RunbookMetricDatapoint>>> {
+    return executeStep('CloudWatch Metrics query', async () => {
+      const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
+      const resolvedDimensions = resolveDimensions(this.dimensions, context);
+
+      const results = await context.services.cloudWatchMetrics.getMetricData(
+        this.namespace,
+        this.metricName,
+        resolvedDimensions,
+        timeRange,
+        this.periodSeconds,
+        this.stat,
+        context.signal,
+      );
+
+      return { success: true, output: results };
+    });
+  }
+}
+
+/**
+ * Resolves template placeholders in dimension values.
+ */
+function resolveDimensions(
+  dimensions: ReadonlyArray<RunbookMetricDimension>,
+  context: RunbookContext,
+): ReadonlyArray<RunbookMetricDimension> {
+  return dimensions.map((dim) => ({
+    name: dim.name,
+    value: interpolatePlaceholders(dim.value, context),
+  }));
+}

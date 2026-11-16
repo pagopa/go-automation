@@ -1,12 +1,9 @@
-import type { AWS } from '@go-automation/go-common';
+import type { ResultField } from '@pagopa/go-aws/cloudwatch-logs';
 
 /**
  * Extracts the Correlation ID (CID) from query results
  */
-export function extractCidFromCwResults(
-  results: ReadonlyArray<ReadonlyArray<AWS.ResultField>>,
-  fieldName: string,
-): string {
+export function extractCidFromCwResults(results: ReadonlyArray<ReadonlyArray<ResultField>>, fieldName: string): string {
   for (const row of results) {
     for (const field of row) {
       if (field.field === fieldName && field.value) {

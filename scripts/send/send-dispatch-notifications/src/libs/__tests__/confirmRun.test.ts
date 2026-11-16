@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import { confirmRun, exitCodeForConfirmation } from '../confirmRun.js';
 import { FakeLogger, FakePrompt } from './helpers/testScript.js';
@@ -9,11 +9,11 @@ import { FakeLogger, FakePrompt } from './helpers/testScript.js';
 function script(answer: boolean | undefined): {
   logger: FakeLogger;
   prompt: FakePrompt;
-  double: Pick<Core.GOScript, 'logger' | 'prompt'>;
+  double: Pick<GOScript, 'logger' | 'prompt'>;
 } {
   const logger = new FakeLogger();
   const prompt = new FakePrompt(answer);
-  return { logger, prompt, double: { logger, prompt } as unknown as Pick<Core.GOScript, 'logger' | 'prompt'> };
+  return { logger, prompt, double: { logger, prompt } as unknown as Pick<GOScript, 'logger' | 'prompt'> };
 }
 
 const SEND_5 = { rows: 5, sending: true };

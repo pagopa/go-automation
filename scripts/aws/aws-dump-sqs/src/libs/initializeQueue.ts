@@ -2,8 +2,11 @@
  * Resolves the SQS queue URL and fetches queue attributes.
  */
 
-import { Core, AWS } from '@go-automation/go-common';
-import type { CloudWatchClient, SQSClient } from '@go-automation/go-common/aws';
+import type { GOPrompt } from '@go-automation/go-script';
+import type { CloudWatchClient } from '@pagopa/go-aws/cloudwatch-metrics';
+import { AWSSQSService, type SQSClient } from '@pagopa/go-aws/sqs';
+import { getErrorMessage } from '@pagopa/go-common/errors';
+import type { GOLogger } from '@pagopa/go-common/logging';
 
 /**
  * Result of queue initialization.
@@ -28,13 +31,13 @@ export async function initializeQueue(
   sqsClient: SQSClient,
   cloudWatchClient: CloudWatchClient,
   queueName: string,
-  prompt: Core.GOPrompt,
-  logger: Core.GOLogger,
+  prompt: GOPrompt,
+  logger: GOLogger,
 ): Promise<QueueInitResult> {
   prompt.spin('init', `Initializing dump for queue "${queueName}"...`);
 
   try {
-    const sqsService = new AWS.AWSSQSService(sqsClient, cloudWatchClient);
+    const sqsService = new AWSSQSService(sqsClient, cloudWatchClient);
     const metadata = await sqsService.resolveQueueMetadata(queueName);
 
     const inFlightLimit = metadata.isFifo ? 20000 : 120000;
@@ -57,7 +60,7 @@ export async function initializeQueue(
       isFifo: metadata.isFifo,
     };
   } catch (error) {
-    prompt.spinFail('init', `Failed to initialize queue: ${Core.getErrorMessage(error)}`);
+    prompt.spinFail('init', `Failed to initialize queue: ${getErrorMessage(error)}`);
     throw error;
   }
 }

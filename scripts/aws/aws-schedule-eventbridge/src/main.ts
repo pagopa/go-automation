@@ -13,7 +13,7 @@
  * within one region.
  */
 
-import type { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import { runDescribeSchedule } from './libs/describeSchedule.js';
 import { runListSchedules } from './libs/listSchedules.js';
@@ -25,7 +25,7 @@ import type { AwsScheduleEventbridgeConfig } from './types/index.js';
  *
  * @param script - The GOScript instance
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<AwsScheduleEventbridgeConfig>();
 
   script.logger.section('AWS Schedule EventBridge');

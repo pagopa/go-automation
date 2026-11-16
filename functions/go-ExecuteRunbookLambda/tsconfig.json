@@ -9,5 +9,15 @@
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../../packages/go-common" }, { "path": "../../scripts/go/go-execute-runbook" }]
+  "references": [
+    {
+      "path": "../../packages/go-common"
+    },
+    {
+      "path": "../../scripts/go/go-execute-runbook"
+    },
+    {
+      "path": "../../packages/go-script"
+    }
+  ]
 }

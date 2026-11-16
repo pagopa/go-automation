@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import { shouldExecute } from '../shouldExecute.js';
 
 interface Harness {
-  readonly script: Core.GOScript;
+  readonly script: GOScript;
   readonly messages: ReadonlyArray<string>;
   readonly confirmed: ReadonlyArray<string>;
 }
@@ -26,7 +26,7 @@ function harness(answer?: boolean): Harness {
         return Promise.resolve(answer);
       },
     },
-  } as unknown as Core.GOScript;
+  } as unknown as GOScript;
 
   return { script, messages, confirmed };
 }

@@ -1,4 +1,4 @@
-import { Core } from '@go-automation/go-common';
+import { GOHttpClientError } from '@pagopa/go-common/http';
 
 /** Bound del motivo riportato nel messaggio: la diagnosi sta in testa, non il dump del corpo. */
 const MAX_REASON_LENGTH = 300;
@@ -20,7 +20,7 @@ const REASON_FIELDS = ['error', 'message', 'detail'] as const;
  * @param error - Errore sollevato da `GOHttpClient`
  * @returns Il motivo leggibile, o `undefined` se il corpo non ne porta uno
  */
-export function watchtowerErrorReason(error: Core.GOHttpClientError): string | undefined {
+export function watchtowerErrorReason(error: GOHttpClientError): string | undefined {
   // `response` è il corpo già deserializzato quando il content-type è JSON,
   // la stringa grezza altrimenti: entrambi possono portare la causa.
   const body = typeof error.response === 'string' ? parseJsonObject(error.response) : error.response;
@@ -50,10 +50,10 @@ export function watchtowerErrorReason(error: Core.GOHttpClientError): string | u
  * @returns L'errore con il messaggio esplicativo, o il valore originale
  */
 export function withWatchtowerReason(error: unknown): unknown {
-  if (!(error instanceof Core.GOHttpClientError)) return error;
+  if (!(error instanceof GOHttpClientError)) return error;
   const reason = watchtowerErrorReason(error);
   if (reason === undefined || error.message.includes(reason)) return error;
-  return new Core.GOHttpClientError(
+  return new GOHttpClientError(
     `${error.message} — ${reason}`,
     error.statusCode,
     error.response,

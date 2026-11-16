@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { RunbookOutput } from '@go-automation/go-runbook';
+import type { RunbookOutput } from '@pagopa/go-runbook/output';
 
 import type { CachedRunbookMeta } from '../CachedRunbookMeta.js';
 import type { CachedRunbookOutput } from '../CachedRunbookOutput.js';

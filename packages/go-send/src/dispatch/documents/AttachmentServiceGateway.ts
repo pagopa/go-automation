@@ -1,5 +1,5 @@
-import { GOBinaryFileImporter } from '@go-automation/go-common/core';
-import type { GOHttpRequestOptions } from '@go-automation/go-common/core';
+import type { GOHttpRequestOptions } from '@pagopa/go-common/http';
+import { GOBinaryFileImporter } from '@pagopa/go-common/importers';
 
 import type { SENDPreloadRequest } from '../../services/attachment/models/SENDPreloadRequest.js';
 import type { SENDPreloadResponse } from '../../services/attachment/models/SENDPreloadResponse.js';

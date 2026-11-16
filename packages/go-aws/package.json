@@ -1,0 +1,190 @@
+{
+  "name": "@pagopa/go-aws",
+  "version": "0.0.0",
+  "description": "GO automation AWS integration: credentials and profiles, per-profile lazy client cache, one subpath per AWS service and an aggregate composition root (./all). Service SDKs are optional peers.",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pagopa/go-automation.git",
+    "directory": "packages/go-aws"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "files": [
+    "dist",
+    "!dist/**/__tests__",
+    "!dist/**/*.test.*",
+    "!dist/**/*.tsbuildinfo",
+    "src",
+    "!src/**/__tests__",
+    "!src/**/*.test.ts",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./s3": {
+      "types": "./dist/s3/index.d.ts",
+      "default": "./dist/s3/index.js"
+    },
+    "./sqs": {
+      "types": "./dist/sqs/index.d.ts",
+      "default": "./dist/sqs/index.js"
+    },
+    "./dynamodb": {
+      "types": "./dist/dynamodb/index.d.ts",
+      "default": "./dist/dynamodb/index.js"
+    },
+    "./athena": {
+      "types": "./dist/athena/index.d.ts",
+      "default": "./dist/athena/index.js"
+    },
+    "./cloudwatch-logs": {
+      "types": "./dist/cloudwatch-logs/index.d.ts",
+      "default": "./dist/cloudwatch-logs/index.js"
+    },
+    "./cloudwatch-logs/insights": {
+      "types": "./dist/cloudwatch-logs/insights/index.d.ts",
+      "default": "./dist/cloudwatch-logs/insights/index.js"
+    },
+    "./profiles": {
+      "types": "./dist/profiles/index.d.ts",
+      "default": "./dist/profiles/index.js"
+    },
+    "./cloudwatch-metrics": {
+      "types": "./dist/cloudwatch-metrics/index.d.ts",
+      "default": "./dist/cloudwatch-metrics/index.js"
+    },
+    "./cloudwatch-alarms": {
+      "types": "./dist/cloudwatch-alarms/index.d.ts",
+      "default": "./dist/cloudwatch-alarms/index.js"
+    },
+    "./ecs": {
+      "types": "./dist/ecs/index.d.ts",
+      "default": "./dist/ecs/index.js"
+    },
+    "./lambda": {
+      "types": "./dist/lambda/index.d.ts",
+      "default": "./dist/lambda/index.js"
+    },
+    "./scheduler": {
+      "types": "./dist/scheduler/index.d.ts",
+      "default": "./dist/scheduler/index.js"
+    },
+    "./secrets-manager": {
+      "types": "./dist/secrets-manager/index.d.ts",
+      "default": "./dist/secrets-manager/index.js"
+    },
+    "./ssm": {
+      "types": "./dist/ssm/index.d.ts",
+      "default": "./dist/ssm/index.js"
+    },
+    "./ec2": {
+      "types": "./dist/ec2/index.d.ts",
+      "default": "./dist/ec2/index.js"
+    },
+    "./all": {
+      "types": "./dist/all/index.d.ts",
+      "default": "./dist/all/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "watch": "tsc --build --watch",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
+    "prepack": "pnpm run clean && pnpm run build"
+  },
+  "keywords": [
+    "go-automation",
+    "aws"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "EUPL-1.2",
+  "dependencies": {
+    "@aws-sdk/client-sts": "catalog:",
+    "@aws-sdk/credential-provider-ini": "catalog:",
+    "@pagopa/go-common": "workspace:^"
+  },
+  "peerDependencies": {
+    "@aws-sdk/client-athena": "catalog:",
+    "@aws-sdk/client-cloudwatch": "catalog:",
+    "@aws-sdk/client-cloudwatch-logs": "catalog:",
+    "@aws-sdk/client-dynamodb": "catalog:",
+    "@aws-sdk/client-ec2": "catalog:",
+    "@aws-sdk/client-ecs": "catalog:",
+    "@aws-sdk/client-lambda": "catalog:",
+    "@aws-sdk/client-s3": "catalog:",
+    "@aws-sdk/client-scheduler": "catalog:",
+    "@aws-sdk/client-secrets-manager": "catalog:",
+    "@aws-sdk/client-sqs": "catalog:",
+    "@aws-sdk/client-ssm": "catalog:",
+    "@aws-sdk/util-dynamodb": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@aws-sdk/client-athena": {
+      "optional": true
+    },
+    "@aws-sdk/client-cloudwatch": {
+      "optional": true
+    },
+    "@aws-sdk/client-cloudwatch-logs": {
+      "optional": true
+    },
+    "@aws-sdk/client-dynamodb": {
+      "optional": true
+    },
+    "@aws-sdk/client-ec2": {
+      "optional": true
+    },
+    "@aws-sdk/client-ecs": {
+      "optional": true
+    },
+    "@aws-sdk/client-lambda": {
+      "optional": true
+    },
+    "@aws-sdk/client-s3": {
+      "optional": true
+    },
+    "@aws-sdk/client-scheduler": {
+      "optional": true
+    },
+    "@aws-sdk/client-secrets-manager": {
+      "optional": true
+    },
+    "@aws-sdk/client-sqs": {
+      "optional": true
+    },
+    "@aws-sdk/client-ssm": {
+      "optional": true
+    },
+    "@aws-sdk/util-dynamodb": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@aws-sdk/client-athena": "catalog:",
+    "@aws-sdk/client-cloudwatch": "catalog:",
+    "@aws-sdk/client-cloudwatch-logs": "catalog:",
+    "@aws-sdk/client-dynamodb": "catalog:",
+    "@aws-sdk/client-ec2": "catalog:",
+    "@aws-sdk/client-ecs": "catalog:",
+    "@aws-sdk/client-lambda": "catalog:",
+    "@aws-sdk/client-s3": "catalog:",
+    "@aws-sdk/client-scheduler": "catalog:",
+    "@aws-sdk/client-secrets-manager": "catalog:",
+    "@aws-sdk/client-sqs": "catalog:",
+    "@aws-sdk/client-ssm": "catalog:",
+    "@aws-sdk/util-dynamodb": "catalog:",
+    "@types/node": "catalog:"
+  }
+}

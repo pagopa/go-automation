@@ -1,17 +1,20 @@
-import { Core } from '@go-automation/go-common';
+import { GOHttpClient } from '@pagopa/go-common/http';
+import type { GOScript } from '@go-automation/go-script';
+import { type RunbookBuilderFn } from '@pagopa/go-runbook/inventory';
 import {
   computeRunbookTimeRange,
   createServiceRegistry,
   createTimeRangeReference,
-  type RunbookBuilderFn,
-} from '@go-automation/go-runbook/catalog';
-import { RunbookEngine, apigw, lambda, service } from '@go-automation/go-runbook';
-import type { ExecutionEnvironment, Runbook, RunbookExecutionResult } from '@go-automation/go-runbook';
+  toAwsAccountsConfig,
+} from '@pagopa/go-runbook/runtime';
+import { OperationalRunbookEngine, type AwsExecutionEnvironment } from '@pagopa/go-runbook/toolkits/common';
+import type { RunbookExecutionResult } from '@pagopa/go-runbook';
 
 import type { AnalyzableAlarmConfig } from '../types/AnalyzableAlarmConfig.js';
 import { saveExecutionTrace } from './saveExecutionTrace.js';
 import { saveExecutionOutput } from './saveExecutionOutput.js';
-import { ConsoleRunbookReporter } from '@go-automation/go-runbook/catalog';
+import { renderFinalSummary } from './renderFinalSummary.js';
+import { ConsoleRunbookReporter } from '@pagopa/go-runbook';
 
 export interface AnalyzeOccurrenceInput {
   readonly alarmDatetime: string;
@@ -20,7 +23,7 @@ export interface AnalyzeOccurrenceInput {
 }
 
 export async function analyzeOccurrence(
-  script: Core.GOScript,
+  script: GOScript,
   config: AnalyzableAlarmConfig,
   runbookBuilder: RunbookBuilderFn,
   input: AnalyzeOccurrenceInput,
@@ -47,12 +50,30 @@ export async function analyzeOccurrence(
 
   script.logger.info(`Using AWS profiles: ${script.aws.clients.profileNames.join(', ')}`);
 
-  const services = createServiceRegistry(script, new ConsoleRunbookReporter(script.logger));
+  // Logical accounts of multi-account runbooks: the directory comes from the local
+  // configuration, never from the code; profiles are matched to accounts through STS.
+  const services = createServiceRegistry(
+    {
+      services: script.aws.services,
+      http: new GOHttpClient({}),
+      accounts: toAwsAccountsConfig({
+        ...(config.awsAccountDirectory === undefined ? {} : { directory: config.awsAccountDirectory }),
+        ...(config.awsAccountBinding === undefined ? {} : { binding: config.awsAccountBinding }),
+        ...(config.awsAccountEnvironment === undefined ? {} : { environment: config.awsAccountEnvironment }),
+        ...(config.awsAccountPermissionSets === undefined ? {} : { permissionSets: config.awsAccountPermissionSets }),
+        region: awsRegion,
+        defaultBinding: 'profiles',
+      }),
+      profiles: script.aws.clients,
+      accountDiagnostics: (message) => script.logger.info(message),
+    },
+    new ConsoleRunbookReporter(script.logger),
+  );
 
   script.logger.section('Executing Runbook');
 
-  const engine = new RunbookEngine(script.logger);
-  const environment: ExecutionEnvironment = {
+  const engine = new OperationalRunbookEngine(script.logger);
+  const environment: AwsExecutionEnvironment = {
     awsProfiles: config.awsProfiles,
     region: awsRegion,
     invokedBy: 'manual',
@@ -60,41 +81,14 @@ export async function analyzeOccurrence(
 
   const result = await engine.execute(runbook, params, services, environment);
 
-  renderFinalSummary(script, runbook, result);
+  renderFinalSummary(script.logger, runbook, result);
   renderRunbookResult(script, result);
 
   const traceFile = await saveExecutionTrace(script, result, config.alarmName, input.outputSuffix);
   await saveExecutionOutput(script, runbook, result, traceFile, input.outputSuffix);
 }
 
-function renderFinalSummary(script: Core.GOScript, runbook: Runbook, result: RunbookExecutionResult): void {
-  const finalSummaryInput = {
-    logger: script.logger,
-    status: result.status,
-    matchedCaseIds: result.matchedCases.map((c) => c.id),
-    vars: result.finalContext.vars,
-    ...(result.trace.execution.failureReason !== undefined
-      ? { failureReason: result.trace.execution.failureReason }
-      : {}),
-  };
-
-  if (lambda.isLambdaRunbookContext(runbook.runbookContext)) {
-    lambda.renderLambdaFinalSummary(finalSummaryInput);
-    return;
-  }
-
-  if (apigw.isApiGwRunbookContext(runbook.runbookContext)) {
-    apigw.renderApiGwFinalSummary(finalSummaryInput);
-    return;
-  }
-
-  if (service.isServiceRunbookContext(runbook.runbookContext)) {
-    script.logger.section('Service Runbook Summary');
-    script.logger.info(`Service: ${runbook.runbookContext.service.name}`);
-  }
-}
-
-function renderRunbookResult(script: Core.GOScript, result: RunbookExecutionResult): void {
+function renderRunbookResult(script: GOScript, result: RunbookExecutionResult): void {
   script.logger.section('Runbook Result');
   script.logger.info(`Status: ${result.status}`);
   script.logger.info(`Steps executed: ${result.stepsExecuted}`);

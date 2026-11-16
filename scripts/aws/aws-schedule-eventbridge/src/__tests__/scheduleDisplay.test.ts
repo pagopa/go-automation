@@ -17,7 +17,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { AWS, Core } from '@go-automation/go-common';
+import type { GOConfigParameterValidator, GOScript } from '@go-automation/go-script';
+import type { ScheduleState } from '@pagopa/go-aws/scheduler';
+import type { GOTableOptions } from '@pagopa/go-common/render';
 
 import { scriptParameters } from '../config.js';
 import { buildSweepVerdict } from '../libs/buildSweepVerdict.js';
@@ -34,7 +36,7 @@ interface LoggedCall {
 }
 
 /** Builds a GOScript double whose logger records every call. */
-function createMockScript(): { readonly script: Core.GOScript; readonly calls: LoggedCall[] } {
+function createMockScript(): { readonly script: GOScript; readonly calls: LoggedCall[] } {
   const calls: LoggedCall[] = [];
 
   const record =
@@ -53,13 +55,13 @@ function createMockScript(): { readonly script: Core.GOScript; readonly calls: L
       table: record('table'),
       keyValueTable: record('keyValueTable'),
     },
-  } as unknown as Core.GOScript;
+  } as unknown as GOScript;
 
   return { script, calls };
 }
 
 /** A profile whose schedule was read successfully, currently in `state`. */
-function foundRead(profile: string, state: AWS.ScheduleState): ScheduleRead {
+function foundRead(profile: string, state: ScheduleState): ScheduleRead {
   return {
     profile,
     accountId: '123456789012',
@@ -279,7 +281,7 @@ describe('buildSweepVerdict', () => {
 
 describe('aws.profiles validation', () => {
   /** The declared validator for a parameter, or undefined when it has none. */
-  function validatorFor(name: string): Core.GOConfigParameterValidator | undefined {
+  function validatorFor(name: string): GOConfigParameterValidator | undefined {
     return scriptParameters.find((parameter) => parameter.name === name)?.validator;
   }
 
@@ -304,7 +306,7 @@ describe('scheduleDisplay', () => {
 
     displayScheduleTable(script, new Map());
 
-    const table = calls[0]?.payload as Core.GOTableOptions | undefined;
+    const table = calls[0]?.payload as GOTableOptions | undefined;
     assert.deepEqual(table?.data, []);
     assert.deepEqual(
       table?.columns.map((column) => column.header),
@@ -323,7 +325,7 @@ describe('scheduleDisplay', () => {
       ]),
     );
 
-    const table = calls[0]?.payload as Core.GOTableOptions | undefined;
+    const table = calls[0]?.payload as GOTableOptions | undefined;
     assert.deepEqual(
       table?.data.map((row) => [row['profile'], row['name']]),
       [
@@ -339,7 +341,7 @@ describe('scheduleDisplay', () => {
 
     displayScheduleDrift(script, [foundRead('sso_dev', 'ENABLED'), missingRead('sso_uat'), failedRead('sso_prod')]);
 
-    const table = calls.find((call) => call.method === 'table')?.payload as Core.GOTableOptions | undefined;
+    const table = calls.find((call) => call.method === 'table')?.payload as GOTableOptions | undefined;
     assert.deepEqual(
       table?.data.map((row) => [row['profile'], row['state'], row['accountId']]),
       [

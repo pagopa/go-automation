@@ -1,7 +1,7 @@
 # Runbook Engine - Reference
 
 > **Documentazione di riferimento per il motore di esecuzione runbook**
-> Package: `@go-automation/go-runbook-engine`
+> Package: `@pagopa/go-runbook`. L'engine descritto qui è l'entrypoint `.`; i toolkit operativi sono in `./toolkits/*`, i runbook in `./inventory`, la composizione in `./runtime` (struttura completa in §13).
 
 Per il contratto delle evidenze custom e dei campi diagnostici, vedere
 [Output delle diagnostiche dei runbook](architecture/runbook-evidence.md).
@@ -834,13 +834,175 @@ I servizi sono iniettati nel contesto e disponibili a tutti gli step. Questo per
  * Segue il pattern di dependency injection.
  */
 interface ServiceRegistry {
-  readonly cloudWatchLogs: AWSCloudWatchLogsService;
-  readonly cloudWatchMetrics: AWSCloudWatchMetricsService;
-  readonly athena: AWSAthenaService;
-  readonly dynamodb: AWSDynamoDBService;
+  readonly cloudWatchLogs: AWSCloudWatchLogsQueryService; // @pagopa/go-aws/cloudwatch-logs/insights
+  readonly cloudWatchMetrics: RunbookCloudWatchMetricsPort;
+  readonly athena: RunbookAthenaPort;
+  readonly dynamodb: RunbookDynamoDBPort;
   readonly http: GOHttpClient;
+  readonly reporter: RunbookReporter;
+  readonly awsAccounts?: AwsAccountsPort; // account logici, solo se configurati (§7.1)
 }
 ```
+
+I campi AWS sono tipizzati con contratti senza SDK: il contratto Logs Insights di go-aws e le porte di
+go-runbook (`toolkits/common/services/ports/`). I servizi concreti di go-aws (`AWSCloudWatchLogsService`,
+`AWSCloudWatchMetricsService`, `AWSAthenaService`, `AWSDynamoDBService`) li soddisfano strutturalmente, e
+`createServiceRegistry` (`@pagopa/go-runbook/runtime`) li compone. Così i `.d.ts` dell'engine non richiedono
+nessun pacchetto `@aws-sdk/*`. Per eseguire un runbook su un'occorrenza, il registry costruito una volta si lega
+all'account e alla regione dell'occorrenza con `bindServicesToOccurrence`.
+
+### 7.1 Account, ambienti e permessi
+
+> Riferimento: [EVO-AWSACCT-OPUS-01](evolutions/EVO-AWSACCT-OPUS-01.md).
+
+Quasi tutti i runbook leggono l'account dell'occorrenza con `cloudWatchLogs`. Alcuni leggono **anche altri account**:
+per esempio i due account SEND (core e confinfo) per la stessa Lambda, o l'account confinfo per spidhub. Per questi
+vale una regola: **nel codice del runbook non ci sono account id, ARN con account né nomi di profilo AWS.** I package
+`@pagopa/*` sono pubblicati, e i nomi dei profili sono arbitrari e diversi su ogni macchina.
+
+#### Modello
+
+| Concetto                                  | Esempio                      | Dove sta                                                                                                         |
+| ----------------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **Account logico** `<prodotto>/<account>` | `send/core`, `send/confinfo` | nel codice: `parseAwsLogicalAccount('send/core')`; per SEND `SEND_ACCOUNTS.core` / `.confinfo` (`toolkits/send`) |
+| **Ambiente**                              | `prod`, `uat`                | ricavato dall'account dell'occorrenza; senza occorrenza da `aws.account.environment`                             |
+| **Rubrica**                               | `send/core/prod=<id>`        | nella configurazione d'esecuzione (`aws.account.directory`), mai nel codice                                      |
+| **Credenziali**                           | profilo locale o OAM         | scelte dal runtime (`aws.account.binding`), mai dal runbook                                                      |
+
+Un account id appartiene a un solo ambiente: l'ambiente di un'occorrenza si ricava dal suo account.
+
+#### Dichiarare gli account in uno step
+
+Uno step che legge altri account dichiara una `AwsAccountSelection` con `accountSelections()` e richiede il servizio
+`awsAccounts`:
+
+```typescript
+import { awsLogicalAccountName, resolveAwsAccountSelection, SEND_ACCOUNTS, type AwsAccountSelection } from '…';
+
+const ACCOUNTS: AwsAccountSelection = {
+  subject: 'pn-logsaver-be diagnostics', // nome del lettore nei messaggi d'errore
+  accounts: [SEND_ACCOUNTS.core, SEND_ACCOUNTS.confinfo],
+  scope: 'occurrence-account', // oppure 'every-account'
+  environments: ['prod'], // facoltativo: ambienti in cui lo step può leggere
+};
+
+class QueryDiagnosticsStep extends OperationalStep</* … */> {
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs', 'awsAccounts'];
+  }
+
+  override accountSelections(): ReadonlyArray<AwsAccountSelection> {
+    return [ACCOUNTS];
+  }
+
+  override async execute(context: OperationalContext): Promise<StepResult<Rows>> {
+    const port = context.services.awsAccounts!; // Safe: required above, checked before the first step
+    for (const resolved of resolveAwsAccountSelection(context, ACCOUNTS)) {
+      const reader = port.cloudWatchLogsFor(resolved.account); // esattamente quell'account, nessun fallback
+      // … query su reader, etichettate con awsLogicalAccountName(resolved.account)
+    }
+    // …
+  }
+}
+```
+
+- **`scope: 'every-account'`:** legge tutti gli account elencati, nell'ambiente dell'esecuzione.
+- **`scope: 'occurrence-account'`:** con un'occorrenza legge solo l'account logico dell'occorrenza; senza occorrenza
+  li legge tutti.
+- In entrambi i casi un'occorrenza che non appartiene a nessuno degli account elencati è rifiutata.
+- `QueryLambdaAcrossAccountsStep` (`toolkits/common`, famiglia `lambda`) accetta direttamente una selezione in `sources`.
+
+#### Verifica preliminare
+
+Prima del primo step `OperationalRunbookEngine` raccoglie le selezioni di tutti gli step, compresi quelli annidati, e
+con la porta:
+
+1. determina l'ambiente;
+2. risolve ogni account logico nella rubrica;
+3. prepara i lettori, senza leggere log.
+
+Se qualcosa manca, l'esecuzione fallisce **prima di qualsiasi lettura** con un `AwsAccountError` (`isAwsAccountError`),
+il cui `code` è stabile:
+
+| `code`                                   | Quando                                                                                |
+| ---------------------------------------- | ------------------------------------------------------------------------------------- |
+| `AWS_ACCOUNT_NOT_CONFIGURED`             | la rubrica non ha la voce `<prodotto>/<account>/<ambiente>`                           |
+| `AWS_ACCOUNT_DIRECTORY_INVALID`          | solo nel worker go-execute-runbook: rubrica o modalità non valide (vedi sotto)        |
+| `AWS_ACCOUNT_ENVIRONMENT_NOT_CONFIGURED` | senza occorrenza manca `aws.account.environment`                                      |
+| `AWS_ACCOUNT_ENVIRONMENT_NOT_ALLOWED`    | l'ambiente non è tra gli `environments` della selezione                               |
+| `AWS_OCCURRENCE_ACCOUNT_MISMATCH`        | l'account dell'occorrenza non è nella rubrica o non è tra gli account della selezione |
+| `AWS_ACCOUNT_SELECTION_AMBIGUOUS`        | due account logici della selezione puntano allo stesso account fisico                 |
+| `AWS_ACCOUNT_UNREACHABLE`                | nessuna credenziale raggiunge l'account nella regione dell'esecuzione                 |
+
+**Rubrica o modalità non valide** (formato, voci duplicate, un account in due ambienti, modalità sconosciuta) si
+scoprono costruendo i servizi, prima del motore:
+
+- in go-analyze-alarm e go-rta-check `createAwsAccountsPort` fallisce all'avvio con un `Error` ordinario, non un
+  `AwsAccountError`;
+- nel worker go-execute-runbook l'errore non blocca il worker: la porta diventa `UnavailableAwsAccountsPort`, e solo un
+  runbook che dichiara account logici fallisce, prima del primo step, con `AWS_ACCOUNT_DIRECTORY_INVALID`.
+
+Nel worker cloud (go-execute-runbook) un `AwsAccountError` chiude il tentativo attivo: occorrenza estranea e ambiente
+non ammesso sono `CAPABILITY` / `RUNBOOK_CAPABILITY_MISMATCH`, gli altri `WORKER_CONFIGURATION` /
+`WORKER_CONFIGURATION_ERROR`; il messaggio è prefissato dal codice.
+
+#### Configurazione
+
+| Chiave                        | Variabile d'ambiente          | Valori                                                           |
+| ----------------------------- | ----------------------------- | ---------------------------------------------------------------- |
+| `aws.account.directory`       | `AWS_ACCOUNT_DIRECTORY`       | voci `<prodotto>/<account>/<ambiente>=<id>`, separate da virgola |
+| `aws.account.binding`         | `AWS_ACCOUNT_BINDING`         | `profiles` o `oam`; default per host (vedi sotto)                |
+| `aws.account.environment`     | `AWS_ACCOUNT_ENVIRONMENT`     | solo go-analyze-alarm, che non ha un'occorrenza                  |
+| `aws.account.permission.sets` | `AWS_ACCOUNT_PERMISSION_SETS` | permission set SSO preferiti, in ordine; solo `profiles`         |
+
+- **Default della modalità**, quando `aws.account.binding` manca:
+  - go-analyze-alarm e go-rta-check: `profiles`;
+  - go-execute-runbook in locale: `profiles` se ci sono profili configurati (`aws.profiles`), altrimenti `oam`, anche
+    quando le credenziali vengono da `AWS_PROFILE`;
+  - go-execute-runbook nell'esecuzione gestita da AWS (Lambda): sempre `oam`, qualunque valore sia configurato.
+- **`profiles`:** il runtime chiede a STS l'identità di ogni profilo configurato (`--aws-profiles`), tiene quelli
+  dell'account **e** della regione dell'esecuzione e, se sono più d'uno, preferisce il permission set ricavato
+  dall'ARN della sessione SSO. Il nome del profilo non conta.
+- **`oam`:** i lettori interrogano dall'account di monitoraggio l'account esatto, tramite il collegamento OAM.
+- **Dove sta la rubrica:**
+  - in locale, nella configurazione dello script o nell'ambiente dell'utente; il formato è documentato da
+    `scripts/go/go-analyze-alarm/configs/aws-accounts.example.env`, con id sintetici;
+  - nel cloud, nella variabile di deploy `EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY`, validata da `DeploymentConfig` (ogni
+    account dev'essere tra le sorgenti OAM) e passata alla Lambda come `AWS_ACCOUNT_DIRECTORY`, con
+    `AWS_ACCOUNT_BINDING=oam`.
+- Un runbook che non dichiara account logici non richiede nessuna di queste chiavi.
+
+#### Riservatezza, output e cache
+
+- Gli errori dei lettori non portano nomi di profilo: i riferimenti `(profile: …)` sono rimossi e gli errori dei
+  provider di credenziali dell'SDK diventano `[<nome>] AWS credentials could not be resolved`. Il testo originale va
+  solo alle diagnostiche locali.
+- L'output del runbook riporta in `details.awsAccounts` gli account logici risolti nell'esecuzione.
+- go-rta-check include account logici, ambiente, voci della rubrica e preferenze nell'impronta della cache, e non
+  mette in cache i fallimenti che dipendono dalle credenziali.
+
+#### Test
+
+```typescript
+const awsAccounts = new InMemoryAwsAccountsPort({
+  directory: parseAwsAccountDirectory(['send/core/uat=000000000000']), // solo id sintetici
+  region: 'eu-south-1',
+  environment: 'uat',
+  readers: { 'send/core': coreReader },
+});
+const services = createTestServiceRegistry({ awsAccounts });
+```
+
+`InMemoryAwsAccountsPort` usa la stessa logica di rubrica e ambiente del runtime, con lettori in memoria.
+
+#### Gate dei package pubblicati
+
+- `pnpm check:published`: impacchetta `@pagopa/*` con `pnpm pack` e cerca account id, ARN con account e nomi di
+  profilo in ogni file dell'archivio (job CI `published`).
+- `pnpm check:published:sources`: stesso controllo sui sorgenti, passo di `pnpm lint`.
+- ESLint vieta i letterali di 12 cifre nei sorgenti pubblicati.
+- Id ammessi negli esempi: `000000000000` e `123456789012`. Regole ed eccezioni motivate:
+  `published-sensitive-data.config.json`.
 
 ---
 
@@ -1314,6 +1476,8 @@ function escalateAction(config: EscalateActionConfig): EscalateAction;
 
 ## 9. Esempio Concreto: Alarm Resolution per API Gateway 5xx
 
+> **Esempio didattico.** Mostra i concetti del motore (step, early resolution, sub-pipeline, casi noti). Alcuni helper usati qui (`extractField`, `regexExtract`, `ifCondition`, `setVar`, `log`) e la firma semplificata di `createServiceRegistry` servono solo all'esempio e non fanno parte dell'API. I runbook reali sono in `packages/go-runbook/src/inventory/` e si costruiscono con i toolkit (`@pagopa/go-runbook/toolkits/send`, `…/toolkits/interop`).
+
 ### Scenario
 
 Un allarme CloudWatch `pn-address-book-io-IO-ApiGwAlarm` scatta. Il runbook deve:
@@ -1327,19 +1491,9 @@ Un allarme CloudWatch `pn-address-book-io-IO-ApiGwAlarm` scatta. Il runbook deve
 ### Definizione del Runbook
 
 ```typescript
-import {
-  RunbookBuilder,
-  CloudWatchLogsQueryStep,
-  CompareStep,
-  extractField,
-  regexExtract,
-  ifCondition,
-  setVar,
-  log,
-  logAction,
-  notifyAction,
-  escalateAction,
-} from '@go-automation/go-runbook-engine';
+import { RunbookBuilder, CompareStep, logAction, notifyAction, escalateAction } from '@pagopa/go-runbook';
+import { CloudWatchLogsQueryStep } from '@pagopa/go-runbook/toolkits/common';
+// extractField, regexExtract, ifCondition, setVar e log: helper illustrativi di questo esempio.
 
 // ---------------------------------------------------------------
 // Runbook: API Gateway 5xx Alarm Resolution
@@ -1650,12 +1804,13 @@ const apiGateway5xxRunbook = RunbookBuilder.create('alarm-api-gw-5xx')
 ### Esecuzione del Runbook
 
 ```typescript
-import { Core, AWS } from '@go-automation/go-common';
-import { RunbookEngine, ConditionEvaluator, createServiceRegistry } from '@go-automation/go-runbook-engine';
+import { GOScript } from '@go-automation/go-script';
+import { RunbookEngine, ConditionEvaluator } from '@pagopa/go-runbook';
+import { createServiceRegistry } from '@pagopa/go-runbook/runtime';
 import { apiGateway5xxRunbook } from './runbooks/apiGateway5xx';
 
 // Dentro uno script GOScript
-const script = new Core.GOScript({
+const script = new GOScript({
   metadata: { name: 'Runbook Runner', version: '1.0.0', description: 'Esegue runbook' },
   config: {
     parameters: [
@@ -2348,101 +2503,81 @@ Questo esempio mostra il trace prodotto dall'esecuzione del runbook **API Gatewa
 
 ---
 
-## 13. Struttura Package Proposta
+## 13. Struttura del package
+
+Il package è `@pagopa/go-runbook` (`packages/go-runbook`). È diviso in quattro strati, ognuno con il proprio entrypoint (EVO-RBREORG-OPUS-01).
+
+| Entrypoint                            | Cartella                      | Contenuto                                                                                                                    |
+| ------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `@pagopa/go-runbook`                  | `src/engine/`                 | Il linguaggio e l'esecuzione di un workflow. Nessuna conoscenza di AWS, prodotti, allarmi o Watchtower.                      |
+| `@pagopa/go-runbook/output`           | `src/toolkits/common/output/` | Il contratto dell'output dei runbook verso Watchtower.                                                                       |
+| `@pagopa/go-runbook/toolkits/common`  | `src/toolkits/common/`        | Il toolkit operativo comune: servizi, step AWS e HTTP, famiglie generiche, account logici, policy, helper di test.           |
+| `@pagopa/go-runbook/toolkits/send`    | `src/toolkits/send/`          | Pipeline, profili e dati di SEND.                                                                                            |
+| `@pagopa/go-runbook/toolkits/interop` | `src/toolkits/interop/`       | Pipeline, profili e dati di INTEROP.                                                                                         |
+| `@pagopa/go-runbook/inventory`        | `src/inventory/`              | I runbook concreti e il catalogo.                                                                                            |
+| `@pagopa/go-runbook/runtime`          | `src/runtime/`                | La composizione: registro dei servizi, legame all'occorrenza, account AWS, esecuzione. È l'unico strato che usa gli SDK AWS. |
 
 ```
-packages/
-  go-runbook-engine/
-    src/
-      index.ts                     # Public API exports
-
-      core/
-        RunbookEngine.ts           # Orchestratore principale
-        ConditionEvaluator.ts      # Valutazione condizioni
-
-      context/
-        RunbookContext.ts          # Contesto + helper immutabili
-
-      steps/
-        data/
-          CloudWatchLogsQueryStep.ts
-          AthenaQueryStep.ts
-          DynamoDBQueryStep.ts
-          HttpRequestStep.ts
-
-        transform/
-          ExtractFieldStep.ts
-          RegexExtractStep.ts
-
-        check/
-          AssertStep.ts
-          CompareStep.ts
-
-        control/
-          IfStep.ts
-          SwitchStep.ts
-          IfBranchStep.ts
-          SwitchBranchStep.ts
-          SetVarStep.ts
-          LogStep.ts
-
-        mutation/
-          DynamoDBUpdateStep.ts
-          HttpPostStep.ts
-
-      services/
-        ServiceRegistry.ts
-        CloudWatchLogsService.ts
-        AthenaService.ts
-        HttpService.ts
-
-      actions/
-        ActionExecutor.ts
-        CaseAction.ts
-
-      builders/
-        RunbookBuilder.ts          # Con validazione
-
-      validation/
-        RunbookValidationError.ts
-        ValidationErrorEntry.ts
-        ValidationErrorCode.ts
-        GoToGraphAnalyzer.ts
-
-      errors/
-        RunbookMaxIterationsError.ts
-        ErrorRecoveryInfo.ts
-
-      trace/
-        RunbookExecutionTrace.ts
-        TraceBuilder.ts
-        StepTrace.ts
-        CaseMatchingTrace.ts
-        ActionTrace.ts
-        ExecutionSummary.ts
-        EarlyResolutionTrace.ts
-
-      types/
-        Step.ts
-        StepDescriptor.ts
-        StepResult.ts
-        StepKind.ts
-        FlowDirective.ts
-        Runbook.ts
-        RunbookMetadata.ts
-        RunbookType.ts
-        RunbookContext.ts
-        RunbookExecutionResult.ts
-        KnownCase.ts
-        Condition.ts
-        LogEntry.ts
-        TimeRange.ts
-        IfBranchConfig.ts
-        SwitchBranchConfig.ts
-
-    package.json
-    tsconfig.json
+packages/go-runbook/src/
+  index.ts                  # entrypoint `.`: riesporta engine/
+  engine/                   # `.`
+    actions/                #   ActionExecutor, factory delle azioni
+    builders/               #   RunbookBuilder
+    conditions/             #   helper per costruire le condizioni
+    context/                #   contesto immutabile e helper
+    core/                   #   RunbookEngine, ConditionEvaluator, collectRunbookSteps, assertRequiredServices
+    errors/                 #   errori dell'engine (RunbookMissingServicesError, …)
+    reporting/              #   RunbookReporter e reporter (console, raccolta, nullo)
+    steps/                  #   step neutri: check, control (if/switch, sub-pipeline), transform; executeStep
+    testing/                #   createTestWorkflowServices
+    tracing/                #   trace dell'esecuzione
+    types/                  #   Step, StepResult, Runbook, KnownCase, Condition, …
+    validation/             #   validazione del grafo del runbook
+  toolkits/
+    common/                 # `./toolkits/common` (e `./output`)
+      accounts/             #   account AWS logici: selezioni, rubrica, errori
+      analysis/             #   bozze di analisi e casi noti (knownCase)
+      augmentations/        #   estensioni del modello dell'engine
+      builders/             #   AlarmRunbookBuilder, finishAlarmRunbook
+      engine/               #   OperationalRunbookEngine, assertAwsAccounts
+      families/             #   famiglie generiche: apigw, lambda, service
+      output/               #   output dei runbook (entrypoint `./output`)
+      parsing/ queries/     #   lettura dei risultati e modelli di query
+      policies/             #   policy di esecuzione in cloud
+      registration/         #   RunbookCatalog, registrazioni, prodotti, kind
+      services/             #   ServiceRegistry, OperationalContext, porte (services/ports/)
+      steps/                #   OperationalStep, step AWS e HTTP
+      telemetry/ time/      #   telemetria, finestre temporali delle occorrenze
+      testing/              #   createTestServiceRegistry, InMemoryAwsAccountsPort
+    send/                   # `./toolkits/send`
+      accounts/             #   SEND_ACCOUNTS
+      analysis/             #   SEND_DOWNSTREAMS
+      families/             #   apigw, downstream, lambda, service
+    interop/                # `./toolkits/interop`
+      analysis/ applicationLogs/ environment/ helpers/
+      families/             #   apigw, k8s
+  inventory/                # `./inventory`
+    send/                   #   apigw/, downstream/, lambda/, service/, shared/, manifest.ts
+    interop/                #   apigw/, k8s/, shared/, manifest.ts
+    registry/               #   RUNBOOK_CATALOG, RUNBOOK_REGISTRY
+    validation/             #   cataloghi dei downstream per prodotto
+  runtime/                  # `./runtime`
+    accounts/               #   RuntimeAwsAccountsPort, createAwsAccountsPort
+    commands/               #   comandi (export dei descrittori)
+    execution/              #   executeRunbookForOccurrence
+    services/               #   createServiceRegistry, bindServicesToOccurrence
+  __baseline__/             # baseline di digest, impronte e superficie (non pubblicate)
 ```
+
+Ogni runbook concreto sta in `inventory/<prodotto>/<famiglia>/<alarm-name>/`, con `runbook.ts` (`buildRunbook()`), `registration.ts` e di solito `knownCases.ts` e `knownServices.ts`. I dati condivisi tra runbook dello stesso prodotto stanno in `inventory/<prodotto>/shared/`.
+
+**Regole di dipendenza** (dependency-cruiser ed ESLint):
+
+- l'engine non importa toolkit, inventory, runtime, né go-aws o le aree di I/O di go-common;
+- solo `runtime/` usa gli SDK AWS. Gli altri strati usano solo i contratti senza SDK di go-aws (`./cloudwatch-logs/insights`, `./profiles`) e i tipi della sua root;
+- i toolkit non conoscono inventory e runtime; `toolkits/common` non conosce i prodotti;
+- SEND e INTEROP non si importano a vicenda, né nei toolkit né nell'inventory;
+- un runbook usa l'API pubblica del toolkit del suo prodotto, non i suoi file interni, e non importa le cartelle degli altri runbook (la condivisione passa da `shared/`).
 
 ---
 

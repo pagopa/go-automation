@@ -2,7 +2,8 @@
  * Input loading: reads URI-list or JSONL files and produces download tasks.
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOPrompt } from '@go-automation/go-script';
+import { GOFileListImporter, GOJSONListImporter } from '@pagopa/go-common/importers';
 
 import { SENDSafeStorageS3Service } from '@go-automation/go-send';
 
@@ -22,9 +23,9 @@ import type { AttachmentDownloadTask } from '../types/AttachmentDownloadTask.js'
 async function loadTasksFromUriList(
   inputFile: string,
   baseOutputDir: string,
-  prompt: Core.GOPrompt,
+  prompt: GOPrompt,
 ): Promise<ReadonlyArray<AttachmentDownloadTask>> {
-  const importer = new Core.GOFileListImporter<string>({
+  const importer = new GOFileListImporter<string>({
     trim: true,
     skipEmptyLines: true,
     commentPrefix: '#',
@@ -61,9 +62,9 @@ async function loadTasksFromUriList(
 async function loadTasksFromJsonl(
   inputFile: string,
   baseOutputDir: string,
-  prompt: Core.GOPrompt,
+  prompt: GOPrompt,
 ): Promise<ReadonlyArray<AttachmentDownloadTask>> {
-  const importer = new Core.GOJSONListImporter<JsonlRecord>({
+  const importer = new GOJSONListImporter<JsonlRecord>({
     jsonl: true,
     skipInvalidItems: true,
   });
@@ -101,7 +102,7 @@ export async function loadTasks(
   config: DownloadSafestorageAttachmentsConfig,
   inputFilePath: string,
   baseOutputDir: string,
-  prompt: Core.GOPrompt,
+  prompt: GOPrompt,
 ): Promise<ReadonlyArray<AttachmentDownloadTask>> {
   const mode: InputMode = config.inputMode;
 

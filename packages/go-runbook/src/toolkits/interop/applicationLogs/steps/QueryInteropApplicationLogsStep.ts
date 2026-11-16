@@ -1,0 +1,117 @@
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import type { RunbookContext } from '../../../../engine/types/RunbookContext.js';
+import type { Step } from '../../../../engine/types/Step.js';
+import type { StepKind } from '../../../../engine/types/StepKind.js';
+import type { StepResult } from '../../../../engine/types/StepResult.js';
+import type { TimeRangeFromParams } from '../../../common/time/TimeRangeFromParams.js';
+import { resolveTimeRange } from '../../../common/time/resolveTimeRange.js';
+import type { BuildInteropK8sApplicationLogsQueryFn } from '../types/BuildInteropK8sApplicationLogsQueryFn.js';
+import { OperationalStep } from '../../../common/steps/OperationalStep.js';
+import { executeCloudWatchLogsQuery } from '../../../common/steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
+import { interopLogsQueryOptions } from '../../helpers/interopLogsQueryOptions.js';
+import { readNonBlankVar } from '../../helpers/readNonBlankVar.js';
+import type { OperationalContext } from '../../../common/services/OperationalContext.js';
+import type { OperationalServiceName } from '../../../common/services/OperationalServiceName.js';
+
+export interface QueryInteropApplicationLogsStepConfig {
+  readonly id: string;
+  readonly label: string;
+  readonly timeRangeFromParams: TimeRangeFromParams;
+  readonly logGroupVar?: string;
+  readonly podAppVar?: string;
+  readonly environmentVar?: string;
+  /** Trace profile id of the query (from the product profile). */
+  readonly queryProfileId: string;
+
+  /** Query builder (from the product profile). */
+  readonly buildQuery: BuildInteropK8sApplicationLogsQueryFn;
+}
+
+const DEFAULT_LOG_GROUP_VAR = 'interopLogGroup';
+const DEFAULT_POD_APP_VAR = 'interopPodApp';
+const DEFAULT_ENVIRONMENT_VAR = 'interopEnvironment';
+
+export class QueryInteropApplicationLogsStep
+  extends OperationalStep<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
+  implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
+{
+  readonly id: string;
+  readonly label: string;
+  readonly kind: StepKind = 'data';
+
+  private readonly timeRangeFromParams: TimeRangeFromParams;
+  private readonly logGroupVar: string;
+  private readonly podAppVar: string;
+  private readonly environmentVar: string;
+  private readonly queryProfileId: string;
+  private readonly buildQuery: BuildInteropK8sApplicationLogsQueryFn;
+
+  constructor(config: QueryInteropApplicationLogsStepConfig) {
+    super();
+    this.id = config.id;
+    this.label = config.label;
+    this.timeRangeFromParams = config.timeRangeFromParams;
+    this.logGroupVar = config.logGroupVar ?? DEFAULT_LOG_GROUP_VAR;
+    this.podAppVar = config.podAppVar ?? DEFAULT_POD_APP_VAR;
+    this.environmentVar = config.environmentVar ?? DEFAULT_ENVIRONMENT_VAR;
+    this.queryProfileId = config.queryProfileId;
+    this.buildQuery = config.buildQuery;
+  }
+
+  getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
+    const logGroup = context.vars.get(this.logGroupVar);
+    const podApp = context.vars.get(this.podAppVar);
+    return {
+      queryProfileId: this.queryProfileId,
+      queryKind: 'interop-application-error-scan',
+      query: podApp === undefined ? '' : this.buildQuery(podApp),
+      logGroups: logGroup === undefined ? [] : [logGroup],
+      identifiers: { podApp: podApp ?? null, environment: context.vars.get(this.environmentVar) ?? null },
+      timeRange: {
+        start: context.params.get(this.timeRangeFromParams.start) ?? null,
+        end: context.params.get(this.timeRangeFromParams.end) ?? null,
+      },
+    };
+  }
+
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(
+    context: OperationalContext,
+  ): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
+    const logGroup = readNonBlankVar(context, this.logGroupVar);
+    if (logGroup === undefined) return missingVarFailure(this.logGroupVar);
+    const podApp = readNonBlankVar(context, this.podAppVar);
+    if (podApp === undefined) return missingVarFailure(this.podAppVar);
+
+    const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
+    const query = this.buildQuery(podApp);
+
+    context.services.reporter.add({ label: `Query log applicativi INTEROP [pod_app=${podApp}]` });
+    const result = await executeCloudWatchLogsQuery(
+      context,
+      [logGroup],
+      query,
+      timeRange,
+      interopLogsQueryOptions(context),
+    );
+    context.services.reporter.add({ label: `Log applicativi trovati: ${result.rows.length}` });
+
+    return {
+      success: true,
+      output: result.rows,
+      ...(result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics }),
+    };
+  }
+}
+
+function missingVarFailure(key: string): StepResult<never> {
+  return { success: false, error: `Missing required runbook variable: ${key}` };
+}

@@ -4,25 +4,25 @@
  * Script metadata and parameters (§13 of EVO-SENDNOTIF-OPUS-01).
  */
 
-import { Core } from '@go-automation/go-common';
+import { type GOConfigParameterOptions, GOConfigParameterType, type GOScriptMetadata } from '@go-automation/go-script';
 import { Dispatch } from '@go-automation/go-send';
 
 /**
  * Script metadata
  */
-export const scriptMetadata: Core.GOScriptMetadata = {
+export const scriptMetadata: GOScriptMetadata = {
   name: 'SEND Dispatch Notifications',
   version: '1.0.0',
   description: 'Invio di notifiche SEND via API B2B con throttling, verifica, journal e ripresa',
   authors: ['Team GO - Gestione Operativa'],
 };
 
-const { STRING, INT, DOUBLE, BOOL, STRING_ARRAY } = Core.GOConfigParameterType;
+const { STRING, INT, DOUBLE, BOOL, STRING_ARRAY } = GOConfigParameterType;
 
 /**
  * Script parameter definitions
  */
-export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
+export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
   // Mode and input
   {
     name: 'mode',

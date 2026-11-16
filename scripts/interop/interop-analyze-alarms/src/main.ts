@@ -1,15 +1,17 @@
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOFileListExporter } from '@pagopa/go-common/exporters';
+import { GOPathType } from '@pagopa/go-common/files';
 
 import type { InteropAnalyzeAlarmsConfig } from './types/index.js';
 import { analyzeInteropAlarmOccurrence } from './libs/analyzeInteropAlarmOccurrence.js';
 import { findInteropAlarmOccurrences } from './libs/findInteropAlarmOccurrences.js';
 
-export async function main(script: Core.GOScript): Promise<void> {
-  const noCidPath = script.paths.resolvePath('no_cid.txt', Core.GOPathType.OUTPUT);
-  const cidPath = script.paths.resolvePath('cid.txt', Core.GOPathType.OUTPUT);
+export async function main(script: GOScript): Promise<void> {
+  const noCidPath = script.paths.resolvePath('no_cid.txt', GOPathType.OUTPUT);
+  const cidPath = script.paths.resolvePath('cid.txt', GOPathType.OUTPUT);
 
-  const noCidExporter = new Core.GOFileListExporter({ outputPath: noCidPath });
-  const cidExporter = new Core.GOFileListExporter({ outputPath: cidPath });
+  const noCidExporter = new GOFileListExporter({ outputPath: noCidPath });
+  const cidExporter = new GOFileListExporter({ outputPath: cidPath });
 
   script.logger.section('Starting Interop Analyze Alarms');
 

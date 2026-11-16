@@ -13,7 +13,7 @@
  *   4. If `keepRaw` is false, delete the cached binary file.
  */
 import * as fs from 'node:fs/promises';
-import { Core } from '@go-automation/go-common';
+import type { GOFtsIndex, GOTextExtractorRegistry } from '@go-automation/go-documents';
 
 import type { AttachmentRepository } from '../storage/AttachmentRepository.js';
 import { AttachmentSyncStatus } from '../types/AttachmentSyncStatus.js';
@@ -35,8 +35,8 @@ export interface AttachmentIndexerResult {
 }
 
 export interface AttachmentIndexerDeps {
-  readonly registry: Core.GOTextExtractorRegistry;
-  readonly index: Core.GOFtsIndex;
+  readonly registry: GOTextExtractorRegistry;
+  readonly index: GOFtsIndex;
   readonly repository: AttachmentRepository;
   readonly keepRaw: boolean;
   readonly maxTextBytes?: number;

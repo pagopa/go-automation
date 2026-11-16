@@ -2,7 +2,7 @@
  * Send Paper Request Error Check - Step Runners
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import type {
   CheckFeedbackResult,
@@ -18,7 +18,7 @@ import { fetchTimelines } from './fetchTimelines.js';
 import type { PaperRequestReporter } from './reporter.js';
 
 async function runCheckFeedbackStep(
-  script: Core.GOScript,
+  script: GOScript,
   inputLines: string[],
   reporter: PaperRequestReporter,
 ): Promise<CheckFeedbackResult> {
@@ -47,7 +47,7 @@ async function runCheckFeedbackStep(
 }
 
 async function runGetAttachmentsStep(
-  script: Core.GOScript,
+  script: GOScript,
   inputLines: string[],
   reporter: PaperRequestReporter,
 ): Promise<void> {
@@ -64,7 +64,7 @@ async function runGetAttachmentsStep(
 }
 
 async function runRetrieveAttachmentsStep(
-  script: Core.GOScript,
+  script: GOScript,
   inputLines: string[],
   reporter: PaperRequestReporter,
 ): Promise<RetrieveAttachmentsResult> {
@@ -88,7 +88,7 @@ async function runRetrieveAttachmentsStep(
 }
 
 async function runRetrieveGlacierStep(
-  script: Core.GOScript,
+  script: GOScript,
   inputLines: string[],
   reporter: PaperRequestReporter,
 ): Promise<void> {
@@ -105,7 +105,7 @@ async function runRetrieveGlacierStep(
 }
 
 async function runValidatePdfStep(
-  script: Core.GOScript,
+  script: GOScript,
   inputLines: string[],
   reporter: PaperRequestReporter,
 ): Promise<void> {
@@ -118,7 +118,7 @@ async function runValidatePdfStep(
 }
 
 async function runFetchTimelinesStep(
-  script: Core.GOScript,
+  script: GOScript,
   inputLines: string[],
   reporter: PaperRequestReporter,
 ): Promise<string[]> {
@@ -138,7 +138,7 @@ async function runFetchTimelinesStep(
 }
 
 export async function executeStepByMode(
-  script: Core.GOScript,
+  script: GOScript,
   config: SendPaperRequestErrorCheckConfig,
   inputLines: string[],
   reporter: PaperRequestReporter,
