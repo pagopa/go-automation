@@ -40,6 +40,7 @@
     "build:scripts": "pnpm -r --filter='./scripts/**' build",
     "build:ts": "tsc -b && tsc -p packages/go-runbook/tsconfig.engine.json && tsc -p bins/deploy-execute-runbook-environment --noEmit && tsc -p bins/create-runbook --noEmit",
     "catalog:automatic:build-local": "tsx bins/deploy-execute-runbook-environment/src/generateLocalCatalog.ts",
+    "changeset": "changeset",
     "check:import-cost": "tsx bins/check-import-cost/src/index.ts",
     "check:new-class-tests": "node --import tsx/esm bins/check-new-class-tests/src/index.ts",
     "check:new-class-tests:test": "node --import tsx/esm --test 'bins/check-new-class-tests/src/**/*.test.ts'",
@@ -47,6 +48,8 @@
     "check:published-packages": "tsx bins/check-published-packages/src/index.ts",
     "check:published:sources": "tsx bins/check-published-sensitive-data/src/index.ts --sources",
     "check:published:test": "node --import tsx/esm --test 'bins/check-published-sensitive-data/src/**/*.test.ts'",
+    "check:release-state": "tsx bins/check-release-state/src/index.ts",
+    "check:release-state:test": "node --import tsx/esm --test 'bins/check-release-state/src/**/*.test.ts'",
     "clean": "pnpm -r run clean",
     "clean:all": "pnpm clean && pnpm -r exec rm -rf node_modules && rm -rf node_modules",
     "create:runbook": "tsx bins/create-runbook/src/index.ts",
@@ -131,7 +134,7 @@
     "send:upload:attachments:dev": "pnpm --filter=send-upload-attachments dev",
     "send:upload:attachments:prod": "pnpm --filter=send-upload-attachments start",
     "test": "pnpm test:common && pnpm test:runbooks && pnpm test:packages && pnpm test:scripts && pnpm test:functions && pnpm test:infra && pnpm test:bins",
-    "test:bins": "pnpm create:runbook:test && pnpm check:published:test && pnpm test:published:bins",
+    "test:bins": "pnpm create:runbook:test && pnpm check:published:test && pnpm test:published:bins && pnpm check:release-state:test",
     "test:common": "pnpm --filter=@pagopa/go-common test",
     "test:common:coverage": "pnpm --filter=@pagopa/go-common test:coverage",
     "test:coverage": "pnpm test:common:coverage && pnpm test:scripts:coverage",
@@ -169,6 +172,9 @@
     "@aws-sdk/client-s3": "catalog:",
     "@aws-sdk/client-secrets-manager": "catalog:",
     "@aws-sdk/client-sts": "catalog:",
+    "@changesets/changelog-github": "catalog:",
+    "@changesets/cli": "catalog:",
+    "@changesets/parse": "catalog:",
     "@eslint/js": "catalog:",
     "@inquirer/prompts": "catalog:",
     "@types/node": "catalog:",
@@ -192,6 +198,7 @@
     "tsx": "catalog:",
     "type-coverage": "catalog:",
     "typescript": "catalog:",
-    "typescript-eslint": "catalog:"
+    "typescript-eslint": "catalog:",
+    "yaml": "catalog:"
   }
 }

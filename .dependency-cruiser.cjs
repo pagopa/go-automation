@@ -79,6 +79,12 @@ const workspacePackageNames = compact(
   [...packageWorkspaces, ...scriptWorkspaces, ...functionWorkspaces].map(packageName),
 );
 const workspacePackageImportPatterns = workspacePackageNames.map(packageImportPattern);
+/**
+ * External packages that declare only `exports` (no `main`): the resolver configured here does not read
+ * `exports`, and enabling it would also change how the workspace packages resolve. TypeScript and Node
+ * resolve them (tsc + tests of the importing bin). Keep this list short and motivated.
+ */
+const exportsOnlyExternalPatterns = ['^@changesets/parse$'];
 const binPathPatterns = binWorkspaces.map((workspace) => `^${escapeRegExp(workspace.directory)}/`);
 
 function workspaceDependencyPatterns(workspaces) {
@@ -386,7 +392,7 @@ module.exports = {
       to: {
         couldNotResolve: true,
         dynamic: false,
-        pathNot: workspacePackageImportPatterns,
+        pathNot: [...workspacePackageImportPatterns, ...exportsOnlyExternalPatterns],
       },
     },
     {

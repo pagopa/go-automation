@@ -1,0 +1,100 @@
+# EVO-PKGPUB-OPUS-01 §9.3: publishes the @pagopa/* packages ONLY from the merge commit of a
+# release/* PR merged into develop (dist-tag next in pre mode, otherwise latest). Never from a push,
+# never from a local machine. workflow_dispatch is for recovery only: it republishes and retags ONE
+# already validated release commit. Guide: docs/RELEASING.md.
+name: Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [develop]
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: 'merge_commit_sha of a merged release/* PR'
+        required: true
+
+permissions:
+  contents: write # push of the git tags only
+  packages: write # publish on npm.pkg.github.com + dist-tags
+  pull-requests: read # validation of release_sha
+
+# One release at a time, recovery runs included (§9.3, rule 1).
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release
+    # Recovery dispatches only from develop: a dispatch on another branch would run that branch's code.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/develop') ||
+      (github.event.pull_request.merged == true &&
+       startsWith(github.event.pull_request.head.ref, 'release/') &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      # Initial checkout of develop (protected branch): the validator that resolves the release commit
+      # always comes from develop, never from the dispatched ref or the PR.
+      - name: Checkout develop (trusted code)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Setup CI environment
+        uses: ./.github/actions/setup-ci
+        with:
+          install-args: --frozen-lockfile --ignore-scripts
+          registry-url: https://npm.pkg.github.com
+          scope: '@pagopa'
+
+      - name: Resolve the release commit
+        id: sha
+        run: pnpm -s check:release-state resolve-sha
+
+      # From here on, only the validated commit.
+      - name: Check out the release commit
+        id: pin
+        run: git checkout --detach "$RELEASE_SHA" && pnpm install --frozen-lockfile
+        env:
+          RELEASE_SHA: ${{ steps.sha.outputs.release_sha }}
+
+      - name: Registry authentication for npm and pnpm
+        run: |
+          {
+            echo '@pagopa:registry=https://npm.pkg.github.com'
+            echo '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}'
+          } >> "$HOME/.npmrc"
+
+      - name: Git identity for the annotated tags
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      - name: Recover tags lost by previous runs
+        run: pnpm -s check:release-state reconcile-tags
+        env:
+          RELEASE_SHA: ${{ steps.sha.outputs.release_sha }}
+
+      - name: Build and publication gates (§10)
+        run: pnpm build && pnpm test:published
+
+      - name: Publish
+        id: publish
+        run: pnpm changeset publish
+
+      # Also after a partial publish, NEVER without a validated checkout.
+      - name: Tags, channels and push
+        if: always() && steps.pin.outcome == 'success'
+        run: >-
+          pnpm -s check:release-state reconcile-tags &&
+          pnpm -s check:release-state promote-channels &&
+          git push origin --tags
+        env:
+          RELEASE_SHA: ${{ steps.sha.outputs.release_sha }}

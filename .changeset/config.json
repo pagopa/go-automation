@@ -1,0 +1,13 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@4.0.1/schema.json",
+  "changelog": ["@changesets/changelog-github", { "repo": "pagopa/go-automation" }],
+  "commit": false,
+  "access": "restricted",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "privatePackages": { "version": false, "tag": false },
+  "ignore": [],
+  "___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
+    "updateInternalDependents": "always"
+  }
+}

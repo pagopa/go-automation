@@ -3,6 +3,8 @@
 > Guida ai comandi introdotti dalla Fase 4 di [EVO-PKGPUB-OPUS-01](evolutions/EVO-PKGPUB-OPUS-01.md) (§10): cosa fa ogni comando, quando usarlo e come.
 >
 > Data: 2026-11-16.
+>
+> Per le versioni, le changeset e i rilasci: [RELEASING.md](RELEASING.md).
 
 ## 1. A cosa servono
 

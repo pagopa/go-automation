@@ -1,6 +1,7 @@
 {
   "name": "@go-automation/go-cli",
   "version": "1.0.0",
+  "private": true,
   "type": "module",
   "description": "GO Automation CLI - Centralized Control Plane",
   "main": "dist/index.js",

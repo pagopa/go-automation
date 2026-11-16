@@ -1,0 +1,37 @@
+# EVO-PKGPUB-OPUS-01 §9.3: daily read-only check that every merged release PR is published, tagged
+# and has aligned channels. On failure it prints the recovery (Release workflow with release_sha).
+name: Release Audit
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+  pull-requests: read
+
+jobs:
+  audit:
+    name: Release Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup CI environment
+        uses: ./.github/actions/setup-ci
+        with:
+          install-args: --frozen-lockfile --ignore-scripts
+          registry-url: https://npm.pkg.github.com
+          scope: '@pagopa'
+
+      - name: Audit the releases
+        run: pnpm -s check:release-state audit

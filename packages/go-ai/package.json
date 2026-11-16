@@ -1,6 +1,7 @@
 {
   "name": "@go-automation/go-ai",
   "version": "1.0.0",
+  "private": true,
   "type": "module",
   "description": "GO-AI: Bedrock-powered AI module for operational intelligence",
   "main": "dist/index.js",

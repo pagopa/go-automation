@@ -22,6 +22,9 @@
       "path": "./bins/check-published-sensitive-data"
     },
     {
+      "path": "./bins/check-release-state"
+    },
+    {
       "path": "./bins/validate-scaffold"
     },
     {
