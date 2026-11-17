@@ -21,7 +21,7 @@ const ALL_PEERS_WITHOUT_EC2: ReadonlyArray<string> = [
 ];
 
 /**
- * SDK peers required by each `@pagopa/go-aws` subpath: the table of EVO-PKGPUB-OPUS-01 §7.2.1,
+ * SDK peers required by each `@pagopa/go-aws` subpath,
  * the source of truth for the S4 scenarios. A subpath missing here fails `assertScenarioCoverage`.
  */
 export const GO_AWS_SUBPATH_PEERS: ReadonlyMap<string, ReadonlyArray<string>> = new Map([
@@ -55,7 +55,7 @@ const RUNBOOK_SDK_FREE: ReadonlyArray<string> = [
 ];
 
 /**
- * Builds the mandatory scenarios of EVO-PKGPUB-OPUS-01 §10.2 (amendment r14).
+ * Builds the mandatory smoke scenarios.
  *
  * @param goCommonSubpaths - Export subpaths of `@pagopa/go-common` (from its manifest)
  * @param goRunbookSubpaths - Export subpaths of `@pagopa/go-runbook` (from its manifest)

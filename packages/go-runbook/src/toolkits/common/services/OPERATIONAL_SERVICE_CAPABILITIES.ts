@@ -4,8 +4,7 @@ import type { OperationalServiceName } from './OperationalServiceName.js';
 
 /**
  * Methods each operational service must expose, the ones the steps call.
- * A received service missing one of them is rejected before the first step
- * (EVO-RBREORG-OPUS-01 §7.1.3 A, RBREORG-14).
+ * A received service missing one of them is rejected before the first step.
  */
 export const OPERATIONAL_SERVICE_METHODS: Readonly<Record<OperationalServiceName, ReadonlyArray<string>>> = {
   cloudWatchLogs: ['query', 'queryWithStatistics', 'forTarget', 'forExecution', 'getConfiguredSources'],

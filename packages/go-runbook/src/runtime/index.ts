@@ -39,5 +39,5 @@ export {
   DEFAULT_TIME_WINDOW_MINUTES,
 } from '../toolkits/common/time/occurrence/DEFAULT_OCCURRENCE_TIME_WINDOW.js';
 
-// Operational model augmentations: keeps the operational fields in a consumer's program (EVO-RBREORG-OPUS-01 RBREORG-11).
+// Operational model augmentations: keeps the operational fields in a consumer's program.
 export type { OperationalModelAugmentations } from '../toolkits/common/augmentations/index.js';

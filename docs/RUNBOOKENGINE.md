@@ -853,8 +853,6 @@ all'account e alla regione dell'occorrenza con `bindServicesToOccurrence`.
 
 ### 7.1 Account, ambienti e permessi
 
-> Riferimento: [EVO-AWSACCT-OPUS-01](evolutions/EVO-AWSACCT-OPUS-01.md).
-
 Quasi tutti i runbook leggono l'account dell'occorrenza con `cloudWatchLogs`. Alcuni leggono **anche altri account**:
 per esempio i due account SEND (core e confinfo) per la stessa Lambda, o l'account confinfo per spidhub. Per questi
 vale una regola: **nel codice del runbook non ci sono account id, ARN con account né nomi di profilo AWS.** I package
@@ -2505,7 +2503,7 @@ Questo esempio mostra il trace prodotto dall'esecuzione del runbook **API Gatewa
 
 ## 13. Struttura del package
 
-Il package è `@pagopa/go-runbook` (`packages/go-runbook`). È diviso in quattro strati, ognuno con il proprio entrypoint (EVO-RBREORG-OPUS-01).
+Il package è `@pagopa/go-runbook` (`packages/go-runbook`). È diviso in quattro strati, ognuno con il proprio entrypoint.
 
 | Entrypoint                            | Cartella                      | Contenuto                                                                                                                    |
 | ------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |

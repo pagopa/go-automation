@@ -1,6 +1,6 @@
 # Documentazione go-common
 
-> Documentazione dei package condivisi nati dalla suddivisione di go-common (EVO-PKGPUB-OPUS-01): `@pagopa/go-common` (kernel), `@pagopa/go-aws`, `@go-automation/go-script`, `@go-automation/go-documents`, `@go-automation/go-slack`. Le sezioni seguenti mantengono i titoli storici ("Core", "AWS"): ogni esempio importa i simboli dal loro sottopercorso.
+> Documentazione dei package condivisi nati dalla suddivisione di go-common: `@pagopa/go-common` (kernel), `@pagopa/go-aws`, `@go-automation/go-script`, `@go-automation/go-documents`, `@go-automation/go-slack`. Le sezioni seguenti mantengono i titoli storici ("Core", "AWS"): ogni esempio importa i simboli dal loro sottopercorso.
 
 ## Struttura dei package
 

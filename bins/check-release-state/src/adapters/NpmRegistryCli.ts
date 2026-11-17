@@ -1,7 +1,7 @@
 import type { RunCommandFn } from '../types/RunCommandFn.js';
 import type { RegistryPort } from '../types/RegistryPort.js';
 
-/** Registry of the published packages (`publishConfig.registry`, EVO-PKGPUB-OPUS-01 §8.1). */
+/** Registry of the published packages (`publishConfig.registry`). */
 const PUBLISH_REGISTRY = 'https://npm.pkg.github.com';
 
 /**

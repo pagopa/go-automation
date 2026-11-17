@@ -7,7 +7,7 @@ import { ParseApiGwErrorsStep } from '../ParseApiGwErrorsStep.js';
 import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
 import { SEND_API_GW_PROFILE } from '../../../../../send/families/apigw/profiles/SEND_API_GW_PROFILE.js';
 
-// The step has no product default (EVO-RBREORG-OPUS-01 P11): the tests use the SEND profile.
+// The step has no product default: the tests use the SEND profile.
 const PROFILE_FIELDS = { schema: SEND_API_GW_PROFILE.accessLog.schema, queryProfileId: SEND_API_GW_PROFILE.id };
 
 function createContext(stepOutput: unknown): RunbookContext {

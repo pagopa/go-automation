@@ -1,7 +1,7 @@
 import type { InteropEnvironment } from '../../../environment/InteropEnvironment.js';
 import type { InteropApiGwAlarmNameFn } from './InteropApiGwAlarmNameFn.js';
 
-/** What distinguishes one INTEROP API Gateway alarm runbook from its siblings (EVO-RBREORG-OPUS-01 P30). */
+/** What distinguishes one INTEROP API Gateway alarm runbook from its siblings. */
 export interface InteropApiGwAlarmSpec {
   /** Runbook key. */
   readonly runbookKey: string;

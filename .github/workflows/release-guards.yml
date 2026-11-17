@@ -1,4 +1,4 @@
-# EVO-PKGPUB-OPUS-01 §10.3: every PR towards develop or main is a release (changeset-release/develop or
+# every PR towards develop or main is a release (changeset-release/develop or
 # release/* → develop), a promotion (develop → main) or a contribution (everything else), and must pass
 # its own guard.
 #

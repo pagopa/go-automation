@@ -6,8 +6,7 @@ import { RunbookProducts } from '../../../../common/registration/RunbookProduct.
 
 /**
  * Context of a runbook built by the SEND API Gateway pipeline
- * (`createSendApiGwAlarmRunbook`): the one whose service chain the SEND summary reads
- * (EVO-RBREORG-OPUS-01 P19).
+ * (`createSendApiGwAlarmRunbook`): the one whose service chain the SEND summary reads.
  */
 export interface SendApiGwRunbookContext extends ApiGwRunbookContext {
   readonly product: typeof RunbookProducts.SEND;

@@ -14,5 +14,5 @@ export type { RunbookDescriptor } from '../toolkits/common/registration/RunbookD
 export type { RunbookKind } from '../toolkits/common/registration/RunbookKind.js';
 export { RunbookKinds } from '../toolkits/common/registration/RunbookKind.js';
 
-// Operational model augmentations: keeps the operational fields in a consumer's program (EVO-RBREORG-OPUS-01 RBREORG-11).
+// Operational model augmentations: keeps the operational fields in a consumer's program.
 export type { OperationalModelAugmentations } from '../toolkits/common/augmentations/index.js';

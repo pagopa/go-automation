@@ -1,6 +1,6 @@
 import type { AwsAccountsBinding } from './AwsAccountsBinding.js';
 
-/** Raw `aws.account.*` values of a host, before validation (EVO-AWSACCT-OPUS-01 §8.1). */
+/** Raw `aws.account.*` values of a host, before validation. */
 export interface AwsAccountsSettings {
   /** `aws.account.directory` entries; absent or empty means no logical account is configured. */
   readonly directory?: ReadonlyArray<string>;

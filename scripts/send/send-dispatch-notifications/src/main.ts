@@ -1,7 +1,7 @@
 /**
  * SEND Dispatch Notifications - Main Logic Module
  *
- * Unified sending of SEND notifications (EVO-SENDNOTIF-OPUS-01): throttled
+ * Unified sending of SEND notifications: throttled
  * send through the B2B API, optional verification, durable journal with
  * resume, output 1:1 with the input.
  */

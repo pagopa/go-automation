@@ -54,7 +54,7 @@ export interface RunbookCheckContext {
   readonly analysisMatcher: AnalysisMatcherFn;
   readonly matchOptions: MatchAnalysisOptions;
   readonly force: boolean;
-  /** Logical AWS accounts of the run, for runbooks that declare them (EVO-AWSACCT-OPUS-01). */
+  /** Logical AWS accounts of the run, for runbooks that declare them. */
   readonly accounts?: RunbookCheckAccounts;
 }
 
@@ -188,7 +188,7 @@ function classifyExecutionFailure(error: unknown): 'CONFIG-ERROR' | 'EXECUTION-E
 
 /**
  * The report row of an occurrence whose runbook did not produce an output. The
- * message carries no local profile name (EVO-AWSACCT-OPUS-01 §6.1).
+ * message carries no local profile name.
  */
 function failedRow(event: AlarmEventDto, error: unknown, profileNames: ReadonlyArray<string>): RtaCheckRow {
   const message = scrubAwsProfileNames(error instanceof Error ? error.message : String(error), profileNames);
@@ -203,7 +203,7 @@ function failedRow(event: AlarmEventDto, error: unknown, profileNames: ReadonlyA
 
 /**
  * Binds the run's account port to the occurrence and resolves the runbook's logical
- * accounts in the occurrence environment (EVO-AWSACCT-OPUS-01 §6.5).
+ * accounts in the occurrence environment.
  *
  * @returns The bound port and its fingerprint inputs, or `undefined` when the runbook declares no logical account
  * @throws AwsAccountError when the directory cannot serve the occurrence

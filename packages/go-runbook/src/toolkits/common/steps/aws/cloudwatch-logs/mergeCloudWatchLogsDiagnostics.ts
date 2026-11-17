@@ -4,7 +4,7 @@ import type { StepDiagnostics } from '../../../../../engine/tracing/StepDiagnost
 
 /**
  * Diagnostics of a step that ran several CloudWatch Logs queries: rows,
- * statistics and executions summed over all of them (EVO-RBREORG-OPUS-01 P30).
+ * statistics and executions summed over all of them.
  *
  * The sum is reported only when every query has statistics, so a partial total
  * is never presented as complete.

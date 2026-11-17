@@ -5,7 +5,7 @@ const ENTRY_PATTERN = /^(?<logical>[a-z0-9-]+\/[a-z0-9-]+)\/(?<environment>[a-z0
 
 /**
  * Parses the account directory configuration (`aws.account.directory`) into
- * validated entries (EVO-AWSACCT-OPUS-01 §5.3, §8.1).
+ * validated entries.
  *
  * Each entry has the form `<product>/<account>/<environment>=<accountId>`.
  * Blank entries are ignored and spaces around `=` are allowed. The parse rejects:

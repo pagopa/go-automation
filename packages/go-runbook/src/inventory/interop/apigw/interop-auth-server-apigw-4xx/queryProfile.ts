@@ -2,7 +2,7 @@ import { interop } from '../../../../toolkits/interop/index.js';
 
 /**
  * Warnings of the authorization server that never explain a 4xx: a client
- * sending invalid claims is the client's problem (EVO-RBREORG-OPUS-01 P18).
+ * sending invalid claims is the client's problem.
  */
 const NON_CAUSAL_WARNINGS: ReadonlyArray<string> = ['Invalid claims in client assertion payload'];
 

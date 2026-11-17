@@ -108,7 +108,7 @@ function configurationFailure(message: string): Error & { readonly workerFailure
  * An invalid `aws.account.*` configuration does not stop the worker: runbooks
  * without logical accounts keep running, and each runbook that declares them
  * fails before its first step with `AWS_ACCOUNT_DIRECTORY_INVALID`, which closes
- * that execution as a worker configuration failure (EVO-AWSACCT-OPUS-01 §6.4).
+ * that execution as a worker configuration failure.
  * In AWS-managed execution the binding is always OAM, whatever is configured.
  */
 function buildServices(script: GOScript, config: ExecuteRunbookConfig, hasProfiles: boolean): ServiceRegistry {

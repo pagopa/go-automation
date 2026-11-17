@@ -14,7 +14,7 @@ const GO_RUNBOOK_SUBPATHS = [
   './runtime',
 ];
 
-describe('buildScenarios (EVO-PKGPUB-OPUS-01 §10.2)', () => {
+describe('buildScenarios', () => {
   const scenarios = buildScenarios(GO_COMMON_SUBPATHS, GO_RUNBOOK_SUBPATHS);
   const byId = new Map(scenarios.map((scenario) => [scenario.id, scenario]));
 

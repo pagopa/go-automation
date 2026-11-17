@@ -1186,7 +1186,7 @@ Il sistema rileva automaticamente la modalità cercando **la root di go-automati
 4. Default → STANDALONE
 ```
 
-Un `pnpm-workspace.yaml` o un `package.json` con `workspaces` di **un altro repository** non rende la root un monorepo go-automation: lo script gira in standalone e non scrive `data/` nella root di quel repository (EVO-PKGPUB-OPUS-01, K6).
+Un `pnpm-workspace.yaml` o un `package.json` con `workspaces` di **un altro repository** non rende la root un monorepo go-automation: lo script gira in standalone e non scrive `data/` nella root di quel repository.
 
 ### Variabili d'Ambiente
 

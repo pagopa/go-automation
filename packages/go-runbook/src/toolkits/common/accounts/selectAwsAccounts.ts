@@ -5,8 +5,8 @@ import { AwsAccountError } from './AwsAccountError.js';
 import type { ResolvedAwsAccount } from './ResolvedAwsAccount.js';
 
 /**
- * Logical accounts a selection reads in this execution, resolved
- * (EVO-AWSACCT-OPUS-01 §5.4, §6.3). Used by the pre-execution check and by
+ * Logical accounts a selection reads in this execution, resolved.
+ * Used by the pre-execution check and by
  * the steps, so both see the same accounts.
  *
  * Checks, in order: the environment is allowed; no two logical accounts of the

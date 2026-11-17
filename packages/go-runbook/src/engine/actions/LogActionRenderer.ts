@@ -4,7 +4,7 @@ import type { LogAction } from '../types/CaseAction.js';
 import type { LogActionValues } from './LogActionValues.js';
 
 /**
- * Port that renders a log action (EVO-RBREORG-OPUS-01 §7.1.3 D). The engine
+ * Port that renders a log action. The engine
  * ships a plain default; operational toolkits inject the analysis renderer,
  * whose texts reach Watchtower.
  */

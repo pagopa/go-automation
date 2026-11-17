@@ -10,7 +10,7 @@ import type { LambdaDownstream } from '../types/LambdaDownstream.js';
  */
 export interface LambdaRunbookContext {
   readonly kind: 'lambda';
-  /** Product whose pipeline built the runbook: selects the product-specific summaries (EVO-RBREORG-OPUS-01 P19). */
+  /** Product whose pipeline built the runbook: selects the product-specific summaries. */
   readonly product: RunbookProduct;
   readonly lambda: LambdaFunction;
   readonly downstreams: ReadonlyArray<LambdaDownstream>;

@@ -9,8 +9,7 @@ import type { OperationalContext } from '../../services/OperationalContext.js';
 /**
  * A step written against the operational context, as every AWS/HTTP step is.
  * It implements the engine's `Step` only because `Step.execute` is declared as a
- * **method**, whose parameter TypeScript checks bivariantly (EVO-RBREORG-OPUS-01 §7.1.3,
- * docs/CONVENTIONS.md "Bivarianza di Step.execute").
+ * **method**, whose parameter TypeScript checks bivariantly.
  */
 class OperationalProbeStep {
   readonly id = 'probe';

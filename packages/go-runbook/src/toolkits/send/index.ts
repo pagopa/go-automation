@@ -1,5 +1,5 @@
 /**
- * Internal API of the SEND toolkit for runbook authors (EVO-RBREORG-OPUS-01, phase F1).
+ * Internal API of the SEND toolkit for runbook authors.
  *
  * SEND runbooks import from here and from the engine barrel only. In F1 it
  * re-exports from the current folders; F4 moves the files under `src/toolkits/`
@@ -53,6 +53,6 @@ export { OperationalStep } from '../common/steps/OperationalStep.js';
 export type { OperationalContext } from '../common/services/OperationalContext.js';
 export type { OperationalServiceName } from '../common/services/OperationalServiceName.js';
 
-// Operational model augmentations: keeps the operational fields in a consumer's program (EVO-RBREORG-OPUS-01 RBREORG-11).
+// Operational model augmentations: keeps the operational fields in a consumer's program.
 export type { OperationalModelAugmentations } from '../common/augmentations/index.js';
 export { AlarmRunbookBuilder } from '../common/builders/AlarmRunbookBuilder.js';

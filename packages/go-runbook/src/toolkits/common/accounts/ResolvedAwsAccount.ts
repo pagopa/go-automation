@@ -1,6 +1,6 @@
 import type { AwsLogicalAccount } from './AwsLogicalAccount.js';
 
-/** A logical account resolved in the environment of one execution (EVO-AWSACCT-OPUS-01 §5.5). */
+/** A logical account resolved in the environment of one execution. */
 export interface ResolvedAwsAccount {
   readonly account: AwsLogicalAccount;
   readonly environment: string;

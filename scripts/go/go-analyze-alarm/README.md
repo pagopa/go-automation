@@ -101,7 +101,7 @@ I timestamp devono essere in formato **ISO 8601**: `YYYY-MM-DDTHH:MM:SSZ`
 
 Alcuni runbook leggono più account (per esempio SEND core e confinfo). Il codice
 dichiara solo **account logici** (`send/core`, `send/confinfo`); gli account id e
-l'ambiente stanno nella configurazione locale, mai nel codice (EVO-AWSACCT-OPUS-01).
+l'ambiente stanno nella configurazione locale, mai nel codice.
 
 - `aws.account.directory`: voci `<prodotto>/<account>/<ambiente>=<id>`;
 - `aws.account.environment`: l'ambiente da leggere;

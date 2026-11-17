@@ -1,7 +1,7 @@
 import type { AllowedValue } from './AllowedValue.js';
 import type { SensitiveDataException } from './SensitiveDataException.js';
 
-/** Rules of `published-sensitive-data.config.json` (EVO-AWSACCT-OPUS-01 §9). */
+/** Rules of `published-sensitive-data.config.json`. */
 export interface SensitiveDataConfig {
   /** Synthetic account ids accepted everywhere (also as the account of an ARN). */
   readonly allowedAccountIds: ReadonlyArray<AllowedValue>;

@@ -18,7 +18,7 @@ interface ProfileIdentity {
 }
 
 /**
- * Account port of the runtime (EVO-AWSACCT-OPUS-01 §6.1): the directory logic
+ * Account port of the runtime: the directory logic
  * of {@link AwsAccountsDirectoryPort}, with readers built from real credentials.
  *
  * - `profiles`: among the configured profiles whose STS account is the account of

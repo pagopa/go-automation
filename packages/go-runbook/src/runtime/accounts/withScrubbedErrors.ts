@@ -20,8 +20,8 @@ const MAX_CAUSE_DEPTH = 8;
 const QUERY_METHODS: ReadonlySet<PropertyKey> = new Set(['query', 'queryWithStatistics']);
 
 /**
- * Reader of a logical account whose query errors carry no local profile name
- * (EVO-AWSACCT-OPUS-01 §6.1). The original message goes to the local diagnostics;
+ * Reader of a logical account whose query errors carry no local profile name.
+ * The original message goes to the local diagnostics;
  * the rethrown error keeps its prototype and own fields (codes), with a clean
  * message and stack and without `cause`.
  *

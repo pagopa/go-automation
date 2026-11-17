@@ -12,7 +12,7 @@ interface AccountSelectingStep {
 }
 
 /**
- * Pre-execution check of the logical AWS accounts (EVO-AWSACCT-OPUS-01 §6.3).
+ * Pre-execution check of the logical AWS accounts.
  *
  * Collects the selections of every step (nested and action steps included),
  * resolves environment and effective accounts, and prepares their readers,

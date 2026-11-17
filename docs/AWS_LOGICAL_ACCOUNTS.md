@@ -1,6 +1,6 @@
 # Account AWS logici: perché, come sono fatti, come funzionano
 
-> Questo documento spiega come i runbook leggono **più account AWS** senza scrivere nel codice gli identificativi degli account o i nomi dei profili. Il riferimento ufficiale è la SPEC approvata [EVO-AWSACCT-OPUS-01](evolutions/EVO-AWSACCT-OPUS-01.md). Le decisioni prese e le revisioni sono nel suo [registro](evolutions/EVO-AWSACCT-OPUS-01-REVIEW-LOG.md). Chi scrive runbook trova i dettagli tecnici in [RUNBOOKENGINE.md §7.1](RUNBOOKENGINE.md#71-account-ambienti-e-permessi).
+> Questo documento spiega come i runbook leggono **più account AWS** senza scrivere nel codice gli identificativi degli account o i nomi dei profili. Chi scrive runbook trova i dettagli tecnici in [RUNBOOKENGINE.md §7.1](RUNBOOKENGINE.md#71-account-ambienti-e-permessi).
 >
 > Tutti gli identificativi di account in questo documento sono **finti**.
 

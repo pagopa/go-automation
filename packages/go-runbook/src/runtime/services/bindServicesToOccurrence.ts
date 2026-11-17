@@ -14,8 +14,7 @@ import type { BindServicesToOccurrenceOptions } from './BindServicesToOccurrence
  *   (`forExecution`);
  * - in both modes, ties CloudWatch Logs and Athena to the occurrence's
  *   `activeOperations`, so that stopping it cancels the queries still running;
- * - binds the account port, when present, to the occurrence account and region
- *   (EVO-AWSACCT-OPUS-01 §6.2).
+ * - binds the account port, when present, to the occurrence account and region.
  *
  * The input registry is not modified.
  *

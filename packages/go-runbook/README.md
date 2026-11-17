@@ -88,8 +88,6 @@ configurati.
   [docs/RUNBOOKENGINE.md](../../docs/RUNBOOKENGINE.md).
 - Account AWS logici (rubrica, ambienti, modi di accesso):
   [docs/AWS_LOGICAL_ACCOUNTS.md](../../docs/AWS_LOGICAL_ACCOUNTS.md).
-- Riassetto del package (engine, toolkit, inventory, runtime):
-  [EVO-RBREORG-OPUS-01](../../docs/evolutions/EVO-RBREORG-OPUS-01.md).
 - Superficie pubblica di ogni entrypoint: cartella [`api/`](api/).
 - Controlli prima della pubblicazione (report API, smoke test, budget di import): [docs/PUBLISHED_PACKAGES_CHECKS.md](../../docs/PUBLISHED_PACKAGES_CHECKS.md).
 - Modifiche tra le versioni: `CHANGELOG.md`, creato al primo rilascio.

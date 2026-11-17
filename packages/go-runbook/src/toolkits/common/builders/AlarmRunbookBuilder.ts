@@ -15,7 +15,7 @@ import type { OccurrenceTimeWindow } from '../time/occurrence/OccurrenceTimeWind
 /**
  * Builder of the alarm runbooks: the engine builder plus the operational
  * fields (occurrence window, cloud policy, analysis defaults, runbook context,
- * output) and the step evidence (EVO-RBREORG-OPUS-01 §7.1.3 E). It writes them
+ * output) and the step evidence. It writes them
  * through the template methods of {@link RunbookBuilder}, so the built runbook
  * keeps the same keys, in the same order, as before the split.
  *

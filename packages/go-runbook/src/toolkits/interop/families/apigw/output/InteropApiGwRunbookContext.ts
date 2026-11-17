@@ -6,7 +6,7 @@ import { RunbookProducts } from '../../../../common/registration/RunbookProduct.
 
 /**
  * Context of an INTEROP API Gateway runbook: access log plus application log of
- * one service, without the SEND service chain (EVO-RBREORG-OPUS-01 P19).
+ * one service, without the SEND service chain.
  */
 export interface InteropApiGwRunbookContext extends ApiGwRunbookContext {
   readonly product: typeof RunbookProducts.INTEROP;

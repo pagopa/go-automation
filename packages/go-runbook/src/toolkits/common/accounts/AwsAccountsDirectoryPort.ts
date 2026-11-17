@@ -10,8 +10,7 @@ import type { AwsLogicalAccount } from './AwsLogicalAccount.js';
 import type { ResolvedAwsAccount } from './ResolvedAwsAccount.js';
 
 /**
- * {@link AwsAccountsPort} backed by an account directory (EVO-AWSACCT-OPUS-01
- * §5, §6.2). It derives the environment, resolves logical accounts and keeps the
+ * {@link AwsAccountsPort} backed by an account directory. It derives the environment, resolves logical accounts and keeps the
  * prepared readers; subclasses only build the reader of one resolved account
  * (profiles matched through STS, OAM, or an in-memory fake).
  */

@@ -176,7 +176,7 @@ describe('OneTrust notices production runbook', () => {
   });
 });
 
-// EVO-RBREORG-OPUS-01 P33: the pod app is escaped like every other Logs Insights string value.
+// the pod app is escaped like every other Logs Insights string value.
 /** Private query builder of the application-log step. */
 type BuildQueryFn = (podApp: string) => string;
 

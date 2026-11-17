@@ -4,7 +4,7 @@ import { DEFAULT_LAMBDA_INVOCATION_QUERY } from '../queries/DEFAULT_LAMBDA_INVOC
 
 /**
  * Generic Lambda query profile: the default error-scan and invocation queries,
- * with no product downstream signature (EVO-RBREORG-OPUS-01 §7.2.2).
+ * with no product downstream signature.
  */
 export const DEFAULT_LAMBDA_PROFILE: LambdaQueryProfile = {
   id: 'default',

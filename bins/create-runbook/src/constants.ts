@@ -10,5 +10,5 @@ export const REPO_ROOT = path.resolve(currentDir, '..', '..', '..');
 export const TEMPLATES_ROOT = path.join(REPO_ROOT, 'bins', 'runbook-templates');
 
 /** Directory under go-runbook where concrete automatic runbooks live. */
-/** Root of the go-runbook inventory: `inventory/<product>/<family>/<id>/` (EVO-RBREORG-OPUS-01). */
+/** Root of the go-runbook inventory: `inventory/<product>/<family>/<id>/`. */
 export const INVENTORY_DIR = path.join(REPO_ROOT, 'packages', 'go-runbook', 'src', 'inventory');

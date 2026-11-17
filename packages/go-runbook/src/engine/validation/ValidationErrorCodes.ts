@@ -1,7 +1,7 @@
 /**
  * Registry of the validation error codes: the keys are the codes. Toolkits add
  * their codes by module augmentation, so {@link ValidationErrorCode} stays one
- * type for every validator (EVO-RBREORG-OPUS-01 §7.1.3 F).
+ * type for every validator.
  */
 export interface ValidationErrorCodes {
   readonly DUPLICATE_STEP_ID: true;

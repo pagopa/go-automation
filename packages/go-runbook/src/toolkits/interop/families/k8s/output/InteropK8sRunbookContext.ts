@@ -7,7 +7,7 @@ import { RunbookProducts } from '../../../../common/registration/RunbookProduct.
 /**
  * Context of an INTEROP K8S runbook. Its `kind` stays `service`, so the generic service
  * output builder serves it unchanged; the product tells it apart from the SEND service
- * runbooks (EVO-RBREORG-OPUS-01 P19).
+ * runbooks.
  */
 export interface InteropK8sRunbookContext extends ServiceRunbookContext {
   readonly product: typeof RunbookProducts.INTEROP;

@@ -13,7 +13,7 @@ const API_GW = {
 };
 const SERVICE = { kind: 'service', queryProfileId: 'p', service: { name: 'svc', logGroup: '/l', varPrefix: 'svc' } };
 
-describe('product-family runbook contexts (EVO-RBREORG-OPUS-01 P19)', () => {
+describe('product-family runbook contexts', () => {
   it('splits API Gateway contexts by product', () => {
     assert.strictEqual(isSendApiGwRunbookContext({ ...API_GW, product: 'SEND' }), true);
     assert.strictEqual(isSendApiGwRunbookContext({ ...API_GW, product: 'INTEROP' }), false);

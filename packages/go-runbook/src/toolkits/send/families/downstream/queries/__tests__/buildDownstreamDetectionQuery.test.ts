@@ -100,7 +100,7 @@ describe('buildDownstreamDetectionQuery', () => {
   });
 });
 
-describe('buildDownstreamDetectionQuery — declarative scan options (EVO-RBREORG-OPUS-01 R4, RBREORG-25)', () => {
+describe('buildDownstreamDetectionQuery — declarative scan options', () => {
   // Options assembled at runtime, outside the type: the guards must still reject them.
   const untyped = (options: Record<string, unknown>): string =>
     buildDownstreamDetectionQuery(options as unknown as DownstreamDetectionQueryOptions);

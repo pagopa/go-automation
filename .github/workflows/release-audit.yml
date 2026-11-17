@@ -1,4 +1,4 @@
-# EVO-PKGPUB-OPUS-01 §9.3: daily read-only check that every merged release PR is published, tagged
+# daily read-only check that every merged release PR is published, tagged
 # and has aligned channels. On failure it prints the recovery (Release workflow with release_sha).
 name: Release Audit
 

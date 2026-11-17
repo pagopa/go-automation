@@ -1,8 +1,8 @@
 import type { AwsLogicalAccount } from './AwsLogicalAccount.js';
 
 /**
- * The logical accounts a step reads, and how an execution narrows them
- * (EVO-AWSACCT-OPUS-01 §5.4). Holds no account id, environment-specific data or credentials.
+ * The logical accounts a step reads, and how an execution narrows them.
+ * Holds no account id, environment-specific data or credentials.
  */
 export interface AwsAccountSelection {
   /** Name of the reader in error messages. */

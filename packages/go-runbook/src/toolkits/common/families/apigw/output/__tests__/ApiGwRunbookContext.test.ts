@@ -62,7 +62,7 @@ describe('isApiGwRunbookContext', () => {
     );
   });
 
-  it('requires a known product (EVO-RBREORG-OPUS-01 P19)', () => {
+  it('requires a known product', () => {
     const context = {
       kind: 'apigw',
       apiGwLogGroup: 'access-log-group',

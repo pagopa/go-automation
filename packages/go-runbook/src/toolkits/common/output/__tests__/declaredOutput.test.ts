@@ -318,7 +318,7 @@ describe('declared runbook output', () => {
   });
 });
 
-describe('resolved AWS accounts in the output (EVO-AWSACCT-OPUS-01 §5.6)', () => {
+describe('resolved AWS accounts in the output', () => {
   async function servicesWithPreparedAccount(): Promise<ReturnType<typeof createTestServiceRegistry>> {
     const awsAccounts = new InMemoryAwsAccountsPort({
       directory: parseAwsAccountDirectory(['shop/core/uat=000000000201']),

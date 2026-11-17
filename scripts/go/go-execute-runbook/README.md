@@ -456,7 +456,7 @@ La CLI locale non ha la coda SQS che ritenta automaticamente. Se il processo cad
 ## Account AWS logici
 
 I runbook multi-account dichiarano solo account logici (`send/core`, `send/confinfo`).
-La rubrica che li collega agli account id sta nella configurazione (EVO-AWSACCT-OPUS-01):
+La rubrica che li collega agli account id sta nella configurazione:
 
 | Chiave                        | Variabile d'ambiente          | Descrizione                                                                                    |
 | ----------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------- |

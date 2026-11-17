@@ -6,8 +6,8 @@ import { INTEROP_K8S_QUERY_PROFILE } from './INTEROP_K8S_QUERY_PROFILE.js';
 
 /**
  * Query profile of an INTEROP k8s runbook that reads the errors of exactly the
- * alarmed pod, the criterion of the k8s error-count metric filters
- * (EVO-RBREORG-OPUS-01 P30). Replaces the copies of the same query in the
+ * alarmed pod, the criterion of the k8s error-count metric filters.
+ * Replaces the copies of the same query in the
  * `queryProfile.ts` of the runbooks.
  *
  * @param id - Profile id

@@ -1,6 +1,5 @@
 /**
- * Generic operational toolkit: entrypoint `@pagopa/go-runbook/toolkits/common`
- * (EVO-RBREORG-OPUS-01 §7.2, §8.1).
+ * Generic operational toolkit: entrypoint `@pagopa/go-runbook/toolkits/common`.
  *
  * Service ports, AWS/HTTP steps, parsing, policies, analysis and known cases,
  * registration, the generic families (`apigw`, `lambda`, `service`) as
@@ -45,7 +44,7 @@ export type { CloudWatchLogsQueryConfig } from './steps/aws/cloudwatch-logs/Clou
 export { executeCloudWatchLogsQuery } from './steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
 export type { ExecutedCloudWatchLogsQuery } from './steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
 export { mergeCloudWatchLogsDiagnostics } from './steps/aws/cloudwatch-logs/mergeCloudWatchLogsDiagnostics.js';
-// Logical AWS accounts (EVO-AWSACCT-OPUS-01)
+// Logical AWS accounts
 export type { AwsLogicalAccount } from './accounts/AwsLogicalAccount.js';
 export { parseAwsLogicalAccount } from './accounts/parseAwsLogicalAccount.js';
 export { awsLogicalAccountName } from './accounts/awsLogicalAccountName.js';
@@ -125,6 +124,6 @@ export * as apigw from './families/apigw/index.js';
 export * as lambda from './families/lambda/index.js';
 export * as service from './families/service/index.js';
 
-// Operational model augmentations: keeps the operational fields in a consumer's program (EVO-RBREORG-OPUS-01 RBREORG-11).
+// Operational model augmentations: keeps the operational fields in a consumer's program.
 export type { OperationalModelAugmentations } from './augmentations/index.js';
 export { AlarmRunbookBuilder } from './builders/AlarmRunbookBuilder.js';

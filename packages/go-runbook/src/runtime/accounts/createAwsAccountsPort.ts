@@ -8,7 +8,7 @@ import { RuntimeAwsAccountsPort } from './RuntimeAwsAccountsPort.js';
 
 /**
  * Builds the account port of an execution host from its `aws.account.*`
- * configuration (EVO-AWSACCT-OPUS-01 §8.2). The port is not yet bound to an
+ * configuration. The port is not yet bound to an
  * occurrence: `bindServicesToOccurrence` binds it; without that, the configured
  * environment applies.
  *

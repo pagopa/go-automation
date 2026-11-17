@@ -1,6 +1,6 @@
 /**
  * Thrown by a fake service of {@link createTestServiceRegistry} when a test calls
- * a method it did not stub (EVO-RBREORG-OPUS-01 RBREORG-18).
+ * a method it did not stub.
  */
 export class UnexpectedServiceCallError extends Error {
   override readonly name = 'UnexpectedServiceCallError';

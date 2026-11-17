@@ -1,4 +1,4 @@
-/** A value accepted in one file of one published package only, with a written reason (EVO-AWSACCT-OPUS-01 §9). */
+/** A value accepted in one file of one published package only, with a written reason. */
 export interface SensitiveDataException {
   /** Name of the published package (e.g. `@pagopa/go-aws`): an exception never crosses packages. */
   readonly package: string;

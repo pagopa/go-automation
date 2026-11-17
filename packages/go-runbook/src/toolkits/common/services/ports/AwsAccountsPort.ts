@@ -6,8 +6,8 @@ import type { AwsLogicalAccount } from '../../accounts/AwsLogicalAccount.js';
 import type { ResolvedAwsAccount } from '../../accounts/ResolvedAwsAccount.js';
 
 /**
- * Access of an execution to the logical AWS accounts its steps declare
- * (EVO-AWSACCT-OPUS-01 §5.5). Bound to one execution (occurrence, region,
+ * Access of an execution to the logical AWS accounts its steps declare.
+ * Bound to one execution (occurrence, region,
  * account directory). It exposes no profile and no permission set: credentials
  * stay in the runtime implementation.
  */

@@ -9,7 +9,7 @@ import { reportName } from '../listEntrypoints.js';
 import { probeValueExports } from '../probeValueExports.js';
 import { exportedNames, finalizeReports, renderApiReport } from '../renderApiReport.js';
 
-describe('API report (EVO-PKGPUB-OPUS-01 §10.3)', () => {
+describe('API report', () => {
   let directory = '';
   let report = '';
 

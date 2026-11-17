@@ -16,7 +16,7 @@ function build(downstream: DownstreamSelector): string {
   return JSON.stringify(runbook);
 }
 
-describe('createDownstreamAlarmRunbook — scan options (EVO-RBREORG-OPUS-01 R4)', () => {
+describe('createDownstreamAlarmRunbook — scan options', () => {
   it('forwards the structured marker field: no raw @message predicate in the scan', () => {
     const runbook = build({
       kind: 'named',

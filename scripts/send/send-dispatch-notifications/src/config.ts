@@ -1,7 +1,7 @@
 /**
  * SEND Dispatch Notifications - Configuration Module
  *
- * Script metadata and parameters (§13 of EVO-SENDNOTIF-OPUS-01).
+ * Script metadata and parameters.
  */
 
 import { type GOConfigParameterOptions, GOConfigParameterType, type GOScriptMetadata } from '@go-automation/go-script';

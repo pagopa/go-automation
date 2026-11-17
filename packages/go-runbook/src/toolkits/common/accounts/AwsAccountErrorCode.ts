@@ -1,5 +1,5 @@
 /**
- * Stable codes of the account errors (EVO-AWSACCT-OPUS-01 §6.4). The cloud
+ * Stable codes of the account errors. The cloud
  * worker classifies them as permanent failures.
  */
 export type AwsAccountErrorCode =

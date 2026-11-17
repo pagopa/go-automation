@@ -4,4 +4,4 @@
 '@pagopa/go-runbook': major
 ---
 
-Prima pubblicazione su GitHub Packages (EVO-PKGPUB-OPUS-01): go-common diviso per area in sottopercorsi, go-aws con un sottopercorso per servizio AWS e gli SDK come peer facoltativi, go-runbook con engine, toolkit, inventory e runtime separati.
+Prima pubblicazione su GitHub Packages: go-common diviso per area in sottopercorsi, go-aws con un sottopercorso per servizio AWS e gli SDK come peer facoltativi, go-runbook con engine, toolkit, inventory e runtime separati.

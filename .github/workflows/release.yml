@@ -1,4 +1,4 @@
-# Releases of the @pagopa/* packages (EVO-PKGPUB-OPUS-01 §9.3.1). Guide: docs/RELEASING.md.
+# Releases of the @pagopa/* packages. Guide: docs/RELEASING.md.
 # - version-pr: on every push to develop with changesets, the GitHub App opens or updates the release PR.
 # - release: when the release PR is merged, publish exactly its merge commit and push the git tags.
 #   After a partial failure: "Re-run failed jobs" (changeset publish skips what is already published).

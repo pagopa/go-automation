@@ -1,3 +1,3 @@
-/** Fields a toolkit adds to {@link KnownCase} by module augmentation (EVO-RBREORG-OPUS-01 §7.1.3 E). */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- extended by module augmentation (EVO-RBREORG-OPUS-01 §7.1.3 E)
+/** Fields a toolkit adds to {@link KnownCase} by module augmentation. */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- extended by module augmentation
 export interface KnownCaseExtensions {}

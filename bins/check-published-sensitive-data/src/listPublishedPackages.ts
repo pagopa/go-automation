@@ -3,7 +3,7 @@ import * as path from 'node:path';
 
 import type { PublishedPackage } from './types/PublishedPackage.js';
 
-/** Scope of the packages published to GitHub Packages (EVO-PKGPUB). */
+/** Scope of the packages published to GitHub Packages. */
 const PUBLISHED_SCOPE = '@pagopa/';
 
 /**

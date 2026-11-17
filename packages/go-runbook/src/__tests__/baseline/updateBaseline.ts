@@ -1,6 +1,6 @@
 /**
- * Rewrites the versioned baseline of the go-runbook reorganization
- * (EVO-RBREORG-OPUS-01 §9.1). Run with `pnpm --filter @pagopa/go-runbook baseline:update`.
+ * Rewrites the versioned baseline of the go-runbook reorganization.
+ * Run with `pnpm --filter @pagopa/go-runbook baseline:update`.
  *
  * In the move phases (F1–F4) the baseline must not change: run this only in
  * F0, or in F5–F6 when a change is intended and explained in the commit.

@@ -2,7 +2,7 @@ import type { AWSAccountDirectoryEntry } from '@pagopa/go-aws/profiles';
 
 import type { AwsAccountsOccurrence } from './AwsAccountsOccurrence.js';
 
-/** Execution data of an {@link AwsAccountsDirectoryPort} (EVO-AWSACCT-OPUS-01 §6.2, §8). */
+/** Execution data of an {@link AwsAccountsDirectoryPort}. */
 export interface AwsAccountsDirectoryPortOptions {
   /** Validated account directory of the execution. */
   readonly directory: ReadonlyArray<AWSAccountDirectoryEntry>;

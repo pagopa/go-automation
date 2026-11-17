@@ -1,8 +1,8 @@
 import type { AwsAccountErrorCode } from './AwsAccountErrorCode.js';
 
 /**
- * An execution cannot read the AWS accounts its runbook declares
- * (EVO-AWSACCT-OPUS-01 §6.3, §6.4). Raised before the first step; the
+ * An execution cannot read the AWS accounts its runbook declares.
+ * Raised before the first step; the
  * {@link code} tells the cloud worker it is a configuration failure, not a transient one.
  */
 export class AwsAccountError extends Error {

@@ -5,7 +5,7 @@ import type { AwsAccountsDirectoryPortOptions } from '../../toolkits/common/acco
 import type { AwsAccountsBinding } from './AwsAccountsBinding.js';
 import type { AwsAccountsDiagnosticFn } from './AwsAccountsDiagnosticFn.js';
 
-/** Options of a {@link RuntimeAwsAccountsPort} (EVO-AWSACCT-OPUS-01 §6.1). */
+/** Options of a {@link RuntimeAwsAccountsPort}. */
 export interface RuntimeAwsAccountsPortOptions extends AwsAccountsDirectoryPortOptions {
   readonly binding: AwsAccountsBinding;
   /** Every configured profile (`profiles` binding): a logical account may live outside the occurrence account. */

@@ -1,5 +1,5 @@
 /**
- * How a scanner picks the representative error of a service (EVO-RBREORG-OPUS-01 P32):
+ * How a scanner picks the representative error of a service:
  * - `latest`: the most recent error- or warn-level message, else the most recent
  *   level-less message with an error keyword (rows are chronological);
  * - `longest`: the longest error- or warn-level message, else the longest message

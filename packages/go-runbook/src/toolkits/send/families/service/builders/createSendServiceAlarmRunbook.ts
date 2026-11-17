@@ -6,7 +6,7 @@ import { SEND_SERVICE_PROFILE } from '../profiles/SEND_SERVICE_PROFILE.js';
 
 /**
  * Builds a SEND service alarm runbook: the generic service pipeline with
- * {@link SEND_SERVICE_PROFILE} (EVO-RBREORG-OPUS-01 §7.2.2, P11).
+ * {@link SEND_SERVICE_PROFILE}.
  *
  * @param config - The service alarm configuration, without the query profile
  * @returns The built runbook

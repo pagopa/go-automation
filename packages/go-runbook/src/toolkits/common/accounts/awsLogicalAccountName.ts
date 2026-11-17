@@ -2,7 +2,7 @@ import type { AwsLogicalAccount } from './AwsLogicalAccount.js';
 
 /**
  * Short name of a logical account, the part after the product (`send/core` → `core`):
- * the tag rows, variables and messages use (EVO-AWSACCT-OPUS-01 §5.6).
+ * the tag rows, variables and messages use.
  *
  * @param account - Logical account
  * @returns The account name

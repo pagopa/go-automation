@@ -12,7 +12,7 @@ export const SERVICE = {
 };
 
 /**
- * Downstream this runbook diagnoses (EVO-RBREORG-OPUS-01 R4, RBREORG-23).
+ * Downstream this runbook diagnoses.
  *
  * The September occurrence has 3,967 events and raw payloads beyond 64 MiB, so the scan
  * reads the marker **only** in the structured `message` (never the raw `@message`), keeps

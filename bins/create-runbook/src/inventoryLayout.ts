@@ -6,7 +6,7 @@ import type { RunbookProduct } from './templates/RunbookProduct.js';
 
 /**
  * Families of each product in the go-runbook inventory
- * (`packages/go-runbook/src/inventory/<product>/<family>/<id>/`, EVO-RBREORG-OPUS-01 §7.5).
+ * (`packages/go-runbook/src/inventory/<product>/<family>/<id>/`).
  * The folder follows the toolkit the runbook is built with.
  */
 export const PRODUCT_FAMILIES: Readonly<Record<RunbookProduct, ReadonlyArray<string>>> = {

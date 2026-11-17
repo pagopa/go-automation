@@ -43,7 +43,7 @@ export interface ServiceAlarmConfig {
   readonly fallbackAction?: CaseAction;
   /** Profilo query/schema (i wrapper di prodotto passano il proprio, es. SEND_SERVICE_PROFILE). */
   readonly queryProfile: ServiceLogQueryProfile;
-  /** Product whose pipeline builds the runbook; set by the product wrapper (EVO-RBREORG-OPUS-01 P19). */
+  /** Product whose pipeline builds the runbook; set by the product wrapper. */
   readonly product: RunbookProduct;
   /** Limite iterazioni anti-loop opzionale forwarded all'engine. */
   readonly maxIterations?: number;

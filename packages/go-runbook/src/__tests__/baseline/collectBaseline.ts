@@ -1,5 +1,5 @@
 /**
- * Baseline of the go-runbook reorganization (EVO-RBREORG-OPUS-01 §9.1).
+ * Baseline of the go-runbook reorganization.
  *
  * Computes, from the current sources, what the reorganization must keep
  * byte-identical while files move: the published descriptors, the canonical

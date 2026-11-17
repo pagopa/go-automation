@@ -20,8 +20,7 @@ const ROW_LIMIT = 1000;
 
 /**
  * Full log context of the alarmed INTEROP pod, at every level and without a
- * request CID, as Kafka consumers and writers often log (EVO-RBREORG-OPUS-01
- * P30). Replaces six runbook-local copies; each runbook passes its configuration.
+ * request CID, as Kafka consumers and writers often log. Replaces six runbook-local copies; each runbook passes its configuration.
  *
  * Reads the resolved `interopLogGroup`, `interopPodApp` and, with a namespace
  * filter, `interopEnvironment`; writes the row count to the configured variable.

@@ -58,7 +58,7 @@ export function buildCheckContext(options: BuildCheckContextOptions): RunbookChe
 }
 
 /**
- * Resolves the runbook collaborators through OAM (EVO-AWSACCT-OPUS-01 §6.1):
+ * Resolves the runbook collaborators through OAM:
  * the configured identity belongs to the monitoring account, so no profile of the
  * occurrence's source account is required; CloudWatch Logs is targeted at the
  * occurrence account and read by ARN.
@@ -82,7 +82,7 @@ function buildOamScopedServices(script: GOScript): ServiceRegistryResolverFn {
 }
 
 /**
- * Account port of the run (EVO-AWSACCT-OPUS-01 §8.2), built with **every**
+ * Account port of the run, built with **every**
  * configured profile: a runbook's logical account may live outside the account of
  * the occurrence, so the account-scoped services are not enough. Each occurrence
  * binds it to its own account.

@@ -15,7 +15,7 @@ export interface CreateServiceRegistryDeps {
   readonly services: AWSServiceProvider;
   /** HTTP client shared across the run. */
   readonly http: GOHttpClient;
-  /** `aws.account.*` configuration: adds the account port for runbooks that declare logical accounts (EVO-AWSACCT-OPUS-01). */
+  /** `aws.account.*` configuration: adds the account port for runbooks that declare logical accounts. */
   readonly accounts?: AwsAccountsConfig;
   /** Every configured profile (e.g. `script.aws.clients`), needed by the `profiles` account binding. */
   readonly profiles?: AWSProfileSet;

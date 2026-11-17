@@ -1,4 +1,4 @@
-/** Import budget of one published entrypoint (EVO-PKGPUB-OPUS-01 §10.4, amendment r14). */
+/** Import budget of one published entrypoint. */
 export interface ImportBudget {
   /** Specifiers measured together, e.g. `['@pagopa/go-runbook/inventory', '@pagopa/go-runbook/runtime']`. */
   readonly specifiers: ReadonlyArray<string>;

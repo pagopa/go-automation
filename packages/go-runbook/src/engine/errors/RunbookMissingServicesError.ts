@@ -1,6 +1,6 @@
 /**
  * Thrown before the first step when a runbook requires services the execution
- * did not receive, or received in an unusable shape (EVO-RBREORG-OPUS-01 §7.1.3 A).
+ * did not receive, or received in an unusable shape.
  */
 export class RunbookMissingServicesError extends Error {
   override readonly name = 'RunbookMissingServicesError';

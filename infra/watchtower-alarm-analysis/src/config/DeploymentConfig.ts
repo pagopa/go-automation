@@ -15,8 +15,7 @@ export interface ExecuteRunbookDeploymentConfig {
   readonly servicePrincipalSecretArn?: string;
   readonly oamSourceAccountIds: ReadonlyArray<string>;
   /**
-   * Account directory of the worker (`<product>/<account>/<environment>=<accountId>`,
-   * EVO-AWSACCT-OPUS-01 §8.2). Every account is an OAM source of the sink.
+   * Account directory of the worker (`<product>/<account>/<environment>=<accountId>`). Every account is an OAM source of the sink.
    */
   readonly executeRunbookAccountDirectory: ReadonlyArray<string>;
 }

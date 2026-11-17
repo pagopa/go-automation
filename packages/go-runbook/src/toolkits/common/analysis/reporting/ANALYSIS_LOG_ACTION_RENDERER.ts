@@ -25,7 +25,7 @@ const BANNERS: ReadonlyMap<string, StructuredLogBanner> = new Map([
 ]);
 
 /**
- * Renderer of the analysis outcomes (EVO-RBREORG-OPUS-01 §7.1.3 D): the text
+ * Renderer of the analysis outcomes: the text
  * carries the `[CASO NOTO]` / `[CASO NON RICONOSCIUTO]` prefixes that reach
  * Watchtower, and the console shows a banner and a table for the two outcomes.
  * Injected by the operational engine.

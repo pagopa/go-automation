@@ -14,7 +14,7 @@ import type { InteropApiGwAlarmSpec } from '../types/InteropApiGwAlarmSpec.js';
 import { defaultInteropApiGwRunbookStepIds } from './createInteropApiGwAlarmRunbook.js';
 
 /**
- * Declares one INTEROP API Gateway alarm runbook (EVO-RBREORG-OPUS-01 P30): the
+ * Declares one INTEROP API Gateway alarm runbook: the
  * API Gateway counterpart of `defineInteropK8sAlarm`. Replaces the per-runbook
  * copies of the alarm list and of `resolveContext`.
  *
