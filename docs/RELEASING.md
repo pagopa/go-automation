@@ -54,10 +54,7 @@ Il controllo gira con il codice del branch di destinazione, non con quello della
 
 ### Se qualcosa va storto
 
-Ogni giorno un controllo automatico verifica che ogni rilascio sia completo: pubblicato, con i tag e con i canali giusti. Se un rilascio è rimasto a metà (per esempio go-common pubblicato e go-aws no):
-
-- i rilasci successivi restano bloccati;
-- basta rilanciare il job fallito con "Re-run failed jobs": il rilancio pubblica solo quello che manca (§7).
+Ogni giorno un controllo automatico segnala i rilasci rimasti a metà (per esempio go-common pubblicato e go-aws no). Basta rilanciare il job fallito con "Re-run failed jobs": il rilancio pubblica solo quello che manca (§7). Se invece il problema era nel workflow, si corregge il workflow e il rilascio successivo pubblica anche le versioni rimaste indietro.
 
 ### La prima volta: `next`
 
@@ -77,7 +74,6 @@ Le sezioni seguenti entrano nei dettagli.
 - Ogni PR che cambia un package pubblicato porta con sé una **changeset**: un piccolo file in `.changeset/` che dice quale package cambia e se serve una versione patch, minor o major.
 - Le versioni **non si cambiano a mano**. Le cambia `changeset version`, e solo dentro la **PR di rilascio** che la GitHub App crea da sola (branch `changeset-release/develop` verso `develop`).
 - La **pubblicazione** la fa solo la CI, al merge della PR di rilascio, partendo esattamente da quel commit. Nessuno pubblica dal proprio computer.
-- **Un rilascio alla volta:** finché un rilascio non è completo (pubblicato, con i tag git e i canali giusti), il successivo è bloccato.
 
 Lo strumento è [Changesets](https://changesets.dev), versione 3.
 
@@ -88,8 +84,8 @@ La CI classifica ogni PR guardando il branch di partenza e quello di arrivo. Il 
 | Categoria      | Come si riconosce                                                                                     | Cosa verifica il controllo **Release Guards**                                                                                                                                   |
 | -------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Contributo** | tutte le PR normali                                                                                   | ogni package pubblicato modificato è nominato in una changeset della PR (oppure c'è una changeset vuota); nessuna versione, `CHANGELOG.md` o file di prerelease cambiati a mano |
-| **Rilascio**   | `changeset-release/develop` (PR dell'app) o `release/*` (a mano) → `develop`, dallo stesso repository | la PR tocca solo i file del rilascio; i rilasci precedenti sono completi; il risultato è identico a `changeset version`                                                         |
-| **Promozione** | `develop` → `main`, dallo stesso repository                                                           | ogni versione portata in `main` è già stata rilasciata (ha il suo tag git); i rilasci precedenti sono completi                                                                  |
+| **Rilascio**   | `changeset-release/develop` (PR dell'app) o `release/*` (a mano) → `develop`, dallo stesso repository | la PR tocca solo i file del rilascio; il risultato è identico a `changeset version`                                                                                             |
+| **Promozione** | `develop` → `main`, dallo stesso repository                                                           | ogni versione portata in `main` è già stata rilasciata (ha il suo tag git)                                                                                                      |
 
 **Perché una PR non può "promuovere sé stessa".** Il controllo gira nel workflow `.github/workflows/release-guards.yml`, avviato con `pull_request_target`: GitHub usa la versione del workflow presente sul branch di **destinazione**, e il job esegue il codice e le dipendenze di quel branch. La PR viene letta solo come dati (i suoi file tramite git): nulla di suo viene installato o eseguito. Così una PR non può modificare le regole che la giudicano; una modifica alle regole vale solo dopo essere stata revisionata e mergiata.
 
@@ -170,10 +166,9 @@ git push -u origin HEAD                     # poi apri la PR verso develop
 ### Cosa controlla la CI sulla PR di rilascio (Release Guards)
 
 1. **Perimetro.** La PR può cambiare solo: il campo `version` (e i range interni `@pagopa/*`) dei `package.json` pubblicati, i `CHANGELOG.md`, le changeset consumate (cancellate, o spostate in `.changeset/pre/` durante la prerelease) e `.changeset/pre.json`. Qualsiasi altro file la blocca.
-2. **Rilasci precedenti completi.** Se un rilascio precedente non è stato pubblicato del tutto, la PR resta bloccata finché non viene recuperato (§7).
-3. **Riproducibilità.** La CI rifà `changeset version` sul branch base e confronta il risultato con la PR: deve essere identico. L'unico canale di prerelease ammesso è `next`.
+2. **Riproducibilità.** La CI rifà `changeset version` sul branch base e confronta il risultato con la PR: deve essere identico. L'unico canale di prerelease ammesso è `next`.
 
-Se il punto 3 fallisce, di solito `develop` è andato avanti nel frattempo. Con la PR dell'app basta aspettare: al push successivo su `develop` l'app la aggiorna. Con una PR manuale, aggiorna il branch da `develop` e rifai `pnpm changeset version`.
+Se il punto 2 fallisce, di solito `develop` è andato avanti nel frattempo. Con la PR dell'app basta aspettare: al push successivo su `develop` l'app la aggiorna. Con una PR manuale, aggiorna il branch da `develop` e rifai `pnpm changeset version`.
 
 ### Al merge
 
@@ -220,7 +215,7 @@ Prima della `1.0.0` vanno sistemati i tipi segnalati nella sezione "Referenced b
 
 ## 7. Se qualcosa va storto
 
-Ogni giorno il workflow **Release Audit** (`.github/workflows/release-audit.yml`) controlla, in sola lettura, che ogni PR di rilascio mergiata sia pubblicata, abbia i tag e abbia i canali allineati. Lo stesso controllo gira nelle PR di rilascio e di promozione.
+Ogni giorno il workflow **Release Audit** (`.github/workflows/release-audit.yml`) controlla, in sola lettura, che ogni PR di rilascio mergiata sia pubblicata, abbia i tag e abbia i canali allineati.
 
 **Esempio:** un rilascio pubblica go-common ma fallisce su go-aws.
 
@@ -233,7 +228,6 @@ Ogni giorno il workflow **Release Audit** (`.github/workflows/release-audit.yml`
 - **GitHub App dell'organizzazione:** installata solo su `go-automation`, con i permessi di repository Contents, Pull requests e Packages in "Read and write" (Metadata in sola lettura). Nel repository, in _Settings → Secrets and variables → Actions_: la variabile `APP_ID` e il secret `APP_PRIVATE_KEY`.
 - **Branch protection su `develop` e `main`:** rendere obbligatori i controlli `CI Success` e **`Release Guards`**. Senza `Release Guards` obbligatorio, una PR potrebbe essere mergiata anche con il controllo fallito.
 - **Merge commit su `develop`:** lasciare attiva l'opzione "Allow merge commits", che serve alle PR di rilascio (§4).
-- **Su `develop`:** attivare anche "Require branches to be up to date before merging". Serve alla regola "un rilascio alla volta" (§9.3, regola 3).
 - **Rischio residuo da conoscere:** su GitHub chiunque abbia accesso in scrittura al repository può aggiungere su un proprio branch un workflow che chiede il permesso `packages: write` e pubblica. Si riduce togliendo ai package l'ereditarietà dei permessi dal repository e lasciando la scrittura solo all'app (pagina Confluence "GitHub - Gestione Packages"), dopo aver verificato con il primo rilascio che l'app può pubblicare. Nessun controllo dentro il repository lo impedisce: la difesa sono le persone con accesso in scrittura, la review e, se serve, le regole dell'organizzazione sui workflow. Il flusso di questa guida garantisce invece che i rilasci fatti con la procedura pubblichino solo commit validati.
 - **Accesso dei repository consumatori:** su GitHub, nelle _Package settings_ di ogni package, _Manage Actions access → Add repository_ (ruolo `Read`), per esempio per `go-watchtower`.
 - **Rischio R1 non verificato:** la Fase 0 della SPEC (package di prova) è stata saltata per decisione del 2026-11-16. Il primo rilascio verifica sul campo la pubblicazione con il token dell'app e l'installazione da un altro repository. Chi installa i package con `@pagopa:registry=https://npm.pkg.github.com` cerca **tutti** i `@pagopa/*` su GitHub Packages: se usa anche package `@pagopa/*` pubblici di npmjs, li deve installare in altro modo.
@@ -254,9 +248,9 @@ Ogni giorno il workflow **Release Audit** (`.github/workflows/release-audit.yml`
 | Sottocomando         | Dove gira            | Cosa fa                                                                                                                                                     |
 | -------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `version-needed`     | Release (Release PR) | dice se ci sono changeset da applicare, cioè se l'app deve creare o aggiornare la PR di rilascio                                                            |
-| `audit`              | Release Audit, guard | controlla che tutti i rilasci siano completi; in sola lettura                                                                                               |
+| `audit`              | Release Audit        | controlla che tutti i rilasci siano completi; in sola lettura                                                                                               |
 | `contribution-guard` | Release Guards       | ogni package modificato è in una changeset; nessuna versione, `CHANGELOG.md` o file di prerelease cambiati a mano (salvo entrata e uscita dalla prerelease) |
-| `release-pr-guard`   | Release Guards       | perimetro, rilasci precedenti e riproducibilità della PR di rilascio                                                                                        |
-| `promotion-guard`    | Release Guards       | versioni già rilasciate e rilasci precedenti completi                                                                                                       |
+| `release-pr-guard`   | Release Guards       | perimetro e riproducibilità della PR di rilascio                                                                                                            |
+| `promotion-guard`    | Release Guards       | versioni già rilasciate                                                                                                                                     |
 
 In locale servono di rado. `audit` richiede un `GITHUB_TOKEN` con lettura delle PR e l'accesso a GitHub Packages; i guard accettano `--base <sha> --head <sha>` al posto dei dati dell'evento della CI.
