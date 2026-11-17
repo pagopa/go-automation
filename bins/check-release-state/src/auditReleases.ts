@@ -25,7 +25,7 @@ export async function auditReleases(context: ReleaseContext): Promise<ReadonlyAr
   const lastReleaseOf = new Map<string, string>();
 
   for (const [pull, commit] of await mergedReleaseCommits(context.github)) {
-    const recovery = `recover with the Release workflow (workflow_dispatch) and release_sha=${commit}`;
+    const recovery = `re-run the failed jobs of the Release run of PR #${String(pull)} (merge commit ${commit})`;
     let versions;
     try {
       versions = releaseVersions(context.git, commit);
@@ -55,9 +55,8 @@ export async function auditReleases(context: ReleaseContext): Promise<ReadonlyAr
   for (const [name, versions] of registryVersions) {
     const moves = channelsToMove(channelTargets(versions), context.registry.distTags(name));
     for (const [channel, version] of moves) {
-      const recovery = lastReleaseOf.get(name) ?? '?';
       problems.push(
-        `${name}: dist-tag ${channel} must point to ${version}; recover with the Release workflow (workflow_dispatch) and release_sha=${recovery}`,
+        `${name}: dist-tag ${channel} must point to ${version} (last release: ${lastReleaseOf.get(name) ?? '?'}); move it with npm dist-tag add`,
       );
     }
   }

@@ -20,8 +20,6 @@ export interface GitPort {
   diff(base: string, head: string): ReadonlyArray<DiffEntry>;
   /** Commit a tag points to, `undefined` when the tag does not exist. */
   tagCommit(tag: string): string | undefined;
-  /** Creates an annotated tag on a commit (local only; the workflow pushes the tags). */
-  createAnnotatedTag(tag: string, commit: string, message: string): void;
   /** Whether `ancestor` is an ancestor of (or equal to) `descendant`. */
   isAncestor(ancestor: string, descendant: string): boolean;
   /** Checks out `commit` (detached) in a new worktree at `directory`. */

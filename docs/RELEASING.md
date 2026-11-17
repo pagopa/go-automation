@@ -30,19 +30,13 @@ Il comando chiede quale package hai cambiato (go-runbook), che tipo di cambio è
 
 **2. I biglietti si accumulano.** Le PR vengono mergiate in `develop`, ognuna con il suo biglietto. Nessuna pubblica niente.
 
-**3. Il giorno del rilascio.** Si crea un branch `release/2026-11-20` e si lancia:
-
-```bash
-pnpm changeset version
-```
-
-Il comando legge tutti i biglietti accumulati e:
+**3. La PR di rilascio la prepara un'app, da sola.** Appena su `develop` arrivano biglietti nuovi, la GitHub App dell'organizzazione apre (o aggiorna) una PR che si chiama **"chore(release): version packages"**. Dentro la PR l'app:
 
 - calcola le nuove versioni (per esempio go-runbook da 1.2.0 a 1.3.0);
 - scrive il `CHANGELOG.md` con le frasi dei biglietti;
-- cancella i biglietti usati.
+- toglie i biglietti usati.
 
-Si apre la PR verso `develop` e la si mergia con **"Create a merge commit"**.
+Ogni nuovo merge in `develop` con un biglietto aggiorna la stessa PR. Quando si vuole rilasciare, basta approvarla e mergiarla con **"Create a merge commit"**.
 
 **4. Al merge pubblica la CI, da sola.** La CI rifà tutti i controlli, pubblica i package e crea i tag git (per esempio `@pagopa/go-runbook@1.3.0`). Dal proprio computer non si pubblica mai.
 
@@ -53,7 +47,7 @@ Ogni PR passa da un controllo, diverso a seconda del tipo di PR:
 | Tipo di PR                          | Cosa controlla                                                                                                         | Cosa impedisce                                                                          |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | **PR normale**                      | se tocca go-common, go-aws o go-runbook, c'è il biglietto per ogni package toccato                                     | la modifica che non finisce mai in un rilascio, o che finisce con la versione sbagliata |
-| **PR di rilascio** (`release/*`)    | contiene **solo** versioni, changelog e biglietti consumati; la CI rifà il calcolo e il risultato deve essere identico | infilare codice nella PR di rilascio, o versioni scritte a mano                         |
+| **PR di rilascio** (dell'app)       | contiene **solo** versioni, changelog e biglietti consumati; la CI rifà il calcolo e il risultato deve essere identico | infilare codice nella PR di rilascio, o versioni scritte a mano                         |
 | **Promozione** (`develop` → `main`) | le versioni che arrivano su `main` sono state davvero pubblicate                                                       | portare su `main` versioni mai rilasciate                                               |
 
 Il controllo gira con il codice del branch di destinazione, non con quello della PR, così una PR non può modificare le regole che la giudicano.
@@ -63,9 +57,7 @@ Il controllo gira con il codice del branch di destinazione, non con quello della
 Ogni giorno un controllo automatico verifica che ogni rilascio sia completo: pubblicato, con i tag e con i canali giusti. Se un rilascio è rimasto a metà (per esempio go-common pubblicato e go-aws no):
 
 - i rilasci successivi restano bloccati;
-- il messaggio di errore indica quale commit usare per rilanciare il rilascio a mano dal branch `develop`.
-
-Il rilancio pubblica solo quello che manca (§7).
+- basta rilanciare il job fallito con "Re-run failed jobs": il rilancio pubblica solo quello che manca (§7).
 
 ### La prima volta: `next`
 
@@ -75,7 +67,7 @@ Oggi i package sono alla versione `0.0.0`. Il primo rilascio li porta a `1.0.0-n
 
 - **Ogni PR** che tocca go-common, go-aws o go-runbook: `pnpm changeset`, oppure `pnpm changeset --empty` se non serve un rilascio (un test, un commento). Senza, la PR resta bloccata.
 - **Non toccare mai** a mano il campo `version` dei package pubblicati né i loro `CHANGELOG.md`.
-- **Per rilasciare:** branch `release/...`, `pnpm changeset version`, PR, merge con "Create a merge commit" (§4).
+- **Per rilasciare:** approvare e mergiare la PR "chore(release): version packages" che prepara l'app, con "Create a merge commit" (§4).
 - **Una volta sola, su GitHub:** rendere obbligatori i controlli `CI Success` e `Release Guards` su `develop` e `main` (§8).
 
 Le sezioni seguenti entrano nei dettagli.
@@ -83,7 +75,7 @@ Le sezioni seguenti entrano nei dettagli.
 ## 1. In breve
 
 - Ogni PR che cambia un package pubblicato porta con sé una **changeset**: un piccolo file in `.changeset/` che dice quale package cambia e se serve una versione patch, minor o major.
-- Le versioni **non si cambiano a mano**. Le cambia `pnpm changeset version`, e solo dentro una **PR di rilascio** (branch `release/<data>` verso `develop`).
+- Le versioni **non si cambiano a mano**. Le cambia `changeset version`, e solo dentro la **PR di rilascio** che la GitHub App crea da sola (branch `changeset-release/develop` verso `develop`).
 - La **pubblicazione** la fa solo la CI, al merge della PR di rilascio, partendo esattamente da quel commit. Nessuno pubblica dal proprio computer.
 - **Un rilascio alla volta:** finché un rilascio non è completo (pubblicato, con i tag git e i canali giusti), il successivo è bloccato.
 
@@ -93,11 +85,11 @@ Lo strumento è [Changesets](https://changesets.dev), versione 3.
 
 La CI classifica ogni PR guardando il branch di partenza e quello di arrivo. Il nome del branch da solo non dà nessun privilegio: ogni categoria deve superare il proprio controllo.
 
-| Categoria      | Come si riconosce                                | Cosa verifica il controllo **Release Guards**                                                                                                                                   |
-| -------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Contributo** | tutte le PR normali                              | ogni package pubblicato modificato è nominato in una changeset della PR (oppure c'è una changeset vuota); nessuna versione, `CHANGELOG.md` o file di prerelease cambiati a mano |
-| **Rilascio**   | `release/*` → `develop`, dallo stesso repository | la PR tocca solo i file del rilascio; i rilasci precedenti sono completi; il risultato è identico a `changeset version`                                                         |
-| **Promozione** | `develop` → `main`, dallo stesso repository      | ogni versione portata in `main` è già stata rilasciata (ha il suo tag git); i rilasci precedenti sono completi                                                                  |
+| Categoria      | Come si riconosce                                                                                     | Cosa verifica il controllo **Release Guards**                                                                                                                                   |
+| -------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Contributo** | tutte le PR normali                                                                                   | ogni package pubblicato modificato è nominato in una changeset della PR (oppure c'è una changeset vuota); nessuna versione, `CHANGELOG.md` o file di prerelease cambiati a mano |
+| **Rilascio**   | `changeset-release/develop` (PR dell'app) o `release/*` (a mano) → `develop`, dallo stesso repository | la PR tocca solo i file del rilascio; i rilasci precedenti sono completi; il risultato è identico a `changeset version`                                                         |
+| **Promozione** | `develop` → `main`, dallo stesso repository                                                           | ogni versione portata in `main` è già stata rilasciata (ha il suo tag git); i rilasci precedenti sono completi                                                                  |
 
 **Perché una PR non può "promuovere sé stessa".** Il controllo gira nel workflow `.github/workflows/release-guards.yml`, avviato con `pull_request_target`: GitHub usa la versione del workflow presente sul branch di **destinazione**, e il job esegue il codice e le dipendenze di quel branch. La PR viene letta solo come dati (i suoi file tramite git): nulla di suo viene installato o eseguito. Così una PR non può modificare le regole che la giudicano; una modifica alle regole vale solo dopo essere stata revisionata e mergiata.
 
@@ -151,22 +143,29 @@ Il controllo le rifiuta, perché cambiano solo nelle PR di rilascio:
 
 - modificare il campo `version` di un package pubblicato;
 - modificare un `CHANGELOG.md` dei package pubblicati;
-- toccare `.changeset/pre.json` o la cartella `.changeset/pre/`.
+- toccare `.changeset/pre.json` o la cartella `.changeset/pre/`. L'unica eccezione è una PR dedicata che entra o esce dalla prerelease (§5).
 
 ## 4. Fare un rilascio
 
-### Procedura
+### La PR di rilascio la crea l'app
+
+A ogni push su `develop`, il job **Release PR** del workflow `.github/workflows/release.yml` controlla se ci sono changeset da applicare. Se ci sono, la GitHub App dell'organizzazione:
+
+1. esegue `changeset version` (versioni, `CHANGELOG.md`, changeset consumate);
+2. scrive il risultato sul branch `changeset-release/develop`;
+3. apre la PR **"chore(release): version packages"** verso `develop`, oppure aggiorna quella già aperta. Durante la prerelease il titolo finisce con `(next)`.
+
+La PR è creata dall'app, quindi la CI e Release Guards partono normalmente. Per rilasciare non serve lanciare nessun comando: si guarda la PR (versioni e changelog), la si approva e la si mergia.
+
+**Percorso manuale di riserva.** Se l'app non fosse disponibile, una persona può ancora creare la PR di rilascio a mano, con gli stessi controlli:
 
 ```bash
 git switch develop && git pull
 git switch -c release/2026-11-20            # il prefisso release/ identifica la PR di rilascio
-pnpm changeset status --verbose             # cosa verrà rilasciato, con quali versioni
 GITHUB_TOKEN=$(gh auth token) pnpm changeset version
 git add -A && git commit -m "chore(release): version packages"
 git push -u origin HEAD                     # poi apri la PR verso develop
 ```
-
-`pnpm changeset version` aggiorna le versioni e i `CHANGELOG.md` e consuma le changeset. Ha bisogno di `GITHUB_TOKEN` perché scrive nel changelog i link alle PR e agli autori.
 
 ### Cosa controlla la CI sulla PR di rilascio (Release Guards)
 
@@ -174,19 +173,20 @@ git push -u origin HEAD                     # poi apri la PR verso develop
 2. **Rilasci precedenti completi.** Se un rilascio precedente non è stato pubblicato del tutto, la PR resta bloccata finché non viene recuperato (§7).
 3. **Riproducibilità.** La CI rifà `changeset version` sul branch base e confronta il risultato con la PR: deve essere identico. L'unico canale di prerelease ammesso è `next`.
 
-Se il punto 3 fallisce, di solito `develop` è andato avanti dopo che hai creato il branch: aggiorna il branch da `develop` e rifai `pnpm changeset version`.
+Se il punto 3 fallisce, di solito `develop` è andato avanti nel frattempo. Con la PR dell'app basta aspettare: al push successivo su `develop` l'app la aggiorna. Con una PR manuale, aggiorna il branch da `develop` e rifai `pnpm changeset version`.
 
 ### Al merge
 
 La PR di rilascio va mergiata con **"Create a merge commit"**, mai con squash o rebase: solo con un vero commit di merge la CI ricava con certezza tutte le versioni decise dalla PR. Un rilascio mergiato in altro modo viene rifiutato dal workflow e segnalato dall'audit.
 
-Il workflow **Release** (`.github/workflows/release.yml`):
+Quando la PR di rilascio viene mergiata, il workflow **Release** (`.github/workflows/release.yml`):
 
-1. verifica che il commit venga davvero dal merge di una PR di rilascio;
-2. si posiziona esattamente su quel commit;
-3. esegue build e tutti i controlli di pubblicazione (`pnpm test:published`);
-4. pubblica con `pnpm changeset publish`: sul canale `next` durante la prerelease, altrimenti su `latest`;
-5. crea i tag git `<package>@<versione>`, allinea i canali `latest` e `next` e invia i tag.
+1. si posiziona esattamente sul commit di merge della PR;
+2. esegue build e tutti i controlli di pubblicazione (`pnpm test:published`);
+3. pubblica con `pnpm changeset publish`: sul canale `next` durante la prerelease, altrimenti su `latest`;
+4. crea i tag git `<package>@<versione>` che mancano (`pnpm changeset git-tag`) e li invia al repository.
+
+Pubblicazione e tag usano il token della GitHub App. Se GitHub Packages non accettasse il token dell'app per pubblicare i package npm, si passa al `GITHUB_TOKEN` cambiando due righe del workflow (EVO-PKGPUB-OPUS-01 §9.3.1).
 
 `latest` esiste sul registry prima di arrivare in `main`: la promozione `develop` → `main` porta in `main` versioni già pubblicate e non pubblica nulla.
 
@@ -194,21 +194,23 @@ Il workflow **Release** (`.github/workflows/release.yml`):
 
 Oggi i tre package sono alla versione `0.0.0` e non sono mai stati pubblicati. In `.changeset/initial-release.md` c'è già la changeset di partenza (major per tutti e tre).
 
-**Primo rilascio** (Fase 5 della SPEC), nella PR `release/bootstrap-next`:
+**Entrare nella prerelease** (va fatto **prima** del primo rilascio). Si apre una PR normale che contiene solo questo:
 
 ```bash
-pnpm changeset pre enter next
-GITHUB_TOKEN=$(gh auth token) pnpm changeset version   # tutti e tre a 1.0.0-next.0
+git switch develop && git pull
+git switch -c chore/enter-prerelease-next
+pnpm changeset pre enter next               # crea .changeset/pre.json
+git add .changeset/pre.json && git commit -m "chore(release): enter the next prerelease"
+git push -u origin HEAD
 ```
+
+Release Guards accetta questa modifica di `.changeset/pre.json`, e solo questa. Dopo il merge, l'app aggiorna la PR di rilascio, che porta i tre package a `1.0.0-next.0` con il titolo "chore(release): version packages (next)".
+
+**Attenzione:** finché la PR che entra nella prerelease non è mergiata, l'app propone una PR di rilascio che porta i package a `1.0.0`. **Quella PR non va mergiata**: va aspettato l'aggiornamento a `1.0.0-next.0`.
 
 **Durante la prerelease**, ogni rilascio successivo produce `1.0.0-next.1`, `1.0.0-next.2`, … sul canale `next`. Changesets 3 sposta le changeset consumate in `.changeset/pre/`, invece di cancellarle.
 
-**Uscita dalla prerelease** (versione stabile `1.0.0` su `latest`), in una PR di rilascio:
-
-```bash
-pnpm changeset pre exit
-GITHUB_TOKEN=$(gh auth token) pnpm changeset version   # 1.0.0; pre.json e .changeset/pre/ vengono rimossi
-```
+**Uscita dalla prerelease** (versione stabile `1.0.0` su `latest`): una PR normale con solo `pnpm changeset pre exit`, che cambia `mode` in `exit` dentro `.changeset/pre.json`. Dopo il merge, l'app aggiorna la PR di rilascio a `1.0.0`; quella PR toglie anche `pre.json` e `.changeset/pre/`.
 
 Prima della `1.0.0` vanno sistemati i tipi segnalati nella sezione "Referenced but not exported" dei report API.
 
@@ -222,43 +224,39 @@ Ogni giorno il workflow **Release Audit** (`.github/workflows/release-audit.yml`
 
 **Esempio:** un rilascio pubblica go-common ma fallisce su go-aws.
 
-1. go-common riceve comunque tag e canale. Il rilascio resta incompleto e nessuna nuova PR di rilascio può essere mergiata.
-2. Rilancia il job (_Re-run failed jobs_), oppure avvia il workflow **Release** a mano (_Run workflow_, **dal branch `develop`**) con `release_sha` uguale al commit di merge della PR di rilascio. Il messaggio di errore dell'audit indica il `release_sha` esatto, anche quando il problema è solo un canale (`latest`/`next`) da riallineare.
-3. Il workflow torna esattamente su quel commit, salta go-common (già pubblicato) e pubblica go-aws.
-4. L'audit torna verde e i rilasci successivi si sbloccano.
-
-Il workflow manuale parte solo da `develop`, usa sempre il codice di verifica di `develop` e accetta solo commit di merge di PR di rilascio, verificati tramite le API di GitHub: non si può usare per pubblicare un commit qualsiasi.
+1. Apri il run del workflow **Release** fallito e premi **"Re-run failed jobs"**.
+2. Il run riparte dallo stesso commit di merge: `changeset publish` salta go-common (già pubblicato) e pubblica go-aws, poi `changeset git-tag` crea i tag che mancano, anche quello di go-common.
+3. L'audit giornaliero torna verde.
 
 ## 8. Impostazioni da fare una volta (amministratore del repository)
 
+- **GitHub App dell'organizzazione:** installata solo su `go-automation`, con i permessi di repository Contents, Pull requests e Packages in "Read and write" (Metadata in sola lettura). Nel repository, in _Settings → Secrets and variables → Actions_: la variabile `APP_ID` e il secret `APP_PRIVATE_KEY`.
 - **Branch protection su `develop` e `main`:** rendere obbligatori i controlli `CI Success` e **`Release Guards`**. Senza `Release Guards` obbligatorio, una PR potrebbe essere mergiata anche con il controllo fallito.
 - **Merge commit su `develop`:** lasciare attiva l'opzione "Allow merge commits", che serve alle PR di rilascio (§4).
 - **Su `develop`:** attivare anche "Require branches to be up to date before merging". Serve alla regola "un rilascio alla volta" (§9.3, regola 3).
-- **Rischio residuo da conoscere:** su GitHub chiunque abbia accesso in scrittura al repository può aggiungere su un proprio branch un workflow che chiede il permesso `packages: write` e pubblica. Nessun controllo dentro il repository lo impedisce: la difesa sono le persone con accesso in scrittura, la review e, se serve, le regole dell'organizzazione sui workflow. Il flusso di questa guida garantisce invece che i rilasci fatti con la procedura pubblichino solo commit validati.
+- **Rischio residuo da conoscere:** su GitHub chiunque abbia accesso in scrittura al repository può aggiungere su un proprio branch un workflow che chiede il permesso `packages: write` e pubblica. Si riduce togliendo ai package l'ereditarietà dei permessi dal repository e lasciando la scrittura solo all'app (pagina Confluence "GitHub - Gestione Packages"), dopo aver verificato con il primo rilascio che l'app può pubblicare. Nessun controllo dentro il repository lo impedisce: la difesa sono le persone con accesso in scrittura, la review e, se serve, le regole dell'organizzazione sui workflow. Il flusso di questa guida garantisce invece che i rilasci fatti con la procedura pubblichino solo commit validati.
 - **Accesso dei repository consumatori:** su GitHub, nelle _Package settings_ di ogni package, _Manage Actions access → Add repository_ (ruolo `Read`), per esempio per `go-watchtower`.
-- **Rischio R1 non verificato:** la Fase 0 della SPEC (package di prova) è stata saltata per decisione del 2026-11-16. Il primo rilascio verifica sul campo la pubblicazione con il `GITHUB_TOKEN` e l'installazione da un altro repository. Chi installa i package con `@pagopa:registry=https://npm.pkg.github.com` cerca **tutti** i `@pagopa/*` su GitHub Packages: se usa anche package `@pagopa/*` pubblici di npmjs, li deve installare in altro modo.
+- **Rischio R1 non verificato:** la Fase 0 della SPEC (package di prova) è stata saltata per decisione del 2026-11-16. Il primo rilascio verifica sul campo la pubblicazione con il token dell'app e l'installazione da un altro repository. Chi installa i package con `@pagopa:registry=https://npm.pkg.github.com` cerca **tutti** i `@pagopa/*` su GitHub Packages: se usa anche package `@pagopa/*` pubblici di npmjs, li deve installare in altro modo.
 
 ## 9. I comandi
 
-| Comando                                      | Chi lo usa      | Cosa fa                                                              |
-| -------------------------------------------- | --------------- | -------------------------------------------------------------------- |
-| `pnpm changeset`                             | chi apre una PR | crea una changeset                                                   |
-| `pnpm changeset --empty`                     | chi apre una PR | crea una changeset vuota (nessun rilascio)                           |
-| `pnpm changeset status --verbose`            | chi rilascia    | mostra cosa verrebbe rilasciato                                      |
-| `pnpm changeset version`                     | chi rilascia    | applica le changeset: versioni e `CHANGELOG.md` (con `GITHUB_TOKEN`) |
-| `pnpm changeset pre enter next` / `pre exit` | chi rilascia    | entra o esce dalla prerelease `next`                                 |
-| `pnpm check:release-state <comando>`         | la CI           | i controlli e le operazioni di rilascio, vedi sotto                  |
+| Comando                                      | Chi lo usa                    | Cosa fa                                                              |
+| -------------------------------------------- | ----------------------------- | -------------------------------------------------------------------- |
+| `pnpm changeset`                             | chi apre una PR               | crea una changeset                                                   |
+| `pnpm changeset --empty`                     | chi apre una PR               | crea una changeset vuota (nessun rilascio)                           |
+| `pnpm changeset status --verbose`            | chiunque                      | mostra cosa verrebbe rilasciato                                      |
+| `pnpm changeset version`                     | l'app (o chi rilascia a mano) | applica le changeset: versioni e `CHANGELOG.md` (con `GITHUB_TOKEN`) |
+| `pnpm changeset pre enter next` / `pre exit` | chi decide la prerelease      | entra o esce dalla prerelease `next`, in una PR dedicata (§5)        |
+| `pnpm check:release-state <comando>`         | la CI                         | i controlli e le operazioni di rilascio, vedi sotto                  |
 
 `pnpm check:release-state` (`bins/check-release-state`) ha questi sottocomandi:
 
-| Sottocomando         | Dove gira            | Cosa fa                                                                                                           |
-| -------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `resolve-sha`        | Release              | trova il commit da pubblicare e verifica che venga da una PR di rilascio                                          |
-| `reconcile-tags`     | Release              | crea i tag git mancanti delle versioni del rilascio già pubblicate                                                |
-| `promote-channels`   | Release              | porta `latest` sulla versione stabile più alta e `next` sulla `-next.*` più alta, se è più avanti                 |
-| `audit`              | Release Audit, guard | controlla che tutti i rilasci siano completi; in sola lettura                                                     |
-| `contribution-guard` | Release Guards       | ogni package modificato è in una changeset; nessuna versione, `CHANGELOG.md` o file di prerelease cambiati a mano |
-| `release-pr-guard`   | Release Guards       | perimetro, rilasci precedenti e riproducibilità della PR di rilascio                                              |
-| `promotion-guard`    | Release Guards       | versioni già rilasciate e rilasci precedenti completi                                                             |
+| Sottocomando         | Dove gira            | Cosa fa                                                                                                                                                     |
+| -------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `version-needed`     | Release (Release PR) | dice se ci sono changeset da applicare, cioè se l'app deve creare o aggiornare la PR di rilascio                                                            |
+| `audit`              | Release Audit, guard | controlla che tutti i rilasci siano completi; in sola lettura                                                                                               |
+| `contribution-guard` | Release Guards       | ogni package modificato è in una changeset; nessuna versione, `CHANGELOG.md` o file di prerelease cambiati a mano (salvo entrata e uscita dalla prerelease) |
+| `release-pr-guard`   | Release Guards       | perimetro, rilasci precedenti e riproducibilità della PR di rilascio                                                                                        |
+| `promotion-guard`    | Release Guards       | versioni già rilasciate e rilasci precedenti completi                                                                                                       |
 
 In locale servono di rado. `audit` richiede un `GITHUB_TOKEN` con lettura delle PR e l'accesso a GitHub Packages; i guard accettano `--base <sha> --head <sha>` al posto dei dati dell'evento della CI.

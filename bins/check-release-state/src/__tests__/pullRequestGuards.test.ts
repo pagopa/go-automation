@@ -8,6 +8,7 @@ import {
   checkPromotion,
   checkReleasePerimeter,
   pendingChangesets,
+  preStateTransition,
 } from '../pullRequestGuards.js';
 import { FakeGit, packageFiles } from './fakes.js';
 
@@ -218,5 +219,34 @@ describe('changeset-required: catalog bumps', () => {
     assert.deepStrictEqual(checkChangesetCoverage(git, BASE, HEAD), [
       '@pagopa/go-common changed but no changeset of this PR names it: run pnpm changeset (or pnpm changeset --empty)',
     ]);
+  });
+});
+
+describe('changeset-required: entering and leaving the prerelease (§9.3.1)', () => {
+  const enterNext = '{\n  "mode": "pre",\n  "tag": "next"\n}\n';
+
+  it('allows only pre enter next and pre exit', () => {
+    assert.strictEqual(preStateTransition(undefined, enterNext), undefined);
+    assert.strictEqual(preStateTransition(enterNext, '{"mode":"exit","tag":"next"}'), undefined);
+  });
+
+  it('rejects another tag, extra fields, a deletion or other edits', () => {
+    assert.match(preStateTransition(undefined, '{"mode":"pre","tag":"alpha"}') ?? '', /exactly/u);
+    assert.match(preStateTransition(undefined, '{"mode":"pre","tag":"next","x":1}') ?? '', /exactly/u);
+    assert.match(preStateTransition(enterNext, undefined) ?? '', /may only be created/u);
+    assert.match(preStateTransition(enterNext, '{"mode":"exit","tag":"alpha"}') ?? '', /only "mode"/u);
+    assert.match(preStateTransition('{"mode":"exit","tag":"next"}', enterNext) ?? '', /may only be created/u);
+  });
+
+  it('accepts a contribution that only enters the prerelease', () => {
+    const git = new FakeGit();
+    git.commit(BASE, packageFiles({ 'go-common': ['@pagopa/go-common', '0.0.0'] }));
+    git.commit(
+      HEAD,
+      packageFiles({ 'go-common': ['@pagopa/go-common', '0.0.0'] }, { '.changeset/pre.json': enterNext }),
+    );
+    git.diffs.set(`${BASE}...${HEAD}`, [{ status: 'A', path: '.changeset/pre.json' }]);
+    assert.deepStrictEqual(checkContribution(git, BASE, HEAD), []);
+    assert.deepStrictEqual(checkChangesetCoverage(git, BASE, HEAD), []);
   });
 });

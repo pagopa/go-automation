@@ -39,16 +39,6 @@ export class NpmRegistryCli implements RegistryPort {
     );
   }
 
-  public setDistTag(name: string, version: string, tag: string): void {
-    const result = this.run(
-      'npm',
-      ['dist-tag', 'add', `${name}@${version}`, tag, `--registry=${this.registry}`],
-      this.cwd,
-    );
-    if (result.status !== 0)
-      throw new Error(`npm dist-tag add ${name}@${version} ${tag} failed: ${result.stderr.trim()}`);
-  }
-
   /** `npm view <name> <field> --json`; `undefined` when the package does not exist (E404). */
   private view(name: string, field: string): unknown {
     const result = this.run('npm', ['view', name, field, '--json', `--registry=${this.registry}`], this.cwd);

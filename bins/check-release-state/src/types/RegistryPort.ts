@@ -4,6 +4,4 @@ export interface RegistryPort {
   versions(name: string): ReadonlyArray<string>;
   /** Current dist-tags of a package (`latest`, `next`, …); empty when never published. */
   distTags(name: string): Readonly<Record<string, string>>;
-  /** Points a dist-tag to a published version. */
-  setDistTag(name: string, version: string, tag: string): void;
 }

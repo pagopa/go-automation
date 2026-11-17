@@ -1,5 +1,6 @@
-# EVO-PKGPUB-OPUS-01 §10.3: every PR towards develop or main is a release (release/* → develop), a
-# promotion (develop → main) or a contribution (everything else), and must pass its own guard.
+# EVO-PKGPUB-OPUS-01 §10.3: every PR towards develop or main is a release (changeset-release/develop or
+# release/* → develop), a promotion (develop → main) or a contribution (everything else), and must pass
+# its own guard.
 #
 # Trust model: pull_request_target runs THIS file as it is on the base branch, and the job runs the
 # validator and the dependencies of the BASE commit. The PR is fetched only as data (git objects read
@@ -57,7 +58,8 @@ jobs:
 
       - name: Guard of the PR category
         run: |
-          if [[ "$BASE_REF" == "develop" && "$HEAD_REF" == release/* && "$HEAD_REPOSITORY" == "$GITHUB_REPOSITORY" ]]; then
+          # Release PR: the one of the GitHub App (changeset-release/develop, §9.3.1) or a manual release/*.
+          if [[ "$BASE_REF" == "develop" && ( "$HEAD_REF" == "changeset-release/develop" || "$HEAD_REF" == release/* ) && "$HEAD_REPOSITORY" == "$GITHUB_REPOSITORY" ]]; then
             guard=release-pr-guard
           elif [[ "$BASE_REF" == "main" && "$HEAD_REF" == "develop" && "$HEAD_REPOSITORY" == "$GITHUB_REPOSITORY" ]]; then
             guard=promotion-guard
