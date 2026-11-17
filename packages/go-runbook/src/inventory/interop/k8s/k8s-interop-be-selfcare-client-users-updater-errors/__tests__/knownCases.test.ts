@@ -54,7 +54,7 @@ describe('INTEROP Selfcare users updater known cases', () => {
   }
 
   it('keeps the original coordinator case title, evidence rows and ticket reference', () => {
-    const coordinator = KNOWN_CASES.find(({ id }) => id === 'selfcare-kafka-broker-communication-errors');
+    const coordinator = KNOWN_CASES.find(({ id }) => id === 'selfcare-users-updater-kafka-broker-errors');
     assert.ok(coordinator !== undefined);
     assert.strictEqual(coordinator.description, 'Errore di comunicazione KafkaJS verso i broker Selfcare');
     assert.deepStrictEqual(coordinator.analysis?.downstreams, [INTEROP_DOWNSTREAMS.SELFCARE]);
@@ -73,13 +73,13 @@ describe('INTEROP Selfcare users updater known cases', () => {
 
   it('recognizes the documented coordinator and replica signatures in application evidence', () => {
     for (const message of COORDINATOR_MESSAGES) {
-      assert.deepStrictEqual(matches([message]), ['selfcare-kafka-broker-communication-errors'], message);
+      assert.deepStrictEqual(matches([message]), ['selfcare-users-updater-kafka-broker-errors'], message);
     }
     assert.deepStrictEqual(
       matches([
         'Crash: KafkaJS NumberOfRetriesExceeded: The replica is not available for the requested topic-partition',
       ]),
-      ['selfcare-kafka-broker-communication-errors'],
+      ['selfcare-users-updater-kafka-broker-errors'],
     );
   });
 
@@ -123,7 +123,7 @@ describe('INTEROP Selfcare users updater known cases', () => {
   it('respects documented environment scopes without treating att as test', () => {
     assert.deepStrictEqual(matches([COORDINATOR_MESSAGES[0] ?? ''], 'test'), []);
     for (const message of COORDINATOR_MESSAGES.slice(1)) {
-      assert.deepStrictEqual(matches([message], 'test'), ['selfcare-kafka-broker-communication-errors']);
+      assert.deepStrictEqual(matches([message], 'test'), ['selfcare-users-updater-kafka-broker-errors']);
     }
     assert.deepStrictEqual(matches([...COORDINATOR_MESSAGES, RESET, METADATA, TLS], 'att'), []);
   });

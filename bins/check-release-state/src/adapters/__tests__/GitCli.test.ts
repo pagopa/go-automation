@@ -46,11 +46,10 @@ describe('GitCli', () => {
   });
 
   it('reads tags and ancestry, and fails loudly on unexpected git errors', () => {
-    const { run, calls } = scriptedRunner({
+    const { run } = scriptedRunner({
       'git rev-parse -q --verify refs/tags/@pagopa/go-aws@1.0.0^{commit}': ok('abc\n'),
       'git merge-base --is-ancestor a b': ok(''),
       'git merge-base --is-ancestor b a': { status: 1, stdout: '', stderr: '' },
-      'git tag -a t abc -m t': ok(''),
     });
     const git = new GitCli(run, '/repo');
     assert.strictEqual(git.tagCommit('@pagopa/go-aws@1.0.0'), 'abc');
@@ -58,8 +57,6 @@ describe('GitCli', () => {
     assert.strictEqual(git.isAncestor('a', 'b'), true);
     assert.strictEqual(git.isAncestor('b', 'a'), false);
     assert.throws(() => git.isAncestor('x', 'y'), /merge-base --is-ancestor failed/u);
-    git.createAnnotatedTag('t', 'abc', 't');
-    assert.ok(calls.includes('git tag -a t abc -m t'));
     assert.throws(() => git.firstParent('zzz'), /git rev-parse zzz\^1 failed/u);
   });
 

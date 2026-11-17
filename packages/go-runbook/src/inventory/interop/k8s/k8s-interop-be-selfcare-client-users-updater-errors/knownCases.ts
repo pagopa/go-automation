@@ -17,7 +17,7 @@ const OVERLAPPING_RESOLUTION =
 /** Sources: Confluence 2129330177 v9/v11-v15 and production logs of 2026-10-23. */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
-    id: 'selfcare-kafka-broker-communication-errors',
+    id: 'selfcare-users-updater-kafka-broker-errors',
     description: 'Errore di comunicazione KafkaJS verso i broker Selfcare',
     priority: 100,
     condition: {

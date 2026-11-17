@@ -43,8 +43,10 @@ describe('GitHubRestClient', () => {
       return respond([pull(1), pull(2, { merged_at: null, merge_commit_sha: null, head: { ref: 'f', repo: null } })]);
     };
     const client = new GitHubRestClient(fetchFunction, 'pagopa/go-automation', 'token', 'https://api.example');
-    const pulls = await client.pullsForCommit('abc');
-    assert.deepStrictEqual(urls, ['https://api.example/repos/pagopa/go-automation/commits/abc/pulls?per_page=100']);
+    const pulls = await client.closedPulls('develop');
+    assert.deepStrictEqual(urls, [
+      'https://api.example/repos/pagopa/go-automation/pulls?state=closed&base=develop&per_page=100&page=1',
+    ]);
     assert.deepStrictEqual(pulls[0], {
       number: 1,
       merged: true,

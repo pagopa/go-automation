@@ -12998,7 +12998,7 @@
           "type": "or"
         },
         "description": "Errore di comunicazione KafkaJS verso i broker Selfcare",
-        "id": "selfcare-kafka-broker-communication-errors",
+        "id": "selfcare-users-updater-kafka-broker-errors",
         "priority": 100
       },
       {
@@ -13388,7 +13388,7 @@
           "type": "and"
         },
         "description": "Errore di comunicazione KafkaJS verso i broker Selfcare",
-        "id": "selfcare-kafka-broker-communication-errors",
+        "id": "selfcare-onboarding-kafka-broker-errors",
         "priority": 100
       },
       {

@@ -2,7 +2,7 @@ import { parseChangesetFile } from '@changesets/parse';
 
 import { effectiveDependencies, readCatalogs } from './effectiveDependencies.js';
 import { readPublishedManifests, tagName } from './publishedPackages.js';
-import { CHANGESET_DIRECTORY, PACKAGES_DIRECTORY, PUBLISHED_SCOPE } from './releaseConstants.js';
+import { CHANGESET_DIRECTORY, PACKAGES_DIRECTORY, PRERELEASE_TAG, PUBLISHED_SCOPE } from './releaseConstants.js';
 import type { DiffEntry } from './types/DiffEntry.js';
 import type { DirectoryPredicate } from './types/DirectoryPredicate.js';
 import type { GitPort } from './types/GitPort.js';
@@ -45,14 +45,17 @@ function isIgnoredByChangesets(filePath: string): boolean {
 }
 
 /** A changeset file the Changesets reader picks up: directly in `.changeset/`, not hidden, not reserved. */
-function isChangesetFile(filePath: string): boolean {
+export function isChangesetFile(filePath: string): boolean {
   return isChangesetFolderMarkdown(filePath) && !isIgnoredByChangesets(filePath);
 }
 
 /** A consumed prerelease changeset in `.changeset/pre/` (Changesets 3 moves them there in pre mode). */
-function isPreChangesetFile(filePath: string): boolean {
+export function isPreChangesetFile(filePath: string): boolean {
   return (
-    filePath.startsWith(PRE_FOLDER) && filePath.endsWith('.md') && !filePath.slice(PRE_FOLDER.length).includes('/')
+    filePath.startsWith(PRE_FOLDER) &&
+    filePath.endsWith('.md') &&
+    !filePath.slice(PRE_FOLDER.length).includes('/') &&
+    !isIgnoredByChangesets(filePath)
   );
 }
 
@@ -142,11 +145,54 @@ function describe(entry: DiffEntry): string {
   return entry.status === 'R' ? `R ${entry.previousPath ?? '?'} → ${entry.path}` : `${entry.status} ${entry.path}`;
 }
 
+/** `pre.json` parsed as a plain object, `undefined` when absent or not an object. */
+function parsePreState(text: string | undefined): Readonly<Record<string, unknown>> | undefined {
+  if (text === undefined) return undefined;
+  try {
+    const value: unknown = JSON.parse(text);
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+      ? (value as Readonly<Record<string, unknown>>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The only changes of `.changeset/pre.json` a contribution PR may make (§9.3.1): create it as
+ * `{"mode":"pre","tag":"next"}` when absent (`changeset pre enter next`), or turn `mode` from `pre`
+ * into `exit` keeping every other field (`changeset pre exit`). The release PR then applies it.
+ *
+ * @param before - `pre.json` at the merge base, `undefined` when absent
+ * @param after - `pre.json` at the head, `undefined` when absent
+ * @returns `undefined` when the change is allowed, otherwise the reason
+ */
+export function preStateTransition(before: string | undefined, after: string | undefined): string | undefined {
+  const previous = parsePreState(before);
+  const next = parsePreState(after);
+  if (before === undefined && next !== undefined) {
+    const keys = Object.keys(next).sort().join(',');
+    return keys === 'mode,tag' && next['mode'] === 'pre' && next['tag'] === PRERELEASE_TAG
+      ? undefined
+      : `entering the prerelease must write exactly {"mode":"pre","tag":"${PRERELEASE_TAG}"} (pnpm changeset pre enter ${PRERELEASE_TAG})`;
+  }
+  if (previous?.['mode'] === 'pre' && next?.['mode'] === 'exit') {
+    const keys = new Set([...Object.keys(previous), ...Object.keys(next)]);
+    const unchanged = [...keys].every(
+      (key) => key === 'mode' || JSON.stringify(previous[key]) === JSON.stringify(next[key]),
+    );
+    return unchanged ? undefined : 'leaving the prerelease may change only "mode" to "exit" (pnpm changeset pre exit)';
+  }
+  return 'pre.json may only be created to enter the prerelease or switched to "exit" to leave it; anything else happens in the release PR';
+}
+
 /**
  * Release metadata a contribution PR must not touch (§10.3, `changeset-required`): the `version` of a
  * published package, its `CHANGELOG.md`, `.changeset/pre.json` and `.changeset/pre/`. Those change
  * only in a release PR, produced by `changeset version`. Versions are compared with the merge base,
- * like the diff: a base that moved on through a release does not count as a change of the PR.
+ * like the diff: a base that moved on through a release does not count as a change of the PR. The
+ * only accepted change of `.changeset/pre.json` is entering or leaving the `next` prerelease
+ * ({@link preStateTransition}, §9.3.1).
  *
  * @param git - Git access
  * @param base - Base commit of the PR
@@ -154,7 +200,8 @@ function describe(entry: DiffEntry): string {
  * @returns One message per forbidden change
  */
 export function checkContribution(git: GitPort, base: string, head: string): ReadonlyArray<string> {
-  const baseManifests = readPublishedManifests(git, git.mergeBase(base, head));
+  const start = git.mergeBase(base, head);
+  const baseManifests = readPublishedManifests(git, start);
   const headManifests = readPublishedManifests(git, head);
   const published = publishedDirectories(baseManifests, headManifests);
   const violations: string[] = [];
@@ -171,6 +218,11 @@ export function checkContribution(git: GitPort, base: string, head: string): Rea
     for (const filePath of paths) {
       const directory = packageDirectoryOf(filePath);
       const changelog = directory !== undefined && published.has(directory) && filePath === `${directory}/CHANGELOG.md`;
+      if (filePath === PRE_STATE && entry.status !== 'R') {
+        const problem = preStateTransition(git.showFile(start, PRE_STATE), git.showFile(head, PRE_STATE));
+        if (problem !== undefined) violations.push(`${describe(entry)}: ${problem}`);
+        break;
+      }
       if (changelog || filePath === PRE_STATE || filePath.startsWith(PRE_FOLDER)) {
         violations.push(`${describe(entry)}: release metadata change only in a release PR`);
         break;

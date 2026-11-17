@@ -56,10 +56,6 @@ export class GitCli implements GitPort {
     return result.status === 0 ? result.stdout.trim() : undefined;
   }
 
-  public createAnnotatedTag(tag: string, commit: string, message: string): void {
-    this.git(['tag', '-a', tag, commit, '-m', message]);
-  }
-
   public isAncestor(ancestor: string, descendant: string): boolean {
     const result = this.run('git', ['merge-base', '--is-ancestor', ancestor, descendant], this.cwd);
     if (result.status === 0) return true;

@@ -15,17 +15,14 @@ import {
   checkReleasePerimeter,
   pendingChangesets,
 } from './pullRequestGuards.js';
-import { promoteChannels, reconcileTags } from './releaseWrites.js';
 import { reproduceRelease } from './reproduceRelease.js';
-import { resolveReleaseSha } from './resolveReleaseSha.js';
+import { versionNeeded } from './versionNeeded.js';
 import type { ReleaseContext } from './types/ReleaseContext.js';
 
 const USAGE = `Usage: check-release-state <command> [--base <sha>] [--head <sha>]
 
-Release workflow (EVO-PKGPUB-OPUS-01 §9.3):
-  resolve-sha         validated release commit → GITHUB_OUTPUT release_sha
-  reconcile-tags      create the missing <name>@<version> tags of RELEASE_SHA (HEAD must be RELEASE_SHA)
-  promote-channels    move latest/next of the RELEASE_SHA packages to the highest versions
+Release workflow (EVO-PKGPUB-OPUS-01 §9.3, §9.3.1):
+  version-needed      whether develop HEAD has changesets to version → GITHUB_OUTPUT needed=true|false
   audit               every merged release PR is published, tagged, with aligned channels (read only)
 
 Pull request guards (§10.3), run from the trusted base checkout; the head is read as data.
@@ -94,26 +91,10 @@ async function main(): Promise<number> {
   };
 
   switch (command) {
-    case 'resolve-sha': {
-      const sha = await resolveReleaseSha(
-        requiredEnv('GITHUB_EVENT_NAME'),
-        await readEvent(),
-        repository,
-        context.github,
-        context.git,
-      );
-      await appendFile('GITHUB_OUTPUT', `release_sha=${sha}\n`);
-      console.log(`release_sha=${sha}`);
-      return 0;
-    }
-    case 'reconcile-tags': {
-      const created = reconcileTags(context, requiredEnv('RELEASE_SHA'));
-      console.log(created.length === 0 ? 'No tag to create.' : `Created tags: ${created.join(', ')}`);
-      return 0;
-    }
-    case 'promote-channels': {
-      const moved = promoteChannels(context, requiredEnv('RELEASE_SHA'));
-      console.log(moved.length === 0 ? 'Channels already aligned.' : moved.join('\n'));
+    case 'version-needed': {
+      const needed = versionNeeded(context.git, context.git.head());
+      await appendFile('GITHUB_OUTPUT', `needed=${String(needed)}\n`);
+      console.log(needed ? 'Changesets to version: the release PR is created or updated.' : 'Nothing to version.');
       return 0;
     }
     case 'audit':

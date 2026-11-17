@@ -29,7 +29,6 @@ export class FakeGit implements GitPort {
   public readonly tags = new Map<string, string>();
   public readonly diffs = new Map<string, ReadonlyArray<DiffEntry>>();
   public readonly ancestry = new Set<string>();
-  public readonly created: string[] = [];
   public readonly worktrees: string[] = [];
 
   public commit(id: string, files: ReadonlyMap<string, string>, parent?: string): this {
@@ -89,11 +88,6 @@ export class FakeGit implements GitPort {
     return this.tags.get(tag);
   }
 
-  public createAnnotatedTag(tag: string, commit: string): void {
-    this.tags.set(tag, commit);
-    this.created.push(tag);
-  }
-
   public isAncestor(ancestor: string, descendant: string): boolean {
     return ancestor === descendant || this.ancestry.has(`${ancestor}>${descendant}`);
   }
@@ -111,7 +105,6 @@ export class FakeGit implements GitPort {
 export class FakeRegistry implements RegistryPort {
   public readonly published = new Map<string, string[]>();
   public readonly tags = new Map<string, Record<string, string>>();
-  public readonly moves: string[] = [];
 
   public versions(name: string): ReadonlyArray<string> {
     return this.published.get(name) ?? [];
@@ -120,21 +113,11 @@ export class FakeRegistry implements RegistryPort {
   public distTags(name: string): Readonly<Record<string, string>> {
     return this.tags.get(name) ?? {};
   }
-
-  public setDistTag(name: string, version: string, tag: string): void {
-    this.tags.set(name, { ...(this.tags.get(name) ?? {}), [tag]: version });
-    this.moves.push(`${name}@${version} ${tag}`);
-  }
 }
 
 /** In-memory {@link GitHubPort}. */
 export class FakeGitHub implements GitHubPort {
   public readonly pulls: PullRequestInfo[] = [];
-
-  public async pullsForCommit(commit: string): Promise<ReadonlyArray<PullRequestInfo>> {
-    await Promise.resolve();
-    return this.pulls.filter((pull) => pull.mergeCommitSha === commit);
-  }
 
   public async closedPulls(baseRef: string): Promise<ReadonlyArray<PullRequestInfo>> {
     await Promise.resolve();

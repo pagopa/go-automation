@@ -71,7 +71,7 @@ export function tagName(packageVersion: PackageVersion): string {
  * @param releaseCommit - The commit to check
  * @throws Error when the commit is not a merge commit
  */
-export function assertMergeCommit(git: GitPort, releaseCommit: string): void {
+function assertMergeCommit(git: GitPort, releaseCommit: string): void {
   const parents = git.parents(releaseCommit).length;
   if (parents !== 2) {
     throw new Error(

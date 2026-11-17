@@ -21,11 +21,6 @@ export class GitHubRestClient implements GitHubPort {
     private readonly apiUrl: string = 'https://api.github.com',
   ) {}
 
-  public async pullsForCommit(commit: string): Promise<ReadonlyArray<PullRequestInfo>> {
-    const body = await this.get(`/repos/${this.repository}/commits/${commit}/pulls?per_page=${String(PAGE_SIZE)}`);
-    return this.toPulls(body);
-  }
-
   public async closedPulls(baseRef: string): Promise<ReadonlyArray<PullRequestInfo>> {
     const pulls: PullRequestInfo[] = [];
     for (let page = 1; ; page += 1) {

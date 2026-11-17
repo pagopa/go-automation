@@ -49,16 +49,4 @@ describe('NpmRegistryCli', () => {
     assert.deepStrictEqual(registry.distTags('@pagopa/new'), {});
     assert.throws(() => registry.versions('@pagopa/c'), /E401/u);
   });
-
-  it('moves a dist-tag', () => {
-    const calls: string[] = [];
-    const ok = { status: 0, stdout: '', stderr: '' };
-    const registry = new NpmRegistryCli(
-      runner({ [`npm dist-tag add @pagopa/a@1.0.1 latest ${REGISTRY}`]: ok }, calls),
-      '/repo',
-    );
-    registry.setDistTag('@pagopa/a', '1.0.1', 'latest');
-    assert.deepStrictEqual(calls, [`npm dist-tag add @pagopa/a@1.0.1 latest ${REGISTRY}`]);
-    assert.throws(() => registry.setDistTag('@pagopa/a', '9.9.9', 'latest'), /dist-tag add/u);
-  });
 });
