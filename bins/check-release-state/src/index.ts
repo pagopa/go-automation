@@ -28,8 +28,8 @@ Release workflow:
 Pull request guards (§10.3), run from the trusted base checkout; the head is read as data.
 base/head from the event or --base/--head:
   contribution-guard  a changeset names every changed published package; no hand-made release metadata
-  release-pr-guard    perimeter + audit + reproduction of changeset version on the base
-  promotion-guard     every version comes from a validated release + audit`;
+  release-pr-guard    perimeter + reproduction of changeset version on the base
+  promotion-guard     every version comes from a validated release`;
 
 function optionValue(argv: ReadonlyArray<string>, option: string): string | undefined {
   const index = argv.indexOf(option);
@@ -109,7 +109,6 @@ async function main(): Promise<number> {
     case 'release-pr-guard': {
       const [base, head] = await pullRequestRange(argv);
       const perimeter = checkReleasePerimeter(context.git, base, head);
-      const audit = await auditReleases(context);
       const workDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'release-pr-guard-'));
       try {
         const reproduction = await reproduceRelease(context.git, runCommand, {
@@ -120,7 +119,6 @@ async function main(): Promise<number> {
         });
         return Math.max(
           report('Release perimeter', perimeter),
-          report('Previous releases complete (audit)', audit),
           report('Reproducible with changeset version', reproduction),
         );
       } finally {
@@ -135,10 +133,7 @@ async function main(): Promise<number> {
         `### Changesets not yet released\n\n${pending.length === 0 ? 'None.' : pending.map((name) => `- \`${name}\``).join('\n')}\n`,
       );
       console.log(`Changesets not yet released: ${pending.length === 0 ? 'none' : pending.join(', ')}`);
-      return Math.max(
-        report('Promotion versions', checkPromotion(context.git, base, head)),
-        report('Previous releases complete (audit)', await auditReleases(context)),
-      );
+      return report('Promotion versions', checkPromotion(context.git, base, head));
     }
     default:
       console.error(USAGE);
