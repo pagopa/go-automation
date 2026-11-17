@@ -21,7 +21,7 @@ import type { ReleaseContext } from './types/ReleaseContext.js';
 
 const USAGE = `Usage: check-release-state <command> [--base <sha>] [--head <sha>]
 
-Release workflow (EVO-PKGPUB-OPUS-01 §9.3, §9.3.1):
+Release workflow:
   version-needed      whether develop HEAD has changesets to version → GITHUB_OUTPUT needed=true|false
   audit               every merged release PR is published, tagged, with aligned channels (read only)
 

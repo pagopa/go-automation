@@ -16,7 +16,7 @@ export function buildDeclaredOutputContext(
 ): RunbookOutputContext {
   const { vars, params, stepResults } = result.finalContext;
   const evidence = buildStepEvidence(runbook.steps, stepResults);
-  // Logical accounts read in this execution, resolved from the account directory (EVO-AWSACCT-OPUS-01 §5.6).
+  // Logical accounts read in this execution, resolved from the account directory.
   const awsAccounts = readResolvedAwsAccounts(result.finalContext.services);
   const accountDetails = awsAccounts.length === 0 ? {} : { awsAccounts };
   const definition = runbook.output;

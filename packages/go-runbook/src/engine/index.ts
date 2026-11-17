@@ -3,7 +3,7 @@
  * (`@pagopa/go-runbook`, re-exported by `src/index.ts`).
  *
  * Toolkits and runbooks import the engine only from here. The engine knows no
- * AWS, product, alarm or Watchtower (EVO-RBREORG-OPUS-01 §10).
+ * AWS, product, alarm or Watchtower.
  */
 
 export type { ActionExecutionResult } from './actions/ActionExecutor.js';

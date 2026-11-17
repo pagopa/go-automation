@@ -15,7 +15,7 @@ inputs:
     required: false
     default: '--frozen-lockfile'
   registry-url:
-    description: Registry written in the npm configuration with NODE_AUTH_TOKEN (publishing, EVO-PKGPUB-OPUS-01 §9.3)
+    description: Registry written in the npm configuration with NODE_AUTH_TOKEN (publishing)
     required: false
     default: ''
   scope:

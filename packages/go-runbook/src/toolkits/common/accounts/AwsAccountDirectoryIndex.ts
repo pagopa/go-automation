@@ -3,7 +3,7 @@ import type { AWSAccountDirectoryEntry } from '@pagopa/go-aws/profiles';
 import type { AwsLogicalAccount } from './AwsLogicalAccount.js';
 
 /**
- * Lookups over a validated account directory (EVO-AWSACCT-OPUS-01 §5.3).
+ * Lookups over a validated account directory.
  * The entries come from `parseAwsAccountDirectory`, which guarantees one
  * environment per account id.
  */

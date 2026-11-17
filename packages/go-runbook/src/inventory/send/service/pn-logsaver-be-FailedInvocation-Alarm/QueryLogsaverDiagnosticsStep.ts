@@ -19,7 +19,7 @@ const ROW_LIMIT = 1000;
 const SPOT_INTERRUPTION_MESSAGE = 'Your Spot Task was interrupted.';
 /**
  * Both SEND production accounts locally; only the occurrence account with an occurrence.
- * Production only, as before the logical accounts (EVO-AWSACCT-OPUS-01 A4).
+ * Production only, as before the logical accounts.
  */
 const ACCOUNTS: AwsAccountSelection = {
   subject: 'logsaver',

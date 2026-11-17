@@ -32,7 +32,7 @@ function repository(
   return git;
 }
 
-describe('release-pr-guard perimeter (EVO-PKGPUB-OPUS-01 §10.3, Changesets 3)', () => {
+describe('release-pr-guard perimeter', () => {
   it('accepts versions, changelogs, consumed changesets and pre.json', () => {
     const git = repository('0.0.0', '1.0.0-next.0');
     git.diffs.set(`${BASE}...${HEAD}`, [

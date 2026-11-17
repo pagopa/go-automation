@@ -57,7 +57,7 @@ logger.info(valueToString({ status: 'ok' }));
 ## Documentazione
 
 - Guida d'uso: [docs/GOCOMMON.md](../../docs/GOCOMMON.md).
-- Superficie pubblica di ogni sottopercorso: cartella [`api/`](api/) (report generato, vedi EVO-PKGPUB-OPUS-01 §10.3).
+- Superficie pubblica di ogni sottopercorso: cartella [`api/`](api/) (report generato).
 - Controlli prima della pubblicazione (report API, smoke test, budget di import): [docs/PUBLISHED_PACKAGES_CHECKS.md](../../docs/PUBLISHED_PACKAGES_CHECKS.md).
 - Modifiche tra le versioni: `CHANGELOG.md`, creato al primo rilascio.
 

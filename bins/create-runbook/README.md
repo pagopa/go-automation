@@ -60,8 +60,7 @@ to write a runbook whose answers would put one there (only the synthetic ids
 A runbook that reads accounts other than the occurrence's declares **logical accounts**
 (`<product>/<account>`, e.g. `SEND_ACCOUNTS.core`) through `accountSelections()`; the
 account ids live in the execution configuration (`aws.account.directory`). See
-[docs/RUNBOOKENGINE.md §7.1](../../docs/RUNBOOKENGINE.md#71-account-ambienti-e-permessi) and
-[EVO-AWSACCT-OPUS-01](../../docs/evolutions/EVO-AWSACCT-OPUS-01.md).
+[docs/RUNBOOKENGINE.md §7.1](../../docs/RUNBOOKENGINE.md#71-account-ambienti-e-permessi).
 
 ## Adding a new template type
 

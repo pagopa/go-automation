@@ -159,7 +159,7 @@ const workspaceBoundaryRules = [
 ];
 
 /**
- * Package layering of the published family (EVO-PKGPUB-OPUS-01 §6.1, §7.1.2, §7.2.1, §10.5).
+ * Package layering of the published family.
  *
  * - go-common kernel areas are ordered by level: an area may import only areas of the same or a lower level.
  * - go-aws never imports packages above it; each service subpath imports only its own SDK clients.
@@ -259,7 +259,7 @@ function packageLayerRules() {
       name: 'only-runtime-touches-sdk',
       severity: 'error',
       comment:
-        'EVO-RBREORG-OPUS-01 G3: only runtime/ uses the AWS SDK. Engine, toolkits and inventory import from go-aws ' +
+        'only runtime/ uses the AWS SDK. Engine, toolkits and inventory import from go-aws ' +
         'only the root (type-only, rule below), ./cloudwatch-logs/insights and ./profiles. Service ports live in toolkits/common.',
       from: {
         path: '^packages/go-runbook/src/(?:engine|toolkits|inventory)/',
@@ -276,24 +276,21 @@ function packageLayerRules() {
     {
       name: 'toolkits-do-not-know-runbooks',
       severity: 'error',
-      comment: 'EVO-RBREORG-OPUS-01 §10: toolkits never import the inventory or the runtime (composition root).',
+      comment: 'toolkits never import the inventory or the runtime (composition root).',
       from: { path: '^packages/go-runbook/src/toolkits/', pathNot: ['/__tests__/'] },
       to: { path: '^packages/go-runbook/src/(?:inventory|runtime)/' },
     },
     {
       name: 'common-does-not-know-products',
       severity: 'error',
-      comment:
-        'EVO-RBREORG-OPUS-01 G4: toolkits/common knows no product; SEND and INTEROP data live in their toolkits.',
+      comment: 'toolkits/common knows no product; SEND and INTEROP data live in their toolkits.',
       from: { path: '^packages/go-runbook/src/toolkits/common/', pathNot: ['/__tests__/'] },
       to: { path: '^packages/go-runbook/src/toolkits/(?:send|interop)/' },
     },
     {
       name: 'runbooks-do-not-cross',
       severity: 'error',
-      comment:
-        'EVO-RBREORG-OPUS-01 §10: a runbook never imports another runbook folder; sharing goes through ' +
-        'inventory/<product>/shared/.',
+      comment: 'a runbook never imports another runbook folder; sharing goes through ' + 'inventory/<product>/shared/.',
       from: { path: '^packages/go-runbook/src/inventory/(send|interop)/((?!shared/)[^/]+)/([^/]+)/' },
       to: {
         path: '^packages/go-runbook/src/inventory/(?:send|interop)/(?!shared/)[^/]+/[^/]+/',
@@ -304,7 +301,7 @@ function packageLayerRules() {
       name: 'engine-is-a-foundation',
       severity: 'error',
       comment:
-        'EVO-RBREORG-OPUS-01 G2: the engine knows no AWS, product, alarm or Watchtower. It never imports toolkits, ' +
+        'the engine knows no AWS, product, alarm or Watchtower. It never imports toolkits, ' +
         'inventory or runtime, any go-aws module, or the I/O areas of go-common.',
       from: {
         path: '^packages/go-runbook/src/engine/',
@@ -324,7 +321,7 @@ function packageLayerRules() {
       name: 'inventory-uses-product-api',
       severity: 'error',
       comment:
-        'EVO-RBREORG-OPUS-01 §7.5: a runbook imports only the engine barrel, the barrel of its own product, the ' +
+        'a runbook imports only the engine barrel, the barrel of its own product, the ' +
         'shared data of its product and the files of its own folder (no deep imports, no other runbook).',
       from: {
         path: '^packages/go-runbook/src/inventory/(send|interop)/((?!shared/)[^/]+)/([^/]+)/',
@@ -343,21 +340,21 @@ function packageLayerRules() {
     {
       name: 'products-do-not-cross:send',
       severity: 'error',
-      comment: 'EVO-RBREORG-OPUS-01 §10: SEND code never imports INTEROP code.',
+      comment: 'SEND code never imports INTEROP code.',
       from: { path: '^packages/go-runbook/src/(?:toolkits|inventory)/send/' },
       to: { path: '^packages/go-runbook/src/(?:toolkits|inventory)/interop/' },
     },
     {
       name: 'products-do-not-cross:interop',
       severity: 'error',
-      comment: 'EVO-RBREORG-OPUS-01 §10: INTEROP code never imports SEND code.',
+      comment: 'INTEROP code never imports SEND code.',
       from: { path: '^packages/go-runbook/src/(?:toolkits|inventory)/interop/' },
       to: { path: '^packages/go-runbook/src/(?:toolkits|inventory)/send/' },
     },
     {
       name: 'inventory-does-not-know-runtime',
       severity: 'error',
-      comment: 'EVO-RBREORG-OPUS-01 §10: the inventory never imports the runtime (composition root).',
+      comment: 'the inventory never imports the runtime (composition root).',
       from: { path: '^packages/go-runbook/src/inventory/', pathNot: '/__tests__/' },
       to: { path: '^packages/go-runbook/src/runtime/' },
     },

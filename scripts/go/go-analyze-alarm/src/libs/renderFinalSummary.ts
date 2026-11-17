@@ -6,7 +6,7 @@ import { apigw } from '@pagopa/go-runbook/toolkits/send';
 
 /**
  * Renders the summary of a runbook execution chosen by the product family of the
- * runbook context (EVO-RBREORG-OPUS-01 P19): the SEND service-chain summary only for
+ * runbook context: the SEND service-chain summary only for
  * the SEND API Gateway pipeline, never for an INTEROP API Gateway or K8S runbook.
  *
  * @param logger - Logger of the script

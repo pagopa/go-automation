@@ -1,8 +1,7 @@
 import type { RunbookContext } from '../../../engine/types/RunbookContext.js';
 
 /**
- * Value of a runbook variable, trimmed; `undefined` when it is missing or blank
- * (EVO-RBREORG-OPUS-01 P30, shared by the INTEROP query steps).
+ * Value of a runbook variable, trimmed; `undefined` when it is missing or blank.
  *
  * @param context - Runbook context
  * @param key - Variable name

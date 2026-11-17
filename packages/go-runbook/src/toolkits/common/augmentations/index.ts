@@ -6,7 +6,7 @@ import type { StepDiagnosticsAugmentation } from './StepDiagnostics.js';
 import type { ValidationErrorCodesAugmentation } from './ValidationErrorCodes.js';
 
 /**
- * Marker of the operational model (EVO-RBREORG-OPUS-01 §7.1.3 E, RBREORG-11).
+ * Marker of the operational model.
  *
  * Every operational entrypoint re-exports it as a type: the re-export stays in
  * the emitted declarations and drags the augmentations into the program of an

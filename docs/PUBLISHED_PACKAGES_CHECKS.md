@@ -1,6 +1,6 @@
 # Controlli dei package pubblicati
 
-> Guida ai comandi introdotti dalla Fase 4 di [EVO-PKGPUB-OPUS-01](evolutions/EVO-PKGPUB-OPUS-01.md) (§10): cosa fa ogni comando, quando usarlo e come.
+> Guida ai comandi che controllano i package pubblicati: cosa fa ogni comando, quando usarlo e come.
 >
 > Data: 2026-11-16.
 >
@@ -146,7 +146,7 @@ ok   @pagopa/go-aws/s3: 50 ms (budget 80), 23 third-party packages
 
 ### 4.5 `pnpm check:published`: nessun dato sensibile nei pacchetti
 
-Questo comando c'era già (EVO-AWSACCT-OPUS-01). Crea il pacchetto di ogni `@pagopa/*` e controlla che nessun file contenga account id AWS, ARN con account o nomi di profilo. È spiegato in [AWS_LOGICAL_ACCOUNTS.md](AWS_LOGICAL_ACCOUNTS.md). Ora fa parte anche di `test:published`.
+Questo comando c'era già. Crea il pacchetto di ogni `@pagopa/*` e controlla che nessun file contenga account id AWS, ARN con account o nomi di profilo. È spiegato in [AWS_LOGICAL_ACCOUNTS.md](AWS_LOGICAL_ACCOUNTS.md). Ora fa parte anche di `test:published`.
 
 ### 4.6 `pnpm check:published-packages`: il pacchetto vero funziona?
 
@@ -279,13 +279,13 @@ Se un giorno go-runbook alzasse il minimo a `>=24.0.0`, la CI lo seguirebbe da s
 
 ## 7. Dove sta il codice
 
-| Strumento                            | Cartella                               | File da conoscere                                                                         |
-| ------------------------------------ | -------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Pacchetti installati da zero         | `bins/check-published-packages/`       | `scenarios.ts` (scenari e peer di go-aws), `nodeMatrix.ts` (versioni di Node)             |
-| Costo di import                      | `bins/check-import-cost/`              | `budgets.ts` (soglie e librerie vietate)                                                  |
-| Fotografia dell'API                  | `bins/check-api-report/`               | `renderApiReport.ts` (contenuto della fotografia), `probeValueExports.ts` (valore o tipo) |
-| Dati sensibili (EVO-AWSACCT-OPUS-01) | `bins/check-published-sensitive-data/` | `published-sensitive-data.config.json` alla radice                                        |
-| Fotografie generate                  | `packages/<package>/api/`              | non si modificano a mano                                                                  |
+| Strumento                    | Cartella                               | File da conoscere                                                                         |
+| ---------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Pacchetti installati da zero | `bins/check-published-packages/`       | `scenarios.ts` (scenari e peer di go-aws), `nodeMatrix.ts` (versioni di Node)             |
+| Costo di import              | `bins/check-import-cost/`              | `budgets.ts` (soglie e librerie vietate)                                                  |
+| Fotografia dell'API          | `bins/check-api-report/`               | `renderApiReport.ts` (contenuto della fotografia), `probeValueExports.ts` (valore o tipo) |
+| Dati sensibili               | `bins/check-published-sensitive-data/` | `published-sensitive-data.config.json` alla radice                                        |
+| Fotografie generate          | `packages/<package>/api/`              | non si modificano a mano                                                                  |
 
 ## 8. Domande frequenti
 

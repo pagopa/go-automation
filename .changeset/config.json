@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@4.0.1/schema.json",
-  "changelog": ["@changesets/changelog-github", { "repo": "pagopa/go-automation" }],
+  "changelog": ["@changesets/changelog-github", { "repo": "pagopa/go-automation", "disableThanks": true }],
   "commit": false,
   "access": "restricted",
   "baseBranch": "main",

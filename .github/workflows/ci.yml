@@ -127,9 +127,8 @@ jobs:
       timeout-minutes: 25
       download-artifact-name: workspace-build
 
-  # EVO-PKGPUB-OPUS-01 §10 (Phase 4), static gates on the built workspace: publint, attw,
-  # API reports, import budgets and the sensitive-data gate on the packed archives
-  # (EVO-AWSACCT G-pub-1). No package is published without them.
+  # Static gates of the published packages: publint, attw, API reports, import budgets and the
+  # sensitive-data gate on the packed archives. No package is published without them.
   published:
     name: Published Packages
     needs: build
@@ -140,7 +139,7 @@ jobs:
       timeout-minutes: 25
       download-artifact-name: workspace-build
       # GitHub runners are about twice as slow as a workstation: only the time thresholds are widened,
-      # the checks on the loaded libraries stay the same (EVO-PKGPUB-OPUS-01 §10.4).
+      # the checks on the loaded libraries stay the same.
       import-cost-time-factor: '2'
 
   # §10.2: the archives are packed once on the toolchain Node (24) and reused by every cell of

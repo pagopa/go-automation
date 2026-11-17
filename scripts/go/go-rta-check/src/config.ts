@@ -120,7 +120,7 @@ export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
     type: GOConfigParameterType.STRING_ARRAY,
     description:
       'Account directory of the logical AWS accounts read by multi-account runbooks: ' +
-      '<product>/<account>/<environment>=<accountId> entries (EVO-AWSACCT-OPUS-01)',
+      '<product>/<account>/<environment>=<accountId> entries',
     required: false,
     aliases: ['aad'],
   },

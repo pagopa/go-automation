@@ -15,7 +15,7 @@ import type { RunbookReporter } from '../../../../../../engine/reporting/Runbook
 import { SEND_API_GW_PROFILE } from '../../../../../send/families/apigw/profiles/SEND_API_GW_PROFILE.js';
 import type { OperationalContext } from '../../../../services/OperationalContext.js';
 
-// The step has no product default (EVO-RBREORG-OPUS-01 P11): the tests use the SEND profile.
+// The step has no product default: the tests use the SEND profile.
 const SEND_EXECUTION_LOG = SEND_API_GW_PROFILE.executionLog;
 if (SEND_EXECUTION_LOG === undefined) throw new Error('SEND_API_GW_PROFILE declares an execution log');
 const PROFILE_FIELDS = {

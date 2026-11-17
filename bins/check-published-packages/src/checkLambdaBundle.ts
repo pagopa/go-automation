@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 
 import { build } from 'esbuild';
 
-/** Modules the pilot bundle must never contain (EVO-PKGPUB-OPUS-01 §10.2, S8). */
+/** Modules the pilot bundle must never contain. */
 const FORBIDDEN_MODULES: ReadonlyArray<RegExp> = [
   /\/@aws-sdk\/client-ec2\//u,
   /\/@inquirer\//u,

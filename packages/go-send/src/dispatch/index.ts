@@ -1,6 +1,6 @@
 /**
- * Dispatch module: unified sending of SEND notifications
- * (EVO-SENDNOTIF-OPUS-01). Exported as the `Dispatch` namespace:
+ * Dispatch module: unified sending of SEND notifications.
+ * Exported as the `Dispatch` namespace:
  *
  * ```typescript
  * import { Dispatch } from '@go-automation/go-send';

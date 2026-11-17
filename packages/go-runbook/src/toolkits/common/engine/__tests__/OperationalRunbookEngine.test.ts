@@ -79,7 +79,7 @@ async function assertRejectedBeforeFirstStep(execute: ExecutionFn, spy: SpyStep)
   assert.strictEqual(spy.executed, false);
 }
 
-describe('service check of the engine (EVO-RBREORG-OPUS-01 §7.1.3 A)', () => {
+describe('service check of the engine', () => {
   const engine = (): RunbookEngine => new RunbookEngine(new GOLogger());
 
   it('rejects a DynamoDB step run with WorkflowServices only, before the first step', async () => {

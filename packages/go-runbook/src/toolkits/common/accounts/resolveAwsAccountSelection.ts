@@ -5,7 +5,7 @@ import type { ResolvedAwsAccount } from './ResolvedAwsAccount.js';
 import { selectAwsAccounts } from './selectAwsAccounts.js';
 
 /**
- * Logical accounts a step reads in this execution (EVO-AWSACCT-OPUS-01 §7):
+ * Logical accounts a step reads in this execution:
  * the same result the pre-execution check computed, so the readers are already prepared.
  *
  * @param context - Operational context of the step

@@ -5,7 +5,7 @@ import type { NodeMatrixCell } from './types/NodeMatrixCell.js';
 import type { PackedPackage } from './types/PackedPackage.js';
 import type { SmokeScenario } from './types/SmokeScenario.js';
 
-/** Node major the toolchain and the CI default run on (EVO-PKGPUB-OPUS-01 §10.2). */
+/** Node major the toolchain and the CI default run on. */
 const TOOLCHAIN_NODE = '24';
 
 /**

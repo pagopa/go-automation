@@ -4,8 +4,8 @@ import type { OperationalContext } from '../services/OperationalContext.js';
 import type { OperationalServiceName } from '../services/OperationalServiceName.js';
 
 /**
- * Base of every step that uses operational services besides the reporter
- * (EVO-RBREORG-OPUS-01 §7.1.3 A). It has no fields, so subclasses keep the same
+ * Base of every step that uses operational services besides the reporter.
+ * It has no fields, so subclasses keep the same
  * own properties and the same definition digest. Declaring the required
  * services lets the engine reject an execution that cannot serve the step
  * before the first step runs.
@@ -22,7 +22,7 @@ export abstract class OperationalStep<TOutput = unknown> {
 
   /**
    * Logical AWS accounts the step reads, checked and prepared before the first
-   * step (EVO-AWSACCT-OPUS-01 §6.3). On the prototype, so it never changes the
+   * step. On the prototype, so it never changes the
    * definition digest. A step that returns selections also requires `awsAccounts`.
    *
    * @returns The step's account selections; none by default

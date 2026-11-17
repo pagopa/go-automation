@@ -5,8 +5,8 @@ import type { AwsAccountsSettings } from './AwsAccountsSettings.js';
 const BINDINGS: ReadonlySet<string> = new Set<AwsAccountsBinding>(['profiles', 'oam']);
 
 /**
- * Validates the raw `aws.account.*` values of a host into an {@link AwsAccountsConfig}
- * (EVO-AWSACCT-OPUS-01 §8.1). Blank values count as absent; the directory itself
+ * Validates the raw `aws.account.*` values of a host into an {@link AwsAccountsConfig}.
+ * Blank values count as absent; the directory itself
  * is validated when the port is built.
  *
  * @param settings - Raw values and the host's default binding

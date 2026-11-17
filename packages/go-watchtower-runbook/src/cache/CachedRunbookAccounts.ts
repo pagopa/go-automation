@@ -1,5 +1,5 @@
 /**
- * Logical-account inputs of a cached execution (EVO-AWSACCT-OPUS-01 §6.5): the
+ * Logical-account inputs of a cached execution: the
  * same occurrence read with another directory, binding or credential preference
  * may read other accounts or fail differently.
  */

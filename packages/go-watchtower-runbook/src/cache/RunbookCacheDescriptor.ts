@@ -14,6 +14,6 @@ export interface RunbookCacheDescriptor {
   readonly hash: string;
   /** Resolved occurrence window, including the catalog default when omitted. */
   readonly occurrenceTimeWindow: OccurrenceTimeWindow;
-  /** Logical AWS accounts the runbook's steps declare, sorted (EVO-AWSACCT-OPUS-01). */
+  /** Logical AWS accounts the runbook's steps declare, sorted. */
   readonly logicalAccounts: ReadonlyArray<string>;
 }

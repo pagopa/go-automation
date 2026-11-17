@@ -6,7 +6,7 @@ import { nodeMatrix, scenarioMinimum } from '../nodeMatrix.js';
 import type { PackedPackage } from '../types/PackedPackage.js';
 import type { SmokeScenario } from '../types/SmokeScenario.js';
 
-describe('engineViolations (EVO-PKGPUB-OPUS-01 §8.1)', () => {
+describe('engineViolations', () => {
   it('accepts dependencies whose range contains the declared one', () => {
     assert.deepStrictEqual(
       engineViolations({ name: '@pagopa/go-common', enginesNode: '>=22.19.0' }, [
@@ -37,7 +37,7 @@ describe('engineViolations (EVO-PKGPUB-OPUS-01 §8.1)', () => {
   });
 });
 
-describe('nodeMatrix (EVO-PKGPUB-OPUS-01 §10.2)', () => {
+describe('nodeMatrix', () => {
   const pkg = (name: string, enginesNode: string, internalDependencies: ReadonlyArray<string> = []): PackedPackage => ({
     name,
     version: '0.0.0',

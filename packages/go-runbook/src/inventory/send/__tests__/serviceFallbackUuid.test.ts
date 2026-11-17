@@ -30,7 +30,7 @@ function contextWithRow(queryStepId: string): RunbookContext {
   };
 }
 
-// EVO-RBREORG-OPUS-01 F4: the FALLBACK-UUID extraction leaves the common scanner and is
+// the FALLBACK-UUID extraction leaves the common scanner and is
 // injected by SEND_SERVICE_PROFILE. Every SEND service pipeline keeps extracting it.
 describe('SEND service runbooks extract the FALLBACK-UUID', () => {
   const analyzeSteps = SEND_MANIFEST.flatMap((registration) => {

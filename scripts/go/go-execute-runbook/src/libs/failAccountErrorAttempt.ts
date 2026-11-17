@@ -10,8 +10,8 @@ const OCCURRENCE_CODES: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Closes the active attempt when the runbook cannot read its logical AWS accounts
- * (EVO-AWSACCT-OPUS-01 §6.4). The failure is permanent: retrying the message would
+ * Closes the active attempt when the runbook cannot read its logical AWS accounts.
+ * The failure is permanent: retrying the message would
  * fail the same way until the configuration changes.
  *
  * - occurrence outside the runbook's accounts or environments → `CAPABILITY` / `RUNBOOK_CAPABILITY_MISMATCH`;

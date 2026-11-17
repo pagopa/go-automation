@@ -8,7 +8,7 @@ import { SetVarStep } from '../../steps/control/SetVarStep.js';
 import { createTestWorkflowServices } from '../../testing/createTestWorkflowServices.js';
 import type { Runbook } from '../../types/Runbook.js';
 
-// EVO-RBREORG-OPUS-01 §6.1: the engine runs a complete runbook in memory with WorkflowServices only.
+// the engine runs a complete runbook in memory with WorkflowServices only.
 describe('RunbookEngine with WorkflowServices only', () => {
   it('runs the pipeline, matches a known case and returns the trace', async () => {
     const runbook: Runbook = {

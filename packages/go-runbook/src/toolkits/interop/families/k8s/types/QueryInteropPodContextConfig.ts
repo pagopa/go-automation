@@ -2,7 +2,7 @@ import type { InteropPodContextCompleteness } from './InteropPodContextCompleten
 
 /**
  * Configuration of {@link QueryInteropPodContextStep}: the full log context of
- * the alarmed pod, at every level (EVO-RBREORG-OPUS-01 P30).
+ * the alarmed pod, at every level.
  */
 export interface QueryInteropPodContextConfig {
   /** Step id. */

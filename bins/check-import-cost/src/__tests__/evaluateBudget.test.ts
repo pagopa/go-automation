@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { evaluateBudget, packageOfInput, type ModuleGraph } from '../evaluateBudget.js';
 import { parseTiming } from '../measureBudget.js';
 
-describe('evaluateBudget (EVO-PKGPUB-OPUS-01 §10.4)', () => {
+describe('evaluateBudget', () => {
   const graph = (thirdParty: ReadonlyArray<string>, hasNativeModule = false): ModuleGraph => ({
     thirdParty,
     hasNativeModule,

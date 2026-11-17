@@ -1,6 +1,6 @@
 import type { AwsAccountsBinding } from './AwsAccountsBinding.js';
 
-/** Account configuration of an execution host (EVO-AWSACCT-OPUS-01 §8.1): the `aws.account.*` keys. */
+/** Account configuration of an execution host: the `aws.account.*` keys. */
 export interface AwsAccountsConfig {
   /** Raw `aws.account.directory` entries, `<product>/<account>/<environment>=<accountId>`. */
   readonly directory: ReadonlyArray<string>;

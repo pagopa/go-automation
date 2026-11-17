@@ -439,7 +439,7 @@ const dynamoClient = clientProvider.getClient(DynamoDBClient);
 
 ## Runbook: `Step.execute` resta un metodo (bivarianza)
 
-> Regola di go-runbook (EVO-RBREORG-OPUS-01 §7.1.3, RBREORG-06).
+> Regola di go-runbook.
 
 **La regola.** In `Step` (`packages/go-runbook/src/engine/types/Step.ts`) e negli step che lo implementano, `execute` si dichiara come **metodo**:
 

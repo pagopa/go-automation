@@ -7,7 +7,7 @@ import type { LogActionValues } from './LogActionValues.js';
  * Message an action resolves to: the rendered text of a log action, the
  * interpolated template of a notification or an escalation, nothing for
  * updates and composites. Shared by the action executor and the output
- * builder, so they cannot drift apart (EVO-RBREORG-OPUS-01 P09).
+ * builder, so they cannot drift apart.
  *
  * @param action - The action
  * @param values - `vars` and `params` to interpolate

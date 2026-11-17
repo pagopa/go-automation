@@ -1,5 +1,5 @@
 /**
- * Generic apigw family of the operational toolkit: no product data (EVO-RBREORG-OPUS-01 §7.2).
+ * Generic apigw family of the operational toolkit: no product data.
  * Product toolkits re-export it inside their own `apigw` namespace, adding their pipelines and profiles.
  */
 

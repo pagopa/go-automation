@@ -5,7 +5,7 @@ import { formatFinding } from './formatFinding.js';
 import { listPublishedPackages } from './listPublishedPackages.js';
 import { loadSensitiveDataConfig } from './loadSensitiveDataConfig.js';
 
-/** Default configuration, at the repository root (EVO-AWSACCT-OPUS-01 §9). */
+/** Default configuration, at the repository root. */
 const DEFAULT_CONFIG = 'published-sensitive-data.config.json';
 
 function optionValue(argv: ReadonlyArray<string>, option: string): string | undefined {
@@ -35,7 +35,7 @@ async function main(): Promise<number> {
     console.log(`Published ${kind}: no sensitive data in ${packages.map((item) => item.name).join(', ')}.`);
     return 0;
   }
-  console.error(`Published ${kind}: ${String(findings.length)} finding(s) (EVO-AWSACCT-OPUS-01 §9).`);
+  console.error(`Published ${kind}: ${String(findings.length)} finding(s).`);
   for (const { scope, finding } of findings) console.error(`- ${formatFinding(scope, finding)}`);
   console.error('Use a logical account and a synthetic id, or add a reasoned exception to the configuration.');
   return 1;

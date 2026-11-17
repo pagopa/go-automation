@@ -10,7 +10,7 @@ const RUNS = 5;
 
 /**
  * Multiplier of the time thresholds, from `IMPORT_COST_TIME_FACTOR` (default 1). The module-graph
- * assertions never change: they are the real guarantee (EVO-PKGPUB-OPUS-01 §10.4).
+ * assertions never change: they are the real guarantee.
  */
 function timeFactor(): number {
   const raw = process.env['IMPORT_COST_TIME_FACTOR'];

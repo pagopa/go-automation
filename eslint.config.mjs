@@ -172,7 +172,7 @@ const sharedRestrictedSyntaxRules = [
 
 /**
  * Source globs of the published packages (`packages/*` named `@pagopa/*`, not private), the
- * same set `bins/check-published-sensitive-data` packs (EVO-AWSACCT-OPUS-01 §9, G-pub-3).
+ * same set `bins/check-published-sensitive-data` packs.
  *
  * @returns One `packages/<dir>/src/**\/*.ts` glob per published package
  */
@@ -480,7 +480,7 @@ export default tseslint.config(
     },
   },
 
-  // EVO-AWSACCT-OPUS-01 §9 G-pub-3: no account id literal in the published packages' code.
+  // G-pub-3: no account id literal in the published packages' code.
   {
     files: publishedPackageSources(),
     ignores: ['**/__tests__/**', '**/*.test.ts', '**/__baseline__/**'],
@@ -490,13 +490,13 @@ export default tseslint.config(
         ...sharedRestrictedSyntaxRules,
         {
           selector: 'Literal[value=/^[0-9]{12}$/]',
-          message: 'account id nel codice pubblicato: usa un account logico (EVO-AWSACCT)',
+          message: 'account id nel codice pubblicato: usa un account logico',
         },
       ],
     },
   },
 
-  // EVO-RBREORG-OPUS-01 §10, import rules of go-runbook checked on the import specifier.
+  // import rules of go-runbook checked on the import specifier.
   // dependency-cruiser keeps the path rules, but workspace packages resolve to dist/, which it
   // excludes: on those imports it neither sees `import type` nor can be relied upon to keep the
   // edge. These blocks enforce, independently of resolution:
@@ -821,13 +821,13 @@ export default tseslint.config(
 );
 
 /**
- * ESLint blocks enforcing the go-runbook import rules of EVO-RBREORG-OPUS-01 §10 on the import specifier.
+ * ESLint blocks enforcing the go-runbook import rules on the import specifier.
  *
  * @returns Flat-config blocks for toolkits/inventory, their named debt, and the engine
  */
 function goRunbookImportRules() {
   const RULE = '@typescript-eslint/no-restricted-imports';
-  const SPEC = '(EVO-RBREORG-OPUS-01 §10)';
+  const SPEC = '';
   const goAwsRootTypeOnly = {
     name: '@pagopa/go-aws',
     allowTypeImports: true,

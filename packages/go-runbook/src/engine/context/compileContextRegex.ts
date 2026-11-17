@@ -3,8 +3,8 @@ import { compileRegex } from '@pagopa/go-common/utils';
 import type { RunbookContext } from '../types/RunbookContext.js';
 
 /**
- * Compiles a pattern with the regex cache of the engine that owns the context
- * (EVO-RBREORG-OPUS-01 R9). A context built by hand, without a cache, compiles
+ * Compiles a pattern with the regex cache of the engine that owns the context.
+ * A context built by hand, without a cache, compiles
  * without caching.
  *
  * @param context - The current runbook context

@@ -2,7 +2,7 @@ import type { AwsAccountSelection } from '../../../accounts/AwsAccountSelection.
 
 /**
  * Configuration of {@link QueryLambdaAcrossAccountsStep}: a Lambda log group
- * with the same name in several accounts (EVO-RBREORG-OPUS-01 P30).
+ * with the same name in several accounts.
  */
 export interface QueryLambdaAcrossAccountsConfig {
   /** Error scan, or reconstruction of the invocations of the scanned request ids. */

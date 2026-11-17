@@ -44,8 +44,8 @@ interface LambdaLogSource {
 }
 
 /**
- * Reads a Lambda log group that exists with the same name in several accounts
- * (EVO-RBREORG-OPUS-01 P30). Replaces the per-runbook copies of the SEND
+ * Reads a Lambda log group that exists with the same name in several accounts.
+ * Replaces the per-runbook copies of the SEND
  * `pn-downstream-monitoring-lambda` and `DailyExport` alarms.
  *
  * - `errors`: one complete error scan per source; a scan at the row limit fails,

@@ -14,7 +14,7 @@ import type { RunbookCatalogOptions } from './RunbookCatalogOptions.js';
 /**
  * Registry of the automatic runbooks of an inventory.
  *
- * Built lazily (EVO-RBREORG-OPUS-01 §7.5, R5): the constructor indexes only the
+ * Built lazily: the constructor indexes only the
  * registrations (keys and alarm names are static data, so collisions fail
  * immediately and globally). A runbook is built and hashed only when it is
  * resolved, and its descriptor is memoized in this instance; `build()` still

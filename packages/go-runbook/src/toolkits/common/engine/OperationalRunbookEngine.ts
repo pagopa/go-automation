@@ -11,7 +11,7 @@ import type { ServiceRegistry } from '../services/ServiceRegistry.js';
 import { assertAwsAccounts } from './assertAwsAccounts.js';
 
 /**
- * Engine for operational runbooks (EVO-RBREORG-OPUS-01 §7.1.3 A, RBREORG-19).
+ * Engine for operational runbooks.
  *
  * It composes a private {@link RunbookEngine} configured with the operational
  * service capabilities and the analysis renderer of log actions, and requires a full {@link ServiceRegistry} at compile

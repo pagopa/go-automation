@@ -6,8 +6,8 @@ import type { ResolvedAwsAccount } from '../../toolkits/common/accounts/Resolved
 import type { AwsAccountsPort } from '../../toolkits/common/services/ports/AwsAccountsPort.js';
 
 /**
- * Account port of a host whose account configuration is invalid
- * (EVO-AWSACCT-OPUS-01 §6.4). A long-running host (the worker Lambda) keeps
+ * Account port of a host whose account configuration is invalid.
+ * A long-running host (the worker Lambda) keeps
  * serving runbooks without logical accounts; each runbook that declares them
  * fails before its first step with `AWS_ACCOUNT_DIRECTORY_INVALID`, a permanent
  * configuration failure of that execution only.

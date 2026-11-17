@@ -102,7 +102,7 @@ async function run(steps: ReadonlyArray<Step>, registry: ServiceRegistry): Promi
   return new OperationalRunbookEngine(new GOLogger()).execute(runbook(steps), new Map(), registry, ENV);
 }
 
-describe('pre-execution check of the logical accounts (EVO-AWSACCT-OPUS-01 §6.3)', () => {
+describe('pre-execution check of the logical accounts', () => {
   it('prepares the accounts of the environment and lets the step read them', async () => {
     const step = new SelectingStep('both', BOTH);
     await run([step], services({ occurrence: { accountId: '000000000201', region: REGION } }));

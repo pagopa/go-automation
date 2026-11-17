@@ -22,7 +22,7 @@ const CONFIGURED_PROFILES = 'Configured profiles: ';
 /**
  * Removes local AWS profile names from a message that may leave the host
  * (runbook output, report, Watchtower payload): profile names are local data
- * and stay in the local diagnostics only (EVO-AWSACCT-OPUS-01 §6.1).
+ * and stay in the local diagnostics only.
  *
  * @param message - Message to clean
  * @param profileNames - Profile names known to the host, replaced only where they appear as whole tokens

@@ -6,7 +6,7 @@ import type { PackedPackage } from './types/PackedPackage.js';
 /**
  * Checks that the `engines.node` range of each published package is contained in the range of every
  * package in **its own** installed dependency closure: internal `@pagopa/*` dependencies and installed
- * peers included (EVO-PKGPUB-OPUS-01 §8.1, §10.2 step 5). The closure follows the dependency direction,
+ * peers included. The closure follows the dependency direction,
  * so a foundation package is never checked against the narrower range of its consumers.
  *
  * @param directory - Consumer project

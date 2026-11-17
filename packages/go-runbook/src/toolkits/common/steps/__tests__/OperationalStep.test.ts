@@ -46,7 +46,7 @@ describe('OperationalStep', () => {
     assert.deepStrictEqual(await new AthenaProbeStep().execute(context), { success: true, output: 1 });
   });
 
-  // EVO-RBREORG-OPUS-01 §7.1.3 A: a step typed on the operational context must declare its services.
+  // a step typed on the operational context must declare its services.
   it('is extended by every step whose execute takes an OperationalContext', () => {
     const offenders = ts.sys
       .readDirectory(SRC_DIR, ['.ts'], ['**/__tests__/**'])

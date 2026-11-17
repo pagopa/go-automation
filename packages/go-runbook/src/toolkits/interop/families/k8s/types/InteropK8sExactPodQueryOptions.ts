@@ -1,6 +1,6 @@
 /**
  * Options of {@link interopK8sExactPodQueryProfile}: the variations of the
- * "exact pod" application-log query of the INTEROP k8s runbooks (EVO-RBREORG-OPUS-01 P30).
+ * "exact pod" application-log query of the INTEROP k8s runbooks.
  */
 export interface InteropK8sExactPodQueryOptions {
   /** Trace profile id of the application-log query. */

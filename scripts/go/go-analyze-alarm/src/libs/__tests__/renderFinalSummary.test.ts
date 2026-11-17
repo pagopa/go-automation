@@ -44,7 +44,7 @@ const API_GW = {
   services: [{ name: 'interop-be-api', varPrefix: 'api', logGroup: '/aws/eks/interop-be-api' }],
 };
 
-describe('renderFinalSummary (EVO-RBREORG-OPUS-01 P19)', () => {
+describe('renderFinalSummary', () => {
   it('never renders the SEND service-chain summary for an INTEROP API Gateway runbook', () => {
     const interop = recordingLogger();
     renderFinalSummary(interop.logger, runbookWith({ ...API_GW, product: 'INTEROP' }), RESULT);

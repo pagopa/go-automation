@@ -10,7 +10,7 @@ const PILOT_FORBIDDEN: ReadonlyArray<string> = [
 ];
 
 /**
- * Budgets of EVO-PKGPUB-OPUS-01 §10.4 (amendment r14). The deterministic assertions on the module
+ * Import budgets of the published entrypoints. The deterministic assertions on the module
  * graph are the real guarantee; the times are wide thresholds.
  */
 export const IMPORT_BUDGETS: ReadonlyArray<ImportBudget> = [

@@ -8,7 +8,7 @@ import { createTestServiceRegistry } from './createTestServiceRegistry.js';
 import type { InMemoryAwsAccountsPortOptions } from './InMemoryAwsAccountsPortOptions.js';
 
 /**
- * Account port for tests (EVO-AWSACCT-OPUS-01 §5.5): the real directory logic
+ * Account port for tests: the real directory logic
  * (environment, entries, aliases) with in-memory readers instead of AWS credentials.
  *
  * @example

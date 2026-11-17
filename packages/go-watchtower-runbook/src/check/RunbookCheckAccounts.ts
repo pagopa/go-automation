@@ -1,6 +1,6 @@
 import type { AwsAccountsPort } from '@pagopa/go-runbook/toolkits/common';
 
-/** Logical-account configuration of an RTA check run (EVO-AWSACCT-OPUS-01 §8.2). */
+/** Logical-account configuration of an RTA check run. */
 export interface RunbookCheckAccounts {
   /** Account port built with every configured profile; bound to each occurrence. */
   readonly port: AwsAccountsPort;

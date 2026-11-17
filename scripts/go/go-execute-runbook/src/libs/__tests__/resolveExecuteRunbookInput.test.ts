@@ -39,7 +39,7 @@ function depsFor(alarmName: string): ExecuteRunbookDeps {
   };
 }
 
-// EVO-RBREORG-OPUS-01 §7.5 (RBREORG-22): the catalog is lazy, and these run before any
+// the catalog is lazy, and these run before any
 // listDescriptors() call in this process, i.e. on a cold catalog.
 describe('resolveExecuteRunbookInput on a cold catalog', () => {
   it('resolves a complete descriptor that the capability check accepts and that matches the listed one', async () => {

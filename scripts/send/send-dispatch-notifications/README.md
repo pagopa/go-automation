@@ -5,7 +5,7 @@ Invio di notifiche SEND da un file CSV, JSON o JSONL, con due modalità:
 - **`e2e`**: API B2B di SEND, con throttling a 20 chiamate/s, verifica dell'accettazione e recupero del `requestId` da `pn-Timelines`;
 - **`direct`**: pn-external-channels attraverso un tunnel, per i test verso il consolidatore.
 
-In entrambe c'è un journal durevole con ripresa, e l'output è 1:1 con l'input. Specifica: [`docs/evolutions/EVO-SENDNOTIF-OPUS-01.md`](../../../docs/evolutions/EVO-SENDNOTIF-OPUS-01.md).
+In entrambe c'è un journal durevole con ripresa, e l'output è 1:1 con l'input.
 
 ## Prerequisiti
 

@@ -1,4 +1,4 @@
-/** Scope of the published packages: the scope says whether a package is published (EVO-PKGPUB-OPUS-01 §9.1). */
+/** Scope of the published packages: the scope says whether a package is published. */
 export const PUBLISHED_SCOPE = '@pagopa/';
 
 /** Prefix of the head branch of a manual release PR (§9.3, fallback path since r15). */

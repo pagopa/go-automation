@@ -5,7 +5,7 @@ import type { TestServiceCall } from './TestServiceCall.js';
 import type { TestServiceOverrides } from './TestServiceOverrides.js';
 import { UnexpectedServiceCallError } from './UnexpectedServiceCallError.js';
 
-/** Optional services of the registry: present only when the test provides them (EVO-AWSACCT-OPUS-01). */
+/** Optional services of the registry: present only when the test provides them. */
 const OPTIONAL_SERVICES: ReadonlySet<string> = new Set(['awsAccounts']);
 
 /** Methods that derive a scoped service: the fake returns itself and records the arguments. */
@@ -15,8 +15,7 @@ const SCOPING_METHODS: ReadonlySet<string> = new Set(['forTarget', 'forExecution
 const RECORDED_CALLS = new WeakMap<object, TestServiceCall[]>();
 
 /**
- * Builds a {@link ServiceRegistry} for tests, **complete by construction**
- * (EVO-RBREORG-OPUS-01 RBREORG-18).
+ * Builds a {@link ServiceRegistry} for tests, **complete by construction**.
  *
  * Every required operational service is present and exposes every method of
  * {@link OPERATIONAL_SERVICE_METHODS} (the optional `awsAccounts` port only when provided), so the service check of the engine

@@ -1,4 +1,4 @@
-/** Where the npm dist-tags of one package must point (EVO-PKGPUB-OPUS-01 §9.3, `promote-channels`). */
+/** Where the npm dist-tags of one package must point. */
 export interface ChannelTargets {
   /** Highest stable version; absent while only prereleases exist. */
   readonly latest?: string;

@@ -109,7 +109,7 @@ describe('buildExecuteRunbookDeps', () => {
   });
 });
 
-describe('buildExecuteRunbookDeps — logical AWS accounts (EVO-AWSACCT-OPUS-01)', () => {
+describe('buildExecuteRunbookDeps — logical AWS accounts', () => {
   const managed = { ...BASE_CONFIG, executeRunbookArtifactRevision: 'build-1', watchtowerPassword: 'secret' };
 
   it('adds the account port, reading through OAM in AWS-managed execution', async () => {

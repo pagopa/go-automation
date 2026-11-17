@@ -17,7 +17,7 @@ function packed(name: string, enginesNode: string): PackedPackage {
   return { name, version: '1.0.0', tarball: '', enginesNode, subpaths: ['.'], internalDependencies: [] };
 }
 
-describe('InstalledGraph and checkEngines (EVO-PKGPUB-OPUS-01 §8.1, §10.2)', () => {
+describe('InstalledGraph and checkEngines', () => {
   let consumer = '';
 
   before(async () => {

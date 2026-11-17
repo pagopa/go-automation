@@ -28,7 +28,7 @@ export type DownstreamDetectionQueryOptions = DownstreamDetectionQueryCommonOpti
          */
         readonly matchStructuredMessage?: boolean;
         /**
-         * Field that carries the marker (EVO-RBREORG-OPUS-01 R4, RBREORG-25):
+         * Field that carries the marker:
          * - `'@message'` (default): the raw event, as every downstream query does today;
          * - `'message'`: **only** the structured field, with no raw `@message` predicate. For
          *   payloads too large to scan raw, and so a marker quoted in a raw stack trace never

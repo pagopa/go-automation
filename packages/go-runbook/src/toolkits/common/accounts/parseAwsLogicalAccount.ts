@@ -3,7 +3,7 @@ import type { AwsLogicalAccount } from './AwsLogicalAccount.js';
 const LOGICAL_ACCOUNT_PATTERN = /^[a-z0-9-]+\/[a-z0-9-]+$/u;
 
 /**
- * Validates and brands a logical account (EVO-AWSACCT-OPUS-01 §5.1).
+ * Validates and brands a logical account.
  *
  * @param value - `<product>/<account>`, lower-case slugs
  * @returns The branded logical account

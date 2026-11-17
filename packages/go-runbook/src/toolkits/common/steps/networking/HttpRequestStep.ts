@@ -88,7 +88,7 @@ export class HttpRequestStep extends OperationalStep<GOHttpResponse<unknown>> im
   /**
    * Whether the request is provably read-only: method `GET` or `HEAD`, written
    * literally (a placeholder resolved at runtime cannot be proven read-only).
-   * Used by the cloud policy (EVO-RBREORG-OPUS-01 RBREORG-21).
+   * Used by the cloud policy.
    *
    * @returns `true` for a literal `GET` or `HEAD`
    */

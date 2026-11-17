@@ -1,4 +1,4 @@
-/** One installation of the published tarballs and what it must be able to import (EVO-PKGPUB-OPUS-01 §10.2). */
+/** One installation of the published tarballs and what it must be able to import. */
 export interface SmokeScenario {
   /** Short id, e.g. `S4-sqs`. */
   readonly id: string;

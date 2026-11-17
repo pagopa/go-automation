@@ -34,7 +34,7 @@ function repository(head: Readonly<Record<string, string>> = RELEASED_TREE): Fak
   return git;
 }
 
-describe('release-pr-guard reproduction (EVO-PKGPUB-OPUS-01 §10.3 point 3)', () => {
+describe('release-pr-guard reproduction', () => {
   let root = '';
   let work = '';
   let calls: string[] = [];

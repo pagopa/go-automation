@@ -1,5 +1,5 @@
 /**
- * Runbook engine: entrypoint `@pagopa/go-runbook` (EVO-RBREORG-OPUS-01 §8.1).
+ * Runbook engine: entrypoint `@pagopa/go-runbook`.
  *
  * The language and the execution of a workflow: types, context, conditions,
  * control/check/transform steps, actions, traces, reporters, builder, graph

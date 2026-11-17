@@ -5,7 +5,7 @@ import type { ServiceDescriptor } from '../types/ServiceDescriptor.js';
 
 export interface ServiceRunbookContext {
   readonly kind: 'service';
-  /** Product whose pipeline built the runbook: selects the product-specific summaries (EVO-RBREORG-OPUS-01 P19). */
+  /** Product whose pipeline built the runbook: selects the product-specific summaries. */
   readonly product: RunbookProduct;
   readonly service: ServiceDescriptor;
   readonly queryProfileId: string;

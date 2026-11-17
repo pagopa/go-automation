@@ -1,6 +1,6 @@
 # Versioni e rilasci dei package pubblicati
 
-> Come si dichiarano le modifiche, come si fa un rilascio e cosa controlla la CI per `@pagopa/go-common`, `@pagopa/go-aws` e `@pagopa/go-runbook`. Le regole vengono da [EVO-PKGPUB-OPUS-01](evolutions/EVO-PKGPUB-OPUS-01.md) §9.2, §9.3 e §10.3.
+> Come si dichiarano le modifiche, come si fa un rilascio e cosa controlla la CI per `@pagopa/go-common`, `@pagopa/go-aws` e `@pagopa/go-runbook`.
 >
 > Data: 2026-11-16.
 
@@ -186,7 +186,7 @@ Quando la PR di rilascio viene mergiata, il workflow **Release** (`.github/workf
 3. pubblica con `pnpm changeset publish`: sul canale `next` durante la prerelease, altrimenti su `latest`;
 4. crea i tag git `<package>@<versione>` che mancano (`pnpm changeset git-tag`) e li invia al repository.
 
-Pubblicazione e tag usano il token della GitHub App. Se GitHub Packages non accettasse il token dell'app per pubblicare i package npm, si passa al `GITHUB_TOKEN` cambiando due righe del workflow (EVO-PKGPUB-OPUS-01 §9.3.1).
+La pubblicazione usa il `GITHUB_TOKEN` del workflow, con il permesso `packages: write`: GitHub Packages non accetta il token della GitHub App, come nel workflow di rilascio standard di PagoPA (DX). L'app serve per la PR di rilascio, il checkout e i tag.
 
 `latest` esiste sul registry prima di arrivare in `main`: la promozione `develop` → `main` porta in `main` versioni già pubblicate e non pubblica nulla.
 

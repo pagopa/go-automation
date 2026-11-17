@@ -6,7 +6,7 @@ import { SEND_LAMBDA_PROFILE } from '../profiles/SEND_LAMBDA_PROFILE.js';
 
 /**
  * Builds a SEND Lambda alarm runbook: the generic Lambda pipeline with
- * {@link SEND_LAMBDA_PROFILE} (EVO-RBREORG-OPUS-01 §7.2.2, P11).
+ * {@link SEND_LAMBDA_PROFILE}.
  *
  * @param config - The Lambda alarm configuration, without the query profile
  * @returns The built runbook

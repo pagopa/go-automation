@@ -109,7 +109,7 @@ export class RunbookBuilder {
   /**
    * Builds the descriptor of a step. Copies only explicit keys, never a spread
    * of `options`: a pipeline hook also carries `at` and `step`. Toolkits
-   * override it to add their descriptor fields (EVO-RBREORG-OPUS-01 §7.1.3 E).
+   * override it to add their descriptor fields.
    *
    * @param step - The step to describe
    * @param options - Execution options

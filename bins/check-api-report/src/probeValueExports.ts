@@ -9,7 +9,7 @@ import type { ValueProbeRequest } from './types/ValueProbeRequest.js';
  * position, one name per line. A line without diagnostics is a value; any diagnostic (an interface, a
  * type alias, a symbol reached through `export type { }`, `export type *` or `export type * as`) makes it
  * type-only. Every forwarding path is therefore classified exactly as consumers see it, competing value
- * re-exports included (EVO-PKGPUB-OPUS-01 §10.3).
+ * re-exports included.
  *
  * @param requests - One request per entrypoint of the same package
  * @param options - Compiler options (NodeNext)

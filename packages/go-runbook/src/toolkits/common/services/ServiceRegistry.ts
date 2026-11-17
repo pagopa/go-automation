@@ -16,7 +16,7 @@ import type { WorkflowServices } from '../../../engine/types/WorkflowServices.js
  * `@aws-sdk/*` package. Execution-scoped helpers such as CloudWatch Logs
  * `forTarget` and Athena `forExecution` stay part of the contracts. It extends
  * the engine's {@link WorkflowServices} (the reporter) with the operational
- * ports (EVO-RBREORG-OPUS-01 §7.1.3 A).
+ * ports.
  */
 export interface ServiceRegistry extends WorkflowServices {
   readonly cloudWatchLogs: AWSCloudWatchLogsQueryService;
@@ -24,6 +24,6 @@ export interface ServiceRegistry extends WorkflowServices {
   readonly athena: RunbookAthenaPort;
   readonly dynamodb: RunbookDynamoDBPort;
   readonly http: GOHttpClient;
-  /** Logical AWS accounts of the execution; required only by steps that declare account selections (EVO-AWSACCT-OPUS-01). */
+  /** Logical AWS accounts of the execution; required only by steps that declare account selections. */
   readonly awsAccounts?: AwsAccountsPort;
 }

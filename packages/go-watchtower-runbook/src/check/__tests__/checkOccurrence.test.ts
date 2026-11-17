@@ -224,7 +224,7 @@ describe('checkOccurrence', () => {
   });
 });
 
-describe('checkOccurrence — logical AWS accounts (EVO-AWSACCT-OPUS-01 §6.5)', () => {
+describe('checkOccurrence — logical AWS accounts', () => {
   it('reports a directory that cannot serve the occurrence as CONFIG-ERROR, before the cache and the services', async () => {
     const targets: AWSExecutionTarget[] = [];
     const cacheReads: string[] = [];

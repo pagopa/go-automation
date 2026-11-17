@@ -5,7 +5,7 @@ import type { RunbookContext } from '../../../engine/types/RunbookContext.js';
 /**
  * Options of an INTEROP CloudWatch Logs query: the execution's abort signal, and
  * the log group searched among the configured profiles, because the INTEROP log
- * groups are named per environment (EVO-RBREORG-OPUS-01 P30).
+ * groups are named per environment.
  *
  * @param context - Runbook context
  * @returns The query options

@@ -37,7 +37,7 @@ function bootstrapRepository(): FakeGit {
   return git;
 }
 
-describe('release versions (EVO-PKGPUB-OPUS-01 §9.3)', () => {
+describe('release versions', () => {
   it('are the published packages whose version changes in the release commit', () => {
     assert.deepStrictEqual(releaseVersions(bootstrapRepository(), RELEASE), [
       { name: '@pagopa/go-aws', version: '1.0.0-next.0' },

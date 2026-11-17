@@ -11,7 +11,7 @@ function at(files: Readonly<Record<string, string>>): FakeGit {
   );
 }
 
-describe('version-needed (EVO-PKGPUB-OPUS-01 §9.3.1, same rule as changesets/action)', () => {
+describe('version-needed', () => {
   it('is false with no changeset, and ignores README, hidden and reserved files', () => {
     assert.strictEqual(versionNeeded(at({}), 'c'), false);
     assert.strictEqual(versionNeeded(at({ '.changeset/.hidden.md': 'x', '.changeset/CLAUDE.md': 'x' }), 'c'), false);

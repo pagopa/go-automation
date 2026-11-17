@@ -4,6 +4,6 @@ import type { ServiceRunbookContext } from '../families/service/output/ServiceRu
 
 /**
  * Structured context of an alarm runbook, discriminated by `kind`: the output
- * builders of the families read it (EVO-RBREORG-OPUS-01 P20).
+ * builders of the families read it.
  */
 export type AlarmRunbookContext = ApiGwRunbookContext | LambdaRunbookContext | ServiceRunbookContext;

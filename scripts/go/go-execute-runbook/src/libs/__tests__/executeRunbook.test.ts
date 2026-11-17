@@ -125,7 +125,7 @@ async function executeWithAccounts(
 
 const ATTEMPT_ID = '0192c000-0000-7000-8000-0000000000e1';
 
-describe('executeRunbook — logical AWS accounts (EVO-AWSACCT-OPUS-01 §6.4)', () => {
+describe('executeRunbook — logical AWS accounts', () => {
   it('fails the active attempt as a capability mismatch when the occurrence account is outside the directory', async () => {
     const { result, fails, completed } = await executeWithAccounts('pn-logsaver-be-FailedInvocation-Alarm', []);
     assert.strictEqual(result.disposition, 'FAIL_EXECUTION');

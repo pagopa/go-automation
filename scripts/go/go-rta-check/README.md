@@ -327,7 +327,7 @@ Per non ripagare ogni volta le query CloudWatch, l'esito del **runbook (V1)** di
 ## Account AWS logici
 
 I runbook multi-account dichiarano solo account logici (`send/core`, `send/confinfo`).
-La rubrica che li collega agli account id sta nella configurazione (EVO-AWSACCT-OPUS-01):
+La rubrica che li collega agli account id sta nella configurazione:
 
 | Chiave                        | Variabile d'ambiente          | Descrizione                                                                                    |
 | ----------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------- |

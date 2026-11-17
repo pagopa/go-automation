@@ -1,6 +1,5 @@
 /**
- * Contract with Watchtower: entrypoint `@pagopa/go-runbook/output`
- * (EVO-RBREORG-OPUS-01 §8.1, R1).
+ * Contract with Watchtower: entrypoint `@pagopa/go-runbook/output`.
  *
  * Output of an execution, outcome and check, output context and evidence,
  * telemetry, analysis annotations and the analysis draft (D11). Types only,
@@ -40,5 +39,5 @@ export type { AnalysisDraftV1 } from '../analysis/draft/AnalysisDraft.js';
 export type { KnownCaseAnalysisDraft } from '../analysis/draft/KnownCaseAnalysisDraft.js';
 export type { UnknownCaseContextDraft } from '../analysis/draft/UnknownCaseContextDraft.js';
 
-// Operational model augmentations: keeps the operational fields in a consumer's program (EVO-RBREORG-OPUS-01 RBREORG-11).
+// Operational model augmentations: keeps the operational fields in a consumer's program.
 export type { OperationalModelAugmentations } from '../augmentations/index.js';

@@ -1,6 +1,6 @@
 # check-published-sensitive-data
 
-Gate di EVO-AWSACCT-OPUS-01 §9: nei package pubblicati (`packages/*` con nome `@pagopa/*` e non `private`) non devono finire account id AWS, ARN con account o nomi di profilo AWS.
+Gate di nei package pubblicati (`packages/*` con nome `@pagopa/*` e non `private`) non devono finire account id AWS, ARN con account o nomi di profilo AWS.
 
 | Comando                        | Gate    | Cosa controlla                                                                                                                                  |
 | ------------------------------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |

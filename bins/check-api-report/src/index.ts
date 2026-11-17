@@ -84,9 +84,7 @@ async function main(): Promise<number> {
     if (!update) console.log('API reports are up to date.');
     return 0;
   }
-  console.error(
-    `API reports out of date (EVO-PKGPUB-OPUS-01 §10.3):\n${outdated.map((item) => `- ${item}`).join('\n')}`,
-  );
+  console.error(`API reports out of date:\n${outdated.map((item) => `- ${item}`).join('\n')}`);
   console.error('Review the change of the public surface, then run `pnpm api:report:update` and commit the reports.');
   return 1;
 }

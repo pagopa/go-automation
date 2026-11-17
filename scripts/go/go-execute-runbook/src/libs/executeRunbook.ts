@@ -225,7 +225,7 @@ export async function executeRunbook(
       );
     }
     // The runbook cannot read its logical accounts: a configuration or occurrence
-    // failure of the attempt already started, not worth a redelivery (EVO-AWSACCT-OPUS-01 §6.4).
+    // failure of the attempt already started, not worth a redelivery.
     if (
       isAwsAccountError(error) &&
       (await failAccountErrorAttempt(deps, executionId, attemptId, error, activeDeadlineAtMs))

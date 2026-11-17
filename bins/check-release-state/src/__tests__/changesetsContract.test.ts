@@ -6,7 +6,7 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 
 /**
- * Contract with the pinned Changesets CLI (EVO-PKGPUB-OPUS-01 §9.2): runs the real `changeset` binary
+ * Contract with the pinned Changesets CLI: runs the real `changeset` binary
  * with the repository configuration on a copy of the published manifests, outside any git repository
  * (`version` with `commit: false` does not use git). It protects the behaviours the release flow
  * depends on, including the experimental `updateInternalDependents: "always"` option.

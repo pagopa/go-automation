@@ -7,7 +7,7 @@ const SSO_SESSION_ARN = /^arn:aws[a-z-]*:sts::[0-9]{12}:assumed-role\/AWSReserve
 
 /**
  * Permission set of an SSO session, read from the caller ARN returned by
- * `sts:GetCallerIdentity` (EVO-AWSACCT-OPUS-01 §6.1). Lets a runtime prefer, for
+ * `sts:GetCallerIdentity`. Lets a runtime prefer, for
  * example, a read-only permission set without relying on local profile names.
  *
  * @param arn - Caller ARN

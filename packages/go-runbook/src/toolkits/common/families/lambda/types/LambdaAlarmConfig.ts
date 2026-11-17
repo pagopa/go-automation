@@ -51,7 +51,7 @@ export interface LambdaAlarmConfig {
   readonly fallbackAction?: CaseAction;
   /** Query profile to assemble the pipeline (product wrappers pass theirs, e.g. SEND_LAMBDA_PROFILE). */
   readonly queryProfile: LambdaQueryProfile;
-  /** Product whose pipeline builds the runbook; set by the product wrapper (EVO-RBREORG-OPUS-01 P19). */
+  /** Product whose pipeline builds the runbook; set by the product wrapper. */
   readonly product: RunbookProduct;
   /** Optional anti-loop iteration limit forwarded to the engine. */
   readonly maxIterations?: number;

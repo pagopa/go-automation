@@ -18,7 +18,7 @@ function familyOf(context: unknown): string {
   return 'none';
 }
 
-describe('runbookContext product family (EVO-RBREORG-OPUS-01 P19)', () => {
+describe('runbookContext product family', () => {
   const families = new Map<string, number>();
   for (const descriptor of RUNBOOK_CATALOG.listDescriptors()) {
     const resolved = RUNBOOK_CATALOG.resolveByKey(descriptor.key);

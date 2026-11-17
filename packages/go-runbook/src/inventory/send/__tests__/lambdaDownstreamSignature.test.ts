@@ -31,7 +31,7 @@ function contextWithErrorRow(message: string): RunbookContext {
   };
 }
 
-// EVO-RBREORG-OPUS-01 F4 (P13): the SEND downstream signature moves from the common
+// (P13): the SEND downstream signature moves from the common
 // classifier into SEND_LAMBDA_PROFILE. Every SEND Lambda pipeline keeps classifying it.
 describe('SEND Lambda runbooks classify the downstream signature', () => {
   const lambdaRunbooks = SEND_MANIFEST.map((registration) => registration.build()).filter((runbook) =>

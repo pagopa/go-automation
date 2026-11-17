@@ -34,7 +34,7 @@ function asStored(value: unknown): unknown {
   return JSON.parse(JSON.stringify(value)) as unknown;
 }
 
-// EVO-RBREORG-OPUS-01 §9.1: during the move phases these values must not change.
+// during the move phases these values must not change.
 describe('go-runbook reorganization baseline', () => {
   it('keeps the published descriptors and digests', async () => {
     assert.deepStrictEqual(asStored(collectDescriptors()), await readBaseline('descriptors.json'));

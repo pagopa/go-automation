@@ -4,7 +4,7 @@ export const SPIDHUB_ALARM = 'spidhub-prod-ExternalELBAlarm';
 export const SPIDHUB_LOG_GROUP = 'spidhub-prod-hub-login';
 /**
  * SPID hub runs in the SEND confinfo account of production only: its alarm and log group
- * exist only there (EVO-AWSACCT-OPUS-01 §3, G3).
+ * exist only there.
  */
 export const SPIDHUB_ACCOUNTS: AwsAccountSelection = {
   subject: 'spidhub',

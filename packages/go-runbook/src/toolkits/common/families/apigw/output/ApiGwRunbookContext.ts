@@ -5,7 +5,7 @@ import type { ApiGwService } from '../types/ApiGwService.js';
 
 export interface ApiGwRunbookContext {
   readonly kind: 'apigw';
-  /** Product whose pipeline built the runbook: selects the product-specific summaries (EVO-RBREORG-OPUS-01 P19). */
+  /** Product whose pipeline built the runbook: selects the product-specific summaries. */
   readonly product: RunbookProduct;
   readonly services: ReadonlyArray<ApiGwService>;
   readonly apiGwLogGroup: string;
