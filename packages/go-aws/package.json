@@ -1,6 +1,6 @@
 {
   "name": "@pagopa/go-aws",
-  "version": "0.0.0",
+  "version": "1.0.0-next.0",
   "description": "GO automation AWS integration: credentials and profiles, per-profile lazy client cache, one subpath per AWS service and an aggregate composition root (./all). Service SDKs are optional peers.",
   "type": "module",
   "sideEffects": false,
