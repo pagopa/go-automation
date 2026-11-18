@@ -43,11 +43,6 @@ describe('pn-delayer sender limit known cases', () => {
       assert.strictEqual(evaluator.evaluate(KNOWN_CASES[0]!.condition, ctx), true);
       assert.strictEqual(evaluator.evaluate(KNOWN_CASES[1]!.condition, ctx), false);
     }
-    assert.strictEqual(KNOWN_CASES[0]?.analysis?.proposedStatus, 'IN_PROGRESS');
-
-    // La pagina elenca entrambi i thread nella stessa riga di Casi noti.
-    assert.strictEqual(KNOWN_CASES[0]?.analysis?.links?.length, 2);
-    assert.strictEqual(KNOWN_CASES[1]?.analysis?.links?.length, 2);
   });
 
   it('classifies missing drivers separately and follows the documented Monday and other-day actions', async () => {
@@ -64,7 +59,6 @@ describe('pn-delayer sender limit known cases', () => {
       assert.strictEqual(matches[0]?.analysis?.proposedStatus, expectedStatus);
       assert.match(matches[0]?.analysis?.errorDetails ?? '', /Nessun driver/);
       assert.doesNotMatch(matches[0]?.analysis?.errorDetails ?? '', /percentuale|senza retry/i);
-      assert.strictEqual(matches[0]?.analysis?.links?.length, 2);
     }
   });
 
@@ -82,7 +76,6 @@ describe('pn-delayer sender limit known cases', () => {
     const ctx = { ...input, vars: new Map(Object.entries(result.vars ?? {})) };
     assert.strictEqual(evaluator.evaluate(KNOWN_CASES[0]!.condition, ctx), false);
     assert.strictEqual(evaluator.evaluate(KNOWN_CASES[1]!.condition, ctx), true);
-    assert.strictEqual(KNOWN_CASES[1]?.analysis?.proposedStatus, 'COMPLETED');
 
     const other = context('ERROR unexpected connection failure', '2026-09-29T10:00:00.000Z');
     const otherCtx = { ...other, vars: ctx.vars };

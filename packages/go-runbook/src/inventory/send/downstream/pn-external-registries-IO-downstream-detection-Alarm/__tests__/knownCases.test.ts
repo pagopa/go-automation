@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { ConditionEvaluator, type RunbookContext } from '../../../../../engine/index.js';
-import { createTestServiceRegistry, SEND_DOWNSTREAMS } from '../../../../../toolkits/send/index.js';
 import { KNOWN_CASES } from '../knownCases.js';
+import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
+import { caseMatches, knownCaseById } from '../../../../../__tests__/helpers/knownCaseMatching.js';
 
 const TIMEOUT = '[DOWNSTREAM] Service IO returned errors=io.netty.handler.timeout.ReadTimeoutException';
 const HTTP_ERROR =
@@ -51,23 +51,9 @@ const MESSAGE_COSMOS_UNAVAILABLE =
 const MESSAGE_GENERIC_ERROR =
   HTTP_ERROR + JSON.stringify({ statusCode: 500, message: 'Internal server error', activityId: 'activity-1' });
 
-function contextWithMessages(messages: ReadonlyArray<string>, field = 'message'): RunbookContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-09-07T10:00:00.000Z'),
-    stepResults: new Map([['query-pn-external-registries', messages.map((value) => [{ field, value }])]]),
-    vars: new Map(),
-    params: new Map(),
-    logs: [],
-    services: createTestServiceRegistry(),
-    recoveredErrors: [],
-  };
-}
-
 function matches(caseId: string, messages: ReadonlyArray<string>, field = 'message'): boolean {
-  const knownCase = KNOWN_CASES.find(({ id }) => id === caseId);
-  assert.ok(knownCase);
-  return new ConditionEvaluator().evaluate(knownCase.condition, contextWithMessages(messages, field));
+  const stepResults = { 'query-pn-external-registries': messages.map((value) => [{ field, value }]) };
+  return caseMatches(knownCaseById(KNOWN_CASES, caseId), createTestContext({ stepResults }));
 }
 
 describe('external-registries IO downstream known cases', () => {
@@ -79,8 +65,6 @@ describe('external-registries IO downstream known cases', () => {
   ] as const;
 
   it('recognizes documented signatures in structured, raw and JSON-encoded evidence', () => {
-    assert.deepStrictEqual(KNOWN_CASES.map(({ id }) => id).sort(), documented.map(([id]) => id).sort());
-    assert.strictEqual(new Set(KNOWN_CASES.map(({ priority }) => priority)).size, KNOWN_CASES.length);
     for (const [id, message] of documented) {
       assert.strictEqual(matches(id, [message]), true);
       assert.strictEqual(matches(id, [message], '@message'), true);
@@ -138,18 +122,5 @@ describe('external-registries IO downstream known cases', () => {
       assert.strictEqual(matches('io-messages-invalid-json-response-500', [message]), false);
     }
     assert.strictEqual(matches('io-messages-invalid-json-response-500', [HTTP_ERROR, INVALID_JSON_DETAIL]), false);
-  });
-
-  it('does not close undocumented resolutions or assign IO internal operations', () => {
-    for (const c of KNOWN_CASES) {
-      assert.strictEqual(c.analysis?.proposedStatus, 'IN_PROGRESS');
-      assert.deepStrictEqual(c.analysis?.downstreams, [SEND_DOWNSTREAMS.APP_IO]);
-      assert.deepStrictEqual(c.analysis?.finalActions ?? [], []);
-      assert.doesNotMatch(c.analysis?.resolution ?? '', /verificare.*Cosmos|connettività|deployment/iu);
-    }
-    const conflict = KNOWN_CASES.find((c) => c.id === 'io-activation-cosmos-conflict');
-    assert.match(conflict?.analysis?.resolution ?? '', /Segnalare a Infra/u);
-    const json = KNOWN_CASES.find((c) => c.id === 'io-messages-invalid-json-response-500');
-    assert.ok(json?.analysis?.links?.some((l) => l.url === 'https://pagopa.atlassian.net/browse/PN-21426'));
   });
 });

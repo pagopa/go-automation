@@ -1,27 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
-import type { TestServiceOverrides } from '../../../../testing/TestServiceOverrides.js';
 import { DynamoDBUpdateStep } from '../DynamoDBUpdateStep.js';
-import type { OperationalContext } from '../../../../services/OperationalContext.js';
-
-function createContext(args: {
-  readonly vars?: Record<string, string>;
-  readonly params?: Record<string, string>;
-  readonly services?: TestServiceOverrides;
-}): OperationalContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-01-01T00:00:00.000Z'),
-    stepResults: new Map<string, unknown>(),
-    vars: new Map(Object.entries(args.vars ?? {})),
-    params: new Map(Object.entries(args.params ?? {})),
-    logs: [],
-    services: createTestServiceRegistry(args.services ?? {}),
-    recoveredErrors: [],
-  };
-}
+import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
 
 describe('DynamoDBUpdateStep', () => {
   const base = {
@@ -33,46 +14,31 @@ describe('DynamoDBUpdateStep', () => {
     expressionAttributeValues: { ':val': 'done' },
   } as const;
 
-  it('forwards every update argument to the DynamoDB service', async () => {
-    const calls: unknown[][] = [];
-    const dynamodb = {
-      updateItem: async (...args: unknown[]): Promise<void> => {
+  it('forwards every update argument, attribute names only when configured', async () => {
+    for (const names of [undefined, { '#s': 'status' }]) {
+      const calls: unknown[][] = [];
+      const updateItem = async (...args: unknown[]): Promise<void> => {
         await Promise.resolve();
         calls.push(args);
-      },
-    };
+      };
+      const step = new DynamoDBUpdateStep({
+        ...base,
+        ...(names === undefined ? {} : { expressionAttributeNames: names }),
+      });
 
-    const result = await new DynamoDBUpdateStep(base).execute(createContext({ services: { dynamodb } }));
+      const result = await step.execute(createTestContext({ services: { dynamodb: { updateItem } } }));
 
-    assert.strictEqual(result.success, true);
-    assert.deepStrictEqual(calls, [['pn-Table', { pk: 'a' }, 'SET #s = :val', { ':val': 'done' }, undefined]]);
-  });
-
-  it('passes expression attribute names when configured', async () => {
-    const calls: unknown[][] = [];
-    const dynamodb = {
-      updateItem: async (...args: unknown[]): Promise<void> => {
-        await Promise.resolve();
-        calls.push(args);
-      },
-    };
-
-    await new DynamoDBUpdateStep({ ...base, expressionAttributeNames: { '#s': 'status' } }).execute(
-      createContext({ services: { dynamodb } }),
-    );
-
-    assert.deepStrictEqual(calls[0]?.[4], { '#s': 'status' });
+      assert.strictEqual(result.success, true);
+      assert.deepStrictEqual(calls, [['pn-Table', { pk: 'a' }, 'SET #s = :val', { ':val': 'done' }, names]]);
+    }
   });
 
   it('turns a service failure into an unsuccessful result instead of throwing', async () => {
-    const dynamodb = {
-      updateItem: async (): Promise<void> => {
-        await Promise.resolve();
-        throw new Error('ConditionalCheckFailed');
-      },
-    };
+    const updateItem = async (): Promise<void> => Promise.reject(new Error('ConditionalCheckFailed'));
 
-    const result = await new DynamoDBUpdateStep(base).execute(createContext({ services: { dynamodb } }));
+    const result = await new DynamoDBUpdateStep(base).execute(
+      createTestContext({ services: { dynamodb: { updateItem } } }),
+    );
 
     assert.strictEqual(result.success, false);
     assert.match(result.error ?? '', /DynamoDB update failed: ConditionalCheckFailed/u);

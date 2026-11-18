@@ -13,13 +13,15 @@ const INNER_PADDING = 2;
  *
  * @param rawCells - Pre-formatted cell strings (one per column)
  * @param columns - Resolved column metadata (length must match rawCells)
- * @param vertical - Vertical separator character (may be empty for compact)
+ * @param vertical - Separator between two cells
+ * @param edge - Outer edge on the left and right of the row (empty without an outer frame)
  * @returns The visual lines joined with `\n`
  */
 export function renderRow(
   rawCells: ReadonlyArray<string>,
   columns: ReadonlyArray<ResolvedColumn>,
   vertical: string,
+  edge: string,
 ): string {
   if (columns.length === 0) return '';
 
@@ -40,11 +42,7 @@ export function renderRow(
       return ` ${line} `;
     });
 
-    if (vertical === '') {
-      visualLines[lineIdx] = segments.join('').trimEnd();
-    } else {
-      visualLines[lineIdx] = vertical + segments.join(vertical) + vertical;
-    }
+    visualLines[lineIdx] = edge + segments.join(vertical) + edge;
   }
 
   return visualLines.join('\n');

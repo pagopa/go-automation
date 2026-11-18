@@ -3,22 +3,9 @@ import { rm, stat } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { describe, it } from 'node:test';
 
-import type { AutomaticRunbookDescriptorV1 } from '../external.js';
 import { validateAutomaticRunbookCatalog } from '../external.js';
 import { buildLocalCatalog, createLocalCatalogOutputPath, parseLocalCatalogOptions } from '../localCatalog.js';
-
-const RUNBOOK: AutomaticRunbookDescriptorV1 = {
-  key: 'sample-runbook',
-  version: '1.0.0',
-  name: 'Sample',
-  description: 'Sample runbook',
-  team: 'GO',
-  kind: 'SERVICE',
-  categories: ['SERVICE_ERROR'],
-  tags: ['local'],
-  alarmNames: ['sample-alarm'],
-  definitionDigest: `sha256-${'a'.repeat(64)}`,
-};
+import { RUNBOOK } from './fixtures.js';
 
 describe('local automatic runbook catalog', () => {
   it('uses safe development defaults and accepts explicit overrides', () => {

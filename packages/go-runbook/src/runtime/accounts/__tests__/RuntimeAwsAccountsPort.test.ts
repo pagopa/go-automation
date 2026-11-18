@@ -187,6 +187,18 @@ describe('RuntimeAwsAccountsPort — profiles binding', () => {
   });
 });
 
+/** The error the first query of `CORE` on a prepared port rejects with. */
+async function queryError(accounts: RuntimeAwsAccountsPort): Promise<Error> {
+  await accounts.prepare([CORE]);
+  try {
+    await accounts.cloudWatchLogsFor(CORE).query([], '', { start: new Date(0), end: new Date(0) });
+  } catch (error: unknown) {
+    assert.ok(error instanceof Error);
+    return error;
+  }
+  return assert.fail('the query should have failed');
+}
+
 /** A forTarget call on the monitoring reader. */
 interface MonitoringCall {
   readonly target: AWSCloudWatchLogsTarget;
@@ -223,90 +235,22 @@ describe('RuntimeAwsAccountsPort — query errors', () => {
       diagnostics: (message) => diagnostics.push(message),
       profiles: profileSet([['secret-reader', { accountId: '000000000101' }]]),
     });
-    await accounts.prepare([CORE]);
-    await assert.rejects(
-      async () => accounts.cloudWatchLogsFor(CORE).query([], '', { start: new Date(0), end: new Date(0) }),
-      (error: unknown) =>
-        error instanceof FakeLogsError &&
-        error.code === 'OAM_ACCESS_DENIED' &&
-        !error.message.includes('secret-reader') &&
-        !(error.stack ?? '').includes('secret-reader'),
-    );
+    const error = await queryError(accounts);
+    assert.ok(error instanceof FakeLogsError);
+    assert.strictEqual(error.code, 'OAM_ACCESS_DENIED');
+    assert.doesNotMatch(`${error.message}${error.stack ?? ''}`, /secret-reader/u);
     assert.ok(diagnostics.some((message) => message.includes('(profile: secret-reader)')));
   });
 });
 
-describe('RuntimeAwsAccountsPort — query errors of the oam binding', () => {
-  it('removes the configured monitoring profile from SDK credential errors, keeping access-denied text', async () => {
-    // Safe: only forTarget and query are used.
-    const monitoring = {
-      forTarget: () => monitoring,
-      query: async () => {
-        await Promise.resolve();
-        throw new Error(
-          'CloudWatch Logs StartQuery access denied: Could not resolve credentials using profile: [a] in configuration/credentials file(s). (profile: a)',
-        );
-      },
-    } as unknown as AWSCloudWatchLogsQueryService;
-    const accounts = new RuntimeAwsAccountsPort({
-      directory: DIRECTORY,
-      region: REGION,
-      binding: 'oam',
-      environment: 'prod',
-      monitoring,
-      profiles: profileSet([['a', { accountId: '000000000999' }]]),
-    });
-    await accounts.prepare([CORE]);
-    await assert.rejects(
-      async () => accounts.cloudWatchLogsFor(CORE).query([], '', { start: new Date(0), end: new Date(0) }),
-      (error: unknown) =>
-        error instanceof Error && /access denied/u.test(error.message) && !/\[a\]|profile: a\b/u.test(error.message),
-    );
-  });
-});
-
-describe('RuntimeAwsAccountsPort — profiles named like classification words', () => {
-  it('keeps "access denied" whatever the profiles are called', async () => {
-    // Safe: only forTarget and query are used.
-    const monitoring = {
-      forTarget: () => monitoring,
-      query: async () => {
-        await Promise.resolve();
-        throw new Error('CloudWatch Logs StartQuery access denied (profile: access)');
-      },
-    } as unknown as AWSCloudWatchLogsQueryService;
-    const accounts = new RuntimeAwsAccountsPort({
-      directory: DIRECTORY,
-      region: REGION,
-      binding: 'oam',
-      environment: 'prod',
-      monitoring,
-      profiles: profileSet([
-        ['access', { accountId: '000000000999' }],
-        ['denied', { accountId: '000000000998' }],
-      ]),
-    });
-    await accounts.prepare([CORE]);
-    await assert.rejects(
-      async () => accounts.cloudWatchLogsFor(CORE).query([], '', { start: new Date(0), end: new Date(0) }),
-      (error: unknown) => error instanceof Error && error.message === 'CloudWatch Logs StartQuery access denied',
-    );
-  });
-});
-
-/** An SDK provider failure as `@smithy/property-provider` builds it: the name is what identifies it. */
-function providerError(name: string, message: string): Error {
-  return Object.assign(new Error(message), { name });
-}
-
-/** A port whose oam reader fails like `AWSCloudWatchLogsService.wrapAwsError` around `cause`. */
-function failingOamPort(cause: Error): RuntimeAwsAccountsPort {
+/** A port whose oam reader fails with `error`, like `AWSCloudWatchLogsService.wrapAwsError` does. */
+function failingOamPort(error: Error, profiles?: AWSProfileSet): RuntimeAwsAccountsPort {
   // Safe: only forTarget and query are used.
   const monitoring = {
     forTarget: () => monitoring,
     query: async () => {
       await Promise.resolve();
-      throw new Error(`CloudWatch Logs StartQuery failed: ${cause.message} (profile: sso-secret)`, { cause });
+      throw error;
     },
   } as unknown as AWSCloudWatchLogsQueryService;
   return new RuntimeAwsAccountsPort({
@@ -315,58 +259,76 @@ function failingOamPort(cause: Error): RuntimeAwsAccountsPort {
     binding: 'oam',
     environment: 'prod',
     monitoring,
+    ...(profiles === undefined ? {} : { profiles }),
   });
 }
 
-describe('RuntimeAwsAccountsPort — SDK credential provider failures (AWSACCT-A45-08)', () => {
-  // The messages the installed @aws-sdk credential and token providers emit.
-  const cases: ReadonlyArray<readonly [string, Error]> = [
-    [
-      'MFA required',
+/** An SDK provider failure as `@smithy/property-provider` builds it: the name is what identifies it. */
+function providerError(name: string, message: string): Error {
+  return Object.assign(new Error(message), { name });
+}
+
+describe('RuntimeAwsAccountsPort — query errors of the oam binding', () => {
+  it('removes the configured profiles from SDK credential errors, keeping the classification text', async () => {
+    const credentials = await queryError(
+      failingOamPort(
+        new Error(
+          'CloudWatch Logs StartQuery access denied: Could not resolve credentials using profile: [a] in configuration/credentials file(s). (profile: a)',
+        ),
+        profileSet([['a', { accountId: '000000000999' }]]),
+      ),
+    );
+    assert.match(credentials.message, /access denied/u);
+    assert.doesNotMatch(credentials.message, /\[a\]|profile: a\b/u);
+
+    // Profiles named like the words that classify a failure do not erase them.
+    const named = await queryError(
+      failingOamPort(
+        new Error('CloudWatch Logs StartQuery access denied (profile: access)'),
+        profileSet([
+          ['access', { accountId: '000000000999' }],
+          ['denied', { accountId: '000000000998' }],
+        ]),
+      ),
+    );
+    assert.strictEqual(named.message, 'CloudWatch Logs StartQuery access denied');
+  });
+
+  it('replaces the text of every SDK credential provider failure', async () => {
+    // The messages the installed @aws-sdk credential and token providers emit.
+    const causes: ReadonlyArray<Error> = [
       providerError(
         'CredentialsProviderError',
         'Profile mfa-secret requires multi-factor authentication, but no MFA code callback was provided.',
       ),
-    ],
-    [
-      'unsupported credential source',
       providerError(
         'CredentialsProviderError',
         'Unsupported credential source in profile source-secret. Got Foo, expected EcsContainer or Ec2InstanceMetadata or Environment.',
       ),
-    ],
-    [
-      'profile cycle',
       providerError(
         'CredentialsProviderError',
         'Detected a cycle attempting to resolve credentials for profile cycle-secret. Profiles visited: cycle-secret, other-secret',
       ),
-    ],
-    ['IMDS timeout', providerError('ProviderError', 'TimeoutError from instance metadata service')],
-    [
-      'SSO token',
+      providerError('ProviderError', 'TimeoutError from instance metadata service'),
       providerError(
         'TokenProviderError',
         'The SSO session token associated with profile=token-secret was not found or is invalid. To refresh this SSO session run aws sso login.',
       ),
-    ],
-  ];
-
-  for (const [label, cause] of cases) {
-    it(`replaces the provider text of a ${label} failure`, async () => {
-      const accounts = failingOamPort(cause);
-      await accounts.prepare([CORE]);
-      await assert.rejects(
-        async () => accounts.cloudWatchLogsFor(CORE).query([], '', { start: new Date(0), end: new Date(0) }),
-        (error: unknown) =>
-          error instanceof Error &&
-          error.message ===
-            `CloudWatch Logs StartQuery failed: [${cause.name}] AWS credentials could not be resolved` &&
-          !/secret/u.test(error.stack ?? '') &&
-          error.cause === undefined,
+    ];
+    for (const cause of causes) {
+      const error = await queryError(
+        failingOamPort(
+          new Error(`CloudWatch Logs StartQuery failed: ${cause.message} (profile: sso-secret)`, { cause }),
+        ),
       );
-    });
-  }
+      assert.strictEqual(
+        error.message,
+        `CloudWatch Logs StartQuery failed: [${cause.name}] AWS credentials could not be resolved`,
+      );
+      assert.doesNotMatch(error.stack ?? '', /secret/u);
+      assert.strictEqual(error.cause, undefined);
+    }
+  });
 });
 
 describe('RuntimeAwsAccountsPort — oam binding', () => {

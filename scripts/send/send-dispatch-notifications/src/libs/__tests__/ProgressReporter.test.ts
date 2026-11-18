@@ -66,43 +66,40 @@ const DURING = snapshot(
 );
 
 describe('ProgressReporter', () => {
-  it('shows sent/to send, rate, verification and requestId counters on one line', () => {
-    const prompt = new FakePrompt();
-    const reporter = new ProgressReporter(prompt as unknown as GOPrompt, session(snapshot([]), DURING), {
-      rows: 20,
-      sending: true,
+  const cases: ReadonlyArray<{
+    readonly name: string;
+    readonly before: Dispatch.DispatchProgress;
+    readonly plan: { readonly rows: number; readonly sending: boolean };
+    readonly line: RegExp;
+  }> = [
+    {
+      name: 'shows sent/to send, rate, verification and requestId counters on one line',
+      before: snapshot([]),
+      plan: { rows: 20, sending: true },
+      line: /^invio 10\/20 · 19\.6\/s · verifica 7 ok \/ 1 refused \/ 2 in attesa · requestId 4 trovati \/ 3 in attesa · errori 1 · 429: 2$/,
+    },
+    {
+      name: 'does not count the rows a previous session already sent (resume)',
+      before: snapshot([['ACCEPTED', 3]]),
+      plan: { rows: 7, sending: true },
+      line: /^invio 7\/7 · /,
+    },
+    {
+      name: 'shows the rows to process when the session sends nothing',
+      before: snapshot([]),
+      plan: { rows: 12, sending: false },
+      line: /^righe da elaborare 12 · verifica 7 ok/,
+    },
+  ];
+
+  for (const { name, before, plan, line } of cases) {
+    it(name, () => {
+      const prompt = new FakePrompt();
+      const reporter = new ProgressReporter(prompt as unknown as GOPrompt, session(before, DURING), plan);
+      reporter.start();
+      reporter.stop();
+      assert.match(prompt.lines[0] ?? '', line);
+      assert.equal(prompt.stopped, true);
     });
-
-    reporter.start();
-    reporter.stop();
-
-    assert.equal(
-      prompt.lines[0],
-      'invio 10/20 · 19.6/s · verifica 7 ok / 1 refused / 2 in attesa · requestId 4 trovati / 3 in attesa · errori 1 · 429: 2',
-    );
-    assert.equal(prompt.stopped, true);
-  });
-
-  it('does not count the rows a previous session already sent (resume)', () => {
-    const prompt = new FakePrompt();
-    const before = snapshot([['ACCEPTED', 3]]);
-    const reporter = new ProgressReporter(prompt as unknown as GOPrompt, session(before, DURING), {
-      rows: 7,
-      sending: true,
-    });
-    reporter.start();
-    reporter.stop();
-    assert.match(prompt.lines[0] ?? '', /^invio 7\/7 · /);
-  });
-
-  it('shows the rows to process when the session sends nothing', () => {
-    const prompt = new FakePrompt();
-    const reporter = new ProgressReporter(prompt as unknown as GOPrompt, session(snapshot([]), DURING), {
-      rows: 12,
-      sending: false,
-    });
-    reporter.start();
-    reporter.stop();
-    assert.match(prompt.lines[0] ?? '', /^righe da elaborare 12 · verifica 7 ok/);
-  });
+  }
 });

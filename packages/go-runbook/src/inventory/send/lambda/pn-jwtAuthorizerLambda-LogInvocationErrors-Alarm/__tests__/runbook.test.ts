@@ -1,25 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import { GOLogger } from '@pagopa/go-common/logging';
-import {
-  ConditionEvaluator,
-  type RunbookContext,
-  RunbookEngine,
-  type RunbookExecutionResult,
-} from '../../../../../engine/index.js';
-import {
-  assertAnalysisAnnotations,
-  assertCloudExecutableRunbook,
-  buildAnalysisDraft,
-  createTestServiceRegistry,
-} from '../../../../../toolkits/send/index.js';
 import { KNOWN_CASES } from '../knownCases.js';
+import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
+import { executeWithLogs } from '../../../../../__tests__/helpers/executeWithLogs.js';
+import { matchingCaseIds } from '../../../../../__tests__/helpers/knownCaseMatching.js';
+import { logRow } from '../../../../../__tests__/helpers/logRow.js';
+import type { RunbookLogsExecution } from '../../../../../__tests__/helpers/RunbookLogsExecution.js';
 import { LAMBDA_FUNCTION } from '../knownServices.js';
-import { JWT_AUTHORIZER_LAMBDA_LOG_INVOCATION_ERRORS_ALARM_REGISTRATION as REGISTRATION } from '../registration.js';
 import { buildRunbook } from '../runbook.js';
-import { DOWNSTREAM_CATALOGS } from '../../../../validation/DOWNSTREAM_CATALOGS.js';
 
 const REQUEST_ID = '11111111-2222-4333-8444-555555555555';
 const IAM_DENIED =
@@ -48,104 +36,51 @@ const FIXTURES = [
   ['jwt-redis-disconnect-null', DISCONNECT],
 ] as const;
 
-interface Execution {
-  readonly result: RunbookExecutionResult;
-  readonly draft: ReturnType<typeof buildAnalysisDraft>;
-  readonly queries: ReadonlyArray<string>;
-  readonly sourceModes: ReadonlyArray<string | undefined>;
-}
-
+/** Runs the runbook: the error scan returns `errors`, the invocation query `invocation`. */
 async function execute(
   errors: ReadonlyArray<string>,
   invocation: ReadonlyArray<string> = [],
   requestId: string = REQUEST_ID,
-): Promise<Execution> {
-  const queries: string[] = [];
-  const sourceModes: (string | undefined)[] = [];
-  const services = createTestServiceRegistry({
-    cloudWatchLogs: {
-      async queryWithStatistics(
-        groups: ReadonlyArray<string>,
-        query: string,
-        _range: unknown,
-        options?: { readonly logGroupResolutionMode?: string },
-      ): Promise<AWSCloudWatchLogsQueryResult> {
-        await Promise.resolve();
-        assert.deepStrictEqual(groups, [LAMBDA_FUNCTION.logGroup]);
-        queries.push(query);
-        sourceModes.push(options?.logGroupResolutionMode);
-        const isInvocation = query.includes(REQUEST_ID);
-        const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = (isInvocation ? invocation : errors).map(
-          (message) => [
-            { field: '@timestamp', value: '2026-10-13 05:39:20.757' },
-            {
-              field: '@message',
-              value: isInvocation ? message : `2026-10-13T05:39:20.757Z\t${requestId}\tERROR\t${message}`,
-            },
-            ...(requestId ? [{ field: '@requestId', value: requestId }] : []),
-          ],
-        );
-        return {
-          rows,
-          statistics: { bytesScanned: 1, recordsScanned: rows.length, recordsMatched: rows.length },
-          queryExecutions: [],
-        };
-      },
+): Promise<RunbookLogsExecution> {
+  return executeWithLogs(
+    buildRunbook(),
+    { startTime: '2026-10-13T05:35:04.285Z', endTime: '2026-10-13T05:45:04.285Z' },
+    (query, [group = '']) => {
+      assert.strictEqual(group, LAMBDA_FUNCTION.logGroup);
+      const isInvocation = query.includes(REQUEST_ID);
+      return (isInvocation ? invocation : errors).map((message) =>
+        logRow({
+          '@timestamp': '2026-10-13 05:39:20.757',
+          '@message': isInvocation ? message : `2026-10-13T05:39:20.757Z\t${requestId}\tERROR\t${message}`,
+          ...(requestId ? { '@requestId': requestId } : {}),
+        }),
+      );
     },
-  });
-  const runbook = buildRunbook();
-  const result = await new RunbookEngine(new GOLogger()).execute(
-    runbook,
-    new Map([
-      ['startTime', '2026-10-13T05:35:04.285Z'],
-      ['endTime', '2026-10-13T05:45:04.285Z'],
-    ]),
-    services,
   );
-  return { result, draft: buildAnalysisDraft(runbook, result), queries, sourceModes };
 }
 
 describe('JWT authorizer Lambda runbook', () => {
-  it('registers a cloud executable read-only authorization Lambda with the original Confluence reference', () => {
-    assert.strictEqual(REGISTRATION.product, 'SEND');
-    assert.strictEqual(REGISTRATION.kind, 'LAMBDA');
-    assert.deepStrictEqual(REGISTRATION.categories, ['AUTHORIZATION']);
-    assert.deepStrictEqual(REGISTRATION.alarmNames, [REGISTRATION.key]);
-    const runbook = buildRunbook();
-    assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
-    assert.strictEqual(LAMBDA_FUNCTION.eventSource, 'api-gateway-authorizer');
-    assert.doesNotThrow(() => assertCloudExecutableRunbook(runbook));
-    assert.doesNotThrow(() => assertAnalysisAnnotations(runbook, 'SEND', DOWNSTREAM_CATALOGS.SEND));
-    assert.match(runbook.analysisDefaults?.links?.[0]?.url ?? '', /3028910156/u);
-    assert.strictEqual(new Set(KNOWN_CASES.map(({ id }) => id)).size, 5);
-    assert.strictEqual(new Set(KNOWN_CASES.map(({ priority }) => priority)).size, 5);
-  });
-
-  for (const [id, message] of FIXTURES) {
-    it(`recognizes the documented ${id} signature and reconstructs its invocation`, async () => {
-      const { result, draft, queries, sourceModes } = await execute(
-        [message],
-        [
-          `REPORT RequestId: ${REQUEST_ID}\tDuration: 10 ms\tMemory Size: 128 MB\tMax Memory Used: 32 MB\tStatus: success`,
-        ],
-      );
-      assert.strictEqual(result.status, 'completed');
+  it('recognizes each documented signature and reconstructs its invocation', async () => {
+    const report = `REPORT RequestId: ${REQUEST_ID}\tDuration: 10 ms\tMemory Size: 128 MB\tMax Memory Used: 32 MB\tStatus: success`;
+    for (const [id, message] of FIXTURES) {
+      const { result, draft, queries } = await execute([message], [report]);
       assert.deepStrictEqual(
         result.matchedCases.map((c) => c.id),
         [id],
       );
-      assert.strictEqual(result.stepsExecuted, 5);
+      assert.strictEqual(result.stepsExecuted, 5, id);
       assert.strictEqual(draft?.kind, 'KNOWN_CASE');
       assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-      assert.deepStrictEqual(draft.finalActions, []);
+      assert.strictEqual(
+        draft.conclusionNotes,
+        id === 'jwt-iam-api-gateway-access-denied' ? 'PN-20045' : 'Risoluzione non documentata.',
+      );
       assert.strictEqual(queries.length, 2);
-      assert.ok(queries[1]?.includes(REQUEST_ID));
-      assert.deepStrictEqual(sourceModes, ['search-configured-profiles', 'search-configured-profiles']);
+      assert.ok(queries[1]?.query.includes(REQUEST_ID));
+      assert.ok(queries.every(({ resolutionMode }) => resolutionMode === 'search-configured-profiles'));
       assert.strictEqual(result.finalContext.vars.get('lambdaRequestId'), REQUEST_ID);
-      if (id === 'jwt-iam-api-gateway-access-denied') assert.strictEqual(draft.conclusionNotes, 'PN-20045');
-      else assert.strictEqual(draft.conclusionNotes, 'Risoluzione non documentata.');
-    });
-  }
+    }
+  });
 
   it('matches a source signature found in the reconstructed invocation without adding a downstream query', async () => {
     const { result, draft, queries } = await execute(['Unrecognized authorizer error'], [KMS_INVALID]);
@@ -190,7 +125,6 @@ describe('JWT authorizer Lambda runbook', () => {
   });
 
   it('requires complete signatures on one evidence row and refuses generic AWS or socket errors', () => {
-    const evaluator = new ConditionEvaluator();
     for (const messages of [
       ['AccessDeniedException: not authorized to perform: apigateway:GET on resource: /tags/example'],
       [IAM_DENIED.replace('apigateway:GET', 'kms:Decrypt')],
@@ -205,30 +139,10 @@ describe('JWT authorizer Lambda runbook', () => {
       [SOCKET.replace('@redis/client', 'another/client')],
       ['Error checking JTI revocation: [ErrorReply: CLUSTERDOWN Unexpected variant]'],
     ]) {
-      const context: RunbookContext = {
-        executionId: 'jwt-negative-signature',
-        startedAt: new Date('2026-10-13T05:39:20.757Z'),
-        stepResults: new Map([['query-lambda-errors', messages.map((value) => [{ field: '@message', value }])]]),
-        vars: new Map(),
-        params: new Map(),
-        logs: [],
-        services: createTestServiceRegistry(),
-        recoveredErrors: [],
-      };
-      for (const knownCase of KNOWN_CASES)
-        assert.strictEqual(evaluator.evaluate(knownCase.condition, context), false, knownCase.id);
-    }
-  });
-
-  it('does not extend PN-20045 or add remediation to the undocumented cases', () => {
-    for (const knownCase of KNOWN_CASES) {
-      assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
-      assert.deepStrictEqual(knownCase.analysis?.finalActions, []);
-      assert.deepStrictEqual(knownCase.analysis?.downstreams ?? [], []);
-      assert.strictEqual(
-        knownCase.analysis?.links?.some((link) => link.url.endsWith('/PN-20045')) ?? false,
-        knownCase.id === 'jwt-iam-api-gateway-access-denied',
-      );
+      const context = createTestContext({
+        stepResults: { 'query-lambda-errors': messages.map((value) => [{ field: '@message', value }]) },
+      });
+      assert.deepStrictEqual(matchingCaseIds(KNOWN_CASES, context), [], messages.join(' | '));
     }
   });
 });

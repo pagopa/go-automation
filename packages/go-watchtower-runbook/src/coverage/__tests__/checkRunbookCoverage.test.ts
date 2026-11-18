@@ -44,81 +44,86 @@ describe('checkRunbookCoverage', () => {
     assert.strictEqual(error.knownCaseId, 'primary');
   });
 
-  it('suggests the censused spelling on a case-only mismatch without accepting it', async () => {
-    const report = await run({
-      analysis: { finalActions: ['nessuna azione'] },
-    });
+  it('suggests the censused value on a case-only or type mismatch without accepting it', async () => {
+    const cases = [
+      // The gate stays case-sensitive.
+      [{ finalActions: ['nessuna azione'] }, 'FINAL_ACTION_NOT_FOUND', 'Nessuna azione'],
+      [{ resources: [{ name: 'pn-delivery', type: 'Lambda' }] }, 'RESOURCE_TYPE_MISMATCH', 'Service'],
+    ] as const;
 
-    const error = report.errors.find((issue) => issue.code === 'FINAL_ACTION_NOT_FOUND');
-    assert.ok(error, 'the gate stays case-sensitive');
-    assert.strictEqual(error.suggestedValue, 'Nessuna azione');
+    for (const [analysis, code, suggestedValue] of cases) {
+      const error = (await run({ analysis })).errors.find((issue) => issue.code === code);
+      assert.ok(error, code);
+      assert.strictEqual(error.suggestedValue, suggestedValue);
+    }
   });
 
-  it('blocks a resource whose censused type differs from the declared one', async () => {
-    const report = await run({ analysis: { resources: [{ name: 'pn-delivery', type: 'Lambda' }] } });
+  it('only warns about an alarm that no product censuses, still checking the references of the others', async () => {
+    const uncensused = await run({ alarmNames: ['unknown-alarm'] });
+    assert.deepStrictEqual(uncensused.errors, []);
+    assert.ok(uncensused.warnings.some((issue) => issue.code === 'ALARM_NOT_CENSUSED'));
 
-    const error = report.errors.find((issue) => issue.code === 'RESOURCE_TYPE_MISMATCH');
-    assert.ok(error);
-    assert.strictEqual(error.suggestedValue, 'Service');
-  });
-
-  it('only reports an alarm that no product censuses', async () => {
-    const report = await run({ analysis: {}, alarmNames: ['unknown-alarm'] });
-
-    assert.deepStrictEqual(report.errors, []);
-    assert.ok(report.warnings.some((issue) => issue.code === 'ALARM_NOT_CENSUSED'));
-  });
-
-  it('still checks the references when only some alarms are censused', async () => {
-    const report = await run({
+    // The product stays resolvable from the censused alarms, so the references are still checked.
+    const partial = await run({
       analysis: { downstreams: [SEND_DOWNSTREAMS.KONECTA] },
       alarmNames: [ALARM, 'unknown-alarm'],
     });
-
-    assert.ok(report.warnings.some((issue) => issue.code === 'ALARM_NOT_CENSUSED'));
-    // Il prodotto resta risolvibile dagli allarmi censiti: i riferimenti vanno comunque verificati.
-    assert.ok(report.errors.some((issue) => issue.code === 'DOWNSTREAM_NOT_FOUND'));
+    assert.ok(partial.warnings.some((issue) => issue.code === 'ALARM_NOT_CENSUSED'));
+    assert.ok(partial.errors.some((issue) => issue.code === 'DOWNSTREAM_NOT_FOUND'));
   });
 
-  it('blocks when an alarm belongs to a product other than the declared one', async () => {
-    const census = [
-      sendCensus(),
-      { ...interopCensus(), alarms: [{ id: 'a2', name: 'second-alarm' }] },
-    ] as unknown as ReadonlyArray<ProductCensus>;
+  it('blocks an alarm mapped to the wrong product or to several products', async () => {
+    const cases: ReadonlyArray<readonly [string, RunOptions]> = [
+      [
+        'ALARM_PRODUCT_MISMATCH',
+        {
+          registrations: [registration('rb', 'SEND', [ALARM, 'second-alarm'], runbookOf({}, {}))],
+          census: [sendCensus(), { ...interopCensus(), alarms: [{ id: 'a2', name: 'second-alarm' }] }],
+        },
+      ],
+      [
+        'ALARM_PRODUCT_AMBIGUOUS',
+        { census: [sendCensus(), { ...interopCensus(), alarms: [{ id: 'a2', name: ALARM }] }] },
+      ],
+    ];
 
-    const report = await checkRunbookCoverage({
-      registry: registryOf([registration('rb', 'SEND', [ALARM, 'second-alarm'], runbookOf({}, {}))]),
-      products: PRODUCTS,
-      census,
-      ignoreReasons: [],
-    });
-
-    assert.ok(report.errors.some((issue) => issue.code === 'ALARM_PRODUCT_MISMATCH'));
+    for (const [code, options] of cases) {
+      assert.ok((await run(options)).errors.some((issue) => issue.code === code), code);
+    }
   });
 
-  it('blocks when the same alarm belongs to multiple Watchtower products', async () => {
-    const census = [
-      sendCensus(),
-      { ...interopCensus(), alarms: [{ id: 'a2', name: ALARM }] },
-    ] as unknown as ReadonlyArray<ProductCensus>;
-
-    const report = await checkRunbookCoverage({
-      registry: registryOf([registration('rb', 'SEND', [ALARM], runbookOf({}, {}))]),
-      products: PRODUCTS,
-      census,
-      ignoreReasons: [],
-    });
-
-    assert.ok(report.errors.some((issue) => issue.code === 'ALARM_PRODUCT_AMBIGUOUS'));
-  });
-
-  it('blocks an ignore reason that is not censused', async () => {
+  it('blocks a completely swapped SEND and INTEROP alarm mapping', async () => {
     const report = await run({
-      analysis: { analysisType: 'IGNORABLE', ignoreReasonCode: 'GHOST' },
-      ignoreReasons: [ignoreReason('EXTERNAL', null)],
+      registrations: [
+        registration('send-runbook', 'SEND', [INTEROP_ALARM], runbookOf({}, {})),
+        registration('interop-runbook', 'INTEROP', [ALARM], runbookOf({}, {})),
+      ],
     });
 
-    assert.ok(report.errors.some((issue) => issue.code === 'IGNORE_REASON_NOT_FOUND'));
+    assert.strictEqual(report.errors.filter((issue) => issue.code === 'ALARM_PRODUCT_MISMATCH').length, 2);
+  });
+
+  it('blocks an ignore reason that is not censused or whose details schema does not compile', async () => {
+    const cases: ReadonlyArray<readonly [string, RunOptions]> = [
+      [
+        'IGNORE_REASON_NOT_FOUND',
+        {
+          analysis: { analysisType: 'IGNORABLE', ignoreReasonCode: 'GHOST' },
+          ignoreReasons: [ignoreReason('EXTERNAL', null)],
+        },
+      ],
+      [
+        'IGNORE_DETAILS_SCHEMA_INVALID',
+        {
+          analysis: { analysisType: 'IGNORABLE', ignoreReasonCode: 'BROKEN', ignoreDetails: {} },
+          ignoreReasons: [ignoreReason('BROKEN', { type: 'not-a-json-type' })],
+        },
+      ],
+    ];
+
+    for (const [code, options] of cases) {
+      assert.ok((await run(options)).errors.some((issue) => issue.code === code), code);
+    }
   });
 
   it('blocks static ignoreDetails that do not satisfy the census schema', async () => {
@@ -145,118 +150,69 @@ describe('checkRunbookCoverage', () => {
     assert.deepStrictEqual(report.errors, []);
   });
 
-  it('blocks a detailsSchema that does not compile', async () => {
-    const report = await run({
-      analysis: { analysisType: 'IGNORABLE', ignoreReasonCode: 'BROKEN', ignoreDetails: {} },
-      ignoreReasons: [ignoreReason('BROKEN', { type: 'not-a-json-type' })],
-    });
+  it('keeps catalog drift, uncensused documental runbooks and over-long census names as warnings', async () => {
+    const cases: ReadonlyArray<readonly [ReadonlyArray<string>, RunOptions]> = [
+      [['CATALOG_VALUE_NOT_CENSUSED', 'CENSUS_VALUE_NOT_CATALOGUED'], {}],
+      [['RUNBOOK_DOCUMENT_NOT_FOUND'], { defaults: { runbookName: 'Runbook fantasma' } }],
+      [
+        ['CENSUS_NAME_TOO_LONG'],
+        { census: [{ ...sendCensus(), downstreams: [{ id: 'd9', name: 'x'.repeat(300) }] }, interopCensus()] },
+      ],
+    ];
 
-    assert.ok(report.errors.some((issue) => issue.code === 'IGNORE_DETAILS_SCHEMA_INVALID'));
+    for (const [codes, options] of cases) {
+      const report = await run(options);
+      assert.deepStrictEqual(report.errors, [], codes.join());
+      for (const code of codes) {
+        assert.ok(report.warnings.some((issue) => issue.code === code), code);
+      }
+    }
   });
 
-  it('keeps unused catalog drift as a warning', async () => {
-    const report = await run({ analysis: {} });
-
-    assert.deepStrictEqual(report.errors, []);
-    assert.ok(report.warnings.some((issue) => issue.code === 'CATALOG_VALUE_NOT_CENSUSED'));
-    assert.ok(report.warnings.some((issue) => issue.code === 'CENSUS_VALUE_NOT_CATALOGUED'));
-  });
-
-  it('warns about a documental runbook that is not censused', async () => {
-    const report = await run({ analysis: {}, defaults: { runbookName: 'Runbook fantasma' } });
-
-    assert.deepStrictEqual(report.errors, []);
-    assert.ok(report.warnings.some((issue) => issue.code === 'RUNBOOK_DOCUMENT_NOT_FOUND'));
-  });
-
-  it('warns about a censused name longer than the API bound', async () => {
-    const census = [
-      { ...sendCensus(), downstreams: [{ id: 'd9', name: 'x'.repeat(300) }] },
-      interopCensus(),
-    ] as unknown as ReadonlyArray<ProductCensus>;
-
-    const report = await checkRunbookCoverage({
-      registry: registryOf([registration('rb', 'SEND', [ALARM], runbookOf({}, {}))]),
-      products: PRODUCTS,
-      census,
-      ignoreReasons: [],
-    });
-
-    assert.ok(report.warnings.some((issue) => issue.code === 'CENSUS_NAME_TOO_LONG'));
-  });
-
-  it('blocks a completely swapped SEND and INTEROP alarm mapping', async () => {
-    const report = await checkRunbookCoverage({
-      registry: registryOf([
-        registration('send-runbook', 'SEND', [INTEROP_ALARM], runbookOf({}, {})),
-        registration('interop-runbook', 'INTEROP', [ALARM], runbookOf({}, {})),
-      ]),
-      products: PRODUCTS,
-      census: [sendCensus(), interopCensus()] as unknown as ReadonlyArray<ProductCensus>,
-      ignoreReasons: [],
-    });
-
-    assert.strictEqual(report.errors.filter((issue) => issue.code === 'ALARM_PRODUCT_MISMATCH').length, 2);
-  });
-
-  it('blocks when a required Watchtower product is missing', async () => {
-    const report = await checkRunbookCoverage({
-      registry: registryOf([registration('rb', 'SEND', [ALARM], runbookOf({}, {}))]),
-      products: [product(SEND_PRODUCT_ID, 'SEND')],
-      census: [sendCensus()] as unknown as ReadonlyArray<ProductCensus>,
-      ignoreReasons: [],
-    });
-
-    const error = report.errors.find((issue) => issue.code === 'PRODUCT_NOT_FOUND');
-    assert.ok(error);
-    assert.strictEqual(error.product, 'INTEROP');
-  });
-
-  it('blocks when two runbook products map to the same Watchtower product id', async () => {
+  it('blocks a missing, shared or uncensused Watchtower product', async () => {
     const sharedProductId = 'shared-product';
-    const census = [{ ...sendCensus(), productId: sharedProductId }] as unknown as ReadonlyArray<ProductCensus>;
+    const cases: ReadonlyArray<readonly [string, RunOptions]> = [
+      ['PRODUCT_NOT_FOUND', { products: [product(SEND_PRODUCT_ID, 'SEND')], census: [sendCensus()] }],
+      [
+        'PRODUCT_MAPPING_CONFLICT',
+        {
+          products: [product(sharedProductId, 'SEND'), product(sharedProductId, 'INTEROP')],
+          census: [{ ...sendCensus(), productId: sharedProductId }],
+        },
+      ],
+      ['PRODUCT_CENSUS_MISSING', { census: [sendCensus()] }],
+    ];
 
-    const report = await checkRunbookCoverage({
-      registry: registryOf([registration('rb', 'SEND', [ALARM], runbookOf({}, {}))]),
-      products: [product(sharedProductId, 'SEND'), product(sharedProductId, 'INTEROP')],
-      census,
-      ignoreReasons: [],
-    });
-
-    const error = report.errors.find((issue) => issue.code === 'PRODUCT_MAPPING_CONFLICT');
-    assert.ok(error);
-    assert.strictEqual(error.product, 'INTEROP');
-  });
-
-  it('blocks when a Watchtower product exists but its census is missing', async () => {
-    const report = await checkRunbookCoverage({
-      registry: registryOf([registration('rb', 'SEND', [ALARM], runbookOf({}, {}))]),
-      products: PRODUCTS,
-      census: [sendCensus()] as unknown as ReadonlyArray<ProductCensus>,
-      ignoreReasons: [],
-    });
-
-    const error = report.errors.find((issue) => issue.code === 'PRODUCT_CENSUS_MISSING');
-    assert.ok(error);
-    assert.strictEqual(error.product, 'INTEROP');
+    for (const [code, options] of cases) {
+      const error = (await run(options)).errors.find((issue) => issue.code === code);
+      assert.ok(error, code);
+      assert.strictEqual(error.product, 'INTEROP');
+    }
   });
 });
 
 // ─── fixtures ─────────────────────────────────────────────────────────────────
 
 interface RunOptions {
-  readonly analysis: Partial<KnownCaseAnalysis>;
+  readonly analysis?: Partial<KnownCaseAnalysis>;
   readonly defaults?: RunbookAnalysisDefaults;
   readonly alarmNames?: ReadonlyArray<string>;
   readonly ignoreReasons?: ReadonlyArray<IgnoreReasonDto>;
+  /** Replaces the single SEND runbook built from the options above. */
+  readonly registrations?: ReadonlyArray<RunbookRegistration>;
+  readonly products?: ReadonlyArray<ProductDto>;
+  readonly census?: ReadonlyArray<Record<string, unknown>>;
 }
 
-async function run(options: RunOptions): ReturnType<typeof checkRunbookCoverage> {
-  const alarmNames = options.alarmNames ?? [ALARM];
+/** Checks one SEND runbook (or `registrations`) against the SEND and INTEROP census. */
+async function run(options: RunOptions = {}): ReturnType<typeof checkRunbookCoverage> {
+  const registrations = options.registrations ?? [
+    registration('rb', 'SEND', options.alarmNames ?? [ALARM], runbookOf(options.defaults ?? {}, options.analysis ?? {})),
+  ];
   return await checkRunbookCoverage({
-    registry: registryOf([registration('rb', 'SEND', alarmNames, runbookOf(options.defaults ?? {}, options.analysis))]),
-    products: PRODUCTS,
-    census: [sendCensus(), interopCensus()] as unknown as ReadonlyArray<ProductCensus>,
+    registry: registryOf(registrations),
+    products: options.products ?? PRODUCTS,
+    census: (options.census ?? [sendCensus(), interopCensus()]) as unknown as ReadonlyArray<ProductCensus>,
     ignoreReasons: options.ignoreReasons ?? [],
   });
 }

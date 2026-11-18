@@ -30,63 +30,44 @@ function builderUnderTest(): RunbookBuilder {
 }
 
 describe('applyPipelineHooks', () => {
-  it('splices only the hooks registered at the anchor, in declaration order', () => {
+  it('splices only the hooks of the anchor, in declaration order, with their options', () => {
     const builder = builderUnderTest();
-    const hooks = [hook('a', 'first'), hook('b', 'second'), hook('c', 'first')];
     const reached = new Set<Anchor>();
-
-    applyPipelineHooks(builder, hooks, 'first', reached);
-
-    assert.deepStrictEqual(
-      builder.build().steps.map((descriptor) => descriptor.step.id),
-      ['a', 'c'],
-    );
-  });
-
-  it('carries the descriptor options through', () => {
-    const builder = builderUnderTest();
 
     applyPipelineHooks(
       builder,
-      [hook('a', 'first', { continueOnFailure: true, silent: true })],
+      [hook('a', 'first', { continueOnFailure: true, silent: true }), hook('b', 'second'), hook('c', 'first')],
       'first',
-      new Set<Anchor>(),
+      reached,
     );
 
-    const descriptor = builder.build().steps[0];
-    assert.strictEqual(descriptor?.continueOnFailure, true);
-    assert.strictEqual(descriptor?.silent, true);
+    const steps = builder.build().steps;
+    assert.deepStrictEqual(
+      steps.map((descriptor) => descriptor.step.id),
+      ['a', 'c'],
+    );
+    assert.deepStrictEqual([steps[0]?.continueOnFailure, steps[0]?.silent], [true, true]);
+    assert.deepStrictEqual([...reached], ['first']);
   });
 
   it('records the anchor even when no hook targets it', () => {
     const reached = new Set<Anchor>();
-    const builder = builderUnderTest();
 
-    applyPipelineHooks(builder, [], 'second', reached);
+    applyPipelineHooks(builderUnderTest(), [], 'second', reached);
 
     assert.deepStrictEqual([...reached], ['second']);
   });
 });
 
 describe('orphanHookAnchors', () => {
-  it('reports an anchor the pipeline never emitted', () => {
+  it('reports, once each, the anchors the pipeline never emitted', () => {
     // Without this a hook on a removed or misspelled anchor would silently
     // vanish instead of failing the build.
-    const orphans = orphanHookAnchors([hook('a', 'first'), hook('b', 'never-reached')], new Set<Anchor>(['first']));
-
-    assert.deepStrictEqual(orphans, ['never-reached']);
-  });
-
-  it('reports each orphan anchor once', () => {
-    const orphans = orphanHookAnchors(
-      [hook('a', 'never-reached'), hook('b', 'never-reached')],
-      new Set<Anchor>(['first']),
+    const reached = new Set<Anchor>(['first']);
+    assert.deepStrictEqual(
+      orphanHookAnchors([hook('a', 'first'), hook('b', 'never-reached'), hook('c', 'never-reached')], reached),
+      ['never-reached'],
     );
-
-    assert.deepStrictEqual(orphans, ['never-reached']);
-  });
-
-  it('is empty when every hook was spliced', () => {
-    assert.deepStrictEqual(orphanHookAnchors([hook('a', 'first')], new Set<Anchor>(['first', 'second'])), []);
+    assert.deepStrictEqual(orphanHookAnchors([hook('a', 'first')], reached), []);
   });
 });

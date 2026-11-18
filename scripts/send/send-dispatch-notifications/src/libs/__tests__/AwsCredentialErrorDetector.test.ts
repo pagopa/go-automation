@@ -13,32 +13,26 @@ function sdkError(name: string, message: string): Error {
 describe('AwsCredentialErrorDetector', () => {
   const { isCredentialError } = new AwsCredentialErrorDetector();
 
-  it('recognizes an expired security token by the error name, whatever the message', () => {
-    const message = 'The security token included in the request is expired';
-    assert.equal(isCredentialError(sdkError('ExpiredTokenException', message)), true);
-    assert.equal(isCredentialError(sdkError('ExpiredToken', message)), true);
-  });
-
-  it('recognizes credentials rejected by the service', () => {
-    assert.equal(
-      isCredentialError(
-        sdkError('UnrecognizedClientException', 'The security token included in the request is invalid.'),
-      ),
-      true,
-    );
-    assert.equal(isCredentialError(sdkError('InvalidSignatureException', 'Signature expired')), true);
-  });
-
-  it('recognizes an expired SSO session from the message (go-common analysis)', () => {
-    assert.equal(
-      isCredentialError(new Error('The SSO session associated with this profile has expired or is otherwise invalid.')),
-      true,
-    );
+  it('recognizes expired or rejected credentials by the error name, an expired SSO session by the message', () => {
+    const expired = 'The security token included in the request is expired';
+    for (const error of [
+      sdkError('ExpiredTokenException', expired),
+      sdkError('ExpiredToken', expired),
+      sdkError('UnrecognizedClientException', 'The security token included in the request is invalid.'),
+      sdkError('InvalidSignatureException', 'Signature expired'),
+      new Error('The SSO session associated with this profile has expired or is otherwise invalid.'),
+    ]) {
+      assert.equal(isCredentialError(error), true, error.name);
+    }
   });
 
   it('leaves other query errors to the retry', () => {
-    assert.equal(isCredentialError(sdkError('ProvisionedThroughputExceededException', 'throttled')), false);
-    assert.equal(isCredentialError(sdkError('ResourceNotFoundException', 'Requested resource not found')), false);
-    assert.equal(isCredentialError('not even an error'), false);
+    for (const error of [
+      sdkError('ProvisionedThroughputExceededException', 'throttled'),
+      sdkError('ResourceNotFoundException', 'Requested resource not found'),
+      'not even an error',
+    ]) {
+      assert.equal(isCredentialError(error), false);
+    }
   });
 });

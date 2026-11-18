@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import * as fs from 'node:fs/promises';
-import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { GOFileCopier } from '../GOFileCopier.js';
+import { useTempDir } from '../../__tests__/helpers/createTempDir.js';
 
 interface LogEntry {
   readonly message: string;
@@ -21,20 +21,12 @@ interface ManifestFile {
   }>;
 }
 
-async function makeTempDir(): Promise<string> {
-  return fs.mkdtemp(path.join(os.tmpdir(), 'go-common-file-copier-'));
-}
-
-async function writeTextFile(filePath: string, content: string): Promise<string> {
-  await fs.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.writeFile(filePath, content, 'utf-8');
-  return filePath;
-}
-
 describe('GOFileCopier', () => {
+  const tmp = useTempDir('go-common-file-copier-');
+
   it('registers, unregisters, clears files and resolves destination paths', async () => {
-    const dir = await makeTempDir();
-    const sourcePath = await writeTextFile(path.join(dir, 'source.txt'), 'source');
+    const dir = tmp.path;
+    const sourcePath = await tmp.write('source.txt', 'source');
     const executionDir = path.join(dir, 'execution');
     const logs: LogEntry[] = [];
     const copier = new GOFileCopier({
@@ -65,8 +57,8 @@ describe('GOFileCopier', () => {
   });
 
   it('copies files, preserves timestamps, skips existing destinations and reports missing sources', async () => {
-    const dir = await makeTempDir();
-    const sourcePath = await writeTextFile(path.join(dir, 'source.txt'), 'alpha');
+    const dir = tmp.path;
+    const sourcePath = await tmp.write('source.txt', 'alpha');
     const executionDir = path.join(dir, 'execution');
     const mtime = new Date('2026-01-02T03:04:05.000Z');
     await fs.utimes(sourcePath, mtime, mtime);
@@ -97,8 +89,8 @@ describe('GOFileCopier', () => {
   });
 
   it('skips files above max size and when an interactive prompt is declined', async () => {
-    const dir = await makeTempDir();
-    const sourcePath = await writeTextFile(path.join(dir, 'large.txt'), 'abcdef');
+    const dir = tmp.path;
+    const sourcePath = await tmp.write('large.txt', 'abcdef');
     const promptCalls: (readonly [string, string, string])[] = [];
     const declinedCopier = new GOFileCopier({
       executionDir: path.join(dir, 'declined-execution'),
@@ -133,14 +125,13 @@ describe('GOFileCopier', () => {
   });
 
   it('finalizes registered files with copied, skipped and failed results plus a manifest', async () => {
-    const dir = await makeTempDir();
+    const dir = tmp.path;
     const executionDir = path.join(dir, 'execution');
-    await fs.mkdir(executionDir, { recursive: true });
-    await writeTextFile(path.join(executionDir, 'blocked'), 'not a directory');
+    await tmp.write('execution/blocked', 'not a directory');
 
-    const copiedSource = await writeTextFile(path.join(dir, 'copied.txt'), 'abc');
-    const skippedSource = await writeTextFile(path.join(dir, 'skipped.txt'), 'abcdef');
-    const failedSource = await writeTextFile(path.join(dir, 'failed.txt'), 'fail');
+    const copiedSource = await tmp.write('copied.txt', 'abc');
+    const skippedSource = await tmp.write('skipped.txt', 'abcdef');
+    const failedSource = await tmp.write('failed.txt', 'fail');
     const logs: LogEntry[] = [];
     const copier = new GOFileCopier({
       executionDir,

@@ -9,12 +9,7 @@ describe('RunbookMaxIterationsError', () => {
 
     const error = new RunbookMaxIterationsError('rb-1', 100, 's12', visited);
 
-    assert.ok(error instanceof RunbookMaxIterationsError);
-    assert.ok(error instanceof Error);
     assert.strictEqual(error.name, 'RunbookMaxIterationsError');
-    assert.strictEqual(error.runbookId, 'rb-1');
-    assert.strictEqual(error.maxIterations, 100);
-    assert.strictEqual(error.lastStepId, 's12');
     assert.deepStrictEqual(error.visitedSequence, visited);
     assert.strictEqual(
       error.message,

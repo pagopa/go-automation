@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import type { GOConfigSchema } from '../../GOConfigSchema.js';
 import { GOInMemoryConfigProvider } from '../GOInMemoryConfigProvider.js';
 import { GOPresetConfigProvider } from '../GOPresetConfigProvider.js';
+import type { GOPresetConfigProviderSelection } from '../GOPresetConfigProvider.js';
 import { GOSecretsSpecifierFactory } from '../../GOSecretsSpecifier.js';
 import type { GOSecretsSpecifier } from '../../GOSecretsSpecifier.js';
 
@@ -24,58 +25,68 @@ function createSchema(): GOConfigSchema {
   } as unknown as GOConfigSchema;
 }
 
-function createPresetProvider(
-  options: {
-    readonly selectorValues?: Record<string, string | string[]>;
-    readonly warnings?: string[];
-    readonly infos?: string[];
-    readonly secrets?: GOSecretsSpecifier;
-  } = {},
-): GOPresetConfigProvider {
+interface PresetProviderOptions {
+  readonly selectorValues?: Record<string, string | string[]>;
+  readonly warnings?: string[];
+  readonly infos?: string[];
+  readonly secrets?: GOSecretsSpecifier;
+}
+
+interface PresetProviderHarness {
+  readonly provider: GOPresetConfigProvider;
+  readonly selectorProvider: GOInMemoryConfigProvider;
+  /** Every selection handed to the preset loader, in order. */
+  readonly selections: ReadonlyArray<GOPresetConfigProviderSelection>;
+}
+
+/** Builds a preset provider whose loader derives the values from the selected name. */
+function createHarness(options: PresetProviderOptions = {}): PresetProviderHarness {
+  const selections: GOPresetConfigProviderSelection[] = [];
   const selectorProvider = new GOInMemoryConfigProvider({
     ...(options.selectorValues !== undefined ? { values: options.selectorValues } : {}),
   });
 
-  return new GOPresetConfigProvider({
+  const provider = new GOPresetConfigProvider({
     selectorProviders: [selectorProvider],
     presetNameParameter: PRESET_NAME_PARAMETER,
     presetFileParameter: PRESET_FILE_PARAMETER,
     schema: createSchema(),
-    loadPreset: (selection) => ({
-      name: selection.presetName,
-      sourcePath: '/tmp/presets.yaml',
-      sourceDisplayPath: selection.presetFile ?? 'presets.yaml',
-      values: new Map<string, string | string[]>([
-        ['athena.database', `${selection.presetName}_analytics`],
-        ['analysis.rules', ['a', 'b']],
-        ['slack.token', 'xoxb-secret'],
-      ]),
-      unknownKeys: [],
-      allowUnknownKeys: true,
-    }),
+    loadPreset: (selection) => {
+      selections.push(selection);
+      return {
+        name: selection.presetName,
+        sourcePath: '/tmp/presets.yaml',
+        sourceDisplayPath: selection.presetFile ?? 'presets.yaml',
+        values: new Map<string, string | string[]>([
+          ['athena.database', `${selection.presetName}_analytics`],
+          ['analysis.rules', ['a', 'b']],
+          ['slack.token', 'xoxb-secret'],
+        ]),
+        unknownKeys: [],
+        allowUnknownKeys: true,
+      };
+    },
     ...(options.secrets !== undefined ? { secretsSpecifier: options.secrets } : {}),
     onWarning: (message) => options.warnings?.push(message),
     onInfo: (message) => options.infos?.push(message),
   });
+
+  return { provider, selectorProvider, selections };
 }
 
 describe('GOPresetConfigProvider', () => {
   it('stays empty when no preset name is configured', () => {
-    const provider = createPresetProvider();
+    const { provider, selections } = createHarness();
 
     assert.strictEqual(provider.getName(), 'Preset');
     assert.strictEqual(provider.hasKey('athena.database'), false);
     assert.deepStrictEqual(provider.getAllKeys(), []);
+    assert.deepStrictEqual(selections, []);
   });
 
   it('loads preset values lazily from selector providers', () => {
     const infos: string[] = [];
-    const provider = createPresetProvider({
-      selectorValues: {
-        [PRESET_NAME_PARAMETER]: 'tppmessages',
-      },
-      infos,
-    });
+    const { provider } = createHarness({ selectorValues: { [PRESET_NAME_PARAMETER]: 'tppmessages' }, infos });
 
     assert.strictEqual(provider.hasKey('athena.database'), true);
     assert.strictEqual(provider.getName(), 'Preset(tppmessages)');
@@ -85,172 +96,79 @@ describe('GOPresetConfigProvider', () => {
     assert.deepStrictEqual(infos, ["Loaded preset 'tppmessages' from presets.yaml (3 keys)"]);
   });
 
-  it('resolves preset selector aliases', () => {
-    const provider = createPresetProvider({
-      selectorValues: {
-        spn: 'prod',
-        spf: 'presets.prod.yaml',
-      },
-    });
+  it('resolves preset selector aliases and trims the selected values', () => {
+    const cases: ReadonlyArray<Record<string, string>> = [
+      { spn: 'prod', spf: 'presets.prod.yaml' },
+      { [PRESET_NAME_PARAMETER]: '  prod  ', [PRESET_FILE_PARAMETER]: '  presets.prod.yaml  ' },
+    ];
 
-    assert.strictEqual(provider.getValue('athena.database'), 'prod_analytics');
-    assert.strictEqual(provider.getName(), 'Preset(prod)');
+    for (const selectorValues of cases) {
+      const { provider, selections } = createHarness({ selectorValues });
+
+      provider.prepare();
+
+      assert.deepStrictEqual(selections, [{ presetName: 'prod', presetFile: 'presets.prod.yaml' }]);
+      assert.strictEqual(provider.getName(), 'Preset(prod)');
+      assert.strictEqual(provider.getValue('athena.database'), 'prod_analytics');
+    }
   });
 
-  it('trims preset selector values before loading the preset', () => {
-    const selections: { readonly presetName: string; readonly presetFile?: string }[] = [];
-    const provider = new GOPresetConfigProvider({
-      selectorProviders: [
-        new GOInMemoryConfigProvider({
-          values: {
-            [PRESET_NAME_PARAMETER]: '  prod  ',
-            [PRESET_FILE_PARAMETER]: '  presets.prod.yaml  ',
-          },
-        }),
+  it('rejects empty or repeated preset selectors without loading a preset', () => {
+    const cases: ReadonlyArray<readonly [Record<string, string | string[]>, RegExp]> = [
+      [{ [PRESET_NAME_PARAMETER]: '' }, /script\.preset\.name cannot be empty/],
+      [{ [PRESET_NAME_PARAMETER]: [] }, /script\.preset\.name cannot be empty/],
+      [{ [PRESET_NAME_PARAMETER]: 'prod', [PRESET_FILE_PARAMETER]: [] }, /script\.preset\.file cannot be empty/],
+      [{ [PRESET_NAME_PARAMETER]: ['dev', 'prod'] }, /script\.preset\.name cannot be specified multiple times/],
+      [
+        { [PRESET_NAME_PARAMETER]: 'prod', [PRESET_FILE_PARAMETER]: ['presets.dev.yaml', 'presets.prod.yaml'] },
+        /script\.preset\.file cannot be specified multiple times/,
       ],
-      presetNameParameter: PRESET_NAME_PARAMETER,
-      presetFileParameter: PRESET_FILE_PARAMETER,
-      schema: createSchema(),
-      loadPreset: (selection) => {
-        selections.push(selection);
-        return {
-          name: selection.presetName,
-          sourcePath: '/tmp/presets.yaml',
-          sourceDisplayPath: selection.presetFile ?? 'presets.yaml',
-          values: new Map([['athena.database', selection.presetName]]),
-          unknownKeys: [],
-          allowUnknownKeys: true,
-        };
-      },
-    });
+    ];
 
-    provider.prepare();
+    for (const [selectorValues, message] of cases) {
+      const { provider, selections } = createHarness({ selectorValues });
 
-    assert.deepStrictEqual(selections, [{ presetName: 'prod', presetFile: 'presets.prod.yaml' }]);
-    assert.strictEqual(provider.getName(), 'Preset(prod)');
-    assert.strictEqual(provider.getValue('athena.database'), 'prod');
+      assert.throws(() => provider.prepare(), message);
+      assert.deepStrictEqual(selections, []);
+    }
   });
 
-  it('rejects an empty preset name supplied by a selector provider', () => {
-    const provider = new GOPresetConfigProvider({
-      selectorProviders: [
-        new GOInMemoryConfigProvider({
-          values: {
-            [PRESET_NAME_PARAMETER]: '',
-          },
-        }),
+  it('ignores a preset file without a preset name, warning only when the file is set', () => {
+    const cases: ReadonlyArray<readonly [string, ReadonlyArray<string>]> = [
+      [
+        'presets.prod.yaml',
+        [
+          `${PRESET_FILE_PARAMETER} is configured but ${PRESET_NAME_PARAMETER} is missing; preset file will be ignored.`,
+        ],
       ],
-      presetNameParameter: PRESET_NAME_PARAMETER,
-      presetFileParameter: PRESET_FILE_PARAMETER,
-      schema: createSchema(),
-      loadPreset: () => {
-        throw new Error('loadPreset should not be called');
-      },
-    });
+      ['   ', []],
+    ];
 
-    assert.throws(() => provider.prepare(), /script\.preset\.name cannot be empty/);
-  });
+    for (const [presetFile, expectedWarnings] of cases) {
+      const warnings: string[] = [];
+      const { provider } = createHarness({ selectorValues: { [PRESET_FILE_PARAMETER]: presetFile }, warnings });
 
-  it('rejects empty preset selector arrays', () => {
-    const presetNameProvider = createPresetProvider({
-      selectorValues: {
-        [PRESET_NAME_PARAMETER]: [],
-      },
-    });
-    const presetFileProvider = createPresetProvider({
-      selectorValues: {
-        [PRESET_NAME_PARAMETER]: 'prod',
-        [PRESET_FILE_PARAMETER]: [],
-      },
-    });
+      provider.prepare();
 
-    assert.throws(() => presetNameProvider.prepare(), /script\.preset\.name cannot be empty/);
-    assert.throws(() => presetFileProvider.prepare(), /script\.preset\.file cannot be empty/);
-  });
-
-  it('rejects repeated preset selector values', () => {
-    const presetNameProvider = createPresetProvider({
-      selectorValues: {
-        [PRESET_NAME_PARAMETER]: ['dev', 'prod'],
-      },
-    });
-    const presetFileProvider = createPresetProvider({
-      selectorValues: {
-        [PRESET_NAME_PARAMETER]: 'prod',
-        [PRESET_FILE_PARAMETER]: ['presets.dev.yaml', 'presets.prod.yaml'],
-      },
-    });
-
-    assert.throws(() => presetNameProvider.prepare(), /script\.preset\.name cannot be specified multiple times/);
-    assert.throws(() => presetFileProvider.prepare(), /script\.preset\.file cannot be specified multiple times/);
-  });
-
-  it('warns when preset file is configured without preset name', () => {
-    const warnings: string[] = [];
-    const provider = createPresetProvider({
-      selectorValues: {
-        [PRESET_FILE_PARAMETER]: 'presets.prod.yaml',
-      },
-      warnings,
-    });
-
-    provider.prepare();
-
-    assert.strictEqual(provider.hasKey('athena.database'), false);
-    assert.deepStrictEqual(warnings, [
-      `${PRESET_FILE_PARAMETER} is configured but ${PRESET_NAME_PARAMETER} is missing; preset file will be ignored.`,
-    ]);
-  });
-
-  it('ignores an empty preset file when no preset name is configured', () => {
-    const warnings: string[] = [];
-    const provider = createPresetProvider({
-      selectorValues: {
-        [PRESET_FILE_PARAMETER]: '   ',
-      },
-      warnings,
-    });
-
-    provider.prepare();
-
-    assert.strictEqual(provider.hasKey('athena.database'), false);
-    assert.deepStrictEqual(warnings, []);
+      assert.strictEqual(provider.hasKey('athena.database'), false);
+      assert.deepStrictEqual(warnings, expectedWarnings);
+    }
   });
 
   it('refreshes preset values on prepare', () => {
-    const selectorProvider = new GOInMemoryConfigProvider({
-      values: {
-        [PRESET_NAME_PARAMETER]: 'dev',
-      },
-    });
-    const provider = new GOPresetConfigProvider({
-      selectorProviders: [selectorProvider],
-      presetNameParameter: PRESET_NAME_PARAMETER,
-      presetFileParameter: PRESET_FILE_PARAMETER,
-      schema: createSchema(),
-      loadPreset: (selection) => ({
-        name: selection.presetName,
-        sourcePath: '/tmp/presets.yaml',
-        sourceDisplayPath: 'presets.yaml',
-        values: new Map([['athena.database', selection.presetName]]),
-        unknownKeys: [],
-        allowUnknownKeys: true,
-      }),
-    });
+    const { provider, selectorProvider } = createHarness({ selectorValues: { [PRESET_NAME_PARAMETER]: 'dev' } });
 
     provider.prepare();
-    assert.strictEqual(provider.getValue('athena.database'), 'dev');
+    assert.strictEqual(provider.getValue('athena.database'), 'dev_analytics');
 
     selectorProvider.setValue(PRESET_NAME_PARAMETER, 'prod');
     provider.prepare();
-    assert.strictEqual(provider.getValue('athena.database'), 'prod');
+    assert.strictEqual(provider.getValue('athena.database'), 'prod_analytics');
   });
 
   it('redacts values using the configured secret specifier', () => {
-    const provider = createPresetProvider({
-      selectorValues: {
-        [PRESET_NAME_PARAMETER]: 'prod',
-      },
+    const { provider } = createHarness({
+      selectorValues: { [PRESET_NAME_PARAMETER]: 'prod' },
       secrets: GOSecretsSpecifierFactory.specific(['slack.token']),
     });
 

@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { GOLogger } from '@pagopa/go-common/logging';
 import { AlarmRunbookBuilder } from '../../builders/AlarmRunbookBuilder.js';
 import { RunbookEngine } from '../../../../engine/core/RunbookEngine.js';
@@ -12,10 +11,8 @@ import type { Step } from '../../../../engine/types/Step.js';
 import type { StepEvidence } from '../StepEvidence.js';
 import { buildStepEvidence } from '../buildStepEvidence.js';
 import { buildRunbookOutput } from '../buildRunbookOutput.js';
-
-function row(values: Record<string, string>): ReadonlyArray<GOLogsInsightsResultField> {
-  return Object.entries(values).map(([field, value]) => ({ field, value }));
-}
+import { logRow } from '../../../../__tests__/helpers/logRow.js';
+import { TEST_RUNBOOK_METADATA } from '../../../../__tests__/helpers/TEST_RUNBOOK_METADATA.js';
 
 function step(id = 'query-context'): Step {
   return { id, label: id, kind: 'data', execute: async () => Promise.resolve({ success: true }) };
@@ -23,14 +20,7 @@ function step(id = 'query-context'): Step {
 
 function builder(): AlarmRunbookBuilder {
   return AlarmRunbookBuilder.create('diagnostics')
-    .metadata({
-      name: 'Diagnostics',
-      description: '',
-      version: '1.0.0',
-      type: 'alarm-resolution',
-      team: 'GO',
-      tags: [],
-    })
+    .metadata(TEST_RUNBOOK_METADATA)
     .fallback({ type: 'log', level: 'warn', title: 'Unknown' });
 }
 
@@ -49,13 +39,13 @@ describe('declared step evidence', () => {
         [
           'query-context',
           [
-            row({
+            logRow({
               '@timestamp': '2026-10-21T10:00:02Z',
               log: 'rejoin completed',
               trace_id: 'trace-1',
               pod_app: 'writer',
             }),
-            ...Array.from({ length: 7 }, () => row({ '@timestamp': '2026-10-21T10:00:01Z', log: 'restart' })),
+            ...Array.from({ length: 7 }, () => logRow({ '@timestamp': '2026-10-21T10:00:01Z', log: 'restart' })),
           ],
         ],
       ]),
@@ -86,14 +76,14 @@ describe('declared step evidence', () => {
         [
           'query-context',
           [
-            row({
+            logRow({
               '@timestamp': '2026-10-21T10:00:02Z',
               log: 'recovered',
               '@message': '{raw envelope}',
               trace_id: 'trace-1',
             }),
-            row({ '@timestamp': '2026-10-21T10:00:01Z', log: 'restart' }),
-            row({ '@timestamp': '2026-10-21T10:00:03Z' }),
+            logRow({ '@timestamp': '2026-10-21T10:00:01Z', log: 'restart' }),
+            logRow({ '@timestamp': '2026-10-21T10:00:03Z' }),
           ],
         ],
       ]),
@@ -106,7 +96,7 @@ describe('declared step evidence', () => {
   it('does not report truncation just because a non-log row has no message', () => {
     const evidence = buildStepEvidence(
       [{ step: step(), evidence: [LOGS] }],
-      new Map([['query-context', [row({ '@message': 'error' }), row({ logCount: '42' })]]]),
+      new Map([['query-context', [logRow({ '@message': 'error' }), logRow({ logCount: '42' })]]]),
     );
     assert.strictEqual(evidence[0]?.items?.length, 1);
     assert.strictEqual(evidence[0]?.truncated, false);
@@ -132,15 +122,15 @@ describe('declared step evidence', () => {
         [
           'query-context',
           [
-            row({ queryKind: 'errors', '@message': 'error' }),
-            row({
+            logRow({ queryKind: 'errors', '@message': 'error' }),
+            logRow({
               queryKind: 'streams',
               lastLog: '2026-10-21T10:00:01Z',
               firstLog: 'start',
               logCount: '8',
               sourceAccountId: 'a',
             }),
-            row({
+            logRow({
               queryKind: 'streams',
               lastLog: '2026-10-21T10:00:02Z',
               firstLog: 'start',
@@ -184,7 +174,7 @@ describe('declared runbook output', () => {
           execute: async () =>
             Promise.resolve({
               success: true,
-              output: [row({ log: 'restart' })],
+              output: [logRow({ log: 'restart' })],
               vars: { count: '0', unavailable: '12foo' },
             }),
         },

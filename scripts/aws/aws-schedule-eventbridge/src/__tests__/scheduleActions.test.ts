@@ -13,10 +13,6 @@
  * `result !== undefined` di go-common, buco compreso: `dropResult` lo sfrutta
  * per verificare che le libs ricostruiscano comunque una voce per profilo.
  *
- * I doubles stanno in questo file perché nel monorepo ogni file di test è
- * autosufficiente (niente moduli helper dentro `__tests__/`: non sono esclusi
- * da `tsc` e finirebbero in `dist/`).
- *
  * Esecuzione:
  *   pnpm --filter=aws-schedule-eventbridge test
  *   node --import tsx/esm --test scripts/aws/aws-schedule-eventbridge/src/__tests__/scheduleActions.test.ts
@@ -97,6 +93,7 @@ interface SweepHarnessOptions {
 }
 
 type MultiProfileOperationFn<T> = (profile: string, clients: AWSClientProvider) => Promise<T>;
+type ScriptRunFn = (script: GOScript) => Promise<unknown>;
 
 /** The error EventBridge Scheduler raises for a schedule that does not exist. */
 function notFoundError(): Error {
@@ -336,12 +333,6 @@ describe('readSchedules', () => {
     assert.equal(reads[1]?.status, 'error');
     assert.match(reads[1]?.error?.message ?? '', /produced no result/);
   });
-
-  it('refuses to run without a schedule name', async () => {
-    const { script } = createSweepHarness({ profiles: [['sso_dev', {}]] });
-
-    await assert.rejects(readSchedules(script, buildConfig({ action: 'disable' })), /--schedule-name is required/);
-  });
 });
 
 describe('confirmScheduleSweep', () => {
@@ -475,35 +466,10 @@ describe('applyScheduleSweep', () => {
     assert.equal(input?.['ScheduleExpression'], 'cron(0 2 * * ? *)');
     assert.deepEqual(input?.['Target'], scheduleIn('ENABLED').Target);
   });
-
-  it('refuses to run without a schedule name', async () => {
-    const harness = createSweepHarness({ profiles: [['sso_dev', { schedule: scheduleIn('ENABLED') }]] });
-    const plan = planScheduleSweep(await readSchedules(harness.script, DISABLE_CONFIG), 'DISABLED');
-
-    await assert.rejects(
-      applyScheduleSweep(harness.script, buildConfig({ action: 'disable' }), plan),
-      /--schedule-name is required/,
-    );
-  });
 });
 
 describe('runScheduleSweep', () => {
-  it('writes to no account at all when the confirmation is refused', async () => {
-    const harness = createSweepHarness({
-      profiles: [
-        ['sso_dev', { schedule: scheduleIn('ENABLED') }],
-        ['sso_uat', { schedule: scheduleIn('ENABLED') }],
-      ],
-      confirmResult: false,
-    });
-
-    await runScheduleSweep(harness.script, DISABLE_CONFIG, 'DISABLED');
-
-    assert.deepEqual(updateCommands(harness.commands), []);
-    assert.ok(harness.calls.some((call) => call.payload === 'Operation cancelled by user.'));
-  });
-
-  it('exits zero on a cancelled run even when an account could not be read', async () => {
+  it('writes to no account and exits zero when the confirmation is refused, even with an unreadable account', async () => {
     const harness = createSweepHarness({
       profiles: [
         ['sso_dev', { schedule: scheduleIn('ENABLED') }],
@@ -515,6 +481,8 @@ describe('runScheduleSweep', () => {
     await runScheduleSweep(harness.script, DISABLE_CONFIG, 'DISABLED');
 
     assert.deepEqual(updateCommands(harness.commands), []);
+    assert.match(harness.confirmCalls[0] ?? '', /1 account\(s\) could not be read\./);
+    assert.ok(harness.calls.some((call) => call.payload === 'Operation cancelled by user.'));
   });
 
   it('updates the healthy account and still throws when another one failed to read', async () => {
@@ -595,36 +563,43 @@ function renderedTable(calls: ReadonlyArray<LoggedCall>, index = 0): GOTableOpti
 describe('runListSchedules', () => {
   const listConfig = buildConfig({ action: 'list' });
 
-  it('queries every profile and omits the filters that were not provided', async () => {
-    const harness = createSweepHarness({
-      profiles: [
-        ['sso_dev', { summaries: [{ Name: 'nightly-job' }] }],
-        ['sso_uat', { summaries: [{ Name: 'nightly-job' }] }],
-      ],
+  const filterCases: ReadonlyArray<{
+    readonly title: string;
+    readonly overrides: Partial<AwsScheduleEventbridgeConfig>;
+    readonly input: Record<string, unknown>;
+  }> = [
+    {
+      title: 'omits the filters that were not provided',
+      overrides: { scheduleGroup: 'batch' },
+      input: { GroupName: 'batch' },
+    },
+    {
+      title: 'forwards the name prefix and state filters',
+      overrides: { namePrefix: 'nightly', state: 'ENABLED' },
+      input: { GroupName: 'default', NamePrefix: 'nightly', State: 'ENABLED' },
+    },
+  ];
+
+  for (const { title, overrides, input } of filterCases) {
+    it(`queries every profile and ${title}`, async () => {
+      const harness = createSweepHarness({
+        profiles: [
+          ['sso_dev', { summaries: [{ Name: 'nightly-job' }] }],
+          ['sso_uat', { summaries: [{ Name: 'nightly-job' }] }],
+        ],
+      });
+
+      await runListSchedules(harness.script, { ...listConfig, ...overrides });
+
+      assert.deepEqual(
+        listCommands(harness.commands).map((record) => [record.profile, record.input]),
+        [
+          ['sso_dev', input],
+          ['sso_uat', input],
+        ],
+      );
     });
-
-    await runListSchedules(harness.script, { ...listConfig, scheduleGroup: 'batch' });
-
-    assert.deepEqual(
-      listCommands(harness.commands).map((record) => [record.profile, record.input]),
-      [
-        ['sso_dev', { GroupName: 'batch' }],
-        ['sso_uat', { GroupName: 'batch' }],
-      ],
-    );
-  });
-
-  it('forwards the name prefix and state filters', async () => {
-    const harness = createSweepHarness({ profiles: [['sso_dev', { summaries: [{ Name: 'nightly-job' }] }]] });
-
-    await runListSchedules(harness.script, { ...listConfig, namePrefix: 'nightly', state: 'ENABLED' });
-
-    assert.deepEqual(listCommands(harness.commands)[0]?.input, {
-      GroupName: 'default',
-      NamePrefix: 'nightly',
-      State: 'ENABLED',
-    });
-  });
+  }
 
   it('merges the rows of every profile into one table, with the profile named', async () => {
     const harness = createSweepHarness({
@@ -750,13 +725,8 @@ describe('runDescribeSchedule', () => {
     });
     await runDescribeSchedule(fleet.script, describeConfig);
 
-    const drift = renderedTable(fleet.calls);
     assert.deepEqual(
-      drift?.columns.map((column) => column.header),
-      ['Profile', 'Account', 'State', 'Schedule Expression', 'Timezone', 'Target ARN'],
-    );
-    assert.deepEqual(
-      drift?.data.map((row) => [row['profile'], row['state']]),
+      renderedTable(fleet.calls)?.data.map((row) => [row['profile'], row['state']]),
       [
         ['sso_dev', 'ENABLED'],
         ['sso_uat', 'MISSING'],
@@ -781,13 +751,27 @@ describe('runDescribeSchedule', () => {
       /is missing in 1 of 2 account\(s\)/,
     );
   });
+});
 
-  it('refuses to run without a schedule name', async () => {
-    const harness = createSweepHarness({ profiles: [['sso_dev', {}]] });
+describe('--schedule-name guard', () => {
+  const unnamed = buildConfig({ action: 'disable' });
+  const cases: ReadonlyArray<{
+    readonly name: string;
+    readonly run: ScriptRunFn;
+  }> = [
+    { name: 'readSchedules', run: async (script) => await readSchedules(script, unnamed) },
+    {
+      name: 'applyScheduleSweep',
+      run: async (script) => await applyScheduleSweep(script, unnamed, planScheduleSweep([], 'DISABLED')),
+    },
+    { name: 'runDescribeSchedule', run: async (script) => await runDescribeSchedule(script, unnamed) },
+  ];
 
-    await assert.rejects(
-      runDescribeSchedule(harness.script, buildConfig({ action: 'describe' })),
-      /--schedule-name is required/,
-    );
-  });
+  for (const { name, run } of cases) {
+    it(`${name} refuses to run without a schedule name`, async () => {
+      const { script } = createSweepHarness({ profiles: [['sso_dev', {}]] });
+
+      await assert.rejects(run(script), /--schedule-name is required/);
+    });
+  }
 });

@@ -37,34 +37,33 @@ describe('GOCLIArgumentParser', () => {
     );
   });
 
-  it('keeps everything after the first = as the inline value', () => {
-    const args = ['--defaults=sender.taxId=123', '--endpoint=https://h/api?a=1&b=2', '-q=a==b', '--empty='];
-    const expected = new Map<string, string | string[]>([
-      ['defaults', 'sender.taxId=123'],
-      ['endpoint', 'https://h/api?a=1&b=2'],
-      ['q', 'a==b'],
-      ['empty', ''],
-    ]);
+  it('keeps inline values after the first = and single values verbatim, splitting only repeated flags', () => {
+    const cases: ReadonlyArray<readonly [ReadonlyArray<string>, ReadonlyArray<readonly [string, string | string[]]>]> =
+      [
+        [
+          ['--defaults=sender.taxId=123', '--endpoint=https://h/api?a=1&b=2', '-q=a==b', '--empty='],
+          [
+            ['defaults', 'sender.taxId=123'],
+            ['endpoint', 'https://h/api?a=1&b=2'],
+            ['q', 'a==b'],
+            ['empty', ''],
+          ],
+        ],
+        [
+          ['--sender-denomination', 'Comune di X, Ufficio Y', '--title=Atto, allegato'],
+          [
+            ['sender-denomination', 'Comune di X, Ufficio Y'],
+            ['title', 'Atto, allegato'],
+          ],
+        ],
+        [['--tags=a,b', '--tags', 'c'], [['tags', ['a', 'b', 'c']]]],
+      ];
 
-    assert.deepStrictEqual(GOCLIArgumentParser.parse(args), expected);
-    assert.deepStrictEqual(GOCLIArgumentParser.parseWithSchema(args, {}), expected);
-  });
-
-  it('keeps a single value verbatim, commas included', () => {
-    const args = ['--sender-denomination', 'Comune di X, Ufficio Y', '--title=Atto, allegato'];
-    const expected = new Map<string, string | string[]>([
-      ['sender-denomination', 'Comune di X, Ufficio Y'],
-      ['title', 'Atto, allegato'],
-    ]);
-
-    assert.deepStrictEqual(GOCLIArgumentParser.parse(args), expected);
-    assert.deepStrictEqual(GOCLIArgumentParser.parseWithSchema(args, {}), expected);
-  });
-
-  it('splits on commas once a repeated flag makes the value a list', () => {
-    const parsed = GOCLIArgumentParser.parse(['--tags=a,b', '--tags', 'c']);
-
-    assert.deepStrictEqual(parsed, new Map<string, string | string[]>([['tags', ['a', 'b', 'c']]]));
+    for (const [args, entries] of cases) {
+      const expected = new Map<string, string | string[]>(entries.map(([key, value]) => [key, value]));
+      assert.deepStrictEqual(GOCLIArgumentParser.parse([...args]), expected, args.join(' '));
+      assert.deepStrictEqual(GOCLIArgumentParser.parseWithSchema([...args], {}), expected, args.join(' '));
+    }
   });
 
   it('parses with schema booleans and merges inline and positional values', () => {

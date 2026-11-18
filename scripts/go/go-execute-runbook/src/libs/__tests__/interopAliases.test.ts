@@ -66,7 +66,7 @@ function fakeDeps(alarmName: string): ExecuteRunbookDeps {
           alarmId: '0192c000-0000-7000-8000-0000000000dd',
           name: alarmName,
           firedAt: '2026-07-09T10:00:00.000Z',
-          awsAccountId: '170533023216',
+          awsAccountId: '123456789012',
           awsRegion: 'eu-south-1',
         };
       },

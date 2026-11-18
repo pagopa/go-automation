@@ -1,22 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { RunbookContext } from '../../../../../../engine/types/RunbookContext.js';
 import type { ResolveInteropApiGwAlarmContextFn } from '../../types/ResolveInteropApiGwAlarmContextFn.js';
 import { ResolveInteropApiGwAlarmContextStep } from '../ResolveInteropApiGwAlarmContextStep.js';
-import { createTestServiceRegistry } from '../../../../../common/testing/createTestServiceRegistry.js';
+import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
 
-function context(alarmName?: string): RunbookContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-08-24T10:00:00.000Z'),
-    stepResults: new Map(),
-    vars: new Map(),
-    params: new Map(alarmName === undefined ? [] : [['alarmName', alarmName]]),
-    logs: [],
-    services: createTestServiceRegistry(),
-    recoveredErrors: [],
-  };
+function context(alarmName?: string): ReturnType<typeof createTestContext> {
+  return createTestContext({ params: alarmName === undefined ? {} : { alarmName } });
 }
 
 const RESOLVE_FIXTURE: ResolveInteropApiGwAlarmContextFn = (alarmName) => ({

@@ -15,7 +15,7 @@
     "build": "tsc -b",
     "watch": "tsc --build --watch",
     "clean": "rm -rf dist *.tsbuildinfo",
-    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'"
+    "test": "node --import tsx/esm --test --experimental-test-isolation=none 'src/**/__tests__/**/*.test.ts'"
   },
   "author": "Team GO - Gestione Operativa",
   "license": "EUPL-1.2",

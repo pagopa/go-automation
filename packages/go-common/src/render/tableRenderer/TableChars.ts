@@ -17,7 +17,10 @@ export interface TableChars {
   readonly bottomMid: string;
   readonly bottomRight: string;
   readonly horizontal: string;
+  /** Separator between two cells of a row. */
   readonly vertical: string;
+  /** Outer edge on the left and right of every row: empty when the style has no outer frame. */
+  readonly edge: string;
 }
 
 const FULL_CHARS = {
@@ -32,6 +35,7 @@ const FULL_CHARS = {
   bottomRight: '┘',
   horizontal: '─',
   vertical: '│',
+  edge: '│',
 } as const satisfies TableChars;
 
 const BORDER_LESS_CHARS = {
@@ -46,6 +50,7 @@ const BORDER_LESS_CHARS = {
   bottomRight: '',
   horizontal: '─',
   vertical: '│',
+  edge: '',
 } as const satisfies TableChars;
 
 const COMPACT_CHARS = {
@@ -60,6 +65,7 @@ const COMPACT_CHARS = {
   bottomRight: '',
   horizontal: '',
   vertical: ' ',
+  edge: ' ',
 } as const satisfies TableChars;
 
 /**

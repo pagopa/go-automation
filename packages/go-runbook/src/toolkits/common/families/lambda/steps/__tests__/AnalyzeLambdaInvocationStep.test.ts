@@ -2,68 +2,61 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
-import type { RunbookContext } from '../../../../../../engine/types/RunbookContext.js';
+import type { StepResult } from '../../../../../../engine/types/StepResult.js';
 import { AnalyzeLambdaInvocationStep } from '../AnalyzeLambdaInvocationStep.js';
-import type { DownstreamErrorPattern } from '../../types/DownstreamErrorPattern.js';
-import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
-
-const PATTERNS: ReadonlyArray<DownstreamErrorPattern> = [
-  { pattern: 'External service pn-emd-integration returned errors', target: 'pn-emd-integration' },
-];
-
-function row(message: string): ReadonlyArray<GOLogsInsightsResultField> {
-  return [
-    { field: '@timestamp', value: '2026-01-01T00:00:00.000Z' },
-    { field: '@message', value: message },
-  ];
-}
-
-function context(vars: Map<string, string>, stepResults: Map<string, unknown>): RunbookContext {
-  return { vars, stepResults, services: createTestServiceRegistry() } as unknown as RunbookContext;
-}
+import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
+import { messageRow } from '../../../../../../__tests__/helpers/logRow.js';
 
 const step = new AnalyzeLambdaInvocationStep({
   id: 'analyze-lambda-invocation',
   label: 'Analisi flusso invocazione',
   fromStep: 'query-lambda-invocation',
-  downstreamErrorPatterns: PATTERNS,
+  downstreamErrorPatterns: [
+    { pattern: 'External service pn-emd-integration returned errors', target: 'pn-emd-integration' },
+  ],
 });
+
+/** Runs the step over the invocation rows, with the vars the error scan already wrote. */
+async function analyze(
+  vars: Readonly<Record<string, string>>,
+  invocationRows?: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
+): Promise<StepResult<undefined>> {
+  return step.execute(
+    createTestContext({
+      vars,
+      stepResults: invocationRows === undefined ? {} : { 'query-lambda-invocation': invocationRows },
+    }),
+  );
+}
 
 describe('AnalyzeLambdaInvocationStep', () => {
   it('routes to a downstream found only in the invocation flow', async () => {
-    const stepResults = new Map<string, unknown>([
-      ['query-lambda-invocation', [row('External service pn-emd-integration returned errors { status code 404 }')]],
+    const result = await analyze({ lambdaErrorCategory: 'application-error' }, [
+      messageRow('External service pn-emd-integration returned errors { status code 404 }'),
     ]);
-    const result = await step.execute(context(new Map([['lambdaErrorCategory', 'application-error']]), stepResults));
     assert.strictEqual(result.success, true);
     assert.strictEqual(result.vars?.['lambdaDownstreamTarget'], 'pn-emd-integration');
     assert.strictEqual(result.vars?.['lambdaErrorCategory'], 'downstream');
   });
 
-  it('is a no-op when the error scan already routed to a downstream', async () => {
-    const stepResults = new Map<string, unknown>([
-      ['query-lambda-invocation', [row('External service pn-emd-integration returned errors')]],
+  it('is a no-op when the error scan already routed to a downstream or the invocation step produced no output', async () => {
+    const routed = await analyze({ lambdaDownstreamTarget: 'pn-emd-integration' }, [
+      messageRow('External service pn-emd-integration returned errors'),
     ]);
-    const result = await step.execute(
-      context(new Map([['lambdaDownstreamTarget', 'pn-emd-integration']]), stepResults),
-    );
-    assert.strictEqual(result.vars, undefined);
-  });
-
-  it('is a no-op when the invocation step produced no output', async () => {
-    const result = await step.execute(context(new Map(), new Map()));
-    assert.strictEqual(result.success, true);
-    assert.strictEqual(result.vars, undefined);
+    const empty = await analyze({});
+    assert.strictEqual(routed.vars, undefined);
+    assert.strictEqual(empty.success, true);
+    assert.strictEqual(empty.vars, undefined);
   });
 
   it('enriches runtime REPORT vars from the flow when the error scan did not', async () => {
     const reportLine =
       'REPORT RequestId: 0aa702b3-3ef4-47f8-a3c3-a5fea267e4ef Duration: 30000.00 ms ' +
       'Billed Duration: 30000 ms Memory Size: 256 MB Max Memory Used: 200 MB Status: timeout';
-    const stepResults = new Map<string, unknown>([
-      ['query-lambda-invocation', [row('Task timed out after 30.00 seconds'), row(reportLine)]],
+    const result = await analyze({ lambdaErrorCategory: 'timeout' }, [
+      messageRow('Task timed out after 30.00 seconds'),
+      messageRow(reportLine),
     ]);
-    const result = await step.execute(context(new Map([['lambdaErrorCategory', 'timeout']]), stepResults));
     assert.strictEqual(result.success, true);
     assert.strictEqual(result.vars?.['lambdaDurationMs'], '30000');
     assert.strictEqual(result.vars?.['lambdaRuntimeStatus'], 'timeout');
@@ -74,16 +67,7 @@ describe('AnalyzeLambdaInvocationStep', () => {
     const reportLine =
       'REPORT RequestId: 0aa702b3-3ef4-47f8-a3c3-a5fea267e4ef Duration: 30000.00 ms ' +
       'Memory Size: 256 MB Max Memory Used: 200 MB Status: timeout';
-    const stepResults = new Map<string, unknown>([['query-lambda-invocation', [row(reportLine)]]]);
-    const result = await step.execute(
-      context(
-        new Map([
-          ['lambdaDurationMs', '999'],
-          ['lambdaRuntimeStatus', 'error'],
-        ]),
-        stepResults,
-      ),
-    );
+    const result = await analyze({ lambdaDurationMs: '999', lambdaRuntimeStatus: 'error' }, [messageRow(reportLine)]);
     // Pre-existing vars are left untouched (absent from the returned delta);
     // only the previously-missing memory fields are filled.
     assert.strictEqual(result.vars?.['lambdaDurationMs'], undefined);

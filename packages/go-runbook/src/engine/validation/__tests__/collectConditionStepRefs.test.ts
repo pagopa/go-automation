@@ -17,9 +17,10 @@ describe('collectConditionStepRefs', () => {
     }
   });
 
-  it('ignores refs that do not point at a step', () => {
-    assert.strictEqual(collectConditionStepRefs({ type: 'exists', ref: 'vars.traceId' }).size, 0);
-    assert.strictEqual(collectConditionStepRefs({ type: 'exists', ref: 'params.alarmName' }).size, 0);
+  it('ignores refs that do not point at a step or carry no step id', () => {
+    for (const ref of ['vars.traceId', 'params.alarmName', 'steps.']) {
+      assert.strictEqual(collectConditionStepRefs({ type: 'exists', ref }).size, 0, ref);
+    }
   });
 
   it('walks and/or/not so a nested reference is still found', () => {
@@ -51,9 +52,5 @@ describe('collectConditionStepRefs', () => {
       ],
     };
     assert.deepStrictEqual([...collectConditionStepRefs(condition)], ['same']);
-  });
-
-  it('ignores a bare "steps." ref carrying no id', () => {
-    assert.strictEqual(collectConditionStepRefs({ type: 'exists', ref: 'steps.' }).size, 0);
   });
 });

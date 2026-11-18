@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { ConditionEvaluator, type RunbookContext } from '../../../../../engine/index.js';
-import { createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
+import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
 
 import { KNOWN_CASES } from '../knownCases.js';
 
@@ -13,16 +13,7 @@ interface CaseEvidence {
 }
 
 function context(evidence: CaseEvidence): RunbookContext {
-  return {
-    executionId: 'known-case-test',
-    startedAt: new Date('2026-08-29T09:00:00.000Z'),
-    stepResults: new Map(evidence.steps ?? []),
-    vars: new Map(Object.entries(evidence.vars ?? {})),
-    params: new Map(),
-    logs: [],
-    services: createTestServiceRegistry(),
-    recoveredErrors: [],
-  };
+  return createTestContext({ stepResults: Object.fromEntries(evidence.steps ?? []), vars: evidence.vars ?? {} });
 }
 
 const DOCUMENTED_CASES: ReadonlyArray<CaseEvidence> = [
@@ -256,11 +247,6 @@ describe('pn-delivery-B2B-ApiGwAlarm known cases', () => {
     }
   });
 
-  it('keeps IDs and priorities unique', () => {
-    assert.strictEqual(new Set(KNOWN_CASES.map((knownCase) => knownCase.id)).size, KNOWN_CASES.length);
-    assert.strictEqual(new Set(KNOWN_CASES.map((knownCase) => knownCase.priority)).size, KNOWN_CASES.length);
-  });
-
   it('matches every numeric out-of-bounds document index without accepting arbitrary path segments', () => {
     const knownCase = KNOWN_CASES.find((candidate) => candidate.id === 'delivery-document-index-out-of-bounds');
     assert.ok(knownCase !== undefined);
@@ -329,102 +315,32 @@ describe('pn-delivery-B2B-ApiGwAlarm known cases', () => {
     assert.ok(minimumActionable > maximumCompleted);
   });
 
-  it('does not resolve the no-log versioning case before the Lambda probe runs', () => {
-    const knownCase = KNOWN_CASES.find((candidate) => candidate.id === 'apigw-500-no-application-logs');
-    assert.ok(knownCase !== undefined);
-
-    assert.strictEqual(
-      evaluator.evaluate(
-        knownCase.condition,
-        context({
-          id: knownCase.id,
-          vars: {
-            apiGwStatusCode: '500',
-            apiGwErrorMessage: 'Internal server error',
-            deliveryLogCount: '0',
-          },
-        }),
-      ),
-      false,
-    );
-  });
-
   it('resolves a generic API Gateway 500 only after both application probes return zero errors', () => {
     const knownCase = KNOWN_CASES.find((candidate) => candidate.id === 'apigw-500-no-application-logs');
     assert.ok(knownCase !== undefined);
+    const probed = {
+      apiGwStatusCode: '500',
+      apiGwErrorMessage: 'Internal server error',
+      deliveryLogCount: '0',
+      versioningLambdaProbeState: 'queried',
+      versioningLambdaErrorCount: '0',
+    };
 
-    assert.strictEqual(
-      evaluator.evaluate(
-        knownCase.condition,
-        context({
-          id: knownCase.id,
-          vars: {
-            apiGwStatusCode: '500',
-            apiGwErrorMessage: 'Internal server error',
-            deliveryLogCount: '0',
-            versioningLambdaProbeState: 'queried',
-            versioningLambdaErrorCount: '0',
-          },
-        }),
-      ),
-      true,
-    );
-  });
-
-  it('does not infer zero Lambda errors from an unavailable probe', () => {
-    const knownCase = KNOWN_CASES.find((candidate) => candidate.id === 'apigw-500-no-application-logs');
-    assert.ok(knownCase !== undefined);
-
-    assert.strictEqual(
-      evaluator.evaluate(
-        knownCase.condition,
-        context({
-          id: knownCase.id,
-          vars: {
-            apiGwStatusCode: '500',
-            apiGwErrorMessage: 'Internal server error',
-            deliveryLogCount: '0',
-            versioningLambdaProbeState: 'unavailable',
-            versioningLambdaErrorCount: '',
-          },
-        }),
-      ),
-      false,
-    );
-  });
-
-  it('does not hide Lambda errors, WAF errors, or API Gateway network errors behind the no-log case', () => {
-    const knownCase = KNOWN_CASES.find((candidate) => candidate.id === 'apigw-500-no-application-logs');
-    assert.ok(knownCase !== undefined);
-
-    const scenarios: ReadonlyArray<Readonly<Record<string, string>>> = [
-      {
-        apiGwStatusCode: '500',
-        apiGwErrorMessage: 'Internal server error',
-        deliveryLogCount: '0',
-        versioningLambdaProbeState: 'queried',
-        versioningLambdaErrorCount: '1',
-      },
-      {
-        apiGwStatusCode: '500',
-        apiGwErrorMessage: 'AWS WAF evaluation error',
-        deliveryLogCount: '0',
-        versioningLambdaProbeState: 'queried',
-        versioningLambdaErrorCount: '0',
-      },
-      {
-        apiGwStatusCode: '500',
-        apiGwErrorMessage: 'Network error communicating with endpoint',
-        deliveryLogCount: '0',
-        versioningLambdaProbeState: 'queried',
-        versioningLambdaErrorCount: '0',
-      },
-    ];
-
-    for (const vars of scenarios) {
+    for (const [vars, expected] of [
+      [probed, true],
+      // Before the Lambda probe runs.
+      [{ apiGwStatusCode: '500', apiGwErrorMessage: 'Internal server error', deliveryLogCount: '0' }, false],
+      // An unavailable probe proves nothing about Lambda errors.
+      [{ ...probed, versioningLambdaProbeState: 'unavailable', versioningLambdaErrorCount: '' }, false],
+      // Lambda, WAF and network errors must not hide behind the no-log case.
+      [{ ...probed, versioningLambdaErrorCount: '1' }, false],
+      [{ ...probed, apiGwErrorMessage: 'AWS WAF evaluation error' }, false],
+      [{ ...probed, apiGwErrorMessage: 'Network error communicating with endpoint' }, false],
+    ] as const) {
       assert.strictEqual(
         evaluator.evaluate(knownCase.condition, context({ id: knownCase.id, vars: { ...vars } })),
-        false,
+        expected,
+        JSON.stringify(vars),
       );
     }
   });

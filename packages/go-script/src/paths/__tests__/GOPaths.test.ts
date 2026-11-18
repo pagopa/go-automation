@@ -19,8 +19,13 @@ const managedEnvVars = [
 ] as const;
 
 const originalEnv = new Map<string, string | undefined>(managedEnvVars.map((name) => [name, process.env[name]]));
+const tempRoots: string[] = [];
 
 afterEach(() => {
+  for (const root of tempRoots.splice(0)) {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+
   for (const [name, value] of originalEnv.entries()) {
     if (value === undefined) {
       delete process.env[name];
@@ -31,7 +36,9 @@ afterEach(() => {
 });
 
 function createTempRoot(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'go-paths-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'go-paths-'));
+  tempRoots.push(root);
+  return root;
 }
 
 function setPathEnv(root: string): {

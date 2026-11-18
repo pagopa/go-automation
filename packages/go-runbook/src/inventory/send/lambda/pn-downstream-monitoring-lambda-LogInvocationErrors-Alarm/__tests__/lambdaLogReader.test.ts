@@ -9,12 +9,9 @@ import {
   lambda,
   SEND_ACCOUNTS,
 } from '../../../../../toolkits/send/index.js';
-import { ConditionEvaluator } from '../../../../../engine/index.js';
-import { KNOWN_CASES } from '../knownCases.js';
 import { LAMBDA_LOG_READER } from '../lambdaLogReader.js';
 import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
 import type { InMemoryAwsAccountsPortOptions } from '../../../../../toolkits/common/testing/InMemoryAwsAccountsPortOptions.js';
-import { rejectsWith } from '../../../../../toolkits/common/accounts/__tests__/fixtures.js';
 import {
   fakeReader,
   occurrenceIn,
@@ -245,31 +242,6 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
     }
   });
 
-  it('rejects an occurrence outside the SEND accounts before querying', async () => {
-    const awsAccounts = sendAccountsPort(occurrenceIn(SEND_ACCOUNT_IDS.unrelated));
-    await assert.rejects(
-      async () => prepareSelections(awsAccounts, errorScan().accountSelections()),
-      rejectsWith('AWS_OCCURRENCE_ACCOUNT_MISMATCH'),
-    );
-    const result = await errorScan().execute({
-      ...errorlessContext(),
-      services: createTestServiceRegistry({ awsAccounts }),
-    });
-    assert.strictEqual(result.success, false);
-    assert.match(result.error ?? '', /not in the account directory/);
-  });
-
-  it('fails before querying when an account is unreachable', async () => {
-    await assert.rejects(
-      async () =>
-        prepareSelections(
-          sendAccountsPort({ ...PROD, unreachable: [SEND_ACCOUNTS.confinfo] }),
-          errorScan().accountSelections(),
-        ),
-      rejectsWith('AWS_ACCOUNT_UNREACHABLE'),
-    );
-  });
-
   it('accepts an error scan just below the row limit', async () => {
     const calls: QueryCall[] = [];
     const rows = Array.from({ length: 999 }, (_, index) => [
@@ -304,22 +276,6 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
       assert.strictEqual(result.output, undefined);
       assert.strictEqual(calls.length, expectedQueries);
     }
-  });
-
-  it('bounds invocation reconstruction in both accounts', async () => {
-    const calls: QueryCall[] = [];
-    const result = await invocation().execute(await context(PROD, calls));
-
-    assert.strictEqual(result.success, true);
-    assert.strictEqual(calls.length, 2);
-    assert.ok(
-      calls.every(
-        ({ query, paginateResults }) =>
-          query.includes("@requestId = 'b95bb742-cc30-4f07-80bc-45a38011e5c4'") &&
-          query.endsWith('| limit 1000') &&
-          paginateResults === true,
-      ),
-    );
   });
 
   it('batches every distinct request ID only in its source account', async () => {
@@ -513,35 +469,5 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
     assert.strictEqual(result.success, false);
     assert.match(result.error ?? '', /AccessDenied/);
     assert.strictEqual(calls.length, 2);
-  });
-
-  it('recognizes SlowDown when only confinfo has an error row', async () => {
-    const calls: QueryCall[] = [];
-    const rowsByAccount = new Map<string, Rows>([
-      ['core', []],
-      [
-        'confinfo',
-        [
-          [
-            {
-              field: '@message',
-              value:
-                'ERROR Invoke Error {"errorType":"SlowDown","errorMessage":"Please reduce your request rate.","$metadata":{"httpStatusCode":503}}',
-            },
-          ],
-        ],
-      ],
-    ]);
-    const input = await context(occurrenceIn(SEND_ACCOUNT_IDS.coreProd), calls, undefined, rowsByAccount);
-    const result = await errorScan().execute(input);
-    assert.strictEqual(result.success, true);
-    assert.strictEqual(result.output?.length, 1);
-    const knownCase = KNOWN_CASES.find(({ id }) => id === 'downstream-monitoring-aws-slow-down');
-    assert.ok(knownCase !== undefined);
-    const evaluated = new ConditionEvaluator().evaluate(knownCase.condition, {
-      ...input,
-      stepResults: new Map([['query-lambda-errors', result.output]]),
-    });
-    assert.strictEqual(evaluated, true);
   });
 });

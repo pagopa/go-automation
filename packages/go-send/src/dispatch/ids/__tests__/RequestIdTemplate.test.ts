@@ -27,6 +27,13 @@ describe('RequestIdTemplate.parse', () => {
   });
 });
 
+describe('RequestIdTemplate.render', () => {
+  it('renders every placeholder, trimming column values', () => {
+    const template = RequestIdTemplate.parse('PNMAN.GO-{runId}.{rowKey}.R{rowIndex}.{col:caso}.PCRETRY_{attempt}');
+    assert.equal(template.render('run', 'TC-1', 3, { caso: ' A ' }), 'PNMAN.GO-run.TC-1.R3.A.PCRETRY_0');
+  });
+});
+
 describe('RequestIdTemplate.emptyColumns', () => {
   it('lists each missing or blank column once, in template order', () => {
     const template = RequestIdTemplate.parse('X-{col:b}-{col:a}-{col:b}');

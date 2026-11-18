@@ -1,12 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 
 import { GODocxTextExtractor } from '../GODocxTextExtractor.js';
 import { GOTextExtractionError } from '../../GOTextExtractionError.js';
 import { GOTextExtractorRegistry } from '../../GOTextExtractorRegistry.js';
+import { writeTempFile } from '../../__tests__/tempFile.js';
 
 const DOCX_WITH_TEXT = Buffer.from(
   [
@@ -34,75 +34,44 @@ const FIXTURES_DIR = path.join(import.meta.dirname, '__fixtures__');
 describe('GODocxTextExtractor', () => {
   const extractor = new GODocxTextExtractor();
 
-  it('declares DOCX plus ambiguous legacy Word metadata as candidate formats', () => {
-    assert.deepStrictEqual(
-      [...extractor.supportedMimeTypes],
-      ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'],
+  it('extracts a real DOCX renamed to .doc through extension fallback', async (t) => {
+    const file = await writeTempFile(t, 'renamed.doc', DOCX_WITH_TEXT);
+    const registry = new GOTextExtractorRegistry();
+    registry.register(extractor);
+
+    const result = await registry.extract('application/octet-stream', file);
+
+    assert.strictEqual(result.text.trim(), 'Renamed DOCX');
+    assert.strictEqual(result.truncated, false);
+  });
+
+  it('rejects a genuine binary .doc with an explicit unsupported-format error', async (t) => {
+    const file = await writeTempFile(t, 'legacy.doc', Buffer.concat([COMPOUND_FILE_SIGNATURE, Buffer.alloc(32)]));
+
+    await assert.rejects(
+      extractor.extract(file),
+      (error) =>
+        error instanceof GOTextExtractionError &&
+        error.mimeType === 'application/msword' &&
+        /Unsupported binary Word document/.test(error.message),
     );
-    assert.deepStrictEqual([...extractor.supportedExtensions], ['.docx', '.doc']);
   });
 
-  it('extracts a real DOCX renamed to .doc through extension fallback', async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'go-docx-extractor-'));
-    const file = path.join(dir, 'renamed.doc');
-    try {
-      await fs.writeFile(file, DOCX_WITH_TEXT);
-      const registry = new GOTextExtractorRegistry();
-      registry.register(extractor);
+  it('rejects a non-DOCX ZIP named .doc and a malformed DOCX', async (t) => {
+    const spreadsheet = await writeTempFile(
+      t,
+      'spreadsheet.doc',
+      await fs.readFile(path.join(FIXTURES_DIR, 'sample.xlsx')),
+    );
+    const malformed = await writeTempFile(t, 'bad.docx', 'not a docx file');
 
-      const result = await registry.extract('application/octet-stream', file);
-
-      assert.strictEqual(result.text.trim(), 'Renamed DOCX');
-      assert.strictEqual(result.truncated, false);
-    } finally {
-      await fs.rm(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('rejects a genuine binary .doc with an explicit unsupported-format error', async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'go-docx-extractor-'));
-    const file = path.join(dir, 'legacy.doc');
-    try {
-      await fs.writeFile(file, Buffer.concat([COMPOUND_FILE_SIGNATURE, Buffer.alloc(32)]));
-
-      await assert.rejects(
-        extractor.extract(file),
-        (error) =>
-          error instanceof GOTextExtractionError &&
-          error.mimeType === 'application/msword' &&
-          /Unsupported binary Word document/.test(error.message),
-      );
-    } finally {
-      await fs.rm(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('rejects a non-DOCX ZIP even if it is named .doc', async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'go-docx-extractor-'));
-    const file = path.join(dir, 'spreadsheet.doc');
-    try {
-      await fs.copyFile(path.join(FIXTURES_DIR, 'sample.xlsx'), file);
-
-      await assert.rejects(
-        extractor.extract(file),
-        (error) => error instanceof GOTextExtractionError && /ZIP archive is not a DOCX document/.test(error.message),
-      );
-    } finally {
-      await fs.rm(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('throws GOTextExtractionError on a malformed DOCX', async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'go-docx-extractor-'));
-    const file = path.join(dir, 'bad.docx');
-    try {
-      await fs.writeFile(file, Buffer.from('not a docx file'));
-      await assert.rejects(
-        extractor.extract(file),
-        (error) => error instanceof GOTextExtractionError && /File is not a valid DOCX package/.test(error.message),
-      );
-    } finally {
-      await fs.rm(dir, { recursive: true, force: true });
-    }
+    await assert.rejects(
+      extractor.extract(spreadsheet),
+      (error) => error instanceof GOTextExtractionError && /ZIP archive is not a DOCX document/.test(error.message),
+    );
+    await assert.rejects(
+      extractor.extract(malformed),
+      (error) => error instanceof GOTextExtractionError && /File is not a valid DOCX package/.test(error.message),
+    );
   });
 });

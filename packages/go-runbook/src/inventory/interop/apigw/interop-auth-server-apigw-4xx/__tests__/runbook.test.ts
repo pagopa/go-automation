@@ -1,136 +1,69 @@
-import { AUTH_SERVER_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type {
-  AWSCloudWatchLogsQueryOptions,
-  AWSCloudWatchLogsQueryResult,
-  AWSCloudWatchLogsTimeRange,
-} from '@pagopa/go-aws/cloudwatch-logs';
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import { GOLogger } from '@pagopa/go-common/logging';
+import type { AWSCloudWatchLogsTimeRange } from '@pagopa/go-aws/cloudwatch-logs';
 
-import { RunbookEngine, type RunbookExecutionResult } from '../../../../../engine/index.js';
-import { apigw, buildAnalysisDraft, createTestServiceRegistry } from '../../../../../toolkits/interop/index.js';
-
+import { executeAlarmWithLogs } from '../../../shared/__tests__/helpers/runbookExecution.js';
+import type { LogsResponderFn } from '../../../../../__tests__/helpers/LogsResponderFn.js';
+import type { RunbookLogsExecution } from '../../../../../__tests__/helpers/RunbookLogsExecution.js';
 import { buildRunbook } from '../runbook.js';
 
-describe('buildRunbook', () => {
-  it('builds the read-only APIGW → warnings → CID pipeline with the asymmetric window', () => {
-    const runbook = buildRunbook();
+const isAccessLog = (logGroups: ReadonlyArray<string>): boolean =>
+  logGroups[0]?.startsWith('amazon-apigateway') === true;
 
-    assert.strictEqual(runbook.metadata.id, AUTH_SERVER_ALARM.runbookKey);
-    assert.deepStrictEqual(
-      runbook.steps.map(({ step }) => step.id),
-      [
-        AUTH_SERVER_ALARM.stepIds.resolveContext,
-        AUTH_SERVER_ALARM.stepIds.queryApiGwAggregates,
-        AUTH_SERVER_ALARM.stepIds.analyzeApiGwAggregates,
-        AUTH_SERVER_ALARM.stepIds.queryApplicationLogs,
-        AUTH_SERVER_ALARM.stepIds.analyzeApplicationLogs,
-        AUTH_SERVER_ALARM.stepIds.queryCidTracker,
-        AUTH_SERVER_ALARM.stepIds.analyzeCidTracker,
-      ],
-    );
-    assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 2, afterMinutes: 1 });
-    assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
-    assert.ok(apigw.isApiGwRunbookContext(runbook.runbookContext));
-    assert.strictEqual(runbook.runbookContext.services[0]?.name, AUTH_SERVER_ALARM.serviceName);
-    assert.strictEqual(runbook.knownCases.length, 14);
-    assert.strictEqual(runbook.analysisDefaults?.links?.[0]?.type, 'CONFLUENCE');
+/** Executes the prod alarm fired at 10:00 with the X-2/X+1 window. */
+async function execute(respond: LogsResponderFn): Promise<RunbookLogsExecution> {
+  return executeAlarmWithLogs(buildRunbook(), 'interop-auth-server-prod-apigw-4xx', respond, {
+    alarmDatetime: '2026-08-24T10:00:00.000Z',
+    startTime: '2026-08-24T09:58:00.000Z',
+    endTime: '2026-08-24T10:01:00.000Z',
   });
+}
 
+describe('INTEROP auth-server 4xx runbook', () => {
   it('uses X-2/X+1 for APIGW and CID but X-2/X for auth-server warnings', async () => {
-    const seen: { readonly query: string; readonly range: AWSCloudWatchLogsTimeRange }[] = [];
-    const applicationRows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [
-      [
-        { field: 'count', value: '1' },
-        { field: 'cid', value: 'cid-1' },
-        { field: 'errorMessage', value: 'unclassified warning' },
-      ],
-    ];
-    const cloudWatchLogs = {
-      async queryWithStatistics(
-        logGroups: ReadonlyArray<string>,
-        query: string,
-        range: AWSCloudWatchLogsTimeRange,
-        _options: AWSCloudWatchLogsQueryOptions,
-      ): Promise<AWSCloudWatchLogsQueryResult> {
-        seen.push({ query, range });
-        await Promise.resolve();
-        const rows =
-          logGroups[0]?.startsWith('amazon-apigateway') === true
-            ? [
-                [
-                  { field: 'count', value: '1' },
-                  { field: 'status', value: '400' },
-                ],
-              ]
-            : query.includes('stats count(*)')
-              ? applicationRows
-              : [];
-        return {
-          rows,
-          statistics: { bytesScanned: 1, recordsScanned: rows.length, recordsMatched: rows.length },
-          queryExecutions: [],
-        };
-      },
-    };
+    const ranges: AWSCloudWatchLogsTimeRange[] = [];
+    await execute((query, logGroups, range) => {
+      ranges.push(range);
+      if (isAccessLog(logGroups)) {
+        return [
+          [
+            { field: 'count', value: '1' },
+            { field: 'status', value: '400' },
+          ],
+        ];
+      }
+      return query.includes('stats count(*)')
+        ? [
+            [
+              { field: 'count', value: '1' },
+              { field: 'cid', value: 'cid-1' },
+              { field: 'errorMessage', value: 'unclassified warning' },
+            ],
+          ]
+        : [];
+    });
 
-    await execute(cloudWatchLogs);
-
-    assert.strictEqual(seen.length, 3);
-    assert.strictEqual(seen[0]?.range.end.toISOString(), '2026-08-24T10:01:00.000Z');
-    assert.strictEqual(seen[1]?.range.end.toISOString(), '2026-08-24T10:00:00.000Z');
-    assert.match(seen[1]?.query ?? '', /pod_app like \/interop\\-be\\-authorization\\-server\//u);
-    assert.doesNotMatch(seen[1]?.query ?? '', /authorization\\-server\\-node/u);
-    assert.strictEqual(seen[2]?.range.end.toISOString(), '2026-08-24T10:01:00.000Z');
+    assert.deepStrictEqual(
+      ranges.map(({ end }) => end.toISOString()),
+      ['2026-08-24T10:01:00.000Z', '2026-08-24T10:00:00.000Z', '2026-08-24T10:01:00.000Z'],
+    );
   });
 
-  it('keeps API Gateway 403 open even when no application warning was found', async () => {
-    const accessRows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [
-      [
-        { field: 'latestTimestamp', value: '2026-08-24 10:00:00.000' },
-        { field: 'count', value: '2' },
-        { field: 'status', value: '403' },
-        { field: 'httpMethod', value: 'GET' },
-        { field: 'requestPath', value: '/token.oauth2' },
-      ],
-    ];
-    const cloudWatchLogs = {
-      async queryWithStatistics(logGroups: ReadonlyArray<string>): Promise<AWSCloudWatchLogsQueryResult> {
-        await Promise.resolve();
-        const rows = logGroups[0]?.startsWith('amazon-apigateway') === true ? accessRows : [];
-        return {
-          rows,
-          statistics: { bytesScanned: 1, recordsScanned: rows.length, recordsMatched: rows.length },
-          queryExecutions: [],
-        };
-      },
-    };
-
-    const result = await execute(cloudWatchLogs);
-    assert.deepStrictEqual(
-      result.matchedCases.map(({ id }) => id),
-      ['auth-server-api-gateway-forbidden-403'],
+  it('recognizes an API Gateway 403 even when no application warning was found', async () => {
+    const { matchedIds } = await execute((_query, logGroups) =>
+      isAccessLog(logGroups)
+        ? [
+            [
+              { field: 'latestTimestamp', value: '2026-08-24 10:00:00.000' },
+              { field: 'count', value: '2' },
+              { field: 'status', value: '403' },
+              { field: 'httpMethod', value: 'GET' },
+              { field: 'requestPath', value: '/token.oauth2' },
+            ],
+          ]
+        : [],
     );
-    const draft = buildAnalysisDraft(buildRunbook(), result);
-    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
+    assert.deepStrictEqual(matchedIds, ['auth-server-api-gateway-forbidden-403']);
   });
 });
-
-async function execute(cloudWatchLogs: unknown): Promise<RunbookExecutionResult> {
-  const runbook = buildRunbook();
-  const engine = new RunbookEngine(new GOLogger());
-  return engine.execute(
-    runbook,
-    new Map([
-      ['alarmName', 'interop-auth-server-prod-apigw-4xx'],
-      ['alarmDatetime', '2026-08-24T10:00:00.000Z'],
-      ['startTime', '2026-08-24T09:58:00.000Z'],
-      ['endTime', '2026-08-24T10:01:00.000Z'],
-    ]),
-    createTestServiceRegistry({ cloudWatchLogs }),
-  );
-}

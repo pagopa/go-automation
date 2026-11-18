@@ -4,9 +4,10 @@ import { describe, it } from 'node:test';
 import { readCloudWatchResultRows } from '../readCloudWatchResultRows.js';
 
 describe('readCloudWatchResultRows', () => {
-  it('returns undefined for a missing or invalid step output', () => {
+  it('returns undefined for a missing or invalid step output, and preserves an empty result set', () => {
     assert.strictEqual(readCloudWatchResultRows(undefined), undefined);
     assert.strictEqual(readCloudWatchResultRows({}), undefined);
+    assert.deepStrictEqual(readCloudWatchResultRows([]), []);
   });
 
   it('keeps valid rows and filters invalid fields', () => {
@@ -31,9 +32,5 @@ describe('readCloudWatchResultRows', () => {
       readCloudWatchResultRows([[], [{ field: 'count', value: 123 }, { field: 456, value: 'invalid field' }, null]]),
       [],
     );
-  });
-
-  it('preserves an empty result set', () => {
-    assert.deepStrictEqual(readCloudWatchResultRows([]), []);
   });
 });

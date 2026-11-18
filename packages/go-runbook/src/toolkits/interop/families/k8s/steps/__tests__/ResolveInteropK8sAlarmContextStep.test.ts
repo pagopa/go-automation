@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { RunbookContext } from '../../../../../../engine/types/RunbookContext.js';
 import type { InteropK8sAlarmContext } from '../../types/InteropK8sAlarmContext.js';
 import type { ResolveInteropK8sAlarmContextFn } from '../../types/ResolveInteropK8sAlarmContextFn.js';
 import { ResolveInteropK8sAlarmContextStep } from '../ResolveInteropK8sAlarmContextStep.js';
-import { createTestServiceRegistry } from '../../../../../common/testing/createTestServiceRegistry.js';
+import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
 
 const ALARM_CONTEXT: InteropK8sAlarmContext = {
   alarmName: 'k8s-interop-be-backend-for-frontend-errors-att',
@@ -15,17 +14,8 @@ const ALARM_CONTEXT: InteropK8sAlarmContext = {
   logGroup: '/aws/eks/interop-eks-cluster-att/application',
 };
 
-function context(params: ReadonlyArray<readonly [string, string]>): RunbookContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-07-09T10:00:00.000Z'),
-    stepResults: new Map(),
-    vars: new Map(),
-    params: new Map(params),
-    logs: [],
-    services: createTestServiceRegistry(),
-    recoveredErrors: [],
-  };
+function context(params: ReadonlyArray<readonly [string, string]>): ReturnType<typeof createTestContext> {
+  return createTestContext({ params: Object.fromEntries(params) });
 }
 
 function step(resolveAlarmContext: ResolveInteropK8sAlarmContextFn): ResolveInteropK8sAlarmContextStep {

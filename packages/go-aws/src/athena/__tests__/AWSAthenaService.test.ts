@@ -6,120 +6,74 @@ import {
   GetQueryResultsCommand,
   StartQueryExecutionCommand,
   StopQueryExecutionCommand,
+  type AthenaClient,
 } from '@aws-sdk/client-athena';
-import type { AthenaClient } from '@aws-sdk/client-athena';
-
-import { AWSAthenaService } from '../AWSAthenaService.js';
 import type { GOSleeper } from '@pagopa/go-common/polling';
 
-type AthenaCommand =
-  StartQueryExecutionCommand | GetQueryExecutionCommand | GetQueryResultsCommand | StopQueryExecutionCommand;
+import { FakeAwsClient } from '../../__tests__/helpers/FakeAwsClient.js';
+import { AWSAthenaService } from '../AWSAthenaService.js';
 
-type AthenaResponse =
-  | Record<string, never>
-  | { readonly QueryExecutionId: string }
-  | {
-      readonly QueryExecution: {
-        readonly Status: {
-          readonly State: 'QUEUED' | 'RUNNING' | 'SUCCEEDED';
-          readonly SubmissionDateTime?: Date;
-          readonly CompletionDateTime?: Date;
-        };
-      };
-    }
-  | {
-      readonly ResultSet: {
-        readonly ResultSetMetadata?: {
-          readonly ColumnInfo: ReadonlyArray<{
-            readonly Name?: string;
-            readonly Type?: string;
-          }>;
-        };
-        readonly Rows: ReadonlyArray<{
-          readonly Data: ReadonlyArray<{ readonly VarCharValue?: string }>;
-        }>;
-      };
-      readonly NextToken?: string;
-    };
+/** Called on every execution status check. */
+type StatusCheckHook = () => void;
 
-interface FakeAthenaClient {
-  readonly commands: AthenaCommand[];
-  send(command: AthenaCommand): Promise<AthenaResponse>;
+/** Scripted Athena: the execution statuses (the last one repeats) and the result pages. */
+interface AthenaScript {
+  readonly statuses?: ReadonlyArray<object>;
+  readonly pages?: ReadonlyArray<object>;
+  readonly onStatusCheck?: StatusCheckHook;
 }
 
-function asAthenaClient(client: FakeAthenaClient): AthenaClient {
-  return client as unknown as AthenaClient;
+function athenaClient(script: AthenaScript = {}): FakeAwsClient {
+  const statuses = script.statuses ?? [{ State: 'SUCCEEDED' }];
+  const pages = [...(script.pages ?? [{ ResultSet: { Rows: [row('id')] } }])];
+  let checks = 0;
+  return new FakeAwsClient((command) => {
+    if (command instanceof StartQueryExecutionCommand) return { QueryExecutionId: 'exec-1' };
+    if (command instanceof StopQueryExecutionCommand) return {};
+    if (command instanceof GetQueryExecutionCommand) {
+      script.onStatusCheck?.();
+      const status = statuses[Math.min(checks, statuses.length - 1)];
+      checks += 1;
+      return { QueryExecution: { Status: status } };
+    }
+    return pages.shift() ?? new Error('No result page left');
+  });
+}
+
+/** A result row with the given cell values. */
+function row(...values: ReadonlyArray<string>): object {
+  return { Data: values.map((value) => ({ VarCharValue: value })) };
+}
+
+function serviceOf(client: FakeAwsClient): AWSAthenaService {
+  return new AWSAthenaService(client.as<AthenaClient>());
 }
 
 describe('AWSAthenaService', () => {
   it('stops a remote Athena query once when execution is aborted', async () => {
     const controller = new AbortController();
-    const fakeClient: FakeAthenaClient = {
-      commands: [],
-      async send(command) {
-        this.commands.push(command);
-        await Promise.resolve();
-        if (command instanceof StartQueryExecutionCommand) {
-          return { QueryExecutionId: 'exec-abort' };
-        }
-        if (command instanceof StopQueryExecutionCommand) {
-          return {};
-        }
-        if (command instanceof GetQueryExecutionCommand) {
-          controller.abort();
-          return { QueryExecution: { Status: { State: 'RUNNING' } } };
-        }
-        return { ResultSet: { Rows: [] } };
-      },
-    };
-    const service = new AWSAthenaService(asAthenaClient(fakeClient));
+    const client = athenaClient({ statuses: [{ State: 'RUNNING' }], onStatusCheck: () => controller.abort() });
 
     await assert.rejects(
-      service.executeQuery('db', 'select 1', {
+      serviceOf(client).executeQuery('db', 'select 1', {
         signal: controller.signal,
         maxPollAttempts: 2,
         pollIntervalMs: 1,
       }),
     );
 
-    assert.strictEqual(fakeClient.commands.filter((command) => command instanceof StopQueryExecutionCommand).length, 1);
+    assert.strictEqual(client.sent(StopQueryExecutionCommand).length, 1);
   });
 
   it('executes a query, polls completion, and parses paginated result rows', async () => {
-    const fakeClient: FakeAthenaClient = {
-      commands: [],
-      async send(command) {
-        this.commands.push(command);
-        await Promise.resolve();
+    const client = athenaClient({
+      pages: [
+        { ResultSet: { Rows: [row('id', 'status'), row('1', 'OK')] }, NextToken: 'next' },
+        { ResultSet: { Rows: [row('2', 'KO')] } },
+      ],
+    });
 
-        if (command instanceof StartQueryExecutionCommand) {
-          return { QueryExecutionId: 'exec-1' };
-        }
-        if (command instanceof GetQueryExecutionCommand) {
-          return { QueryExecution: { Status: { State: 'SUCCEEDED' } } };
-        }
-        if (this.commands.filter((entry) => entry instanceof GetQueryResultsCommand).length === 1) {
-          return {
-            ResultSet: {
-              Rows: [
-                { Data: [{ VarCharValue: 'id' }, { VarCharValue: 'status' }] },
-                { Data: [{ VarCharValue: '1' }, { VarCharValue: 'OK' }] },
-              ],
-            },
-            NextToken: 'next',
-          };
-        }
-        return {
-          ResultSet: {
-            Rows: [{ Data: [{ VarCharValue: '2' }, { VarCharValue: 'KO' }] }],
-          },
-        };
-      },
-    };
-
-    const service = new AWSAthenaService(asAthenaClient(fakeClient));
-
-    const rows = await service.query('db', 'select * from table where id = ?', {
+    const rows = await serviceOf(client).query('db', 'select * from table where id = ?', {
       parameters: ['1'],
       outputLocation: 's3://athena-results/',
     });
@@ -128,67 +82,23 @@ describe('AWSAthenaService', () => {
       { id: '1', status: 'OK' },
       { id: '2', status: 'KO' },
     ]);
-    const startCommand = fakeClient.commands.find(
-      (command): command is StartQueryExecutionCommand => command instanceof StartQueryExecutionCommand,
-    );
-    assert.strictEqual(startCommand?.input.ResultConfiguration?.OutputLocation, 's3://athena-results/');
-    assert.deepStrictEqual(startCommand?.input.ExecutionParameters, ['1']);
-    assert.strictEqual(fakeClient.commands.filter((command) => command instanceof GetQueryResultsCommand).length, 2);
-  });
-
-  it('omits ResultConfiguration when outputLocation is not provided', async () => {
-    const fakeClient: FakeAthenaClient = {
-      commands: [],
-      async send(command) {
-        this.commands.push(command);
-        await Promise.resolve();
-
-        if (command instanceof StartQueryExecutionCommand) {
-          return { QueryExecutionId: 'exec-1' };
-        }
-        if (command instanceof GetQueryExecutionCommand) {
-          return { QueryExecution: { Status: { State: 'SUCCEEDED' } } };
-        }
-        return {
-          ResultSet: {
-            Rows: [{ Data: [{ VarCharValue: 'id' }] }],
-          },
-        };
-      },
-    };
-
-    const service = new AWSAthenaService(asAthenaClient(fakeClient));
-
-    await service.query('db', 'select 1');
-
-    const startCommand = fakeClient.commands.find(
-      (command): command is StartQueryExecutionCommand => command instanceof StartQueryExecutionCommand,
-    );
-    assert.strictEqual(startCommand?.input.ResultConfiguration, undefined);
+    const [start] = client.sent(StartQueryExecutionCommand);
+    assert.strictEqual(start?.input.ResultConfiguration?.OutputLocation, 's3://athena-results/');
+    assert.deepStrictEqual(start?.input.ExecutionParameters, ['1']);
+    assert.strictEqual(client.sent(GetQueryResultsCommand).length, 2);
   });
 
   it('returns rich metadata and passes catalog/workgroup to Athena', async () => {
-    const fakeClient: FakeAthenaClient = {
-      commands: [],
-      async send(command) {
-        this.commands.push(command);
-        await Promise.resolve();
-
-        if (command instanceof StartQueryExecutionCommand) {
-          return { QueryExecutionId: 'exec-rich' };
-        }
-        if (command instanceof GetQueryExecutionCommand) {
-          return {
-            QueryExecution: {
-              Status: {
-                State: 'SUCCEEDED',
-                SubmissionDateTime: new Date('2026-05-01T10:00:00Z'),
-                CompletionDateTime: new Date('2026-05-01T10:00:02Z'),
-              },
-            },
-          };
-        }
-        return {
+    const client = athenaClient({
+      statuses: [
+        {
+          State: 'SUCCEEDED',
+          SubmissionDateTime: new Date('2026-05-01T10:00:00Z'),
+          CompletionDateTime: new Date('2026-05-01T10:00:02Z'),
+        },
+      ],
+      pages: [
+        {
           ResultSet: {
             ResultSetMetadata: {
               ColumnInfo: [
@@ -196,23 +106,19 @@ describe('AWSAthenaService', () => {
                 { Name: 'count', Type: 'bigint' },
               ],
             },
-            Rows: [
-              { Data: [{ VarCharValue: 'id' }, { VarCharValue: 'count' }] },
-              { Data: [{ VarCharValue: 'a' }, { VarCharValue: '2' }] },
-            ],
+            Rows: [row('id', 'count'), row('a', '2')],
           },
-        };
-      },
-    };
+        },
+      ],
+    });
 
-    const service = new AWSAthenaService(asAthenaClient(fakeClient));
-    const result = await service.executeQuery('db', 'select * from table', {
+    const result = await serviceOf(client).executeQuery('db', 'select * from table', {
       catalog: 'AwsDataCatalog',
       workGroup: 'wg',
       outputLocation: 's3://athena-results/path/',
     });
 
-    assert.strictEqual(result.executionId, 'exec-rich');
+    assert.strictEqual(result.executionId, 'exec-1');
     assert.strictEqual(result.database, 'db');
     assert.strictEqual(result.catalog, 'AwsDataCatalog');
     assert.strictEqual(result.workGroup, 'wg');
@@ -222,43 +128,26 @@ describe('AWSAthenaService', () => {
       { name: 'count', type: 'bigint' },
     ]);
     assert.deepStrictEqual(result.rows, [{ id: 'a', count: '2' }]);
-
-    const startCommand = fakeClient.commands.find(
-      (command): command is StartQueryExecutionCommand => command instanceof StartQueryExecutionCommand,
-    );
-    assert.strictEqual(startCommand?.input.QueryExecutionContext?.Catalog, 'AwsDataCatalog');
-    assert.strictEqual(startCommand?.input.WorkGroup, 'wg');
+    const [start] = client.sent(StartQueryExecutionCommand);
+    assert.strictEqual(start?.input.QueryExecutionContext?.Catalog, 'AwsDataCatalog');
+    assert.strictEqual(start?.input.WorkGroup, 'wg');
   });
 
-  it('skips unnamed Athena columns instead of writing empty record keys', async () => {
-    const fakeClient: FakeAthenaClient = {
-      commands: [],
-      async send(command) {
-        this.commands.push(command);
-        await Promise.resolve();
-
-        if (command instanceof StartQueryExecutionCommand) {
-          return { QueryExecutionId: 'exec-unnamed' };
-        }
-        if (command instanceof GetQueryExecutionCommand) {
-          return { QueryExecution: { Status: { State: 'SUCCEEDED' } } };
-        }
-        return {
+  it('skips unnamed Athena columns and omits ResultConfiguration without an output location', async () => {
+    const client = athenaClient({
+      pages: [
+        {
           ResultSet: {
             ResultSetMetadata: {
               ColumnInfo: [{ Name: 'id', Type: 'varchar' }, { Type: 'varchar' }, { Name: 'status', Type: 'varchar' }],
             },
-            Rows: [
-              { Data: [{ VarCharValue: 'id' }, { VarCharValue: '' }, { VarCharValue: 'status' }] },
-              { Data: [{ VarCharValue: '1' }, { VarCharValue: 'discarded' }, { VarCharValue: 'OK' }] },
-            ],
+            Rows: [row('id', '', 'status'), row('1', 'discarded', 'OK')],
           },
-        };
-      },
-    };
+        },
+      ],
+    });
 
-    const service = new AWSAthenaService(asAthenaClient(fakeClient));
-    const result = await service.executeQuery('db', 'select 1');
+    const result = await serviceOf(client).executeQuery('db', 'select 1');
 
     assert.deepStrictEqual(result.columns, [
       { name: 'id', type: 'varchar' },
@@ -266,6 +155,7 @@ describe('AWSAthenaService', () => {
     ]);
     assert.deepStrictEqual(result.rows, [{ id: '1', status: 'OK' }]);
     assert.strictEqual(Object.hasOwn(result.rows[0] ?? {}, ''), false);
+    assert.strictEqual(client.sent(StartQueryExecutionCommand)[0]?.input.ResultConfiguration, undefined);
   });
 
   it('uses configured polling interval and sleeper', async () => {
@@ -276,60 +166,21 @@ describe('AWSAthenaService', () => {
         return Promise.resolve();
       },
     };
-    let statusChecks = 0;
-    const fakeClient: FakeAthenaClient = {
-      commands: [],
-      async send(command) {
-        this.commands.push(command);
-        await Promise.resolve();
+    const client = athenaClient({ statuses: [{ State: 'RUNNING' }, { State: 'SUCCEEDED' }] });
 
-        if (command instanceof StartQueryExecutionCommand) {
-          return { QueryExecutionId: 'exec-poll' };
-        }
-        if (command instanceof GetQueryExecutionCommand) {
-          statusChecks += 1;
-          return {
-            QueryExecution: {
-              Status: {
-                State: statusChecks === 1 ? 'RUNNING' : 'SUCCEEDED',
-              },
-            },
-          };
-        }
-        return {
-          ResultSet: {
-            Rows: [{ Data: [{ VarCharValue: 'id' }] }],
-          },
-        };
-      },
-    };
-
-    const service = new AWSAthenaService(asAthenaClient(fakeClient));
-    await service.executeQuery('db', 'select 1', {
-      maxPollAttempts: 3,
-      pollIntervalMs: 123,
-      sleeper,
-    });
+    await serviceOf(client).executeQuery('db', 'select 1', { maxPollAttempts: 3, pollIntervalMs: 123, sleeper });
 
     assert.deepStrictEqual(sleeper.calls, [123]);
-    assert.strictEqual(statusChecks, 2);
+    assert.strictEqual(client.sent(GetQueryExecutionCommand).length, 2);
   });
 
   it('rejects invalid outputLocation values', async () => {
-    const fakeClient: FakeAthenaClient = {
-      commands: [],
-      async send(command) {
-        this.commands.push(command);
-        await Promise.resolve();
-        return { QueryExecutionId: 'exec-1' };
-      },
-    };
-    const service = new AWSAthenaService(asAthenaClient(fakeClient));
+    const client = athenaClient();
 
     await assert.rejects(
-      service.query('db', 'select 1', { outputLocation: 'https://example.com/results/' }),
+      serviceOf(client).query('db', 'select 1', { outputLocation: 'https://example.com/results/' }),
       /Invalid Athena output location/,
     );
-    assert.strictEqual(fakeClient.commands.length, 0);
+    assert.strictEqual(client.commands.length, 0);
   });
 });

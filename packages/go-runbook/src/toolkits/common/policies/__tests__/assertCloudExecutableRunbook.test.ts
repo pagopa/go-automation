@@ -8,16 +8,10 @@ import { IfBranchStep } from '../../../../engine/steps/control/IfBranchStep.js';
 import type { Runbook } from '../../../../engine/types/Runbook.js';
 import type { Step } from '../../../../engine/types/Step.js';
 import { assertCloudExecutableRunbook } from '../assertCloudExecutableRunbook.js';
+import { createTestRunbook } from '../../../../__tests__/helpers/createTestRunbook.js';
 
 function runbookWith(step: Step): Runbook {
-  // Safe: the validator reads only metadata, steps, cases and the policy.
-  return {
-    metadata: { id: 'test-runbook', version: '1.0.0' },
-    steps: [{ step }],
-    knownCases: [],
-    fallbackAction: { type: 'log', message: 'nothing matched' },
-    cloudExecutionPolicy: { sideEffects: 'NONE' },
-  } as unknown as Runbook;
+  return createTestRunbook({ steps: [{ step }], cloudExecutionPolicy: { sideEffects: 'NONE' } });
 }
 
 describe('assertCloudExecutableRunbook — OAM reach', () => {
@@ -48,7 +42,7 @@ describe('assertCloudExecutableRunbook — OAM reach', () => {
   });
 });
 
-describe('assertCloudExecutableRunbook — HTTP requests (RBREORG-21)', () => {
+describe('assertCloudExecutableRunbook — HTTP requests', () => {
   function request(method: string): HttpRequestStep {
     return new HttpRequestStep({ id: 'http', label: 'HTTP', method, url: 'https://example.invalid/resource' });
   }

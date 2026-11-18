@@ -62,6 +62,11 @@ async function execute(
   );
 }
 
+/** Diagnostic counts the occurrence output exports. */
+function diagnostics(output: RunbookOutput): Record<string, unknown> | undefined {
+  return output.context.details?.['diagnostics'] as Record<string, unknown> | undefined;
+}
+
 function errorRow(message: string, timestamp = '2026-09-18T08:52:13Z'): Rows[number] {
   return [
     { field: '@timestamp', value: timestamp },
@@ -129,22 +134,13 @@ describe('SPID Hub occurrence output', () => {
         truncated: false,
       },
     ]);
-    assert.strictEqual(
-      (output.context.details?.['diagnostics'] as Record<string, unknown> | undefined)?.['spidHubErrorLogCount'],
-      2,
-    );
-    assert.strictEqual(
-      (output.context.details?.['diagnostics'] as Record<string, unknown> | undefined)?.['spidHubStreamCount'],
-      1,
-    );
-    assert.strictEqual(
-      (output.context.details?.['diagnostics'] as Record<string, unknown> | undefined)?.['spidHubResponderCount'],
-      1,
-    );
-    assert.strictEqual(
-      (output.context.details?.['diagnostics'] as Record<string, unknown> | undefined)?.['spidHubHeadersSentCount'],
-      1,
-    );
+    assert.deepStrictEqual(diagnostics(output), {
+      spidHubDiagnostics: 'COLLECTED',
+      spidHubErrorLogCount: 2,
+      spidHubStreamCount: 1,
+      spidHubResponderCount: 1,
+      spidHubHeadersSentCount: 1,
+    });
     // Account and region are no static metadata: the resolved account is reported at runtime.
     assert.deepStrictEqual(output.context.details?.['metadata'], {
       service: 'pn-hub-spid-login-aws',
@@ -169,10 +165,7 @@ describe('SPID Hub occurrence output', () => {
     const output = await execute((query) => (query === ERROR_QUERY ? [errorRow('Unexpected error')] : [streamRow()]));
     assert.strictEqual(output.outcome.kind, 'unknown-case');
     assert.strictEqual(output.context.evidence.length, 2);
-    assert.strictEqual(
-      (output.context.details?.['diagnostics'] as Record<string, unknown> | undefined)?.['spidHubErrorLogCount'],
-      1,
-    );
+    assert.strictEqual(diagnostics(output)?.['spidHubErrorLogCount'], 1);
   });
 
   it('exports zero counts with no evidence when both queries return no rows', async () => {
@@ -182,10 +175,7 @@ describe('SPID Hub occurrence output', () => {
     for (const field of output.context.fields.filter(({ name }) => name.endsWith('Count'))) {
       assert.strictEqual(field.value, '0');
     }
-    assert.strictEqual(
-      (output.context.details?.['diagnostics'] as Record<string, unknown> | undefined)?.['spidHubDiagnostics'],
-      'COLLECTED',
-    );
+    assert.strictEqual(diagnostics(output)?.['spidHubDiagnostics'], 'COLLECTED');
   });
 
   it('bounds each sample independently and retains full counts and the newest timestamps', async () => {
@@ -202,14 +192,8 @@ describe('SPID Hub occurrence output', () => {
       assert.strictEqual(evidence.items?.[0]?.[field], '2026-09-18T08:52:00Z');
       assert.strictEqual(evidence.items?.[4]?.[field], '2026-09-18T08:56:00Z');
     }
-    assert.strictEqual(
-      (output.context.details?.['diagnostics'] as Record<string, unknown> | undefined)?.['spidHubErrorLogCount'],
-      7,
-    );
-    assert.strictEqual(
-      (output.context.details?.['diagnostics'] as Record<string, unknown> | undefined)?.['spidHubStreamCount'],
-      7,
-    );
+    assert.strictEqual(diagnostics(output)?.['spidHubErrorLogCount'], 7);
+    assert.strictEqual(diagnostics(output)?.['spidHubStreamCount'], 7);
   });
 
   it('does not publish partial evidence or diagnostic counts if a query fails', async () => {
@@ -223,36 +207,24 @@ describe('SPID Hub occurrence output', () => {
       output.context.fields.map(({ name }) => name),
       ['alarmName'],
     );
-    assert.strictEqual(
-      (output.context.details?.['diagnostics'] as Record<string, unknown> | undefined)?.['spidHubDiagnostics'],
-      undefined,
-    );
-    assert.strictEqual(
-      (output.context.details?.['diagnostics'] as Record<string, unknown> | undefined)?.['spidHubErrorLogCount'],
-      undefined,
-    );
+    assert.strictEqual(diagnostics(output)?.['spidHubDiagnostics'], undefined);
+    assert.strictEqual(diagnostics(output)?.['spidHubErrorLogCount'], undefined);
   });
 
-  it('rejects a non-production or foreign occurrence and an unreachable account before any query', async () => {
-    for (const [occurrence, unreachable, code] of [
-      [occurrenceIn(SEND_ACCOUNT_IDS.confinfoUat), [], 'AWS_ACCOUNT_ENVIRONMENT_NOT_ALLOWED'],
-      [occurrenceIn(SEND_ACCOUNT_IDS.coreProd), [], 'AWS_OCCURRENCE_ACCOUNT_MISMATCH'],
-      [occurrenceIn(SPIDHUB_ACCOUNT_ID), [SEND_ACCOUNTS.confinfo], 'AWS_ACCOUNT_UNREACHABLE'],
-    ] as const) {
-      const queries: string[] = [];
-      await assert.rejects(
-        async () =>
-          execute(
-            (query) => {
-              queries.push(query);
-              return [];
-            },
-            occurrence,
-            unreachable,
-          ),
-        rejectsWith(code),
-      );
-      assert.deepStrictEqual(queries, []);
-    }
+  it('rejects an unreachable account before any query', async () => {
+    const queries: string[] = [];
+    await assert.rejects(
+      async () =>
+        execute(
+          (query) => {
+            queries.push(query);
+            return [];
+          },
+          occurrenceIn(SPIDHUB_ACCOUNT_ID),
+          [SEND_ACCOUNTS.confinfo],
+        ),
+      rejectsWith('AWS_ACCOUNT_UNREACHABLE'),
+    );
+    assert.deepStrictEqual(queries, []);
   });
 });

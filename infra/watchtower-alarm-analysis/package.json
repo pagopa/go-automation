@@ -10,7 +10,7 @@
     "diff": "sst diff --stage ${DEPLOY_ENV}-${DEPLOY_REGION}",
     "install:providers": "sst install --stage ${DEPLOY_ENV}-${DEPLOY_REGION}",
     "remove": "sst remove --stage ${DEPLOY_ENV}-${DEPLOY_REGION}",
-    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'"
+    "test": "node --import tsx/esm --test --experimental-test-isolation=none 'src/**/__tests__/**/*.test.ts'"
   },
   "dependencies": {
     "@go-automation/go-execute-runbook-contracts": "workspace:*"

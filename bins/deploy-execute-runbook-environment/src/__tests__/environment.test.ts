@@ -1,21 +1,33 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, it } from 'node:test';
+import { after, before, describe, it } from 'node:test';
 
 import { readEnvironmentFile } from '../environment.js';
 
-async function withEnvFile(content: string): Promise<string> {
-  const directory = await mkdtemp(join(tmpdir(), 'go-deploy-env-'));
-  const path = join(directory, 'eu-south-1.env');
-  await writeFile(path, content, 'utf8');
-  return path;
-}
-
 describe('regional environment file parser', () => {
+  let directory = '';
+  let fileCount = 0;
+
+  /** Writes `content` to a new environment file of the test directory and returns its path. */
+  async function environmentFile(content: string): Promise<string> {
+    fileCount += 1;
+    const path = join(directory, `${String(fileCount)}.env`);
+    await writeFile(path, content, 'utf8');
+    return path;
+  }
+
+  before(async () => {
+    directory = await mkdtemp(join(tmpdir(), 'go-deploy-env-'));
+  });
+
+  after(async () => {
+    await rm(directory, { recursive: true, force: true });
+  });
+
   it('parses KEY=VALUE lines, trimming values and stripping quotes', async () => {
-    const path = await withEnvFile(
+    const path = await environmentFile(
       '# comment\n\nDEPLOY_ENV=production\nWATCHTOWER_INTERNAL_URL="https://example.test"\nOAM_SOURCE_ACCOUNT_IDS= 123456789012 \n',
     );
     assert.deepEqual(await readEnvironmentFile(path), {
@@ -25,18 +37,19 @@ describe('regional environment file parser', () => {
     });
   });
 
-  it('rejects lines that are not KEY=VALUE instead of skipping them', async () => {
-    const path = await withEnvFile('DEPLOY_ENV production\n');
-    await assert.rejects(readEnvironmentFile(path), /is not KEY=VALUE/u);
-  });
+  const rejected: ReadonlyArray<readonly [string, string, RegExp]> = [
+    ['lines that are not KEY=VALUE instead of skipping them', 'DEPLOY_ENV production\n', /is not KEY=VALUE/u],
+    ['keys that are not CONSTANT_CASE', 'deploy_env=production\n', /invalid key/u],
+    [
+      'duplicate keys with the offending line number',
+      'DEPLOY_ENV=production\nDEPLOY_ENV=test\n',
+      /:2 duplicates key DEPLOY_ENV/u,
+    ],
+  ];
 
-  it('rejects keys that are not CONSTANT_CASE', async () => {
-    const path = await withEnvFile('deploy_env=production\n');
-    await assert.rejects(readEnvironmentFile(path), /invalid key/u);
-  });
-
-  it('rejects duplicate keys with the offending line number', async () => {
-    const path = await withEnvFile('DEPLOY_ENV=production\nDEPLOY_ENV=test\n');
-    await assert.rejects(readEnvironmentFile(path), /:2 duplicates key DEPLOY_ENV/u);
-  });
+  for (const [name, content, error] of rejected) {
+    it(`rejects ${name}`, async () => {
+      await assert.rejects(readEnvironmentFile(await environmentFile(content)), error);
+    });
+  }
 });

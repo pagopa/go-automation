@@ -4,54 +4,37 @@ import assert from 'node:assert/strict';
 import type { CaseAction } from '../../../../engine/types/CaseAction.js';
 import type { KnownCase } from '../../../../engine/types/KnownCase.js';
 import type { Runbook } from '../../../../engine/types/Runbook.js';
-import type { RunbookContext } from '../../../../engine/types/RunbookContext.js';
 import type { RunbookExecutionResult } from '../../../../engine/types/RunbookExecutionResult.js';
 import type { RunbookExecutionStatus } from '../../../../engine/types/RunbookExecutionStatus.js';
 import type { RunbookType } from '../../../../engine/types/RunbookType.js';
-import type { RunbookExecutionTrace } from '../../../../engine/tracing/RunbookExecutionTrace.js';
 import type { StepTrace } from '../../../../engine/tracing/StepTrace.js';
 import { buildRunbookOutput } from '../buildRunbookOutput.js';
-import { createTestServiceRegistry } from '../../testing/createTestServiceRegistry.js';
-import { classifyRunbookOutcome } from '../classifyRunbookOutcome.js';
-import type { RunbookOutput } from '../RunbookOutput.js';
+import { createTestExecutionResult } from '../../../../__tests__/helpers/createTestExecutionResult.js';
+import { createTestRunbook } from '../../../../__tests__/helpers/createTestRunbook.js';
 
 const FALLBACK_ACTION: CaseAction = { type: 'log', level: 'warn', title: 'fallback {{vars.reason}}' };
 
 function createRunbook(args: { readonly type?: RunbookType; readonly knownCases?: ReadonlyArray<KnownCase> }): Runbook {
-  return {
-    metadata: {
-      id: 'test-runbook',
-      name: 'Test Runbook',
-      description: 'desc',
-      version: '1.0.0',
-      type: args.type ?? 'alarm-resolution',
-      team: 'GO',
-      tags: [],
-    },
-    steps: [],
+  return createTestRunbook({
+    metadata: { ...createTestRunbook().metadata, type: args.type ?? 'alarm-resolution' },
     knownCases: args.knownCases ?? [],
     fallbackAction: FALLBACK_ACTION,
-  };
+  });
 }
 
 function createResult(args: {
   readonly status?: RunbookExecutionStatus;
-  readonly runbookType?: RunbookType;
   readonly matchedCases?: ReadonlyArray<KnownCase>;
-  readonly vars?: ReadonlyMap<string, string>;
+  readonly vars?: Readonly<Record<string, string>>;
   readonly pipeline?: ReadonlyArray<StepTrace>;
 }): RunbookExecutionResult {
   const status = args.status ?? 'completed';
-  const vars = args.vars ?? new Map<string, string>([['reason', 'no-match']]);
-  const params = new Map<string, string>([['alarmName', 'test-alarm']]);
-  const finalContext: RunbookContext = {
-    executionId: 'exec-1',
-    startedAt: new Date('2026-01-01T00:00:00.000Z'),
-    stepResults: new Map(),
-    vars,
-    params,
-    logs: [],
-    services: createTestServiceRegistry(),
+  const matchedCases = args.matchedCases ?? [];
+  const result = createTestExecutionResult({
+    status,
+    matchedCases,
+    vars: args.vars ?? { reason: 'no-match' },
+    params: { alarmName: 'test-alarm' },
     recoveredErrors: [
       {
         stepId: 'recoverable',
@@ -60,61 +43,26 @@ function createResult(args: {
         skipped: true,
       },
     ],
-  };
-  const matchedCases = args.matchedCases ?? [];
-  const trace: RunbookExecutionTrace = {
-    schemaVersion: '1.0.0',
-    execution: {
-      executionId: 'exec-1',
-      runbookId: 'test-runbook',
-      runbookName: 'Test Runbook',
-      runbookVersion: '1.0.0',
-      runbookType: args.runbookType ?? 'alarm-resolution',
-      startedAt: '2026-01-01T00:00:00.000Z',
-      completedAt: '2026-01-01T00:00:05.000Z',
-      durationMs: 5000,
-      status,
-      environment: { awsProfiles: [], region: 'eu-south-1', invokedBy: 'manual' },
-      ...(status !== 'completed' ? { failureReason: 'boom' } : {}),
-    },
-    input: { alarmName: 'test-alarm' },
-    pipeline: args.pipeline ?? [],
-    variables: Object.fromEntries(vars),
-    caseMatching: {
-      casesEvaluated: 2,
-      evaluations: [],
-      matchedCaseIds: matchedCases.map((knownCase) => knownCase.id),
-    },
-    actionsExecuted: [
-      {
-        executed: true,
-        actionType: 'log',
-        actionDetail: matchedCases[0]?.action ?? FALLBACK_ACTION,
-        resolvedMessage: 'resolved action',
-        status: 'success',
-        durationMs: 1,
-      },
-    ],
-    summary: {
-      description: status === 'completed' ? 'completed' : 'failed',
-      totalSteps: 1,
-      stepsExecuted: 1,
-      stepsFailed: status === 'failed' ? 1 : 0,
-      stepsRecovered: 0,
-      stepsSkipped: 0,
-      outcome: 'summary outcome',
-    },
-  };
-
+  });
   return {
-    runbookId: 'test-runbook',
-    status,
-    matchedCases,
-    durationMs: 5000,
-    stepsExecuted: 1,
-    finalContext,
-    recoveredErrors: finalContext.recoveredErrors,
-    trace,
+    ...result,
+    trace: {
+      ...result.trace,
+      execution: { ...result.trace.execution, ...(status !== 'completed' ? { failureReason: 'boom' } : {}) },
+      pipeline: args.pipeline ?? [],
+      caseMatching: { ...result.trace.caseMatching, casesEvaluated: 2 },
+      actionsExecuted: [
+        {
+          executed: true,
+          actionType: 'log',
+          actionDetail: matchedCases[0]?.action ?? FALLBACK_ACTION,
+          resolvedMessage: 'resolved action',
+          status: 'success',
+          durationMs: 1,
+        },
+      ],
+      summary: { ...result.trace.summary, outcome: 'summary outcome' },
+    },
   };
 }
 
@@ -191,12 +139,11 @@ describe('buildRunbookOutput', () => {
     const output = buildRunbookOutput(
       createRunbook({ type: 'data-update' }),
       createResult({
-        runbookType: 'data-update',
-        vars: new Map<string, string>([
-          ['procedureOutcome', 'failure'],
-          ['procedureMessage', 'procedure failed'],
-          ['procedureMetric.failedItems', '2'],
-        ]),
+        vars: {
+          procedureOutcome: 'failure',
+          procedureMessage: 'procedure failed',
+          'procedureMetric.failedItems': '2',
+        },
       }),
       { contextBuilder: () => context },
     );
@@ -270,50 +217,5 @@ describe('buildRunbookOutput', () => {
       output.telemetry?.cloudWatchLogs?.queryExecutions.map((execution) => execution.queryId),
       ['qid-1', 'qid-2'],
     );
-  });
-});
-
-describe('classifyRunbookOutcome evidence for outcomes to diagnose', () => {
-  it('carries the fallback fields on a MISS so the reason can be read later', () => {
-    const output = {
-      execution: { durationMs: 10, recoveredErrors: [] },
-      outcome: {
-        kind: 'unknown-case' as const,
-        casesEvaluated: 26,
-        message: 'no match',
-        fallbackMessage: 'Caso non riconosciuto',
-      },
-      telemetry: { cloudWatchLogs: { statistics: { recordsScanned: 100, recordsMatched: 5, bytesScanned: 1 } } },
-      context: {
-        fields: [{ name: 'apiGwErrorMessage', label: 'Error message API GW', value: 'Internal server error' }],
-        evidence: [],
-      },
-    } as unknown as RunbookOutput;
-
-    const check = classifyRunbookOutcome(output);
-
-    assert.strictEqual(check.status, 'MISS');
-    assert.deepStrictEqual(check.fields, [
-      { name: 'apiGwErrorMessage', label: 'Error message API GW', value: 'Internal server error' },
-    ]);
-    assert.strictEqual(check.fallbackMessage, 'Caso non riconosciuto');
-  });
-
-  it('leaves a HIT without the diagnostic payload', () => {
-    const output = {
-      execution: { durationMs: 10, recoveredErrors: [] },
-      outcome: {
-        kind: 'known-case-matched' as const,
-        primaryCaseId: 'c',
-        primaryCaseDescription: 'd',
-        matchedCases: [{ id: 'c' }],
-      },
-      context: { fields: [{ name: 'x', label: 'x', value: 'y' }], evidence: [] },
-    } as unknown as RunbookOutput;
-
-    const check = classifyRunbookOutcome(output);
-
-    assert.strictEqual(check.status, 'HIT');
-    assert.strictEqual(check.fields, undefined);
   });
 });

@@ -14,7 +14,7 @@ const descriptor: RunbookCacheDescriptor = {
   occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 5 },
   logicalAccounts: [],
 };
-const awsAccountId = '170533023216';
+const awsAccountId = '000000000000';
 const awsRegion = 'eu-south-1';
 
 function cacheMeta(

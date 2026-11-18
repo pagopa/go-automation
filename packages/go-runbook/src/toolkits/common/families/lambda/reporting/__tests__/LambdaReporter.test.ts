@@ -1,32 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { GOLogger } from '@pagopa/go-common/logging';
 
-import type { RunbookReporter } from '../../../../../../engine/reporting/RunbookReporter.js';
-
-import { ConsoleRunbookReporter } from '../../../../../../engine/reporting/ConsoleRunbookReporter.js';
 import { LambdaReporter } from '../LambdaReporter.js';
-
-/**
- * Captures the rendered narrative. The console reporter holds the last node back
- * until it knows whether a sibling follows, so tests flush before asserting.
- */
-function captureLogger(): { readonly lines: string[]; readonly logger: RunbookReporter } {
-  const lines: string[] = [];
-  const logger = {
-    text: (line: string): void => {
-      lines.push(line);
-    },
-    newline: (): void => {
-      lines.push('');
-    },
-  } as unknown as GOLogger;
-  return { lines, logger: new ConsoleRunbookReporter(logger) };
-}
+import { captureNarrative } from '../../../../../../__tests__/helpers/captureNarrative.js';
 
 describe('LambdaReporter', () => {
   it('renders the preparation banner with lambda, event source and log group', () => {
-    const { lines, logger } = captureLogger();
+    const { lines, reporter: logger } = captureNarrative();
     new LambdaReporter(logger).sectionPrepare('pn-x', '/aws/lambda/pn-x', 'sqs');
     logger.flush();
     const out = lines.join('\n');
@@ -37,7 +17,7 @@ describe('LambdaReporter', () => {
   });
 
   it('renders the result with error count, category and requestId', () => {
-    const { lines, logger } = captureLogger();
+    const { lines, reporter: logger } = captureNarrative();
     new LambdaReporter(logger).lambdaResult({
       errorCount: 1,
       category: 'timeout',
@@ -53,7 +33,7 @@ describe('LambdaReporter', () => {
   });
 
   it('renders the invocation and downstream sections', () => {
-    const { lines, logger } = captureLogger();
+    const { lines, reporter: logger } = captureNarrative();
     const reporter = new LambdaReporter(logger);
     reporter.invocation('req-1', 3);
     reporter.downstream('pn-emd-integration', '/aws/ecs/pn-emd-integration', 2);
@@ -65,7 +45,7 @@ describe('LambdaReporter', () => {
   });
 
   it('renders the closing summary for a known case', () => {
-    const { lines, logger } = captureLogger();
+    const { lines, reporter: logger } = captureNarrative();
     new LambdaReporter(logger).stopSummary({ reason: 'known-case', matchedCaseIds: ['lambda-timeout'] });
     logger.flush();
     const out = lines.join('\n');
@@ -74,14 +54,14 @@ describe('LambdaReporter', () => {
   });
 
   it('renders the no-errors outcome', () => {
-    const { lines, logger } = captureLogger();
+    const { lines, reporter: logger } = captureNarrative();
     new LambdaReporter(logger).stopSummary({ reason: 'no-errors', matchedCaseIds: [] });
     logger.flush();
     assert.match(lines.join('\n'), /nessun errore individuato/);
   });
 
   it('closes a flat level with the elbow', () => {
-    const { lines, logger } = captureLogger();
+    const { lines, reporter: logger } = captureNarrative();
     new LambdaReporter(logger).invocation('req-1', 3);
 
     logger.flush();
@@ -94,7 +74,7 @@ describe('LambdaReporter', () => {
   });
 
   it('hangs the query failure details under the failure node', () => {
-    const { lines, logger } = captureLogger();
+    const { lines, reporter: logger } = captureNarrative();
     new LambdaReporter(logger).queryFailed(['/a', '/b'], 'AccessDenied');
 
     logger.flush();
@@ -106,7 +86,7 @@ describe('LambdaReporter', () => {
   });
 
   it('nests every matched case under the count, marking the primary one', () => {
-    const { lines, logger } = captureLogger();
+    const { lines, reporter: logger } = captureNarrative();
     new LambdaReporter(logger).stopSummary({ reason: 'known-case', matchedCaseIds: ['a', 'b', 'c'] });
 
     logger.flush();
@@ -119,7 +99,7 @@ describe('LambdaReporter', () => {
   });
 
   it('keeps the vertical running while more rows follow', () => {
-    const { lines, logger } = captureLogger();
+    const { lines, reporter: logger } = captureNarrative();
     new LambdaReporter(logger).stopSummary({
       reason: 'known-case',
       matchedCaseIds: ['a', 'b'],

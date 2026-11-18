@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { createTestServiceRegistry } from '../../../../../common/testing/createTestServiceRegistry.js';
+import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+
+import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
+import { TEST_TIME_RANGE_PARAMS } from '../../../../../../__tests__/helpers/TEST_TIME_RANGE_PARAMS.js';
 import type { OperationalContext } from '../../../../../common/services/OperationalContext.js';
 import type { QueryInteropPodContextConfig } from '../../types/QueryInteropPodContextConfig.js';
 import { QueryInteropPodContextStep } from '../QueryInteropPodContextStep.js';
@@ -22,31 +25,23 @@ function context(
   rows: number,
   recordsMatched = rows,
 ): OperationalContext {
-  return {
-    executionId: 'pod-context-test',
-    startedAt: new Date('2026-10-06T18:05:00.000Z'),
-    stepResults: new Map(),
-    vars: new Map(vars),
-    params: new Map([
-      ['startTime', '2026-10-06T17:30:00Z'],
-      ['endTime', '2026-10-06T18:05:00Z'],
-    ]),
-    logs: [],
-    services: createTestServiceRegistry({
-      cloudWatchLogs: {
-        // eslint-disable-next-line @typescript-eslint/require-await
-        async queryWithStatistics(_groups: ReadonlyArray<string>, query: string) {
-          queries.push(query);
-          return {
-            rows: Array.from({ length: rows }, () => [{ field: 'log', value: 'INFO started' }]),
-            statistics: { bytesScanned: 1, recordsScanned: recordsMatched, recordsMatched },
-            queryExecutions: [],
-          };
-        },
-      },
-    }),
-    recoveredErrors: [],
+  const queryWithStatistics = async (
+    _groups: ReadonlyArray<string>,
+    query: string,
+  ): Promise<AWSCloudWatchLogsQueryResult> => {
+    await Promise.resolve();
+    queries.push(query);
+    return {
+      rows: Array.from({ length: rows }, () => [{ field: 'log', value: 'INFO started' }]),
+      statistics: { bytesScanned: 1, recordsScanned: recordsMatched, recordsMatched },
+      queryExecutions: [],
+    };
   };
+  return createTestContext({
+    vars: Object.fromEntries(vars),
+    params: TEST_TIME_RANGE_PARAMS,
+    services: { cloudWatchLogs: { queryWithStatistics } },
+  });
 }
 
 const RESOLVED = [

@@ -1,37 +1,36 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import * as os from 'node:os';
-import * as path from 'node:path';
-import * as fs from 'node:fs/promises';
 
 import { GOTextExtractorRegistry } from '../GOTextExtractorRegistry.js';
 import { GOPlainTextExtractor } from '../extractors/GOPlainTextExtractor.js';
+import { writeTempFile } from './tempFile.js';
+
+function plainTextRegistry(): GOTextExtractorRegistry {
+  const registry = new GOTextExtractorRegistry();
+  registry.register(new GOPlainTextExtractor());
+  return registry;
+}
 
 describe('GOTextExtractorRegistry', () => {
-  it('canHandle resolves by MIME type', () => {
-    const registry = new GOTextExtractorRegistry();
-    registry.register(new GOPlainTextExtractor());
-    assert.ok(registry.canHandle('text/plain'));
-    assert.ok(registry.canHandle('text/markdown'));
-    assert.ok(!registry.canHandle('application/zip'));
+  it('resolves by MIME type and falls back to the file extension', () => {
+    const registry = plainTextRegistry();
+    const cases: ReadonlyArray<readonly [string, string | undefined, boolean]> = [
+      ['text/plain', undefined, true],
+      ['text/markdown', undefined, true],
+      ['application/zip', undefined, false],
+      ['application/octet-stream', 'README.md', true],
+      ['application/octet-stream', 'image.png', false],
+    ];
+
+    for (const [mimeType, fileName, expected] of cases) {
+      assert.strictEqual(registry.canHandle(mimeType, fileName), expected, `${mimeType} ${fileName ?? ''}`);
+    }
   });
 
-  it('falls back to file extension when MIME is unknown', () => {
-    const registry = new GOTextExtractorRegistry();
-    registry.register(new GOPlainTextExtractor());
-    assert.ok(registry.canHandle('application/octet-stream', 'README.md'));
-    assert.ok(!registry.canHandle('application/octet-stream', 'image.png'));
-  });
+  it('extracts via dispatch', async (t) => {
+    const file = await writeTempFile(t, 'sample.md', '# hello');
 
-  it('extracts via dispatch', async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'registry-'));
-    const file = path.join(dir, 'sample.md');
-    await fs.writeFile(file, '# hello');
-
-    const registry = new GOTextExtractorRegistry();
-    registry.register(new GOPlainTextExtractor());
-
-    const result = await registry.extract('text/markdown', file);
+    const result = await plainTextRegistry().extract('text/markdown', file);
     assert.strictEqual(result.text, '# hello');
   });
 

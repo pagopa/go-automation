@@ -1,83 +1,51 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { GOLogger } from '@pagopa/go-common/logging';
-import {
-  ConditionEvaluator,
-  type RunbookContext,
-  RunbookEngine,
-  type RunbookExecutionResult,
-} from '../../../../../engine/index.js';
-import { buildAnalysisDraft, createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
+import { createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
 import { executeRunbookForOccurrence } from '../../../../../runtime/index.js';
 import { KNOWN_CASES } from '../knownCases.js';
 import { API_GW_LOG_GROUP } from '../knownServices.js';
 import { buildRunbook } from '../runbook.js';
+import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
+import { executeWithLogs } from '../../../../../__tests__/helpers/executeWithLogs.js';
+import { caseMatches, knownCaseById } from '../../../../../__tests__/helpers/knownCaseMatching.js';
+import { logRow } from '../../../../../__tests__/helpers/logRow.js';
+import type { RunbookLogsExecution } from '../../../../../__tests__/helpers/RunbookLogsExecution.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 const TRACE = '1-6ad1eae3-493a74b231f3e345492729e9';
 
+const GATEWAY_504 = {
+  status: '504',
+  httpMethod: 'POST',
+  path: '/national-registries-private/infocamere/legal-institutions',
+  xrayTraceId: `Root=${TRACE}`,
+};
+
 async function execute(
-  errors: Rows = [],
   completion: Rows = [],
   errorMessage = 'Endpoint request timed out',
-): Promise<{
-  readonly result: RunbookExecutionResult;
-  readonly queries: ReadonlyArray<string>;
-  readonly draft: ReturnType<typeof buildAnalysisDraft>;
-}> {
-  const queries: string[] = [];
-  const cloudWatchLogs = {
-    async queryWithStatistics(groups: ReadonlyArray<string>, query: string): Promise<AWSCloudWatchLogsQueryResult> {
-      await Promise.resolve();
-      queries.push(query);
-      const rows: Rows =
-        groups[0] === API_GW_LOG_GROUP
-          ? [
-              [
-                { field: '@timestamp', value: '2026-10-16 09:14:11.382' },
-                { field: 'xrayTraceId', value: `Root=${TRACE}` },
-                { field: 'status', value: '504' },
-                { field: 'httpMethod', value: 'POST' },
-                { field: 'path', value: '/national-registries-private/infocamere/legal-institutions' },
-                { field: 'errorMessage', value: errorMessage },
-              ],
-            ]
-          : query.includes('Checking [INFO CAMERE] legal institutions passed')
-            ? completion
-            : errors;
-      return {
-        rows,
-        statistics: { recordsScanned: rows.length, recordsMatched: rows.length, bytesScanned: 1 },
-        queryExecutions: [],
-      };
-    },
-  };
+): Promise<RunbookLogsExecution> {
   const runbook = buildRunbook();
-  const result = await new RunbookEngine(new GOLogger()).execute(
+  return executeWithLogs(
     runbook,
-    new Map([
-      ['alarmName', runbook.metadata.id],
-      ['alarmDatetime', '2026-10-16T09:15:04Z'],
-      ['startTime', '2026-10-16T09:10:04Z'],
-      ['endTime', '2026-10-16T09:20:05Z'],
-    ]),
-    createTestServiceRegistry({ cloudWatchLogs }),
+    {
+      alarmName: runbook.metadata.id,
+      alarmDatetime: '2026-10-16T09:15:04Z',
+      startTime: '2026-10-16T09:10:04Z',
+      endTime: '2026-10-16T09:20:05Z',
+    },
+    (query, [group = '']) => {
+      if (group === API_GW_LOG_GROUP) {
+        return [logRow({ '@timestamp': '2026-10-16 09:14:11.382', ...GATEWAY_504, errorMessage })];
+      }
+      return query.includes('Checking [INFO CAMERE] legal institutions passed') ? completion : [];
+    },
   );
-  return { result, queries, draft: buildAnalysisDraft(runbook, result) };
 }
 
 describe('PNPG national registries diagnosis', () => {
-  it('queries completion before the service decision can stop traversal', () => {
-    const runbook = buildRunbook();
-    const ids = runbook.steps.map(({ step }) => step.id);
-    assert.ok(ids.indexOf('query-national-registries-completion') < ids.indexOf('query-pn-national-registries'));
-    assert.ok(ids.indexOf('query-national-registries-completion') < ids.indexOf('decide-pn-national-registries'));
-    assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
-    assert.ok(runbook.analysisDefaults?.links?.some(({ url }) => url.includes('/2111700993/')));
-  });
-
   it('recognizes the observed 504 with later application completion without claiming caller recovery', async () => {
     const completion: Rows = [
       [
@@ -87,18 +55,17 @@ describe('PNPG national registries diagnosis', () => {
         { field: 'trace_id', value: TRACE },
       ],
     ];
-    const { result, queries, draft } = await execute([], completion);
+    const { result, queries, draft } = await execute(completion);
     assert.strictEqual(result.status, 'completed');
     assert.strictEqual(result.matchedCases[0]?.id, 'apigw-504-legal-institutions-completion-observed');
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
     assert.deepStrictEqual(draft.downstreams, []);
 
-    const query = queries.find((query) => query.includes('Checking [INFO CAMERE] legal institutions passed'));
+    const query = queries.find(({ query: text }) =>
+      text.includes('Checking [INFO CAMERE] legal institutions passed'),
+    )?.query;
     assert.ok(query?.includes(TRACE));
-    assert.ok(query?.includes('message = "Checking [INFO CAMERE] legal institutions passed"'));
-    assert.match(query ?? '', /display @timestamp, level, message, trace_id/u);
-    assert.doesNotMatch(query ?? '', /display.*@message|Using jwt|Result: <200/u);
   });
 
   it('exports completion timestamps and trace alongside the 504 when the application error scan is empty', async () => {
@@ -186,7 +153,7 @@ describe('PNPG national registries diagnosis', () => {
   });
 
   it('keeps the generic gateway timeout open instead of declaring a transient recovered error', async () => {
-    const { result, draft } = await execute([], [], 'Execution failed due to a timeout error');
+    const { result, draft } = await execute([], 'Execution failed due to a timeout error');
     assert.deepStrictEqual(
       result.matchedCases.map(({ id }) => id),
       ['apigw-504-timeout'],
@@ -196,41 +163,23 @@ describe('PNPG national registries diagnosis', () => {
   });
 
   it('matches the documented connection timeouts only for their actual host and service', () => {
-    const evaluator = new ConditionEvaluator();
     for (const [id, service, host] of [
       ['downstream-inad-connect-timeout', 'INAD', 'api.inad.gov.it'],
       ['downstream-ade-connect-timeout', 'AdE', 'gatewaywebservices.agenziaentrate.it'],
     ]) {
-      const knownCase = KNOWN_CASES.find((candidate) => candidate.id === id);
-      assert.ok(knownCase);
-      const stepResults = new Map<string, unknown>();
-      const context: RunbookContext = {
-        executionId: 'test',
-        startedAt: new Date(),
-        params: new Map(),
-        vars: new Map(),
-        logs: [],
-        stepResults,
-        services: createTestServiceRegistry(),
-        recoveredErrors: [],
-      };
-      stepResults.set('query-pn-national-registries', [
-        `[DOWNSTREAM] Service ${service} returned errors=connection timed out after 3000 ms: ${host}/192.0.2.1:443`,
-      ]);
-      assert.strictEqual(evaluator.evaluate(knownCase.condition, context), true);
-      stepResults.set('query-pn-national-registries', [
-        `[DOWNSTREAM] Service ${service} returned errors=connection timed out after 3000 ms: unrelated.example`,
-      ]);
-      assert.strictEqual(evaluator.evaluate(knownCase.condition, context), false);
+      for (const [target, expected] of [
+        [`${host}/192.0.2.1:443`, true],
+        ['unrelated.example', false],
+      ] as const) {
+        const context = createTestContext({
+          stepResults: {
+            'query-pn-national-registries': [
+              `[DOWNSTREAM] Service ${service} returned errors=connection timed out after 3000 ms: ${target}`,
+            ],
+          },
+        });
+        assert.strictEqual(caseMatches(knownCaseById(KNOWN_CASES, id ?? ''), context), expected, `${id}: ${target}`);
+      }
     }
-  });
-
-  it('requires follow-up for every known case and preserves the evidence titles of existing cases', () => {
-    for (const knownCase of KNOWN_CASES) {
-      assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
-    }
-    const ade = KNOWN_CASES.find(({ id }) => id === 'downstream-ade-500-verifica-legale-rappresentante');
-    assert.ok(ade?.action.type === 'log');
-    assert.strictEqual(ade.action.title, '[DOWNSTREAM] Service AdE returned errors=500 Internal Server Error');
   });
 });

@@ -10,13 +10,13 @@ import type { service } from '../../../../toolkits/send/index.js';
  * `trace_id` is intentionally projected: the source document's q2 requires it,
  * while its q1 projection omits it.
  */
-export const MANDATE_ACCEPTANCE_FAILURE_TECH_QUERY = `filter level = 'ERROR' and aud_type = 'AUD_DL_ACCEPT' and mandate_workflow_type = 'CIE' and error_category = 'TECH'
+const MANDATE_ACCEPTANCE_FAILURE_TECH_QUERY = `filter level = 'ERROR' and aud_type = 'AUD_DL_ACCEPT' and mandate_workflow_type = 'CIE' and error_category = 'TECH'
 | sort @timestamp asc
 | limit 1000
 | display @timestamp, level, message, @message, trace_id, aud_type, mandate_workflow_type, error_category`;
 
 /** Retrieves every pn-mandate log carrying the trace selected by the first query. */
-export const MANDATE_TRACE_QUERY = `filter @message like '{{TRACE_ID}}'
+const MANDATE_TRACE_QUERY = `filter @message like '{{TRACE_ID}}'
 | sort @timestamp asc
 | limit 1000
 | display @timestamp, level, message, @message, trace_id`;

@@ -11,16 +11,17 @@ describe('parseKeyValueList', () => {
     assert.deepStrictEqual({ ...values }, { customerId: 'abc', tableName: 'analytics.events', limit: '10' });
   });
 
-  it('rejects prototype-pollution keys from JSON entries', () => {
-    assert.throws(() => parseKeyValueList(['{"__proto__":{"polluted":true}}']), /Unsafe key\/value entry key/);
-    assert.throws(() => parseKeyValueList(['{"constructor":"x"}']), /Unsafe key\/value entry key/);
-    assert.throws(() => parseKeyValueList(['{"prototype":"x"}']), /Unsafe key\/value entry key/);
-  });
-
-  it('rejects prototype-pollution keys from key/value entries', () => {
-    assert.throws(() => parseKeyValueList(['__proto__=polluted']), /Unsafe key\/value entry key/);
-    assert.throws(() => parseKeyValueList(['constructor=x']), /Unsafe key\/value entry key/);
-    assert.throws(() => parseKeyValueList(['prototype=x']), /Unsafe key\/value entry key/);
+  it('rejects prototype-pollution keys from JSON and key/value entries', () => {
+    for (const entry of [
+      '{"__proto__":{"polluted":true}}',
+      '{"constructor":"x"}',
+      '{"prototype":"x"}',
+      '__proto__=polluted',
+      'constructor=x',
+      'prototype=x',
+    ]) {
+      assert.throws(() => parseKeyValueList([entry]), /Unsafe key\/value entry key/, entry);
+    }
   });
 
   it('wraps malformed JSON entries with key/value context', () => {

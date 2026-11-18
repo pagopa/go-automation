@@ -15,6 +15,7 @@ describe('parseDefaults', () => {
     assert.throws(() => parseDefaults(['sender.taxid=1']), /unknown field "sender.taxid"/);
     assert.throws(() => parseDefaults(['sender.taxId']), /missing value/);
     assert.throws(() => parseDefaults(['sender.taxId=']), /missing value/);
+    assert.throws(() => parseDefaults(['Comune di X']), /unknown field "Comune di X"/, 'a first item without field');
   });
 
   it('joins back a value split on commas by the command-line parser', () => {
@@ -32,9 +33,5 @@ describe('parseDefaults', () => {
   it('keeps "=" inside a continuation and still reports an unknown field that looks like one', () => {
     assert.equal(parseDefaults(['subject=A', 'Ufficio B = C']).get('subject'), 'A, Ufficio B = C');
     assert.throws(() => parseDefaults(['subject=A', 'sender.taxid=1']), /unknown field "sender.taxid"/);
-  });
-
-  it('reports a first item without field', () => {
-    assert.throws(() => parseDefaults(['Comune di X']), /unknown field "Comune di X"/);
   });
 });

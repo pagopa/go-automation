@@ -11,28 +11,14 @@ describe('parseDuration', () => {
     assert.equal(parseDuration('2h', 'x'), 7_200_000);
     assert.equal(parseDuration('1.5h', 'x'), 5_400_000);
     assert.equal(parseDuration('6d', 'x'), 518_400_000);
+    assert.equal(parseDuration('  10s\t', 'x'), 10_000, 'surrounding whitespace ignored');
   });
 
-  it('rejects malformed values naming the parameter', () => {
+  it('rejects malformed values (upper-case or combined units included) naming the parameter', () => {
     assert.throws(() => parseDuration('10', 'verify.timeout'), /verify\.timeout: invalid duration "10"/);
-    assert.throws(() => parseDuration('ten minutes', 'x'), /invalid duration/);
-    assert.throws(() => parseDuration('-5s', 'x'), /invalid duration/);
-    assert.throws(() => parseDuration('10 s', 'x'), /invalid duration/);
-    assert.throws(() => parseDuration('', 'x'), /invalid duration/);
-  });
-
-  it('ignores surrounding whitespace', () => {
-    assert.equal(parseDuration('  10s\t', 'x'), 10_000);
-  });
-
-  it('rejects upper-case units', () => {
-    assert.throws(() => parseDuration('10S', 'x'), /invalid duration "10S"/);
-    assert.throws(() => parseDuration('5M', 'x'), /invalid duration/);
-    assert.throws(() => parseDuration('200MS', 'x'), /invalid duration/);
-  });
-
-  it('rejects combined units', () => {
-    assert.throws(() => parseDuration('1h30m', 'x'), /invalid duration "1h30m"/);
+    for (const value of ['ten minutes', '-5s', '10 s', '', '10S', '5M', '200MS', '1h30m']) {
+      assert.throws(() => parseDuration(value, 'x'), new RegExp(`invalid duration "${value}"`), value);
+    }
   });
 
   it('rounds to whole milliseconds', () => {

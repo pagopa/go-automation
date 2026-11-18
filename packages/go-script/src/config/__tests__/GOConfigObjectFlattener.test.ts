@@ -38,26 +38,15 @@ describe('GOConfigObjectFlattener', () => {
     assert.strictEqual(flattened.has('empty'), false);
   });
 
-  it('rejects dangerous keys at nested levels', () => {
-    assert.throws(
-      () =>
-        GOConfigObjectFlattener.flatten({
-          safe: {
-            constructor: 'bad',
-          },
-        }),
-      /Unsafe configuration key "safe\.constructor" is not allowed/,
-    );
-  });
+  it('rejects dangerous keys at nested levels and inside array objects', () => {
+    const cases: ReadonlyArray<readonly [Record<string, unknown>, RegExp]> = [
+      [{ safe: { constructor: 'bad' } }, /Unsafe configuration key "safe\.constructor" is not allowed/],
+      [{ entries: [{ prototype: 'bad' }] }, /Unsafe configuration key "entries\[0\]\.prototype" is not allowed/],
+    ];
 
-  it('rejects dangerous keys inside array objects', () => {
-    assert.throws(
-      () =>
-        GOConfigObjectFlattener.flatten({
-          entries: [{ prototype: 'bad' }],
-        }),
-      /Unsafe configuration key "entries\[0\]\.prototype" is not allowed/,
-    );
+    for (const [input, message] of cases) {
+      assert.throws(() => GOConfigObjectFlattener.flatten(input), message);
+    }
   });
 
   it('rejects objects deeper than the configured max depth', () => {

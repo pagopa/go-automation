@@ -1,83 +1,57 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
-import { describe, it, mock } from 'node:test';
-import assert from 'node:assert';
-import { GOLogger } from '../GOLogger.js';
-import { GOLogEvent } from '../GOLogEvent.js';
-import { GOLogEventCategory } from '../GOLogEventCategory.js';
-import type { GOLoggerHandler } from '../GOLoggerHandler.js';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 
-// Simple interface for node:test mocks to avoid 'any' where possible
-interface MockFunc {
-  mock: {
-    callCount(): number;
-    calls: {
-      arguments: any[];
-    }[];
-  };
+import { GOLogger } from '../GOLogger.js';
+import { GOLogEventCategory } from '../GOLogEventCategory.js';
+import { RecordingLoggerHandler } from './helpers/RecordingLoggerHandler.js';
+
+/** A logger call whose emitted lines are collected. */
+type LogActionFn = () => void;
+
+/** GOLogger seen without its overload typing, to reach the runtime argument guard. */
+interface UntypedLogger {
+  log(category: GOLogEventCategory): void;
 }
 
 describe('GOLogger', () => {
-  it('registers and unregisters handlers', () => {
-    const logger = new GOLogger();
-    const handler: GOLoggerHandler = {
-      handle: mock.fn(),
-      reset: mock.fn(),
-    };
+  it('distributes events to every registered handler until it is unregistered', () => {
+    const first = new RecordingLoggerHandler();
+    const second = new RecordingLoggerHandler();
+    const logger = new GOLogger([first]);
+    logger.registerHandler(second);
+    assert.deepStrictEqual(logger.getHandlers(), [first, second]);
 
+    logger.info('both');
+    logger.unregisterHandler(second);
+    logger.unregisterHandler(second); // not registered anymore: no-op
+    logger.info('first only');
+
+    assert.deepStrictEqual(
+      first.events.map((e) => e.message),
+      ['both', 'first only'],
+    );
+    assert.deepStrictEqual(
+      second.events.map((e) => e.message),
+      ['both'],
+    );
+  });
+
+  it('logs by category and message, and rejects a category without message', () => {
+    const handler = new RecordingLoggerHandler();
+    const logger = new GOLogger();
     logger.registerHandler(handler);
-    assert.strictEqual(logger.getHandlers().length, 1);
-    assert.strictEqual(logger.getHandlers()[0], handler);
-
-    logger.unregisterHandler(handler);
-    assert.strictEqual(logger.getHandlers().length, 0);
-  });
-
-  it('unregistering non-existent handler does nothing', () => {
-    const logger = new GOLogger();
-    const handler: GOLoggerHandler = {
-      handle: mock.fn(),
-      reset: mock.fn(),
-    };
-    logger.unregisterHandler(handler);
-    assert.strictEqual(logger.getHandlers().length, 0);
-  });
-
-  it('logs events to all handlers', () => {
-    const handler1: GOLoggerHandler = { handle: mock.fn(), reset: mock.fn() };
-    const handler2: GOLoggerHandler = { handle: mock.fn(), reset: mock.fn() };
-    const logger = new GOLogger([handler1, handler2]);
-
-    logger.info('test info');
-
-    assert.strictEqual((handler1.handle as unknown as MockFunc).mock.callCount(), 1);
-    assert.strictEqual((handler2.handle as unknown as MockFunc).mock.callCount(), 1);
-
-    const event = (handler1.handle as unknown as MockFunc).mock.calls[0]!.arguments[0] as GOLogEvent;
-    assert.strictEqual(event.message, 'test info');
-    assert.strictEqual(event.category, GOLogEventCategory.INFO);
-  });
-
-  it('supports logging by category and message', () => {
-    const handler: GOLoggerHandler = { handle: mock.fn(), reset: mock.fn() };
-    const logger = new GOLogger([handler]);
 
     logger.log(GOLogEventCategory.SUCCESS, 'great success');
 
-    const event = (handler.handle as unknown as MockFunc).mock.calls[0]!.arguments[0] as GOLogEvent;
-    assert.strictEqual(event.message, 'great success');
-    assert.strictEqual(event.category, GOLogEventCategory.SUCCESS);
+    assert.strictEqual(handler.events[0]?.message, 'great success');
+    assert.strictEqual(handler.events[0]?.category, GOLogEventCategory.SUCCESS);
+    // Forced call without message to reach the runtime guard.
+    const untyped = logger as unknown as UntypedLogger;
+    assert.throws(() => untyped.log(GOLogEventCategory.SUCCESS), /Invalid log arguments/);
   });
 
-  it('throws on invalid log arguments', () => {
-    const logger = new GOLogger();
-    assert.throws(() => {
-      // We force a call with missing message to trigger runtime error
-      (logger as any).log(GOLogEventCategory.SUCCESS);
-    }, /Invalid log arguments/);
-  });
-
-  it('provides convenience methods for all categories', () => {
-    const handler: GOLoggerHandler = { handle: mock.fn(), reset: mock.fn() };
+  it('maps each convenience method to its category', () => {
+    const handler = new RecordingLoggerHandler();
     const logger = new GOLogger([handler]);
 
     logger.text('text');
@@ -91,77 +65,56 @@ describe('GOLogger', () => {
     logger.info('info');
     logger.section('section');
 
-    const handleMock = (handler.handle as unknown as MockFunc).mock;
-    const calls = handleMock.calls;
-    assert.strictEqual(calls.length, 10);
-    assert.strictEqual((calls[0]!.arguments[0] as GOLogEvent).category, GOLogEventCategory.TEXT);
-    assert.strictEqual((calls[1]!.arguments[0] as GOLogEvent).category, GOLogEventCategory.TEXT);
-    assert.strictEqual((calls[2]!.arguments[0] as GOLogEvent).category, GOLogEventCategory.STEP);
-    assert.strictEqual((calls[3]!.arguments[0] as GOLogEvent).category, GOLogEventCategory.SUCCESS);
-    assert.strictEqual((calls[4]!.arguments[0] as GOLogEvent).category, GOLogEventCategory.ERROR);
-    assert.strictEqual((calls[5]!.arguments[0] as GOLogEvent).category, GOLogEventCategory.FATAL);
-    assert.strictEqual((calls[6]!.arguments[0] as GOLogEvent).category, GOLogEventCategory.WARNING);
-    assert.strictEqual((calls[7]!.arguments[0] as GOLogEvent).category, GOLogEventCategory.HEADER);
-    assert.strictEqual((calls[8]!.arguments[0] as GOLogEvent).category, GOLogEventCategory.INFO);
-    assert.strictEqual((calls[9]!.arguments[0] as GOLogEvent).category, GOLogEventCategory.SECTION);
+    assert.deepStrictEqual(
+      handler.events.map((e) => e.category),
+      [
+        GOLogEventCategory.TEXT,
+        GOLogEventCategory.TEXT,
+        GOLogEventCategory.STEP,
+        GOLogEventCategory.SUCCESS,
+        GOLogEventCategory.ERROR,
+        GOLogEventCategory.FATAL,
+        GOLogEventCategory.WARNING,
+        GOLogEventCategory.HEADER,
+        GOLogEventCategory.INFO,
+        GOLogEventCategory.SECTION,
+      ],
+    );
   });
 
   it('resets all handlers', async () => {
-    const handler: GOLoggerHandler = { handle: mock.fn(), reset: mock.fn() };
-    const logger = new GOLogger([handler]);
-
-    await logger.reset();
-
-    assert.strictEqual((handler.reset as unknown as MockFunc).mock.callCount(), 1);
+    const handler = new RecordingLoggerHandler();
+    await new GOLogger([handler]).reset();
+    assert.strictEqual(handler.resets, 1);
   });
 
-  it('logs tables', () => {
-    const handler: GOLoggerHandler = { handle: mock.fn(), reset: mock.fn() };
+  it('logs tables one line per event', () => {
+    const handler = new RecordingLoggerHandler();
     const logger = new GOLogger([handler]);
+    const linesOf = (log: LogActionFn): string[] => {
+      handler.events.length = 0;
+      log();
+      return handler.events.map((e) => e.message);
+    };
 
-    logger.table({
-      columns: [{ header: 'H1', key: 'k1' }],
-      data: [{ k1: 'v1' }],
-      style: { colors: false },
-    });
+    const table = linesOf(() =>
+      logger.table({ columns: [{ header: 'H1', key: 'k1' }], data: [{ k1: 'v1' }], style: { colors: false } }),
+    );
+    assert.ok(table.length >= 3, 'borders and header');
+    assert.ok(table.some((line) => line.includes('v1')));
 
-    // Should log at least 3 lines (top border, header, bottom border)
-    const handleMock = (handler.handle as unknown as MockFunc).mock;
-    assert.ok(handleMock.calls.length >= 3);
-  });
+    const simple = linesOf(() => logger.simpleTable([{ name: 'Alice' }], { style: { colors: false } }));
+    assert.ok(
+      simple.some((line) => line.includes('Name')),
+      'header derived from the capitalized key',
+    );
+    assert.ok(simple.some((line) => line.includes('Alice')));
 
-  it('logs simple tables', () => {
-    const handler: GOLoggerHandler = { handle: mock.fn(), reset: mock.fn() };
-    const logger = new GOLogger([handler]);
+    const keyValue = linesOf(() => logger.keyValueTable({ Key1: 'Value1' }, { style: { colors: false } }));
+    assert.ok(keyValue.some((line) => line.includes('Key1') && line.includes('Value1')));
 
-    logger.simpleTable([{ name: 'Alice' }], { style: { colors: false } });
-
-    const handleMock = (handler.handle as unknown as MockFunc).mock;
-    const calls = handleMock.calls;
-    assert.ok(calls.length > 0);
-    // Check that header is capitalized
-    const headerCall = calls.find((c) => (c.arguments[0] as GOLogEvent).message.includes('Name'));
-    assert.ok(headerCall);
-  });
-
-  it('handles empty data in simpleTable', () => {
-    const handler: GOLoggerHandler = { handle: mock.fn(), reset: mock.fn() };
-    const logger = new GOLogger([handler]);
-
+    handler.events.length = 0;
     logger.simpleTable([]);
-
-    const handleMock = (handler.handle as unknown as MockFunc).mock;
-    // Should log a warning
-    assert.strictEqual((handleMock.calls[0]!.arguments[0] as GOLogEvent).category, GOLogEventCategory.WARNING);
-  });
-
-  it('logs key-value tables', () => {
-    const handler: GOLoggerHandler = { handle: mock.fn(), reset: mock.fn() };
-    const logger = new GOLogger([handler]);
-
-    logger.keyValueTable({ Key1: 'Value1' }, { style: { colors: false } });
-
-    const handleMock = (handler.handle as unknown as MockFunc).mock;
-    assert.ok(handleMock.calls.length > 0);
+    assert.strictEqual(handler.events[0]?.category, GOLogEventCategory.WARNING, 'empty data logs a warning');
   });
 });

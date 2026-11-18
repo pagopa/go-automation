@@ -24,20 +24,19 @@ function entry(key: string, product: RunbookProduct): RunbookCatalogEntry {
 const ENTRIES: ReadonlyArray<RunbookCatalogEntry> = [entry('a', 'SEND'), entry('b', 'INTEROP'), entry('c', 'SEND')];
 
 describe('filterRunbookEntriesByProduct', () => {
-  it('returns every entry when no product is requested', () => {
-    assert.equal(filterRunbookEntriesByProduct(ENTRIES, undefined).length, 3);
-    assert.equal(filterRunbookEntriesByProduct(ENTRIES, '   ').length, 3);
-  });
-
-  it('matches the product case-insensitively and ignores surrounding spaces', () => {
-    assert.deepEqual(
-      filterRunbookEntriesByProduct(ENTRIES, '  send  ').map((item) => item.key),
-      ['a', 'c'],
-    );
-  });
-
-  it('returns no entry for an unknown product', () => {
-    assert.deepEqual(filterRunbookEntriesByProduct(ENTRIES, 'PAGOPA'), []);
+  it('matches the product case-insensitively, trimmed, and keeps every entry without a product', () => {
+    const cases: ReadonlyArray<readonly [string | undefined, ReadonlyArray<string>]> = [
+      [undefined, ['a', 'b', 'c']],
+      ['   ', ['a', 'b', 'c']],
+      ['  send  ', ['a', 'c']],
+      ['PAGOPA', []],
+    ];
+    for (const [product, keys] of cases) {
+      assert.deepEqual(
+        filterRunbookEntriesByProduct(ENTRIES, product).map((item) => item.key),
+        keys,
+      );
+    }
   });
 });
 

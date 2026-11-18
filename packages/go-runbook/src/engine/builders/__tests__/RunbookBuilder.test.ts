@@ -15,17 +15,19 @@ const step: Step<void> = {
   },
 };
 
+const METADATA = {
+  name: 'Test',
+  description: 'Test runbook',
+  version: '1.0.0',
+  type: 'alarm-resolution',
+  team: 'GO',
+  tags: [],
+} as const;
+
 describe('RunbookBuilder', () => {
   it('builds only the engine fields, and copies only the engine options of a step', () => {
     const runbook = RunbookBuilder.create('test-runbook')
-      .metadata({
-        name: 'Test',
-        description: 'Test runbook',
-        version: '1.0.0',
-        type: 'alarm-resolution',
-        team: 'GO',
-        tags: [],
-      })
+      .metadata(METADATA)
       .step(step, { continueOnFailure: true, silent: true })
       .fallback(logAction({ level: 'info', title: 'done' }))
       .build();
@@ -43,16 +45,9 @@ describe('RunbookBuilder', () => {
     );
   });
 
-  it('rejects a known case referencing a step the runbook does not wire, without a family builder (P10)', () => {
+  it('rejects a known case referencing a step the runbook does not wire, without a family builder', () => {
     const builder = RunbookBuilder.create('test-runbook')
-      .metadata({
-        name: 'Test',
-        description: 'Test runbook',
-        version: '1.0.0',
-        type: 'alarm-resolution',
-        team: 'GO',
-        tags: [],
-      })
+      .metadata(METADATA)
       .step(step)
       .knownCase({
         id: 'case',

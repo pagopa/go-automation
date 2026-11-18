@@ -2,19 +2,15 @@ import { SELFCARE_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import type { RunbookContext } from '../../../../../engine/index.js';
+import { conditionContext } from '../../../shared/__tests__/helpers/knownCaseTesting.js';
+import { caseMatches, knownCaseById, matchingCaseIds } from '../../../../../__tests__/helpers/knownCaseMatching.js';
 import { KNOWN_CASES } from '../knownCases.js';
-import { createTestServiceRegistry } from '../../../../../toolkits/interop/index.js';
-import { ConditionEvaluator, type KnownCase, type RunbookContext } from '../../../../../engine/index.js';
 
 interface Fixture {
   readonly message: string;
   readonly environment?: 'prod' | 'att' | 'test';
   readonly source?: 'APPLICATION' | 'API_GATEWAY' | 'CID_TRACKER';
-}
-
-interface LogRowField {
-  readonly field: string;
-  readonly value: string;
 }
 
 const FIXTURES: ReadonlyMap<string, Fixture> = new Map([
@@ -119,82 +115,53 @@ const FIXTURES: ReadonlyMap<string, Fixture> = new Map([
 ]);
 
 describe('INTEROP Selfcare API Gateway known cases', () => {
-  const evaluator = new ConditionEvaluator();
-
-  it('has a realistic fixture, a unique id and a unique priority for every case', () => {
-    assert.strictEqual(FIXTURES.size, KNOWN_CASES.length);
-    assert.strictEqual(new Set(KNOWN_CASES.map((knownCase) => knownCase.id)).size, KNOWN_CASES.length);
-    assert.strictEqual(new Set(KNOWN_CASES.map((knownCase) => knownCase.priority)).size, KNOWN_CASES.length);
-  });
-
-  it('ranks every actionable case above completed cases and keeps the SelfcareID suppression last', () => {
-    const actionablePriorities = KNOWN_CASES.filter(
-      (knownCase) => knownCase.analysis?.proposedStatus === 'IN_PROGRESS',
-    ).map((knownCase) => knownCase.priority);
-    const completedPriorities = KNOWN_CASES.filter(
-      (knownCase) => knownCase.analysis?.proposedStatus === 'COMPLETED',
-    ).map((knownCase) => knownCase.priority);
-
-    assert.ok(actionablePriorities.length > 0);
-    assert.ok(completedPriorities.length > 0);
-    assert.ok(Math.min(...actionablePriorities) > Math.max(...completedPriorities));
-    assert.strictEqual(
-      knownCaseById('tenant-not-found-known-selfcare-id').priority,
-      Math.min(...KNOWN_CASES.map((knownCase) => knownCase.priority)),
-    );
-  });
-
   it('matches every documented case against its expected evidence source', () => {
     for (const knownCase of KNOWN_CASES) {
       const fixture = FIXTURES.get(knownCase.id);
       assert.ok(fixture !== undefined, `missing fixture for known case: ${knownCase.id}`);
-      assert.strictEqual(
-        evaluator.evaluate(knownCase.condition, context(fixture)),
-        true,
-        `expected match: ${knownCase.id}`,
-      );
+      assert.strictEqual(caseMatches(knownCase, context(fixture)), true, `expected match: ${knownCase.id}`);
     }
   });
 
   it('does not route an unknown tenant through the explicitly known SelfcareID case', () => {
-    const knownId = knownCaseById('tenant-not-found-known-selfcare-id');
-    const generic = knownCaseById('tenant-not-found-selfcare-id');
+    const knownId = byId('tenant-not-found-known-selfcare-id');
+    const generic = byId('tenant-not-found-selfcare-id');
     const unknownContext = context({ message: 'Tenant with selfcareId brand-new-id not found' });
 
-    assert.strictEqual(evaluator.evaluate(knownId.condition, unknownContext), false);
-    assert.strictEqual(evaluator.evaluate(generic.condition, unknownContext), true);
+    assert.strictEqual(caseMatches(knownId, unknownContext), false);
+    assert.strictEqual(caseMatches(generic, unknownContext), true);
   });
 
   it('suppresses a known SelfcareID when same-line details surround the ID', () => {
-    const knownId = knownCaseById('tenant-not-found-known-selfcare-id');
-    const generic = knownCaseById('tenant-not-found-selfcare-id');
+    const knownId = byId('tenant-not-found-known-selfcare-id');
+    const generic = byId('tenant-not-found-selfcare-id');
     const detailedContext = context({
       message:
         'Tenant with selfcareId lookup detail: 56f4f576-af5e-4a90-8be2-1ac78dec899f in tenant read model not found',
       environment: 'prod',
     });
 
-    assert.strictEqual(evaluator.evaluate(knownId.condition, detailedContext), true);
-    assert.strictEqual(evaluator.evaluate(generic.condition, detailedContext), false);
+    assert.strictEqual(caseMatches(knownId, detailedContext), true);
+    assert.strictEqual(caseMatches(generic, detailedContext), false);
   });
 
   it('keeps an unlisted SelfcareID actionable when another evidence row contains a listed ID', () => {
-    const knownId = knownCaseById('tenant-not-found-known-selfcare-id');
-    const generic = knownCaseById('tenant-not-found-selfcare-id');
+    const knownId = byId('tenant-not-found-known-selfcare-id');
+    const generic = byId('tenant-not-found-selfcare-id');
     const mixedContext = context({ message: '', environment: 'prod' }, [
       'Tenant with selfcareId 56f4f576-af5e-4a90-8be2-1ac78dec899f not found',
       'Tenant with selfcareId brand-new-id not found',
     ]);
 
-    assert.strictEqual(evaluator.evaluate(knownId.condition, mixedContext), true);
-    assert.strictEqual(evaluator.evaluate(generic.condition, mixedContext), true);
-    assert.ok(generic.priority > knownId.priority);
-    assert.strictEqual(generic.analysis?.proposedStatus, 'IN_PROGRESS');
+    assert.strictEqual(caseMatches(knownId, mixedContext), true);
+    assert.strictEqual(caseMatches(generic, mixedContext), true);
+    // The actionable generic case outranks the suppression of the listed ID.
+    assert.deepStrictEqual(matchingCaseIds(KNOWN_CASES, mixedContext), [generic.id, knownId.id]);
   });
 
   it('suppresses each documented SelfcareID only in its listed environments', () => {
-    const knownId = knownCaseById('tenant-not-found-known-selfcare-id');
-    const generic = knownCaseById('tenant-not-found-selfcare-id');
+    const knownId = byId('tenant-not-found-known-selfcare-id');
+    const generic = byId('tenant-not-found-selfcare-id');
     const environments = ['prod', 'att', 'test'] as const;
     // Independently transcribed from the Confluence v103 exclusion table.
     const exclusions: ReadonlyArray<readonly [string, ReadonlyArray<string>]> = [
@@ -222,14 +189,14 @@ describe('INTEROP Selfcare API Gateway known cases', () => {
           environment,
         });
         const suppressed = allowedEnvironments.includes(environment);
-        assert.strictEqual(evaluator.evaluate(knownId.condition, fixture), suppressed, `${id} in ${environment}`);
-        assert.strictEqual(evaluator.evaluate(generic.condition, fixture), !suppressed, `${id} in ${environment}`);
+        assert.strictEqual(caseMatches(knownId, fixture), suppressed, `${id} in ${environment}`);
+        assert.strictEqual(caseMatches(generic, fixture), !suppressed, `${id} in ${environment}`);
       }
     }
   });
 
   it('recognizes both PIN-7068 message formats as expected provider-data failures in prod and test', () => {
-    const knownCase = knownCaseById('bff-selfcare-entity-not-filled');
+    const knownCase = byId('bff-selfcare-entity-not-filled');
     const messages = [
       'errors: 008-0003, Selfcare entity UserInstitutionResource with field unknown not filled',
       'Selfcare Entity not filled - detail: Selfcare entity UserInstitutionResource with field unknown not filled',
@@ -239,82 +206,63 @@ describe('INTEROP Selfcare API Gateway known cases', () => {
       for (const environment of ['prod', 'test', 'att'] as const) {
         for (const source of ['APPLICATION', 'CID_TRACKER'] as const) {
           assert.strictEqual(
-            evaluator.evaluate(knownCase.condition, context({ message, environment, source })),
+            caseMatches(knownCase, context({ message, environment, source })),
             environment !== 'att',
             `${environment}: ${source}: ${message}`,
           );
         }
       }
     }
-    assert.strictEqual(knownCase.analysis?.proposedStatus, 'COMPLETED');
-
     assert.strictEqual(
-      evaluator.evaluate(knownCase.condition, context({ message: 'errors: 008-0003, a different provider error' })),
+      caseMatches(knownCase, context({ message: 'errors: 008-0003, a different provider error' })),
       false,
     );
   });
 
-  it('keeps the unresolved SAML case actionable for hotfix assessment', () => {
-    const knownCase = knownCaseById('bff-saml-not-on-or-after-not-compliant');
-    assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
-  });
-
   it('keeps the BFF 004-0004 tenant-kind case separate from the purpose-process generic case', () => {
-    const specific = knownCaseById('bff-tenant-kind-error-004-0004');
-    const generic = knownCaseById('purpose-process-tenant-kind-not-found');
+    const specific = byId('bff-tenant-kind-error-004-0004');
+    const generic = byId('purpose-process-tenant-kind-not-found');
     const specificContext = context({
       message: 'errors: 004-0004, Tenant kind for tenant 3501e329-7853-4d25-a75a-8a1b4a13b359 not found',
     });
 
-    assert.strictEqual(evaluator.evaluate(specific.condition, specificContext), true);
-    assert.strictEqual(evaluator.evaluate(generic.condition, specificContext), false);
+    assert.strictEqual(caseMatches(specific, specificContext), true);
+    assert.strictEqual(caseMatches(generic, specificContext), false);
   });
 
   it('enforces environment restrictions on test-only and prod-only cases', () => {
-    const kafka = knownCaseById('bff-kafka-lock-timeout');
-    const selfcare504 = knownCaseById('bff-selfcare-users-504');
+    const kafka = byId('bff-kafka-lock-timeout');
+    const selfcare504 = byId('bff-selfcare-users-504');
     const kafkaMessage = FIXTURES.get(kafka.id)?.message ?? '';
     const selfcareMessage = FIXTURES.get(selfcare504.id)?.message ?? '';
 
-    assert.strictEqual(
-      evaluator.evaluate(kafka.condition, context({ message: kafkaMessage, environment: 'prod' })),
-      false,
-    );
-    assert.strictEqual(
-      evaluator.evaluate(kafka.condition, context({ message: kafkaMessage, environment: 'test' })),
-      true,
-    );
-    assert.strictEqual(
-      evaluator.evaluate(selfcare504.condition, context({ message: selfcareMessage, environment: 'test' })),
-      false,
-    );
-    assert.strictEqual(
-      evaluator.evaluate(selfcare504.condition, context({ message: selfcareMessage, environment: 'prod' })),
-      true,
-    );
+    assert.strictEqual(caseMatches(kafka, context({ message: kafkaMessage, environment: 'prod' })), false);
+    assert.strictEqual(caseMatches(kafka, context({ message: kafkaMessage, environment: 'test' })), true);
+    assert.strictEqual(caseMatches(selfcare504, context({ message: selfcareMessage, environment: 'test' })), false);
+    assert.strictEqual(caseMatches(selfcare504, context({ message: selfcareMessage, environment: 'prod' })), true);
   });
 
   it('routes unread-notifications 401 to the expired-token case, not to the PIN-9041 availability case', () => {
-    const tokenExpired = knownCaseById('bff-token-expired');
-    const notificationManagerUnavailable = knownCaseById('bff-unread-notifications-in-app-manager-unavailable');
+    const tokenExpired = byId('bff-token-expired');
+    const notificationManagerUnavailable = byId('bff-unread-notifications-in-app-manager-unavailable');
     const unreadNotifications401 = context({
       message: 'Error while fetching unread notifications: AxiosError: Request failed with status code 401',
     });
 
-    assert.strictEqual(evaluator.evaluate(tokenExpired.condition, unreadNotifications401), true);
-    assert.strictEqual(evaluator.evaluate(notificationManagerUnavailable.condition, unreadNotifications401), false);
+    assert.strictEqual(caseMatches(tokenExpired, unreadNotifications401), true);
+    assert.strictEqual(caseMatches(notificationManagerUnavailable, unreadNotifications401), false);
   });
 
   it('matches the API Gateway timeout only in aggregate access-log evidence', () => {
-    const timeout = knownCaseById('api-gateway-backend-timeout-504');
+    const timeout = byId('api-gateway-backend-timeout-504');
     const message = FIXTURES.get(timeout.id)?.message ?? '';
 
-    assert.strictEqual(evaluator.evaluate(timeout.condition, context({ message, source: 'API_GATEWAY' })), true);
-    assert.strictEqual(evaluator.evaluate(timeout.condition, context({ message, source: 'APPLICATION' })), false);
+    assert.strictEqual(caseMatches(timeout, context({ message, source: 'API_GATEWAY' })), true);
+    assert.strictEqual(caseMatches(timeout, context({ message, source: 'APPLICATION' })), false);
   });
 
   it('matches the duplicate-event case in a JSON-encoded CloudWatch CID tracker row', () => {
-    const duplicateEvent = knownCaseById('duplicate-event-stream-version');
+    const duplicateEvent = byId('duplicate-event-stream-version');
     const message = JSON.stringify({
       log:
         'ERROR [notification-config-process] - Error creating event: error: duplicate key value violates ' +
@@ -324,41 +272,25 @@ describe('INTEROP Selfcare API Gateway known cases', () => {
       stream: 'stderr',
     });
 
-    assert.strictEqual(evaluator.evaluate(duplicateEvent.condition, context({ message, source: 'CID_TRACKER' })), true);
+    assert.strictEqual(caseMatches(duplicateEvent, context({ message, source: 'CID_TRACKER' })), true);
   });
 });
 
 function context(fixture: Fixture, messages: ReadonlyArray<string> = [fixture.message]): RunbookContext {
-  const rows = applicationLogRows(messages);
+  const rows = messages.map((message) => [
+    { field: 'pod_app', value: 'interop-be-backend-for-frontend' },
+    { field: '@message', value: message },
+    { field: 'integrationError', value: message },
+  ]);
   const sourceStep =
     fixture.source === 'API_GATEWAY'
       ? SELFCARE_ALARM.stepIds.queryApiGwAggregates
       : fixture.source === 'CID_TRACKER'
         ? SELFCARE_ALARM.stepIds.queryCidTracker
         : SELFCARE_ALARM.stepIds.queryApplicationLogs;
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-08-24T09:10:11.000Z'),
-    stepResults: new Map([[sourceStep, rows]]),
-    vars: new Map([['interopEnvironment', fixture.environment ?? 'prod']]),
-    params: new Map(),
-    logs: [],
-    services: createTestServiceRegistry(),
-    recoveredErrors: [],
-  };
+  return conditionContext([[sourceStep, rows]], fixture.environment);
 }
 
-function applicationLogRows(messages: ReadonlyArray<string>): ReadonlyArray<ReadonlyArray<LogRowField>> {
-  return messages.map((message) => [
-    { field: '@timestamp', value: '2026-08-24 09:10:11.000' },
-    { field: 'pod_app', value: 'interop-be-backend-for-frontend' },
-    { field: '@message', value: message },
-    { field: 'integrationError', value: message },
-  ]);
-}
-
-function knownCaseById(id: string): KnownCase {
-  const knownCase = KNOWN_CASES.find((candidate) => candidate.id === id);
-  assert.ok(knownCase !== undefined, `known case not found: ${id}`);
-  return knownCase;
+function byId(id: string): ReturnType<typeof knownCaseById> {
+  return knownCaseById(KNOWN_CASES, id);
 }

@@ -1,10 +1,10 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import * as fs from 'fs/promises';
-import * as os from 'os';
-import * as path from 'path';
+import * as path from 'node:path';
 
 import type { AWSS3BucketEntry, AWSS3Service } from '@pagopa/go-aws/s3';
+
+import { readFixture, tempDir } from '../../../dispatch/__tests__/helpers/testFiles.js';
 import { SENDSafeStorageS3Service } from '../SENDSafeStorageS3Service.js';
 
 interface RecordedDownload {
@@ -42,25 +42,12 @@ function createFakeS3Service(bucketNames: ReadonlyArray<string>, content = Buffe
 }
 
 describe('SENDSafeStorageS3Service', () => {
-  describe('isSafeStorageUri', () => {
-    it('recognizes safestorage:// URIs', () => {
-      assert.equal(SENDSafeStorageS3Service.isSafeStorageUri('safestorage://PN_LEGAL_FACTS-abc.pdf'), true);
-      assert.equal(SENDSafeStorageS3Service.isSafeStorageUri('s3://bucket/key'), false);
-      assert.equal(SENDSafeStorageS3Service.isSafeStorageUri('PN_LEGAL_FACTS-abc.pdf'), false);
-    });
-  });
-
-  describe('extractKey', () => {
-    it('strips the safestorage:// prefix', () => {
-      assert.equal(
-        SENDSafeStorageS3Service.extractKey('safestorage://PN_LEGAL_FACTS-abc.pdf'),
-        'PN_LEGAL_FACTS-abc.pdf',
-      );
-    });
-
-    it('returns the value unchanged when it has no prefix', () => {
-      assert.equal(SENDSafeStorageS3Service.extractKey('PN_LEGAL_FACTS-abc.pdf'), 'PN_LEGAL_FACTS-abc.pdf');
-    });
+  it('recognizes safestorage:// URIs and strips the prefix from their key', () => {
+    assert.equal(SENDSafeStorageS3Service.isSafeStorageUri('safestorage://PN_LEGAL_FACTS-abc.pdf'), true);
+    assert.equal(SENDSafeStorageS3Service.isSafeStorageUri('s3://bucket/key'), false);
+    assert.equal(SENDSafeStorageS3Service.isSafeStorageUri('PN_LEGAL_FACTS-abc.pdf'), false);
+    assert.equal(SENDSafeStorageS3Service.extractKey('safestorage://PN_LEGAL_FACTS-abc.pdf'), 'PN_LEGAL_FACTS-abc.pdf');
+    assert.equal(SENDSafeStorageS3Service.extractKey('PN_LEGAL_FACTS-abc.pdf'), 'PN_LEGAL_FACTS-abc.pdf');
   });
 
   describe('findBucket', () => {
@@ -101,17 +88,10 @@ describe('SENDSafeStorageS3Service', () => {
     it('writes the file creating missing parent directories', async () => {
       const fake = createFakeS3Service(['pn-safestorage-eu-south-1'], Buffer.from('pdf-bytes'));
       const service = new SENDSafeStorageS3Service(fake.s3);
-      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'send-safestorage-'));
+      const outputPath = path.join(await tempDir('send-safestorage'), 'nested', 'PN_LEGAL_FACTS-abc.pdf');
 
-      try {
-        const outputPath = path.join(tmpDir, 'nested', 'PN_LEGAL_FACTS-abc.pdf');
-        const result = await service.downloadToFile('PN_LEGAL_FACTS-abc.pdf', outputPath);
-
-        assert.equal(result, outputPath);
-        assert.equal(await fs.readFile(outputPath, 'utf-8'), 'pdf-bytes');
-      } finally {
-        await fs.rm(tmpDir, { recursive: true, force: true });
-      }
+      assert.equal(await service.downloadToFile('PN_LEGAL_FACTS-abc.pdf', outputPath), outputPath);
+      assert.equal(await readFixture(outputPath), 'pdf-bytes');
     });
   });
 });

@@ -5,8 +5,7 @@ import { GOLogEvent, GOLogger, type GOLoggerHandler } from '@pagopa/go-common/lo
 
 import { ActionExecutor } from '../ActionExecutor.js';
 import type { LogActionRenderer } from '../LogActionRenderer.js';
-import type { RunbookContext } from '../../types/RunbookContext.js';
-import { createTestWorkflowServices } from '../../testing/createTestWorkflowServices.js';
+import { createTestContext } from '../../../__tests__/helpers/createTestContext.js';
 
 class RecordingHandler implements GOLoggerHandler {
   readonly events: GOLogEvent[] = [];
@@ -19,19 +18,6 @@ class RecordingHandler implements GOLoggerHandler {
     await Promise.resolve();
     this.events.length = 0;
   }
-}
-
-function createContext(vars: ReadonlyMap<string, string> = new Map()): RunbookContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-01-01T00:00:00.000Z'),
-    stepResults: new Map(),
-    vars,
-    params: new Map(),
-    logs: [],
-    services: createTestWorkflowServices(),
-    recoveredErrors: [],
-  };
 }
 
 describe('ActionExecutor', () => {
@@ -48,7 +34,7 @@ describe('ActionExecutor', () => {
           ['Ambiente', '{{vars.missing}}'],
         ],
       },
-      createContext(new Map([['code', 'E42']])),
+      createTestContext({ vars: { code: 'E42' } }),
     );
 
     assert.strictEqual(result.status, 'success');
@@ -70,7 +56,7 @@ describe('ActionExecutor', () => {
 
     const result = await new ActionExecutor(new GOLogger(), renderer).execute(
       { type: 'log', level: 'warn', title: 'boom' },
-      createContext(),
+      createTestContext(),
     );
 
     assert.strictEqual(result.resolvedMessage, 'custom boom');
@@ -79,7 +65,7 @@ describe('ActionExecutor', () => {
 
   it('resolves notifications and escalations against the context', async () => {
     const executor = new ActionExecutor(new GOLogger());
-    const context = createContext(new Map([['team', 'GO']]));
+    const context = createTestContext({ vars: { team: 'GO' } });
 
     const notify = await executor.execute({ type: 'notify', channel: '#ops', template: 'to {{vars.team}}' }, context);
     const escalate = await executor.execute(

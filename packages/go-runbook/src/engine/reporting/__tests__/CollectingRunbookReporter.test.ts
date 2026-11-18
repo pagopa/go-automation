@@ -1,24 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { RunbookContext } from '../../types/RunbookContext.js';
 import { SEND_SERVICE_PROFILE } from '../../../toolkits/send/families/service/profiles/SEND_SERVICE_PROFILE.js';
 import { AnalyzeApplicationLogsStep } from '../../../toolkits/common/families/service/steps/AnalyzeApplicationLogsStep.js';
-import { createTestServiceRegistry } from '../../../toolkits/common/testing/createTestServiceRegistry.js';
+import { createTestContext } from '../../../__tests__/helpers/createTestContext.js';
+import { logRow } from '../../../__tests__/helpers/logRow.js';
 import { CollectingRunbookReporter } from '../CollectingRunbookReporter.js';
-
-function contextWith(reporter: CollectingRunbookReporter, rows: ReadonlyArray<unknown>): RunbookContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-01-01T00:00:00.000Z'),
-    stepResults: new Map<string, unknown>([['query-pn-foo', rows]]),
-    vars: new Map(),
-    params: new Map(),
-    logs: [],
-    services: createTestServiceRegistry({ reporter }),
-    recoveredErrors: [],
-  };
-}
 
 describe('a step narrative is a value', () => {
   it('reports the analysis as a node tree, not as formatted lines', async () => {
@@ -32,12 +19,14 @@ describe('a step narrative is a value', () => {
     });
 
     await step.execute(
-      contextWith(reporter, [
-        [
-          { field: '@timestamp', value: '2026-01-01 00:00:00.000' },
-          { field: '@message', value: 'ERROR something broke badly' },
-        ],
-      ]),
+      createTestContext({
+        stepResults: {
+          'query-pn-foo': [
+            logRow({ '@timestamp': '2026-01-01 00:00:00.000', '@message': 'ERROR something broke badly' }),
+          ],
+        },
+        services: { reporter },
+      }),
     );
 
     // No branch characters, no indentation: the assertion is on the shape.

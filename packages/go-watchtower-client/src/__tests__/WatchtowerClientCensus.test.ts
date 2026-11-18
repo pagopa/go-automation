@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, it, mock } from 'node:test';
 
-import { WatchtowerClient } from '../WatchtowerClient.js';
+import type { WatchtowerClient } from '../WatchtowerClient.js';
+import { requestUrl, serviceClient, serviceLoginResponse } from './watchtowerTestDoubles.js';
 
 afterEach(() => mock.restoreAll());
 
@@ -34,7 +35,7 @@ describe('WatchtowerClient census reads', () => {
     assert.deepStrictEqual(requestedPaths, ['/api/products/a%20b%2Fc/downstreams']);
   });
 
-  it('aggregates the five per-product taxonomies into a single census', async () => {
+  it('aggregates the five per-product taxonomies into a single census, with exactly five requests', async () => {
     const { client, requestedPaths } = censusClient();
 
     const census = await client.getProductCensus(PRODUCT_ID);
@@ -51,14 +52,6 @@ describe('WatchtowerClient census reads', () => {
       ].sort(),
     );
     assert.deepStrictEqual(census.downstreams, [{ id: 'd-1', name: 'Nessuno' }]);
-  });
-
-  it('keeps the census fan-out bounded to the five taxonomy requests', async () => {
-    const { client, requestedPaths } = censusClient();
-
-    await client.getProductCensus(PRODUCT_ID);
-
-    assert.strictEqual(requestedPaths.length, 5);
   });
 
   it('propagates a census read failure instead of returning a partial census', async () => {
@@ -78,29 +71,15 @@ function censusClient(options: CensusClientOptions = {}): {
 } {
   const requestedPaths: string[] = [];
   mock.method(globalThis, 'fetch', async (input: string | URL | Request): Promise<Response> => {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    const path = new URL(url).pathname;
-    if (path === '/auth/service/login') {
-      return await Promise.resolve(
-        Response.json({
-          accessToken: 'access-token',
-          refreshToken: 'refresh-token',
-          expiresIn: 300,
-          serviceId: 'runbook-automation-worker',
-          principalType: 'SERVICE',
-        }),
-      );
-    }
+    const path = new URL(requestUrl(input)).pathname;
+    if (path === '/auth/service/login') return await Promise.resolve(serviceLoginResponse());
     requestedPaths.push(path);
     if (options.failPathSuffix !== undefined && path.endsWith(options.failPathSuffix)) {
-      return await Promise.resolve(new Response('boom', { status: 500 }));
+      return new Response('boom', { status: 500 });
     }
-    return await Promise.resolve(Response.json([{ id: 'd-1', name: 'Nessuno' }]));
+    return Response.json([{ id: 'd-1', name: 'Nessuno' }]);
   });
 
-  const client = new WatchtowerClient({
-    baseUrl: 'https://watchtower.internal',
-    credentials: { kind: 'SERVICE', serviceId: 'runbook-automation-worker', password: 'secret' },
-  });
+  const client = serviceClient();
   return { client, requestedPaths };
 }

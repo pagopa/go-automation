@@ -40,52 +40,54 @@ describe('GOScript.createLambdaHandler body envelope', () => {
     return captured;
   }
 
-  it('maps keys from a body object envelope', async () => {
-    assert.strictEqual(await runWith({ body: { 'probe.value': 'from-body' } }), 'from-body');
-  });
+  it('maps keys from a body envelope (object or JSON string), falling back to flat top-level keys', async () => {
+    const cases: ReadonlyArray<readonly [string, unknown, string]> = [
+      ['body object', { body: { 'probe.value': 'from-body' } }, 'from-body'],
+      [
+        'body JSON string (API Gateway style)',
+        { body: JSON.stringify({ 'probe.value': 'from-string' }) },
+        'from-string',
+      ],
+      ['flat keys without a body', { 'probe.value': 'flat' }, 'flat'],
+      // Transport metadata at the top level is ignored when a body envelope is present.
+      ['body next to transport metadata', { source: 'aws.events', body: { 'probe.value': 'enveloped' } }, 'enveloped'],
+    ];
 
-  it('maps keys from a body JSON-string envelope (API Gateway style)', async () => {
-    assert.strictEqual(await runWith({ body: JSON.stringify({ 'probe.value': 'from-string' }) }), 'from-string');
-  });
-
-  it('falls back to flat top-level keys when there is no body', async () => {
-    assert.strictEqual(await runWith({ 'probe.value': 'flat' }), 'flat');
-  });
-
-  it('ignores transport metadata at the top level when a body envelope is present', async () => {
-    assert.strictEqual(await runWith({ source: 'aws.events', body: { 'probe.value': 'enveloped' } }), 'enveloped');
+    for (const [name, event, expected] of cases) {
+      assert.strictEqual(await runWith(event), expected, name);
+    }
   });
 });
 
+interface ProbeLambdaContext {
+  callbackWaitsForEmptyEventLoop: boolean;
+}
+
+type ProbeLambdaHandler = (event: unknown, context?: ProbeLambdaContext) => Promise<void>;
+
 describe('GOScript.createLambdaHandler event-loop detach', () => {
-  it('sets callbackWaitsForEmptyEventLoop = false on the Lambda context', async () => {
+  function noopHandler(): ProbeLambdaHandler {
     const script = new GOScript({
       metadata: { name: 'detach test', version: '1.0.0', description: 'detach', authors: ['test'] },
       config: { parameters: [] },
       logging: { console: false, file: false },
     });
-    const handler = script.createLambdaHandler(async () => {
+    return script.createLambdaHandler<unknown, void, ProbeLambdaContext>(async () => {
       await Promise.resolve();
     });
+  }
+
+  it('sets callbackWaitsForEmptyEventLoop = false on the Lambda context', async () => {
     const context = { awsRequestId: 'req-1', callbackWaitsForEmptyEventLoop: true };
 
-    // Run the handler; the flag is flipped synchronously before any await, so it
-    // holds regardless of how the lifecycle resolves.
-    await handler(undefined, context).catch(() => undefined);
+    // The flag is flipped synchronously before any await, so it holds regardless
+    // of how the lifecycle resolves.
+    await noopHandler()(undefined, context).catch(() => undefined);
 
     assert.strictEqual(context.callbackWaitsForEmptyEventLoop, false);
   });
 
   it('does not throw when invoked without a context (local / test invocation)', async () => {
-    const script = new GOScript({
-      metadata: { name: 'detach test no ctx', version: '1.0.0', description: 'detach', authors: ['test'] },
-      config: { parameters: [] },
-      logging: { console: false, file: false },
-    });
-    const handler = script.createLambdaHandler(async () => {
-      await Promise.resolve();
-    });
-
-    await assert.doesNotReject(handler(undefined));
+    await assert.doesNotReject(noopHandler()(undefined));
   });
 });

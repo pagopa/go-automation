@@ -42,10 +42,7 @@ interface FakeClientOptions {
   readonly startError?: Error;
   readonly timestamp?: string;
   readonly statistics?: Partial<AWSCloudWatchLogsQueryStatistics>;
-  readonly resultPages?: ReadonlyArray<{
-    readonly results: ReadonlyArray<ReadonlyArray<ResultField>>;
-    readonly statistics?: Partial<AWSCloudWatchLogsQueryStatistics>;
-  }>;
+  readonly resultPages?: ReadonlyArray<FakeResultPage>;
   readonly onGetQueryResults?: GetQueryResultsHook;
   readonly queryStatus?: string;
   /** Fails StartQuery selectively, e.g. only for the log groups of one account. */
@@ -53,6 +50,12 @@ interface FakeClientOptions {
 }
 
 type GetQueryResultsHook = () => void;
+
+/** One scripted page of GetQueryResults. */
+interface FakeResultPage {
+  readonly results: ReadonlyArray<ReadonlyArray<ResultField>>;
+  readonly statistics?: Partial<AWSCloudWatchLogsQueryStatistics>;
+}
 
 /** Decides whether StartQuery fails for a given set of log group identifiers. */
 type StartQueryErrorHook = (logGroupIdentifiers: ReadonlyArray<string>) => Error | undefined;
@@ -164,6 +167,21 @@ function createService(provider: FakeMultiProvider): AWSCloudWatchLogsService {
   return new AWSCloudWatchLogsService(asMultiProvider(provider));
 }
 
+/** StartQuery commands a profile's client received, in order. */
+function startQueries(provider: FakeMultiProvider, profile: string): StartQueryCommand[] {
+  return provider
+    .client(profile)
+    .commands.filter((command): command is StartQueryCommand => command instanceof StartQueryCommand);
+}
+
+/** The error CloudWatch Logs raises for a log group the account does not have. */
+const NOT_FOUND = Object.assign(new Error('log group does not exist'), { name: 'ResourceNotFoundException' });
+
+/** Fails StartQuery for the log groups of the occurrence account 000000000901. */
+function missingInOccurrenceAccount(identifiers: ReadonlyArray<string>): Error | undefined {
+  return identifiers.some((identifier) => identifier.includes(':000000000901:')) ? NOT_FOUND : undefined;
+}
+
 function profileValue(row: ReadonlyArray<ResultField>): string | undefined {
   return row.find((field) => field.field === 'profile')?.value;
 }
@@ -192,8 +210,8 @@ describe('AWSCloudWatchLogsService', () => {
       });
       assert.deepStrictEqual(result.map(profileValue), [source.key]);
     }
-    assert.strictEqual(provider.client('reader-one').commands.filter((c) => c instanceof StartQueryCommand).length, 1);
-    assert.strictEqual(provider.client('reader-two').commands.filter((c) => c instanceof StartQueryCommand).length, 1);
+    assert.strictEqual(startQueries(provider, 'reader-one').length, 1);
+    assert.strictEqual(startQueries(provider, 'reader-two').length, 1);
   });
 
   it('exposes only the current target and declared fallbacks in account-scoped execution', async () => {
@@ -225,9 +243,7 @@ describe('AWSCloudWatchLogsService', () => {
 
     await service.query(['/aws/lambda/source'], 'fields @timestamp', timeRange);
 
-    const start = provider
-      .client('default')
-      .commands.find((command): command is StartQueryCommand => command instanceof StartQueryCommand);
+    const start = startQueries(provider, 'default')[0];
     assert.deepStrictEqual(start?.input.logGroupIdentifiers, [
       'arn:aws:logs:eu-south-1:123456789012:log-group:/aws/lambda/source',
     ]);
@@ -277,9 +293,7 @@ describe('AWSCloudWatchLogsService', () => {
         logGroupResolutionMode: 'search-configured-profiles',
       });
     }
-    const starts = provider
-      .client('send-monitor')
-      .commands.filter((command): command is StartQueryCommand => command instanceof StartQueryCommand);
+    const starts = startQueries(provider, 'send-monitor');
     assert.deepStrictEqual(
       starts.map(({ input }) => ({ names: input.logGroupNames, identifiers: input.logGroupIdentifiers })),
       [
@@ -288,9 +302,7 @@ describe('AWSCloudWatchLogsService', () => {
         { names: undefined, identifiers: [fallbackArn] },
       ],
     );
-    const directStart = provider
-      .client('fallback-direct')
-      .commands.find((command): command is StartQueryCommand => command instanceof StartQueryCommand);
+    const directStart = startQueries(provider, 'fallback-direct')[0];
     assert.deepStrictEqual(directStart?.input.logGroupNames, ['/aws/ecs/service']);
     assert.strictEqual(directStart?.input.logGroupIdentifiers, undefined);
     assert.strictEqual(provider.client('interop-monitor').commands.length, 0);
@@ -343,14 +355,12 @@ describe('AWSCloudWatchLogsService', () => {
   });
 
   it('falls back to an allowed account when the log group is not in the occurrence account', async () => {
-    const notFound = Object.assign(new Error('log group does not exist'), { name: 'ResourceNotFoundException' });
     const provider = new FakeMultiProvider(
       new Map([
         [
           'monitoring',
           {
-            startErrorFor: (identifiers) =>
-              identifiers.some((identifier) => identifier.includes(':000000000901:')) ? notFound : undefined,
+            startErrorFor: missingInOccurrenceAccount,
           },
         ],
       ]),
@@ -367,9 +377,7 @@ describe('AWSCloudWatchLogsService', () => {
       timeRange,
     );
 
-    const starts = provider
-      .client('monitoring')
-      .commands.filter((command): command is StartQueryCommand => command instanceof StartQueryCommand);
+    const starts = startQueries(provider, 'monitoring');
     assert.deepStrictEqual(
       starts.map((start) => start.input.logGroupIdentifiers),
       [
@@ -385,14 +393,12 @@ describe('AWSCloudWatchLogsService', () => {
   });
 
   it('reads a fallback with its own profile directly, without an OAM ARN', async () => {
-    const notFound = Object.assign(new Error('log group does not exist'), { name: 'ResourceNotFoundException' });
     const provider = new FakeMultiProvider(
       new Map<string, FakeClientOptions>([
         [
           'confinfo',
           {
-            startErrorFor: (identifiers) =>
-              identifiers.some((identifier) => identifier.includes(':000000000901:')) ? notFound : undefined,
+            startErrorFor: missingInOccurrenceAccount,
           },
         ],
         ['core', {}],
@@ -412,9 +418,7 @@ describe('AWSCloudWatchLogsService', () => {
 
     // Holding the account's credentials beats an OAM link: the group is read
     // by name, and the ARN form is never built for it.
-    const coreStart = provider
-      .client('core')
-      .commands.find((command): command is StartQueryCommand => command instanceof StartQueryCommand);
+    const coreStart = startQueries(provider, 'core')[0];
     assert.deepStrictEqual(coreStart?.input.logGroupNames, ['/aws/ecs/pn-external-registries']);
     assert.strictEqual(coreStart?.input.logGroupIdentifiers, undefined);
     assert.deepStrictEqual(
@@ -424,14 +428,12 @@ describe('AWSCloudWatchLogsService', () => {
   });
 
   it('remembers the account that answered and tries it first next time', async () => {
-    const notFound = Object.assign(new Error('log group does not exist'), { name: 'ResourceNotFoundException' });
     const provider = new FakeMultiProvider(
       new Map([
         [
           'monitoring',
           {
-            startErrorFor: (identifiers) =>
-              identifiers.some((identifier) => identifier.includes(':000000000901:')) ? notFound : undefined,
+            startErrorFor: missingInOccurrenceAccount,
           },
         ],
       ]),
@@ -445,9 +447,7 @@ describe('AWSCloudWatchLogsService', () => {
     await service.query(['/aws/ecs/pn-external-registries'], 'fields @timestamp', timeRange);
     await service.query(['/aws/ecs/pn-external-registries'], 'fields @timestamp', timeRange);
 
-    const starts = provider
-      .client('monitoring')
-      .commands.filter((command): command is StartQueryCommand => command instanceof StartQueryCommand);
+    const starts = startQueries(provider, 'monitoring');
     // Three attempts, not four: the second query skips the account that failed.
     assert.strictEqual(starts.length, 3);
     assert.deepStrictEqual(starts[2]?.input.logGroupIdentifiers, [
@@ -456,8 +456,7 @@ describe('AWSCloudWatchLogsService', () => {
   });
 
   it('reports a configuration error when no allowed account owns the log group', async () => {
-    const notFound = Object.assign(new Error('ResourceNotFoundException'), { name: 'ResourceNotFoundException' });
-    const provider = new FakeMultiProvider(new Map([['monitoring', { startError: notFound }]]));
+    const provider = new FakeMultiProvider(new Map([['monitoring', { startError: NOT_FOUND }]]));
     const service = createService(provider).forTarget({
       accountId: '000000000901',
       region: 'eu-south-1',
@@ -484,9 +483,7 @@ describe('AWSCloudWatchLogsService', () => {
     });
 
     await assert.rejects(service.query(['/aws/ecs/x'], 'fields @timestamp', timeRange), /Rate exceeded/);
-    const starts = provider
-      .client('monitoring')
-      .commands.filter((command): command is StartQueryCommand => command instanceof StartQueryCommand);
+    const starts = startQueries(provider, 'monitoring');
     assert.strictEqual(starts.length, 1);
   });
 
@@ -503,9 +500,7 @@ describe('AWSCloudWatchLogsService', () => {
       'fields @timestamp',
       timeRange,
     );
-    const start = provider
-      .client('monitoring')
-      .commands.find((command): command is StartQueryCommand => command instanceof StartQueryCommand);
+    const start = startQueries(provider, 'monitoring')[0];
     assert.deepStrictEqual(start?.input.logGroupIdentifiers, [
       'arn:aws:logs:eu-south-1:000000000902:log-group:/aws/ecs/pn-external-registries',
     ]);
@@ -646,76 +641,41 @@ describe('AWSCloudWatchLogsService', () => {
     );
   });
 
-  it('does not paginate GetQueryResults by default', async () => {
-    const provider = new FakeMultiProvider(
-      new Map([
-        [
-          'first',
-          {
-            resultPages: [
-              {
-                results: [[{ field: 'message', value: 'first-page' }]],
-                statistics: { bytesScanned: 100, recordsScanned: 10, recordsMatched: 2 },
-              },
-              {
-                results: [[{ field: 'message', value: 'second-page' }]],
-                statistics: { bytesScanned: 100, recordsScanned: 10, recordsMatched: 2 },
-              },
-            ],
-          },
-        ],
-      ]),
-    );
-    const service = createService(provider);
-
-    const result = await service.queryWithStatistics(['/aws/ecs/a'], 'fields @timestamp', timeRange);
-    const getQueryCommands = provider
-      .client('first')
-      .commands.filter((command): command is GetQueryResultsCommand => command instanceof GetQueryResultsCommand);
-
-    assert.strictEqual(result.rows.length, 1);
-    assert.strictEqual(result.rows[0]?.find((field) => field.field === 'message')?.value, 'first-page');
-    assert.strictEqual(getQueryCommands.length, 1);
-    assert.strictEqual(getQueryCommands[0]?.input.maxItems, undefined);
-  });
-
-  it('paginates GetQueryResults when requested', async () => {
-    const provider = new FakeMultiProvider(
-      new Map([
-        [
-          'first',
-          {
-            resultPages: [
-              {
-                results: [[{ field: 'message', value: 'first-page' }]],
-                statistics: { bytesScanned: 100, recordsScanned: 10, recordsMatched: 2 },
-              },
-              {
-                results: [[{ field: 'message', value: 'second-page' }]],
-                statistics: { bytesScanned: 100, recordsScanned: 10, recordsMatched: 2 },
-              },
-            ],
-          },
-        ],
-      ]),
-    );
-    const service = createService(provider);
-
-    const result = await service.queryWithStatistics(['/aws/ecs/a'], 'fields @timestamp', timeRange, {
-      paginateResults: true,
+  it('paginates GetQueryResults only when requested', async () => {
+    const page = (value: string): FakeResultPage => ({
+      results: [[{ field: 'message', value }]],
+      statistics: { bytesScanned: 100, recordsScanned: 10, recordsMatched: 2 },
     });
-    const getQueryCommands = provider
-      .client('first')
-      .commands.filter((command): command is GetQueryResultsCommand => command instanceof GetQueryResultsCommand);
+    const run = async (
+      paginateResults: boolean,
+    ): Promise<readonly [ReadonlyArray<string | undefined>, ReadonlyArray<GetQueryResultsCommand>]> => {
+      const provider = new FakeMultiProvider(
+        new Map([['first', { resultPages: [page('first-page'), page('second-page')] }]]),
+      );
+      const result = await createService(provider).queryWithStatistics(['/aws/ecs/a'], 'fields @timestamp', timeRange, {
+        ...(paginateResults && { paginateResults }),
+      });
+      const commands = provider
+        .client('first')
+        .commands.filter((command): command is GetQueryResultsCommand => command instanceof GetQueryResultsCommand);
+      return [result.rows.map((row) => row.find((field) => field.field === 'message')?.value), commands];
+    };
 
-    assert.strictEqual(result.rows.length, 2);
+    const [single, singleCommands] = await run(false);
+    assert.deepStrictEqual(single, ['first-page']);
     assert.deepStrictEqual(
-      result.rows.map((row) => row.find((field) => field.field === 'message')?.value),
-      ['first-page', 'second-page'],
+      singleCommands.map((command) => command.input.maxItems),
+      [undefined],
     );
-    assert.strictEqual(getQueryCommands.length, 2);
-    assert.strictEqual(getQueryCommands[0]?.input.maxItems, 10_000);
-    assert.strictEqual(getQueryCommands[1]?.input.nextToken, 'page-1');
-    assert.strictEqual(getQueryCommands[1]?.input.maxItems, 10_000);
+
+    const [all, allCommands] = await run(true);
+    assert.deepStrictEqual(all, ['first-page', 'second-page']);
+    assert.deepStrictEqual(
+      allCommands.map((command) => [command.input.nextToken, command.input.maxItems]),
+      [
+        [undefined, 10_000],
+        ['page-1', 10_000],
+      ],
+    );
   });
 });

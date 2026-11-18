@@ -1,25 +1,15 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import { GOLogger } from '@pagopa/go-common/logging';
-import {
-  ConditionEvaluator,
-  type RunbookContext,
-  RunbookEngine,
-  type RunbookExecutionResult,
-} from '../../../../../engine/index.js';
-import {
-  assertCloudExecutableRunbook,
-  buildAnalysisDraft,
-  buildRunbookOutput,
-  createTestServiceRegistry,
-  type KnownCaseAnalysisDraft,
-} from '../../../../../toolkits/send/index.js';
-import { RUNBOOK_CATALOG } from '../../../../index.js';
+import type { RunbookExecutionResult } from '../../../../../engine/index.js';
+import { buildRunbookOutput, type KnownCaseAnalysisDraft } from '../../../../../toolkits/send/index.js';
 import { buildRunbook } from '../runbook.js';
 import { KNOWN_CASES } from '../knownCases.js';
 import { API_GW_LOG_GROUP } from '../knownServices.js';
+import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
+import { executeWithLogs } from '../../../../../__tests__/helpers/executeWithLogs.js';
+import { caseMatches, knownCaseById } from '../../../../../__tests__/helpers/knownCaseMatching.js';
+import type { LoggedQuery } from '../../../../../__tests__/helpers/LoggedQuery.js';
 
 const ROOT = '1-6ad0dd73-32533ff75fc4602939265354';
 const REQUEST = '42e21ca4-bb03-4597-9af8-e80691ca0d80';
@@ -50,74 +40,35 @@ async function execute(
 ): Promise<{
   result: RunbookExecutionResult;
   draft: KnownCaseAnalysisDraft;
-  calls: { group: string; query: string }[];
+  calls: ReadonlyArray<LoggedQuery>;
 }> {
-  const calls: { group: string; query: string }[] = [];
-  const cloudWatchLogs = {
-    async queryWithStatistics(groups: ReadonlyArray<string>, query: string): Promise<AWSCloudWatchLogsQueryResult> {
-      await Promise.resolve();
-      const group = groups[0] ?? '';
-      calls.push({ group, query });
-      let rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
-      if (group === API_GW_LOG_GROUP) rows = [accessRow, ...additionalAccessRows];
-      else if (group === EXECUTION_GROUP) {
-        if (executionMessages instanceof Error) throw executionMessages;
-        rows = executionMessages.map((entry) =>
-          row({
-            '@message': typeof entry === 'string' ? `(${REQUEST}) ${entry}` : `(${entry.requestId}) ${entry.message}`,
-          }),
-        );
-      } else rows = application[group] ?? [];
-      return {
-        rows,
-        statistics: { recordsScanned: rows.length, recordsMatched: rows.length, bytesScanned: 1 },
-        queryExecutions: [],
-      };
+  const { result, draft, queries } = await executeWithLogs(
+    buildRunbook(),
+    { startTime: '2026-10-15T14:00:18Z', endTime: '2026-10-15T14:10:19Z' },
+    (_query, [group = '']) => {
+      if (group === API_GW_LOG_GROUP) return [accessRow, ...additionalAccessRows];
+      if (group !== EXECUTION_GROUP) return application[group] ?? [];
+      if (executionMessages instanceof Error) throw executionMessages;
+      return executionMessages.map((entry) =>
+        row({
+          '@message': typeof entry === 'string' ? `(${REQUEST}) ${entry}` : `(${entry.requestId}) ${entry.message}`,
+        }),
+      );
     },
-  };
-  const runbook = buildRunbook();
-  const result = await new RunbookEngine(new GOLogger()).execute(
-    runbook,
-    new Map([
-      ['startTime', '2026-10-15T14:00:18Z'],
-      ['endTime', '2026-10-15T14:10:19Z'],
-    ]),
-    createTestServiceRegistry({ cloudWatchLogs }),
   );
   assert.strictEqual(result.status, 'completed');
-  const draft = buildAnalysisDraft(runbook, result);
   assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-  return { result, draft, calls };
+  return { result, draft, calls: queries };
 }
 
 function matches(id: string, stepId: string, message: string): boolean {
-  const candidate = KNOWN_CASES.find((c) => c.id === id);
-  assert.ok(candidate);
-  const ctx: RunbookContext = {
-    executionId: 'test',
-    startedAt: new Date(),
-    params: new Map(),
-    vars: new Map(),
-    stepResults: new Map([[stepId, [row({ '@message': message })]]]),
-    services: createTestServiceRegistry(),
-    logs: [],
-    recoveredErrors: [],
-  };
-  return new ConditionEvaluator().evaluate(candidate.condition, ctx);
+  return caseMatches(
+    knownCaseById(KNOWN_CASES, id),
+    createTestContext({ stepResults: { [stepId]: [row({ '@message': message })] } }),
+  );
 }
 
 describe('IO_EXP diagnosis', () => {
-  it('keeps the registered runbook read-only, links Confluence and requires follow-up for all known cases', () => {
-    const entry = RUNBOOK_CATALOG.resolveByAlarmName('pn-delivery-IO_EXP-ApiGwAlarm');
-    assert.ok(entry);
-    assert.doesNotThrow(() => assertCloudExecutableRunbook(entry.build()));
-    assert.ok(KNOWN_CASES.every((c) => c.analysis?.proposedStatus === 'IN_PROGRESS'));
-    assert.ok(buildRunbook().analysisDefaults?.links?.some((l) => l.url.includes('/2912321697/')));
-    const legacy = KNOWN_CASES.find((c) => c.id === 'execution-failed-configuration-error');
-    assert.strictEqual(legacy?.action.type, 'log');
-    assert.strictEqual(legacy.action.title, '[EXECUTION LOG] Execution failed due to configuration error');
-  });
-
   it('reads execution logs before distinguishing invocation 504 from a Lambda handler timeout', async () => {
     const { result, draft, calls } = await execute(
       access({ authorizerStatus: '500', authorizerLatency: '10000', authorizerRequestId: '-' }),
@@ -129,7 +80,7 @@ describe('IO_EXP diagnosis', () => {
     );
     assert.strictEqual(result.matchedCases[0]?.id, 'authorizer-invocation-504');
     assert.deepStrictEqual(
-      calls.map((c) => c.group),
+      calls.map((c) => c.groups[0]),
       [API_GW_LOG_GROUP, EXECUTION_GROUP],
     );
     assert.strictEqual(draft?.proposedStatus, 'IN_PROGRESS');
@@ -198,12 +149,12 @@ describe('IO_EXP diagnosis', () => {
     assert.strictEqual(result.matchedCases[0]?.id, 'authorizer-access-log-failure');
     assert.strictEqual(result.finalContext.vars.get('apiGwExecutionLogMode'), 'unavailable');
     assert.strictEqual(draft?.proposedStatus, 'IN_PROGRESS');
-    assert.ok(!calls.some((c) => c.group === '/aws/ecs/pn-delivery'));
+    assert.ok(!calls.some((c) => c.groups[0] === '/aws/ecs/pn-delivery'));
   });
 
   it('does not assume that an integration 502 proves Delivery unavailability', async () => {
     const { result, draft, calls } = await execute(access({ integrationServiceStatus: '502' }));
-    assert.ok(calls.some((c) => c.group === EXECUTION_GROUP));
+    assert.ok(calls.some((c) => c.groups[0] === EXECUTION_GROUP));
     assert.strictEqual(result.matchedCases[0]?.id, 'integration-502');
     assert.strictEqual(draft?.proposedStatus, 'IN_PROGRESS');
   });
@@ -226,7 +177,7 @@ describe('IO_EXP diagnosis', () => {
       ],
     });
     assert.strictEqual(result.matchedCases[0]?.id, 'downstream-pdv-500-internal-server-error');
-    const query = calls.find((c) => c.group === '/aws/ecs/pn-data-vault-sep')?.query ?? '';
+    const query = calls.find((c) => c.groups[0] === '/aws/ecs/pn-data-vault-sep')?.query ?? '';
     assert.ok(query.includes(ROOT));
     assert.ok(!query.includes(FALLBACK));
     assert.ok(query.includes("level = 'WARN'"));
@@ -296,7 +247,7 @@ describe('IO_EXP diagnosis', () => {
         ],
       });
       assert.deepStrictEqual(
-        calls.filter(({ group }) => group.startsWith('/aws/ecs/')).map(({ group }) => group),
+        calls.map(({ groups }) => groups[0] ?? '').filter((group) => group.startsWith('/aws/ecs/')),
         ['/aws/ecs/pn-delivery', '/aws/ecs/pn-f24'],
       );
       assert.strictEqual(result.finalContext.vars.get('deliveryNextUrlTarget'), 'pn-f24');

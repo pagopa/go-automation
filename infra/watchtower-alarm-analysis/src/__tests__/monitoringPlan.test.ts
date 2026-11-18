@@ -19,6 +19,11 @@ const BASE_ENV = {
   OAM_SOURCE_ACCOUNT_IDS: '123456789012,210987654321',
 } as const;
 
+/** A complete deployment environment for eu-south-1, with the given overrides. */
+function workerEnv(overrides: Readonly<Record<string, string>> = {}): Readonly<Record<string, string>> {
+  return { ...BASE_ENV, DEPLOY_REGION: 'eu-south-1', EXECUTE_RUNBOOK_WORKER_SUBNET_AZ: 'eu-south-1a', ...overrides };
+}
+
 describe('execute-runbook monitoring plan', () => {
   it('derives one deterministic global catalog bucket per account and environment', () => {
     assert.strictEqual(
@@ -63,73 +68,61 @@ describe('execute-runbook monitoring plan', () => {
     assert.deepStrictEqual(config.oamSourceAccountIds, ['170533023216']);
   });
 
-  it('reads the worker account directory and requires every account to be an OAM source', () => {
-    const env = { ...BASE_ENV, DEPLOY_REGION: 'eu-south-1', EXECUTE_RUNBOOK_WORKER_SUBNET_AZ: 'eu-south-1a' };
-    assert.deepStrictEqual(loadExecuteRunbookDeploymentConfig(env).executeRunbookAccountDirectory, []);
+  it('reads the worker account directory, trimming every entry', () => {
+    assert.deepStrictEqual(loadExecuteRunbookDeploymentConfig(workerEnv()).executeRunbookAccountDirectory, []);
     assert.deepStrictEqual(
-      loadExecuteRunbookDeploymentConfig({
-        ...env,
-        EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY: ' shop/core/prod=123456789012 , shop/extra/prod=210987654321',
-      }).executeRunbookAccountDirectory,
+      loadExecuteRunbookDeploymentConfig(
+        workerEnv({
+          EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY: ' shop/core/prod=123456789012 , shop/extra/prod=210987654321',
+        }),
+      ).executeRunbookAccountDirectory,
       ['shop/core/prod=123456789012', 'shop/extra/prod=210987654321'],
     );
-    assert.throws(
-      () =>
-        loadExecuteRunbookDeploymentConfig({
-          ...env,
-          EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY: 'shop/core/prod=000000000999',
-        }),
+  });
+
+  const rejections: ReadonlyArray<readonly [string, Readonly<Record<string, string>>, RegExp]> = [
+    [
+      'a directory account that is not an OAM source',
+      { EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY: 'shop/core/prod=000000000999' },
       /not in OAM_SOURCE_ACCOUNT_IDS/,
-    );
-    assert.throws(
-      () => loadExecuteRunbookDeploymentConfig({ ...env, EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY: 'shop/core=123456789012' }),
+    ],
+    [
+      'a directory entry without an environment',
+      { EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY: 'shop/core=123456789012' },
       /invalid entry/,
-    );
-    assert.throws(
-      () =>
-        loadExecuteRunbookDeploymentConfig({
-          ...env,
-          EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY: 'shop/core/prod=123456789012,shop/core/prod=210987654321',
-        }),
+    ],
+    [
+      'a directory declaring the same logical account twice',
+      { EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY: 'shop/core/prod=123456789012,shop/core/prod=210987654321' },
       /declares shop\/core\/prod more than once/,
-    );
-    assert.throws(
-      () =>
-        loadExecuteRunbookDeploymentConfig({
-          ...env,
-          EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY: 'shop/core/prod=123456789012,shop/core/uat=123456789012',
-        }),
+    ],
+    [
+      'a directory mapping one account id to two environments',
+      { EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY: 'shop/core/prod=123456789012,shop/core/uat=123456789012' },
       /to environments prod and uat/,
-    );
-  });
+    ],
+    ['a non-TLS Watchtower URL', { WATCHTOWER_INTERNAL_URL: 'http://watchtower' }, /must use TLS/],
+    [
+      'an out-of-range worker subnet octet',
+      { EXECUTE_RUNBOOK_WORKER_SUBNET_CIDR: '999.31.65.0/24' },
+      /IPv4 CIDR block/,
+    ],
+    [
+      'an out-of-range worker subnet prefix',
+      { EXECUTE_RUNBOOK_WORKER_SUBNET_CIDR: '172.31.65.0/33' },
+      /IPv4 CIDR block/,
+    ],
+    ['a truncated worker subnet address', { EXECUTE_RUNBOOK_WORKER_SUBNET_CIDR: '172.31.65/24' }, /IPv4 CIDR block/],
+  ];
 
-  it('rejects missing integration inputs and non-TLS Watchtower URLs', () => {
+  for (const [title, overrides, error] of rejections) {
+    it(`rejects ${title}`, () => {
+      assert.throws(() => loadExecuteRunbookDeploymentConfig(workerEnv(overrides)), error);
+    });
+  }
+
+  it('rejects a configuration without DEPLOY_REGION', () => {
     assert.throws(() => loadExecuteRunbookDeploymentConfig({ DEPLOY_ENV: 'dev' }), /DEPLOY_REGION/);
-    assert.throws(
-      () =>
-        loadExecuteRunbookDeploymentConfig({
-          ...BASE_ENV,
-          DEPLOY_REGION: 'eu-south-1',
-          EXECUTE_RUNBOOK_WORKER_SUBNET_AZ: 'eu-south-1a',
-          WATCHTOWER_INTERNAL_URL: 'http://watchtower',
-        }),
-      /must use TLS/,
-    );
-  });
-
-  it('rejects malformed worker subnet CIDR blocks', () => {
-    for (const cidrBlock of ['999.31.65.0/24', '172.31.65.0/33', '172.31.65/24']) {
-      assert.throws(
-        () =>
-          loadExecuteRunbookDeploymentConfig({
-            ...BASE_ENV,
-            DEPLOY_REGION: 'eu-south-1',
-            EXECUTE_RUNBOOK_WORKER_SUBNET_AZ: 'eu-south-1a',
-            EXECUTE_RUNBOOK_WORKER_SUBNET_CIDR: cidrBlock,
-          }),
-        /IPv4 CIDR block/,
-      );
-    }
   });
 });
 

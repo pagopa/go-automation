@@ -90,49 +90,35 @@ describe('GOScript signal handlers', { skip: createScript({}).environment.isAWSM
     await assert.doesNotReject(script.cleanup());
     assert.equal(consoleError.mock.callCount(), 1);
   });
-  it('exits with 130 after onCleanup when a prompt is interrupted by Ctrl+C', async (t) => {
-    let cleaned = false;
-    let onErrorCalls = 0;
-    const script = createScript({
-      onCleanup: () => {
-        cleaned = true;
-      },
-      onError: () => {
-        onErrorCalls++;
-      },
+  for (const [signal, expected] of [
+    ['SIGINT', 130],
+    ['SIGTERM', 143],
+  ] as const) {
+    it(`exits with ${expected} after onCleanup when a prompt is interrupted by ${signal}`, async (t) => {
+      let cleaned = false;
+      let onErrorCalls = 0;
+      const script = createScript({
+        onCleanup: () => {
+          cleaned = true;
+        },
+        onError: () => {
+          onErrorCalls++;
+        },
+      });
+      const exit = captureExit(t);
+
+      // The stubbed process.exit returns, so run() goes on and rethrows: ignore it.
+      void script
+        .run(() => {
+          throw new GOPromptInterruptedError(signal);
+        })
+        .catch(() => undefined);
+
+      assert.equal(await exit, expected);
+      assert.equal(cleaned, true, 'onCleanup ran before the exit');
+      assert.equal(onErrorCalls, 0, 'an interruption is not an error');
     });
-    const exit = captureExit(t);
-
-    // The stubbed process.exit returns, so run() goes on and rethrows: ignore it.
-    void script
-      .run(() => {
-        throw new GOPromptInterruptedError();
-      })
-      .catch(() => undefined);
-
-    assert.equal(await exit, 130);
-    assert.equal(cleaned, true, 'onCleanup ran before the exit');
-    assert.equal(onErrorCalls, 0, 'an interruption is not an error');
-  });
-
-  it('exits with 143 when a prompt is interrupted by SIGTERM', async (t) => {
-    let cleaned = false;
-    const script = createScript({
-      onCleanup: () => {
-        cleaned = true;
-      },
-    });
-    const exit = captureExit(t);
-
-    void script
-      .run(() => {
-        throw new GOPromptInterruptedError('SIGTERM');
-      })
-      .catch(() => undefined);
-
-    assert.equal(await exit, 143);
-    assert.equal(cleaned, true);
-  });
+  }
 
   it('exits with 1 when the cleanup after a Ctrl+C on a prompt fails', async (t) => {
     t.mock.method(console, 'error', () => undefined);

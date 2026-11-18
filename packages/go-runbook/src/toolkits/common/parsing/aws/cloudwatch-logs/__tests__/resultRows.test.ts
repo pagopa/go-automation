@@ -2,13 +2,11 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
+import { messageRow } from '../../../../../../__tests__/helpers/logRow.js';
 import { extractRecentLogLines, logLineToRecord, readFirstRowField } from '../resultRows.js';
 
 function row(timestamp: string, message: string): ReadonlyArray<GOLogsInsightsResultField> {
-  return [
-    { field: '@timestamp', value: timestamp },
-    { field: '@message', value: message },
-  ];
+  return messageRow(message, timestamp);
 }
 
 describe('readFirstRowField', () => {

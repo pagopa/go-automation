@@ -12,57 +12,26 @@ describe('readChangedFiles', () => {
 });
 
 describe('parseGitDiff', () => {
-  it('extracts added line numbers for package source files', () => {
-    const diff = [
-      'diff --git a/packages/go-common/src/Foo.ts b/packages/go-common/src/Foo.ts',
-      '--- a/packages/go-common/src/Foo.ts',
-      '+++ b/packages/go-common/src/Foo.ts',
-      '@@ -0,0 +1,2 @@',
-      '+export class Foo {}',
-      '+export class Bar {}',
-      '',
-    ].join('\n');
+  const path = 'packages/go-common/src/Foo.ts';
+  const cases: ReadonlyArray<readonly [string, ReadonlyArray<string>, ReadonlyArray<number>]> = [
+    ['extracts added line numbers', ['@@ -0,0 +1,2 @@', '+export class Foo {}', '+export class Bar {}'], [1, 2]],
+    ['ignores deleted lines when tracking new line numbers', ['@@ -4,2 +4,2 @@', '-old line', '+new line'], [4]],
+    [
+      'ignores hunk metadata lines when tracking new line numbers',
+      ['@@ -1,2 +1,3 @@', ' unchanged', '+export class Foo {}', '\\ No newline at end of file', '+export class Bar {}'],
+      [2, 3],
+    ],
+  ];
 
-    const [file] = parseGitDiff(diff);
+  for (const [name, hunk, expected] of cases) {
+    it(name, () => {
+      const diff = [`diff --git a/${path} b/${path}`, `--- a/${path}`, `+++ b/${path}`, ...hunk, ''].join('\n');
 
-    assert.ok(file);
-    assert.strictEqual(file.path, 'packages/go-common/src/Foo.ts');
-    assert.deepStrictEqual([...file.addedLines], [1, 2]);
-  });
+      const [file] = parseGitDiff(diff);
 
-  it('ignores deleted lines when tracking new line numbers', () => {
-    const diff = [
-      'diff --git a/packages/go-common/src/Foo.ts b/packages/go-common/src/Foo.ts',
-      '--- a/packages/go-common/src/Foo.ts',
-      '+++ b/packages/go-common/src/Foo.ts',
-      '@@ -4,2 +4,2 @@',
-      '-old line',
-      '+new line',
-      '',
-    ].join('\n');
-
-    const [file] = parseGitDiff(diff);
-
-    assert.ok(file);
-    assert.deepStrictEqual([...file.addedLines], [4]);
-  });
-
-  it('ignores git hunk metadata lines when tracking new line numbers', () => {
-    const diff = [
-      'diff --git a/packages/go-common/src/Foo.ts b/packages/go-common/src/Foo.ts',
-      '--- a/packages/go-common/src/Foo.ts',
-      '+++ b/packages/go-common/src/Foo.ts',
-      '@@ -1,2 +1,3 @@',
-      ' unchanged',
-      '+export class Foo {}',
-      '\\ No newline at end of file',
-      '+export class Bar {}',
-      '',
-    ].join('\n');
-
-    const [file] = parseGitDiff(diff);
-
-    assert.ok(file);
-    assert.deepStrictEqual([...file.addedLines], [2, 3]);
-  });
+      assert.ok(file);
+      assert.strictEqual(file.path, path);
+      assert.deepStrictEqual([...file.addedLines], expected);
+    });
+  }
 });

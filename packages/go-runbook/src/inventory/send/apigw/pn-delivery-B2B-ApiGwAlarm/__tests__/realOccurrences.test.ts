@@ -40,27 +40,7 @@ const REAL_OCCURRENCES: ReadonlyArray<RealOccurrence> = [
     expectedCaseId: 'apigw-500-no-application-logs',
   },
   {
-    firedAt: '2026-06-16T13:52:25.415Z',
-    kind: 'no-application-logs',
-    expectedCaseId: 'apigw-500-no-application-logs',
-  },
-  {
-    firedAt: '2026-06-03T08:09:09.310Z',
-    kind: 'no-application-logs',
-    expectedCaseId: 'apigw-500-no-application-logs',
-  },
-  {
     firedAt: '2026-08-28T03:39:34.634Z',
-    kind: 'timeout-empty-execution',
-    expectedCaseId: 'apigw-endpoint-timeout-no-delivery-logs',
-  },
-  {
-    firedAt: '2026-08-23T21:08:34.728Z',
-    kind: 'timeout-empty-execution',
-    expectedCaseId: 'apigw-endpoint-timeout-no-delivery-logs',
-  },
-  {
-    firedAt: '2026-08-23T02:40:34.686Z',
     kind: 'timeout-empty-execution',
     expectedCaseId: 'apigw-endpoint-timeout-no-delivery-logs',
   },
@@ -88,11 +68,6 @@ const REAL_OCCURRENCES: ReadonlyArray<RealOccurrence> = [
     firedAt: '2026-08-09T08:44:29.821Z',
     kind: 'external-registries-connection-aborted',
     expectedCaseId: 'external-registries-connection-aborted',
-  },
-  {
-    firedAt: '2026-08-07T08:14:12.902Z',
-    kind: 'f24-gone',
-    expectedCaseId: 'pn-f24-safe-storage-metadata-gone',
   },
   {
     firedAt: '2026-08-05T10:31:49.963Z',

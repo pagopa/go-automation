@@ -22,11 +22,18 @@ describe('SystemClock', () => {
     }
   });
 
-  it('sleeps with real timers and rejects when aborted', async () => {
+  it('sleeps on the system timers and rejects when aborted', async (t) => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
     const clock = new SystemClock();
-    const started = Date.now();
-    await clock.sleep(15);
-    assert.ok(Date.now() - started >= 10);
+    let woke = false;
+    const sleeping = clock.sleep(15).then(() => {
+      woke = true;
+    });
+    t.mock.timers.tick(14);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(woke, false, 'still sleeping before the delay');
+    t.mock.timers.tick(1);
+    await sleeping;
 
     const controller = new AbortController();
     const pending = clock.sleep(10_000, controller.signal);

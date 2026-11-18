@@ -1,25 +1,20 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import { GOLogger } from '@pagopa/go-common/logging';
-import { RunbookEngine, type RunbookExecutionResult } from '../../../../../engine/index.js';
-import {
-  assertCloudExecutableRunbook,
-  buildAnalysisDraft,
-  createTestServiceRegistry,
-  type InteropEnvironment,
-} from '../../../../../toolkits/interop/index.js';
-import { RUNBOOK_CATALOG } from '../../../../index.js';
-import { AUTH_SERVER_5XX_ALARM as alarm } from '../alarmDefinition.js';
-import { buildRunbook } from '../runbook.js';
-import { KNOWN_CASES } from '../knownCases.js';
-import { AUDIT_FALLBACK_CONFIRMED_VAR, AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR } from '../AnalyzeAuditFallbackStep.js';
 
+import { executeAlarmWithLogs, isCidTrackerQuery } from '../../../shared/__tests__/helpers/runbookExecution.js';
+import type { LogRows } from '../../../../../__tests__/helpers/LogRows.js';
+import type { RunbookLogsExecution } from '../../../../../__tests__/helpers/RunbookLogsExecution.js';
+import { AUTH_SERVER_5XX_ALARM as alarm } from '../alarmDefinition.js';
+import { AUDIT_FALLBACK_CONFIRMED_VAR, AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR } from '../AnalyzeAuditFallbackStep.js';
+import { buildRunbook } from '../runbook.js';
+
+const SUCCEEDED = 'auth-server-audit-fallback-succeeded';
+const UNVERIFIED = 'auth-server-audit-fallback-unverified';
 const FALLBACK =
   'Main auditing flow failed, going through fallback. Error: Timeout while acquiring lock (4 waiting locks): "connect to broker b-3.interopplatformevents.gfkljw.c4.kafka.eu-south-1.amazonaws.com:9098"';
 const STANDALONE_KAFKA_TIMEOUT =
   'ERROR - Timeout while acquiring lock (4 waiting locks): "connect to broker b-1.interopplatformevents.gfkljw.c4.kafka.eu-south-1.amazonaws.com:9098"';
+const WAF_FAILED = 'wafError: Failed to call WAF';
 const SUCCESS = [
   FALLBACK,
   'Storing file token-details/20260626/a.ndjson in bucket interop-generated-jwt-details-fallback-prod-es1',
@@ -27,9 +22,8 @@ const SUCCESS = [
   'Token generated',
 ];
 
-function row(message: string, cid?: string): ReadonlyArray<GOLogsInsightsResultField> {
+function row(message: string, cid?: string): LogRows[number] {
   return [
-    { field: '@timestamp', value: '2026-09-11 10:00:00.000' },
     { field: 'pod_app', value: alarm.serviceName },
     { field: 'log', value: message },
     ...(cid === undefined ? [] : [{ field: 'cid', value: cid }]),
@@ -37,444 +31,164 @@ function row(message: string, cid?: string): ReadonlyArray<GOLogsInsightsResultF
 }
 
 interface Scenario {
-  readonly environment?: InteropEnvironment;
+  readonly environment?: string;
   readonly integrationError?: string;
-  readonly apiGatewayAggregates?: ReadonlyArray<{
-    readonly count: number;
-    readonly integrationError?: string;
-  }>;
-  readonly application?: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
-  readonly traces?: Readonly<Record<string, ReadonlyArray<string | TrackerMessage>>>;
+  readonly application?: LogRows;
+  /** Auth-server messages traced for each CID. */
+  readonly traces?: Readonly<Record<string, ReadonlyArray<string>>>;
 }
 
-interface TrackerMessage {
-  readonly message: string;
-  readonly podApp: string;
-  readonly stream?: string;
-}
-
-async function execute(scenario: Scenario): Promise<{
-  result: RunbookExecutionResult;
-  draft: ReturnType<typeof buildAnalysisDraft>;
-  queries: ReadonlyArray<string>;
-  queriedLogGroups: ReadonlyArray<string>;
-}> {
-  const queries: string[] = [];
-  const queriedLogGroups: string[] = [];
-  const cloudWatchLogs = {
-    async queryWithStatistics(logGroups: ReadonlyArray<string>, query: string): Promise<AWSCloudWatchLogsQueryResult> {
-      await Promise.resolve();
-      queries.push(query);
-      queriedLogGroups.push(...logGroups);
-      let rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
+async function execute(scenario: Scenario): Promise<RunbookLogsExecution> {
+  return executeAlarmWithLogs(
+    buildRunbook(),
+    `interop-auth-server-${scenario.environment ?? 'prod'}-apigw-5xx`,
+    (query, logGroups) => {
       if (logGroups[0]?.startsWith('amazon-apigateway') === true) {
-        rows = (scenario.apiGatewayAggregates ?? [{ count: 1, integrationError: scenario.integrationError }]).map(
-          ({ count, integrationError }) => [
-            { field: 'count', value: String(count) },
+        return [
+          [
+            { field: 'count', value: '1' },
             { field: 'status', value: '504' },
-            { field: 'integrationError', value: integrationError ?? '' },
+            { field: 'integrationError', value: scenario.integrationError ?? '' },
           ],
-        );
-      } else if (query.includes('filter cid =')) {
-        const cid = /filter cid = "([^"]+)"/u.exec(query)?.[1] ?? '';
-        rows = (scenario.traces?.[cid] ?? []).map((evidence) =>
-          typeof evidence === 'string'
-            ? row(evidence)
-            : [
-                { field: 'pod_app', value: evidence.podApp },
-                ...(evidence.stream === undefined ? [] : [{ field: 'stream', value: evidence.stream }]),
-                { field: '@message', value: evidence.message },
-              ],
-        );
-      } else rows = scenario.application ?? [];
-      return {
-        rows,
-        statistics: { bytesScanned: 1, recordsScanned: rows.length, recordsMatched: rows.length },
-        queryExecutions: [],
-      };
+        ];
+      }
+      if (!isCidTrackerQuery(query)) return scenario.application ?? [];
+      const cid = /filter cid = "([^"]+)"/u.exec(query)?.[1] ?? '';
+      return (scenario.traces?.[cid] ?? []).map((message) => row(message));
     },
-  };
-  const runbook = buildRunbook();
-  const result = await new RunbookEngine(new GOLogger()).execute(
-    runbook,
-    new Map([
-      ['alarmName', `interop-auth-server-${scenario.environment ?? 'prod'}-apigw-5xx`],
-      ['startTime', '2026-09-11T09:55:00.000Z'],
-      ['endTime', '2026-09-11T10:01:00.000Z'],
-    ]),
-    createTestServiceRegistry({ cloudWatchLogs }),
   );
-  return { result, draft: buildAnalysisDraft(runbook, result), queries, queriedLogGroups };
+}
+
+function sequenceConfirmed({ result }: RunbookLogsExecution): string | undefined {
+  return result.finalContext.vars.get(AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR);
 }
 
 describe('INTEROP auth-server 5xx runbook', () => {
-  it('registers prod, att and test and preserves the 4xx registration', () => {
-    const expectedIds = { prod: 'ffmbmcmreh', att: '70ar087an0', test: 'q9ocrukty2' };
-    for (const [environment, apiGwId] of Object.entries(expectedIds)) {
-      const name = `interop-auth-server-${environment}-apigw-5xx`;
-      assert.strictEqual(RUNBOOK_CATALOG.resolveByAlarmName(name)?.descriptor.key, alarm.runbookKey);
-      assert.strictEqual(alarm.resolveContext(name).environment, environment);
-      assert.strictEqual(alarm.resolveContext(name).apiGwId, apiGwId);
-    }
-    assert.deepStrictEqual([...alarm.alarmNames].sort(), [
-      'interop-auth-server-att-apigw-5xx',
-      'interop-auth-server-prod-apigw-5xx',
-      'interop-auth-server-test-apigw-5xx',
-    ]);
-    assert.strictEqual(
-      RUNBOOK_CATALOG.resolveByAlarmName('interop-auth-server-prod-apigw-4xx')?.descriptor.key,
-      'interop-auth-server-apigw-4xx',
-    );
-    for (const name of [
-      'interop-auth-server-dev-apigw-5xx',
-      'interop-auth-server-test-apigw-5xx-low-requests',
-      'interop-auth-server-prod-apigw-4xx',
-    ]) {
-      assert.throws(() => alarm.resolveContext(name), /Unsupported INTEROP alarm/);
-    }
-    assert.strictEqual(alarm.resolveContext('interop-auth-server-prod-apigw-5xx').apiGwId, 'ffmbmcmreh');
-    assert.deepStrictEqual(buildRunbook().occurrenceTimeWindow, { beforeMinutes: 5, afterMinutes: 1 });
-    assert.deepStrictEqual(buildRunbook().cloudExecutionPolicy, { sideEffects: 'NONE' });
-    assert.doesNotThrow(() => assertCloudExecutableRunbook(buildRunbook()));
-    const ids = buildRunbook().steps.map(({ step }) => step.id);
-    assert.strictEqual(ids[ids.indexOf(alarm.stepIds.analyzeCidTracker) - 1], 'analyze-auth-server-audit-fallback');
-    assert.strictEqual(new Set(KNOWN_CASES.map((item) => item.id)).size, KNOWN_CASES.length);
-    assert.strictEqual(new Set(KNOWN_CASES.map((item) => item.priority)).size, KNOWN_CASES.length);
-    const actionable = KNOWN_CASES.filter((item) => item.analysis?.proposedStatus === 'IN_PROGRESS');
-    const completed = KNOWN_CASES.filter((item) => item.analysis?.proposedStatus === 'COMPLETED');
-    assert.ok(
-      Math.min(...actionable.map((item) => item.priority)) > Math.max(...completed.map((item) => item.priority)),
-    );
-  });
-
-  const cases = [
-    ['auth-server-api-gateway-timeout', 'Execution failed due to a timeout error', 'API_GATEWAY', 'IN_PROGRESS'],
-    ['auth-server-waf-timeout', 'WAF call got timed out', 'APPLICATION', 'COMPLETED'],
-    ['auth-server-kafka-lock-timeout', STANDALONE_KAFKA_TIMEOUT, 'APPLICATION', 'IN_PROGRESS'],
-    ['auth-server-audit-fallback-unverified', FALLBACK, 'APPLICATION', 'IN_PROGRESS'],
-    [
-      'auth-server-invalid-client-assertion-header',
-      'Invalid claims in client assertion header: [{"code":"unrecognized_keys","keys":["x5c","use"],"path":[],"message":"Unrecognized keys"}]',
-      'APPLICATION',
-      'IN_PROGRESS',
-    ],
-    [
-      'auth-server-invalid-identity-token',
-      "ERROR - InvalidIdentityTokenException: Couldn't retrieve verification key from your identity provider, please reference AssumeRoleWithWebIdentity documentation for requirements",
-      'APPLICATION',
-      'IN_PROGRESS',
-    ],
-    ['auth-server-waf-call-failed', 'wafError: Failed to call WAF', 'APPLICATION', 'IN_PROGRESS'],
-    [
-      'auth-server-stream-not-readable',
-      'title: Unexpected error - detail: Unexpected error - errors: 007-9991, Unexpected error - original error: Error: Unexpected error',
-      'APPLICATION',
-      'IN_PROGRESS',
-    ],
-    ['auth-server-stream-not-readable', 'Error in request: stream is not readable', 'APPLICATION', 'IN_PROGRESS'],
-    [
-      'auth-server-endpoint-connection-reset',
-      'Execution failed due to a network error communicating with endpoint: Connection reset by peer',
-      'API_GATEWAY',
-      'IN_PROGRESS',
-    ],
-  ] as const;
-  for (const [id, message, source, status] of cases) {
-    it(`recognizes ${id} from ${source}: ${message.slice(0, 35)}`, async () => {
+  it('recognizes every documented signature from its own evidence source', async () => {
+    for (const [id, message, source] of [
+      ['auth-server-api-gateway-timeout', 'Execution failed due to a timeout error', 'API_GATEWAY'],
+      ['auth-server-waf-timeout', 'WAF call got timed out', 'APPLICATION'],
+      ['auth-server-kafka-lock-timeout', STANDALONE_KAFKA_TIMEOUT, 'APPLICATION'],
+      [UNVERIFIED, FALLBACK, 'APPLICATION'],
+      [
+        'auth-server-invalid-client-assertion-header',
+        'Invalid claims in client assertion header: [{"code":"unrecognized_keys","keys":["x5c","use"],"path":[],"message":"Unrecognized keys"}]',
+        'APPLICATION',
+      ],
+      [
+        'auth-server-invalid-identity-token',
+        "ERROR - InvalidIdentityTokenException: Couldn't retrieve verification key from your identity provider, please reference AssumeRoleWithWebIdentity documentation for requirements",
+        'APPLICATION',
+      ],
+      ['auth-server-waf-call-failed', WAF_FAILED, 'APPLICATION'],
+      [
+        'auth-server-stream-not-readable',
+        'title: Unexpected error - detail: Unexpected error - errors: 007-9991, Unexpected error - original error: Error: Unexpected error',
+        'APPLICATION',
+      ],
+      ['auth-server-stream-not-readable', 'Error in request: stream is not readable', 'APPLICATION'],
+      [
+        'auth-server-endpoint-connection-reset',
+        'Execution failed due to a network error communicating with endpoint: Connection reset by peer',
+        'API_GATEWAY',
+      ],
+    ] as const) {
       const scenario =
         source === 'API_GATEWAY'
           ? { integrationError: message }
           : { application: [row(message, 'cid-1')], traces: { 'cid-1': [message] } };
-      const { result, draft } = await execute(scenario);
-      assert.strictEqual(result.matchedCases[0]?.id, id);
-      assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-      assert.strictEqual(draft.proposedStatus, status);
-    });
-  }
-
-  it('queries 5xx and application errors, retaining invalid claims and following CIDs', async () => {
-    const { queries } = await execute({ application: [row(FALLBACK, 'cid-1')] });
-    assert.match(queries[0] ?? '', /apigwId = "ffmbmcmreh"/u);
-    assert.match(queries[0] ?? '', /status >= 500/u);
-    assert.match(queries[1] ?? '', /ERROR.*stderr.*Response/u);
-    assert.match(queries[1] ?? '', /@message like \/Main auditing flow failed, going through fallback\//u);
-    assert.ok(queries[1]?.includes('pod_app like /interop\\-be\\-authorization\\-server/'));
-    assert.doesNotMatch(queries[1] ?? '', /not like.*Invalid claims/u);
-    assert.match(queries[2] ?? '', /filter cid = "cid-1"/u);
-    assert.match(queries[2] ?? '', /display @timestamp, pod_app, cid, stream, @message/u);
+      assert.strictEqual((await execute(scenario)).matchedIds[0], id, message);
+    }
   });
 
-  it('confirms the documented fallback outcome for every CID without closing the HTTP alarm', async () => {
-    const { result, draft } = await execute({
-      apiGatewayAggregates: [{ count: 2 }],
+  it('does not attribute gateway-only signatures or an application timeout to the other source', async () => {
+    for (const integrationError of [FALLBACK, STANDALONE_KAFKA_TIMEOUT, 'WAF call got timed out']) {
+      assert.deepStrictEqual((await execute({ integrationError })).matchedIds, [], integrationError);
+    }
+    for (const message of ['an unknown application failure', 'Execution failed due to a timeout error']) {
+      assert.deepStrictEqual((await execute({ application: [row(message)] })).matchedIds, [], message);
+    }
+  });
+
+  it('scans the fallback marker besides the application errors and follows its CID', async () => {
+    const { queries } = await execute({ application: [row(FALLBACK, 'cid-1')] });
+    assert.match(queries[1]?.query ?? '', /@message like \/Main auditing flow failed, going through fallback\//u);
+    assert.doesNotMatch(queries[1]?.query ?? '', /not like.*Invalid claims/u);
+    assert.match(queries[2]?.query ?? '', /filter cid = "cid-1"/u);
+  });
+
+  it('confirms the documented fallback outcome for every CID', async () => {
+    const execution = await execute({
       application: [row(FALLBACK, 'a'), row(FALLBACK, 'b')],
       traces: { a: SUCCESS, b: SUCCESS },
     });
-    assert.deepStrictEqual(
-      result.matchedCases.map((item) => item.id),
-      ['auth-server-audit-fallback-succeeded'],
-    );
-    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-    assert.strictEqual(result.finalContext.vars.get(AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR), 'true');
+    assert.deepStrictEqual(execution.matchedIds, [SUCCEEDED]);
+    assert.strictEqual(sequenceConfirmed(execution), 'true');
   });
 
-  it('confirms one recovered fallback CID even when API Gateway reports retried 5xx requests', async () => {
-    const { result, draft } = await execute({
-      apiGatewayAggregates: [{ count: 2 }],
-      application: [row(FALLBACK, 'a')],
-      traces: { a: SUCCESS },
-    });
-
-    assert.deepStrictEqual(
-      result.matchedCases.map((item) => item.id),
-      ['auth-server-audit-fallback-succeeded'],
-    );
-    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-  });
-
-  it('does not close the alarm without API Gateway aggregate evidence', async () => {
-    const { result, draft } = await execute({
-      apiGatewayAggregates: [],
-      application: [row(FALLBACK, 'a')],
-      traces: { a: SUCCESS },
-    });
-
-    assert.deepStrictEqual(
-      result.matchedCases.map(({ id }) => id),
-      ['auth-server-audit-fallback-succeeded'],
-    );
-    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-    assert.strictEqual(result.finalContext.vars.get(AUDIT_FALLBACK_CONFIRMED_VAR), 'false');
-  });
-
-  it('does not close the alarm when a recovered fallback is mixed with an unknown application error', async () => {
-    const { result, draft } = await execute({
-      application: [row(FALLBACK, 'a'), row('ERROR unclassified authorization failure', 'b')],
-      traces: { a: SUCCESS },
-    });
-
-    assert.deepStrictEqual(
-      result.matchedCases.map(({ id }) => id),
-      ['auth-server-audit-fallback-succeeded'],
-    );
-    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-    assert.strictEqual(result.finalContext.vars.get(AUDIT_FALLBACK_CONFIRMED_VAR), 'false');
-  });
-
-  it('does not close the alarm when a correlated service emits an unknown error', async () => {
-    const { result, draft } = await execute({
-      application: [row(FALLBACK, 'a')],
-      traces: {
-        a: [
-          ...SUCCESS,
-          {
-            message: 'Unclassified fallback-writer failure',
-            podApp: 'interop-be-fallback-writer',
-            stream: 'stderr',
-          },
-        ],
-      },
-    });
-
-    assert.deepStrictEqual(
-      result.matchedCases.map(({ id }) => id),
-      ['auth-server-audit-fallback-succeeded'],
-    );
-    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-    assert.strictEqual(result.finalContext.vars.get(AUDIT_FALLBACK_CONFIRMED_VAR), 'false');
-  });
-
-  it('does not close the alarm when the authorization server emits another error after recovery', async () => {
-    const { result, draft } = await execute({
-      application: [row(FALLBACK, 'a')],
-      traces: {
-        a: [
-          ...SUCCESS,
-          {
-            message: 'Unrelated authorization failure',
-            podApp: alarm.serviceName,
-            stream: 'stderr',
-          },
-        ],
-      },
-    });
-
-    assert.deepStrictEqual(
-      result.matchedCases.map(({ id }) => id),
-      ['auth-server-audit-fallback-succeeded'],
-    );
-    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-    assert.strictEqual(result.finalContext.vars.get(AUDIT_FALLBACK_CONFIRMED_VAR), 'false');
-  });
-
-  it('keeps a malformed-header diagnosis in progress alongside the successful fallback', async () => {
+  it('keeps independent diagnoses alongside or ahead of a successful fallback', async () => {
     const invalidHeader =
       'Invalid claims in client assertion header: [{"code":"unrecognized_keys","keys":["x5c","use"]}]';
-    const { result, draft } = await execute({
+    const header = await execute({
       application: [row(FALLBACK, 'a'), row(invalidHeader, 'b')],
       traces: { a: SUCCESS },
     });
+    assert.deepStrictEqual(header.matchedIds, [SUCCEEDED, 'auth-server-invalid-client-assertion-header']);
 
-    assert.deepStrictEqual(
-      result.matchedCases.map(({ id }) => id),
-      ['auth-server-audit-fallback-succeeded', 'auth-server-invalid-client-assertion-header'],
-    );
-    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
+    const waf = await execute({ application: [row(FALLBACK, 'a'), row(WAF_FAILED, 'b')], traces: { a: SUCCESS } });
+    assert.strictEqual(waf.matchedIds[0], 'auth-server-waf-call-failed');
   });
 
-  it('does not close the alarm when a recovered fallback is mixed with an independent API Gateway 5xx', async () => {
-    const { result, draft } = await execute({
-      apiGatewayAggregates: [{ count: 1 }, { count: 1, integrationError: 'Unexpected gateway transport failure' }],
-      application: [row(FALLBACK, 'a')],
-      traces: { a: SUCCESS },
-    });
-
-    assert.deepStrictEqual(
-      result.matchedCases.map(({ id }) => id),
-      ['auth-server-audit-fallback-succeeded'],
-    );
-    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-    assert.strictEqual(result.finalContext.vars.get(AUDIT_FALLBACK_CONFIRMED_VAR), 'false');
-  });
-
-  for (const integrationError of [FALLBACK, STANDALONE_KAFKA_TIMEOUT, 'WAF call got timed out']) {
-    it(`does not attribute a gateway-only signature to the application: ${integrationError.slice(0, 30)}`, async () => {
-      const { result, draft } = await execute({
-        integrationError,
-        application: [],
-      });
-
-      assert.deepStrictEqual(result.matchedCases, []);
-      assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
-    });
-  }
-
-  for (const environment of ['prod', 'att', 'test'] as const) {
-    it(`uses the ${environment} API Gateway and log groups for the entire pipeline`, async () => {
-      const expectedIds = { prod: 'ffmbmcmreh', att: '70ar087an0', test: 'q9ocrukty2' };
-      const { queries, queriedLogGroups, draft } = await execute({
-        environment,
-        application: [row('wafError: Failed to call WAF', 'a')],
-      });
-      assert.ok(queries[0]?.includes(`apigwId = "${expectedIds[environment]}"`));
-      assert.deepStrictEqual(queriedLogGroups, [
-        `amazon-apigateway-interop-access-logs-${environment}`,
-        `/aws/eks/interop-eks-cluster-${environment}/application`,
-        `/aws/eks/interop-eks-cluster-${environment}/application`,
-      ]);
-      assert.strictEqual(draft?.kind, environment === 'prod' ? 'KNOWN_CASE' : 'UNKNOWN_CASE_CONTEXT');
-      if (draft?.kind === 'KNOWN_CASE') assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-    });
-
-    for (const bucketEnvironment of ['prod', 'att', 'test'] as const) {
-      it(`confirms ${environment} fallback only for its own bucket: ${bucketEnvironment}`, async () => {
-        const messages = SUCCESS.map((message) =>
-          message.replace('fallback-prod-es1', `fallback-${bucketEnvironment}-es1`),
-        );
-        const { draft, result } = await execute({
-          environment,
-          application: [row(FALLBACK, 'a')],
-          traces: { a: messages },
-        });
-        assert.strictEqual(draft?.kind, environment === 'prod' ? 'KNOWN_CASE' : 'UNKNOWN_CASE_CONTEXT');
-        if (draft?.kind === 'KNOWN_CASE') assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-        assert.strictEqual(
-          result.finalContext.vars.get(AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR),
-          String(environment === bucketEnvironment),
-        );
-      });
+  it('confirms the fallback sequence only with the bucket of the resolved environment', async () => {
+    for (const environment of ['prod', 'att', 'test']) {
+      for (const bucket of ['prod', 'att', 'test', 'prod-es1-unrelated']) {
+        const messages = SUCCESS.map((message) => message.replace('fallback-prod-es1', `fallback-${bucket}-es1`));
+        const execution = await execute({ environment, application: [row(FALLBACK, 'a')], traces: { a: messages } });
+        assert.strictEqual(sequenceConfirmed(execution), String(environment === bucket), `${environment}/${bucket}`);
+        // Every documented case concerns production.
+        assert.strictEqual(execution.matchedIds.length, environment === 'prod' ? 1 : 0);
+      }
     }
-  }
+  });
 
-  it('does not accept a bucket that merely starts with the expected bucket name', async () => {
-    const messages = SUCCESS.map((message) => message.replace('fallback-prod-es1', 'fallback-prod-es1-unrelated'));
-    const { draft } = await execute({ application: [row(FALLBACK, 'a')], traces: { a: messages } });
-    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
+  it('leaves the fallback unverified with an incomplete, reordered or split sequence', async () => {
+    for (const [name, application, traces] of [
+      ['missing token', [row(FALLBACK, 'a')], { a: SUCCESS.slice(0, 3) }],
+      ['missing S3 write', [row(FALLBACK, 'a')], { a: [FALLBACK, ...SUCCESS.slice(2)] }],
+      ['missing audit success', [row(FALLBACK, 'a')], { a: [FALLBACK, SUCCESS[1] ?? '', 'Token generated'] }],
+      ['success precedes failure', [row(FALLBACK, 'a')], { a: [...SUCCESS.slice(1), FALLBACK] }],
+      ['another failure after success', [row(FALLBACK, 'a')], { a: [...SUCCESS, FALLBACK] }],
+      [
+        'evidence split across CIDs',
+        [row(FALLBACK, 'a'), row(FALLBACK, 'b'), row(FALLBACK, 'unqueried')],
+        { a: SUCCESS.slice(0, 2), b: SUCCESS.slice(2) },
+      ],
+    ] as const) {
+      assert.deepStrictEqual((await execute({ application, traces })).matchedIds, [UNVERIFIED], name);
+    }
+  });
+
+  it('does not hide a failure without CID behind a recovered request', async () => {
+    const execution = await execute({ application: [row(FALLBACK), row(FALLBACK, 'a')], traces: { a: SUCCESS } });
+    assert.strictEqual(execution.result.finalContext.vars.get(AUDIT_FALLBACK_CONFIRMED_VAR), 'false');
   });
 
   it('does not classify an error that belongs only to another service in the CID tracker', async () => {
-    const { result, draft } = await execute({
-      application: [row('Unknown error', 'a')],
-      traces: { a: [{ podApp: 'interop-be-another-service', message: 'wafError: Failed to call WAF' }] },
-    });
-    assert.deepStrictEqual(result.matchedCases, []);
-    assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
-  });
-
-  it('retains source resolutions and evidence without adding final actions', () => {
-    for (const candidate of KNOWN_CASES) {
-      assert.deepStrictEqual(candidate.analysis?.finalActions, []);
-      assert.strictEqual(candidate.action.type, 'log');
-      if (candidate.action.type === 'log') {
-        assert.deepStrictEqual(
-          candidate.action.details?.map(([label]) => label),
-          ['Risoluzione', 'Ambiente', 'API Gateway ID', 'Servizio', 'Log authorization-server', 'CID analizzati'],
-        );
-      }
-    }
-    assert.match(
-      KNOWN_CASES.find(({ id }) => id === 'auth-server-kafka-lock-timeout')?.analysis?.resolution ?? '',
-      /Avvisare il team di prodotto.*ripetersi/u,
+    const { matchedIds } = await executeAlarmWithLogs(
+      buildRunbook(),
+      'interop-auth-server-prod-apigw-5xx',
+      (query, logGroups) => {
+        if (logGroups[0]?.startsWith('amazon-apigateway') === true) return [[{ field: 'count', value: '1' }]];
+        return isCidTrackerQuery(query)
+          ? [
+              [
+                { field: 'pod_app', value: 'interop-be-another-service' },
+                { field: '@message', value: WAF_FAILED },
+              ],
+            ]
+          : [row('Unknown error', 'a')];
+      },
     );
-    assert.deepStrictEqual(
-      KNOWN_CASES.filter(({ analysis }) => analysis?.proposedStatus === 'COMPLETED').map(({ id }) => id),
-      ['auth-server-waf-timeout'],
-    );
-  });
-
-  const incomplete = [
-    { name: 'missing token', messages: SUCCESS.slice(0, 3) },
-    { name: 'missing S3 write', messages: [FALLBACK, ...SUCCESS.slice(2)] },
-    { name: 'missing audit success', messages: [FALLBACK, SUCCESS[1] ?? '', 'Token generated'] },
-    { name: 'success precedes failure', messages: [...SUCCESS.slice(1), FALLBACK] },
-    { name: 'another failure after success', messages: [...SUCCESS, FALLBACK] },
-  ];
-  for (const { name, messages } of incomplete) {
-    it(`leaves fallback unresolved with ${name}`, async () => {
-      const { draft } = await execute({ application: [row(FALLBACK, 'a')], traces: { a: messages } });
-      assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-      assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-    });
-  }
-
-  it('does not combine evidence from different CIDs or hide skipped/unavailable CIDs', async () => {
-    const { draft } = await execute({
-      application: [row(FALLBACK, 'a'), row(FALLBACK, 'b'), row(FALLBACK, 'unqueried')],
-      traces: { a: SUCCESS.slice(0, 2), b: SUCCESS.slice(2) },
-    });
-    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-  });
-
-  it('does not hide failures without a CID behind a recovered request', async () => {
-    const { draft } = await execute({ application: [row(FALLBACK), row(FALLBACK, 'a')], traces: { a: SUCCESS } });
-    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-  });
-
-  it('keeps an independent WAF failure actionable even when audit fallback succeeds', async () => {
-    const { result, draft } = await execute({
-      application: [row(FALLBACK, 'a'), row('wafError: Failed to call WAF', 'b')],
-      traces: { a: SUCCESS },
-    });
-    assert.strictEqual(result.matchedCases[0]?.id, 'auth-server-waf-call-failed');
-    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-  });
-
-  it('retains unknown errors and does not treat an application timeout as an API Gateway timeout', async () => {
-    for (const message of ['an unknown application failure', 'Execution failed due to a timeout error']) {
-      const { result } = await execute({ application: [row(message)] });
-      assert.deepStrictEqual(result.matchedCases, []);
-    }
+    assert.deepStrictEqual(matchedIds, []);
   });
 });

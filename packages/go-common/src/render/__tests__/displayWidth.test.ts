@@ -1,26 +1,19 @@
 import { describe, it } from 'node:test';
-import assert from 'node:assert';
+import assert from 'node:assert/strict';
 
 import { displayWidth } from '../tableRenderer/displayWidth.js';
 
 describe('displayWidth', () => {
-  it('returns 0 for empty string', () => {
-    assert.strictEqual(displayWidth(''), 0);
-  });
-
-  it('returns the same length for plain ASCII', () => {
-    assert.strictEqual(displayWidth('hello'), 5);
-  });
-
-  it('ignores ANSI escape sequences', () => {
-    assert.strictEqual(displayWidth('\x1b[31mfoo\x1b[0m'), 3);
-  });
-
-  it('counts CJK characters as 2 cells', () => {
-    assert.strictEqual(displayWidth('日本'), 4);
-  });
-
-  it('counts simple emoji as 2 cells', () => {
-    assert.strictEqual(displayWidth('🎉'), 2);
+  it('counts terminal cells: ANSI ignored, CJK and emoji 2 cells', () => {
+    const cases: ReadonlyArray<readonly [text: string, width: number]> = [
+      ['', 0],
+      ['hello', 5],
+      ['\x1b[31mfoo\x1b[0m', 3],
+      ['日本', 4],
+      ['🎉', 2],
+    ];
+    for (const [text, width] of cases) {
+      assert.strictEqual(displayWidth(text), width, JSON.stringify(text));
+    }
   });
 });

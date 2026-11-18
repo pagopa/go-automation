@@ -9,7 +9,6 @@ import {
 } from '@go-automation/go-script';
 
 import { resolvePeriod } from '../promptInputs.js';
-import type { GoRtaCheckConfig } from '../../types/GoRtaCheckConfig.js';
 
 interface Harness {
   readonly script: GOScript;
@@ -59,17 +58,13 @@ function harness(answers: Answers = {}): Harness {
   return { script, askedDates, offeredPresets, offeredBack };
 }
 
-function config(overrides: GoRtaCheckConfig = {}): GoRtaCheckConfig {
-  return overrides;
-}
-
 describe('resolvePeriod', () => {
-  it('offers the presets when no bound is pinned by flags', async () => {
-    const { script, offeredPresets, askedDates } = harness({
+  it('offers the presets, without a way back unless allowed, when no bound is pinned by flags', async () => {
+    const { script, offeredPresets, offeredBack, askedDates } = harness({
       range: { from: new Date('2026-08-17T10:00:00.000Z'), to: new Date('2026-08-24T10:00:00.000Z') },
     });
 
-    const period = await resolvePeriod(script, config(), true);
+    const period = await resolvePeriod(script, {}, true);
 
     assert.deepStrictEqual(offeredPresets, [
       'Ultime 24 ore',
@@ -79,6 +74,7 @@ describe('resolvePeriod', () => {
       'Nessun limite',
       'Personalizzato…',
     ]);
+    assert.deepStrictEqual(offeredBack, []);
     assert.deepStrictEqual(askedDates, []);
     assert.deepStrictEqual(period, {
       kind: 'VALUE',
@@ -88,12 +84,12 @@ describe('resolvePeriod', () => {
   });
 
   it('reads an unbounded preset, and a cancelled picker, as no limit', async () => {
-    assert.deepStrictEqual(await resolvePeriod(harness({ range: {} }).script, config(), true), {
+    assert.deepStrictEqual(await resolvePeriod(harness({ range: {} }).script, {}, true), {
       kind: 'VALUE',
       dateFrom: '',
       dateTo: '',
     });
-    assert.deepStrictEqual(await resolvePeriod(harness().script, config(), true), {
+    assert.deepStrictEqual(await resolvePeriod(harness().script, {}, true), {
       kind: 'VALUE',
       dateFrom: '',
       dateTo: '',
@@ -103,7 +99,7 @@ describe('resolvePeriod', () => {
   it('normalizes bounds pinned by flags, without prompting', async () => {
     const { script, askedDates, offeredPresets } = harness();
 
-    const period = await resolvePeriod(script, config({ dateFrom: '24/08/2026', dateTo: '2026-08-25' }), true);
+    const period = await resolvePeriod(script, { dateFrom: '24/08/2026', dateTo: '2026-08-25' }, true);
 
     assert.deepStrictEqual(askedDates, []);
     assert.deepStrictEqual(offeredPresets, []);
@@ -117,7 +113,7 @@ describe('resolvePeriod', () => {
   it('asks only for the bound the flags left out', async () => {
     const { script, askedDates } = harness({ dates: [new Date('2026-08-25T23:59:59.999Z')] });
 
-    const period = await resolvePeriod(script, config({ dateFrom: '2026-08-24T06:00:00Z' }), true);
+    const period = await resolvePeriod(script, { dateFrom: '2026-08-24T06:00:00Z' }, true);
 
     assert.deepStrictEqual(askedDates, ['Data fine (vuoto = nessun limite)']);
     assert.deepStrictEqual(period, {
@@ -130,7 +126,7 @@ describe('resolvePeriod', () => {
   it('never asks when prompts are not allowed', async () => {
     const { script, askedDates, offeredPresets } = harness();
 
-    const period = await resolvePeriod(script, config({ dateFrom: '2026-08-24' }), false);
+    const period = await resolvePeriod(script, { dateFrom: '2026-08-24' }, false);
 
     assert.deepStrictEqual(askedDates, []);
     assert.deepStrictEqual(offeredPresets, []);
@@ -140,34 +136,23 @@ describe('resolvePeriod', () => {
   it('rejects a bound the flags pinned to something unparseable', async () => {
     const { script } = harness();
 
-    await assert.rejects(
-      resolvePeriod(script, config({ dateFrom: 'la settimana scorsa' }), false),
-      /Data inizio non valida/,
-    );
+    await assert.rejects(resolvePeriod(script, { dateFrom: 'la settimana scorsa' }, false), /Data inizio non valida/);
   });
 
   it('keeps an explicitly empty bound unbounded', async () => {
     const { script, askedDates } = harness();
 
-    const period = await resolvePeriod(script, config({ dateFrom: '', dateTo: '  ' }), true);
+    const period = await resolvePeriod(script, { dateFrom: '', dateTo: '  ' }, true);
 
     assert.deepStrictEqual(askedDates, []);
     assert.deepStrictEqual(period, { kind: 'VALUE', dateFrom: '', dateTo: '' });
   });
 
   describe('going back to the runbook step', () => {
-    it('offers no way back unless the caller allows it', async () => {
-      const { script, offeredBack } = harness({ range: {} });
-
-      await resolvePeriod(script, config(), true);
-
-      assert.deepStrictEqual(offeredBack, []);
-    });
-
     it('offers the way back, and announces its shortcut, when allowed', async () => {
       const { script, offeredBack } = harness({ range: {} });
 
-      await resolvePeriod(script, config(), true, true);
+      await resolvePeriod(script, {}, true, true);
 
       assert.deepStrictEqual(offeredBack, ['← Indietro: cambia runbook · premi ←']);
     });
@@ -175,7 +160,7 @@ describe('resolvePeriod', () => {
     it('reports the way back instead of a period', async () => {
       const { script, askedDates } = harness({ goBack: true });
 
-      const period = await resolvePeriod(script, config(), true, true);
+      const period = await resolvePeriod(script, {}, true, true);
 
       assert.deepStrictEqual(period, { kind: 'BACK' });
       assert.deepStrictEqual(askedDates, []);
@@ -184,7 +169,7 @@ describe('resolvePeriod', () => {
     it('never asks for the period when the bounds are pinned by flags', async () => {
       const { script, offeredBack, offeredPresets } = harness({ goBack: true });
 
-      const period = await resolvePeriod(script, config({ dateFrom: '2026-08-24', dateTo: '' }), true, true);
+      const period = await resolvePeriod(script, { dateFrom: '2026-08-24', dateTo: '' }, true, true);
 
       assert.deepStrictEqual(offeredPresets, []);
       assert.deepStrictEqual(offeredBack, []);

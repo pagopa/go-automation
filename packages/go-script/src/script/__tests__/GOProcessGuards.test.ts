@@ -5,39 +5,36 @@ import { installProcessGuards, resetProcessGuardsForTesting, serializeError } fr
 import { GOScript } from '../GOScript.js';
 
 describe('GOProcessGuards.serializeError', () => {
-  it('keeps name, message and optional stack for Error instances', () => {
-    const err = new TypeError('boom');
-    const result = serializeError(err);
-    assert.strictEqual(result['name'], 'TypeError');
-    assert.strictEqual(result['message'], 'boom');
-    assert.strictEqual(Object.hasOwn(result, 'stack'), true);
-    if (result['stack'] !== undefined) {
+  it('keeps name (custom subclasses included), message and stack for Error instances', () => {
+    class CustomError extends Error {
+      override readonly name = 'CustomError';
+    }
+
+    for (const [error, name] of [
+      [new TypeError('boom'), 'TypeError'],
+      [new CustomError('boom'), 'CustomError'],
+    ] as const) {
+      const result = serializeError(error);
+      assert.strictEqual(result['name'], name);
+      assert.strictEqual(result['message'], 'boom');
       assert.strictEqual(typeof result['stack'], 'string');
     }
   });
 
-  it('preserves a custom Error subclass name', () => {
-    class CustomError extends Error {
-      override readonly name = 'CustomError';
+  it('wraps non-Error values under "value", rendering null, undefined and BigInt literally', () => {
+    const cases: ReadonlyArray<readonly [unknown, string]> = [
+      ['plain string', 'plain string'],
+      [42, '42'],
+      [true, 'true'],
+      [null, 'null'],
+      [undefined, 'undefined'],
+      // Plain JSON.stringify throws on a BigInt.
+      [123n, '123'],
+    ];
+
+    for (const [value, expected] of cases) {
+      assert.deepStrictEqual(serializeError(value), { value: expected });
     }
-    const result = serializeError(new CustomError('nope'));
-    assert.strictEqual(result['name'], 'CustomError');
-    assert.strictEqual(result['message'], 'nope');
-  });
-
-  it('wraps non-Error values under "value"', () => {
-    assert.deepStrictEqual(serializeError('plain string'), { value: 'plain string' });
-    assert.deepStrictEqual(serializeError(42), { value: '42' });
-    assert.deepStrictEqual(serializeError(true), { value: 'true' });
-  });
-
-  it('renders null and undefined literally (not empty string)', () => {
-    assert.deepStrictEqual(serializeError(null), { value: 'null' });
-    assert.deepStrictEqual(serializeError(undefined), { value: 'undefined' });
-  });
-
-  it('handles BigInt that plain JSON.stringify would throw on', () => {
-    assert.deepStrictEqual(serializeError(123n), { value: '123' });
   });
 
   it('handles circular references without throwing', () => {

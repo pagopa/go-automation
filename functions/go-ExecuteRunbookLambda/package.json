@@ -11,7 +11,7 @@
     "build:typecheck": "pnpm --filter=go-execute-runbook build && tsc --noEmit",
     "clean": "rm -rf dist *.tsbuildinfo",
     "package": "pnpm build && cd ../../artifacts/go-ExecuteRunbookLambda && zip -r ../../functions/go-ExecuteRunbookLambda/function.zip .",
-    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
+    "test": "node --import tsx/esm --test --experimental-test-isolation=none 'src/**/__tests__/**/*.test.ts'",
     "test:local": "tsx src/test-local.ts"
   },
   "dependencies": {

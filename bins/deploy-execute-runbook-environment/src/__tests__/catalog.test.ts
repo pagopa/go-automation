@@ -2,21 +2,17 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { buildCatalog, diffCatalog } from '../catalog.js';
+import type { AutomaticRunbookDescriptorV1 } from '../external.js';
+import { RUNBOOK } from './fixtures.js';
 
-const RUNBOOKS = [
-  {
-    key: 'send-apigw-analysis',
-    version: '1.0.0',
-    name: 'SEND API Gateway analysis',
-    description: 'Analyzes a SEND API Gateway alarm',
-    team: 'GO',
-    kind: 'APIGW' as const,
-    categories: ['DELIVERY'],
-    tags: ['send'],
-    alarmNames: ['send-api-errors'] as [string],
-    definitionDigest: `sha256-${'a'.repeat(64)}`,
-  },
-] as const;
+/** A catalog of `runbooks`; publication metadata never changes the classification. */
+function catalog(
+  runbooks: ReadonlyArray<AutomaticRunbookDescriptorV1>,
+  artifactRevision = 'a',
+  actorArn = 'test',
+): ReturnType<typeof buildCatalog> {
+  return buildCatalog({ environment: 'test', artifactRevision, actorArn, changeNote: 'note', runbooks });
+}
 
 const BASE = buildCatalog({
   environment: 'test',
@@ -24,86 +20,39 @@ const BASE = buildCatalog({
   actorArn: 'test',
   changeNote: 'base',
   publishedAt: '2026-07-01T00:00:00.000Z',
-  runbooks: RUNBOOKS,
+  runbooks: [RUNBOOK],
 });
 
 describe('catalog rollout classification', () => {
-  it('classifies a worker-only revision change as compatible', () => {
-    const next = buildCatalog({
-      environment: 'test',
-      artifactRevision: 'b',
-      actorArn: 'test',
-      changeNote: 'worker change',
-      publishedAt: '2026-07-02T00:00:00.000Z',
-      runbooks: RUNBOOKS,
-    });
-    assert.strictEqual(diffCatalog(BASE, next).kind, 'COMPATIBLE');
-  });
+  const cases: ReadonlyArray<readonly [string, ReturnType<typeof buildCatalog>, string, ReadonlyArray<string>]> = [
+    [
+      'an identical payload republished by someone else as unchanged',
+      catalog([RUNBOOK], 'a', 'other'),
+      'UNCHANGED',
+      [],
+    ],
+    ['a worker-only revision change as compatible', catalog([RUNBOOK], 'b'), 'COMPATIBLE', []],
+    ['a removed runbook as incompatible, to drain', catalog([], 'b'), 'INCOMPATIBLE', [RUNBOOK.key]],
+    [
+      'an alarm-name change of an existing key as incompatible',
+      catalog([{ ...RUNBOOK, alarmNames: ['send-api-errors-renamed'] }]),
+      'INCOMPATIBLE',
+      [RUNBOOK.key],
+    ],
+    [
+      'an alarm alias added to an existing key as incompatible',
+      catalog([{ ...RUNBOOK, alarmNames: ['send-api-errors', 'send-api-errors-att'] }]),
+      'INCOMPATIBLE',
+      [RUNBOOK.key],
+    ],
+    ['a version bump as incompatible', catalog([{ ...RUNBOOK, version: '2.0.0' }], 'b'), 'INCOMPATIBLE', [RUNBOOK.key]],
+  ];
 
-  it('classifies a removed runbook as incompatible and identifies it for drain', () => {
-    const removed = BASE.runbooks[0]!;
-    const next = buildCatalog({
-      environment: 'test',
-      artifactRevision: 'b',
-      actorArn: 'test',
-      changeNote: 'remove',
-      runbooks: BASE.runbooks.slice(1),
+  for (const [name, next, kind, incompatible] of cases) {
+    it(`classifies ${name}`, () => {
+      const diff = diffCatalog(BASE, next);
+      assert.strictEqual(diff.kind, kind);
+      assert.deepStrictEqual(diff.incompatible, incompatible);
     });
-    const diff = diffCatalog(BASE, next);
-    assert.strictEqual(diff.kind, 'INCOMPATIBLE');
-    assert.deepStrictEqual(diff.incompatible, [removed.key]);
-  });
-
-  it('classifies an identical payload as unchanged regardless of publication metadata', () => {
-    const next = buildCatalog({
-      environment: 'test',
-      artifactRevision: 'a',
-      actorArn: 'someone-else',
-      changeNote: 'republish',
-      publishedAt: '2026-07-03T00:00:00.000Z',
-      runbooks: RUNBOOKS,
-    });
-    const diff = diffCatalog(BASE, next);
-    assert.strictEqual(diff.kind, 'UNCHANGED');
-    assert.deepStrictEqual(diff.incompatible, []);
-  });
-
-  it('classifies an alarm-name change of an existing key as incompatible', () => {
-    const next = buildCatalog({
-      environment: 'test',
-      artifactRevision: 'a',
-      actorArn: 'test',
-      changeNote: 'rename alarm',
-      runbooks: [{ ...RUNBOOKS[0], alarmNames: ['send-api-errors-renamed'] as [string] }],
-    });
-    const diff = diffCatalog(BASE, next);
-    assert.strictEqual(diff.kind, 'INCOMPATIBLE');
-    assert.deepStrictEqual(diff.incompatible, [RUNBOOKS[0].key]);
-  });
-
-  it('classifies adding an alarm alias to an existing key as incompatible', () => {
-    const next = buildCatalog({
-      environment: 'test',
-      artifactRevision: 'a',
-      actorArn: 'test',
-      changeNote: 'add alarm alias',
-      runbooks: [{ ...RUNBOOKS[0], alarmNames: ['send-api-errors', 'send-api-errors-att'] as [string, string] }],
-    });
-    const diff = diffCatalog(BASE, next);
-    assert.strictEqual(diff.kind, 'INCOMPATIBLE');
-    assert.deepStrictEqual(diff.incompatible, [RUNBOOKS[0].key]);
-  });
-
-  it('classifies a version bump of an existing key as incompatible', () => {
-    const next = buildCatalog({
-      environment: 'test',
-      artifactRevision: 'b',
-      actorArn: 'test',
-      changeNote: 'bump',
-      runbooks: [{ ...RUNBOOKS[0], version: '2.0.0' }],
-    });
-    const diff = diffCatalog(BASE, next);
-    assert.strictEqual(diff.kind, 'INCOMPATIBLE');
-    assert.deepStrictEqual(diff.incompatible, [RUNBOOKS[0].key]);
-  });
+  }
 });

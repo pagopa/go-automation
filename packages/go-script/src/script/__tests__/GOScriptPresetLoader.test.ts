@@ -9,6 +9,7 @@ import { GOPathEnvironmentVariables } from '../../paths/GOPathEnvironmentVariabl
 import { GOPaths } from '../../paths/GOPaths.js';
 import { GOPresetUnknownKeysError } from '../GOPresetUnknownKeysError.js';
 import { GOScriptPresetLoader } from '../GOScriptPresetLoader.js';
+import type { GOScriptPresetResolution } from '../GOScriptPresetLoader.js';
 
 const managedEnvVars = [GOPathEnvironmentVariables.CONFIG_DIR] as const;
 const originalEnv = new Map<string, string | undefined>(managedEnvVars.map((name) => [name, process.env[name]]));
@@ -52,36 +53,62 @@ function createSchema(): GOConfigSchema {
   } as unknown as GOConfigSchema;
 }
 
+interface LoadOptions {
+  readonly presetName?: string;
+  readonly presetFile?: string;
+  readonly loader?: GOScriptPresetLoader;
+}
+
+/** Loads the selected preset (`tppmessages` unless told otherwise) against the test schema. */
+function load(paths: GOPaths, options: LoadOptions = {}): GOScriptPresetResolution {
+  return (options.loader ?? new GOScriptPresetLoader()).loadSelectedPreset({
+    presetName: options.presetName ?? 'tppmessages',
+    ...(options.presetFile !== undefined ? { presetFile: options.presetFile } : {}),
+    paths,
+    schema: createSchema(),
+  });
+}
+
+/** Writes `lines` as the presets file `fileName` of `configDir`, returning its path. */
+function writePresets(configDir: string, fileName: string, lines: ReadonlyArray<string>): string {
+  const filePath = path.join(configDir, fileName);
+  fs.writeFileSync(filePath, lines.join('\n'));
+  return filePath;
+}
+
+const MAP_PRESET = ['tppmessages:', '  athena.database: pn_analytics'];
+
+const UNKNOWN_KEY_PRESETS = [
+  'allowUnknownKeys: false',
+  'presets:',
+  '  - name: tppmessages',
+  '    values:',
+  '      athena.databse: typo',
+];
+
 describe('GOScriptPresetLoader', () => {
   it('loads wrapper presets from the default presets.yaml file', () => {
     const { configDir, paths } = createPresetTestContext();
-    fs.writeFileSync(
-      path.join(configDir, 'presets.yaml'),
-      [
-        'version: 1',
-        'allowUnknownKeys: true',
-        'presets:',
-        '  - name: tppmessages',
-        '    values:',
-        '      athena:',
-        '        database: pn_analytics',
-        '        workgroup: primary',
-        '      analysis:',
-        '        rules:',
-        '          - rule-a',
-        '          - rule-b',
-      ].join('\n'),
-    );
+    const presetsPath = writePresets(configDir, 'presets.yaml', [
+      'version: 1',
+      'allowUnknownKeys: true',
+      'presets:',
+      '  - name: tppmessages',
+      '    values:',
+      '      athena:',
+      '        database: pn_analytics',
+      '        workgroup: primary',
+      '      analysis:',
+      '        rules:',
+      '          - rule-a',
+      '          - rule-b',
+    ]);
 
-    const preset = new GOScriptPresetLoader().loadSelectedPreset({
-      presetName: 'tppmessages',
-      paths,
-      schema: createSchema(),
-    });
+    const preset = load(paths);
 
     assert.strictEqual(preset.name, 'tppmessages');
     assert.strictEqual(preset.sourceDisplayPath, 'presets.yaml');
-    assert.strictEqual(preset.sourcePath, fs.realpathSync(path.join(configDir, 'presets.yaml')));
+    assert.strictEqual(preset.sourcePath, fs.realpathSync(presetsPath));
     assert.strictEqual(preset.allowUnknownKeys, true);
     assert.strictEqual(preset.values.get('athena.database'), 'pn_analytics');
     assert.strictEqual(preset.values.get('athena.workgroup'), 'primary');
@@ -89,74 +116,49 @@ describe('GOScriptPresetLoader', () => {
     assert.deepStrictEqual(preset.unknownKeys, []);
   });
 
-  it('loads top-level map presets from a custom config file', () => {
-    const { configDir, paths } = createPresetTestContext();
-    fs.writeFileSync(
-      path.join(configDir, 'presets.prod.yaml'),
-      ['tppmessages:', '  athena.database: pn_analytics', '  output:', '    format: csv'].join('\n'),
-    );
+  it('loads top-level map, top-level array and BOM-prefixed JSON presets', () => {
+    const cases: ReadonlyArray<readonly [string, ReadonlyArray<string>, string | undefined]> = [
+      ['presets.prod.yaml', [...MAP_PRESET, '  output:', '    format: csv'], 'presets.prod.yaml'],
+      ['presets.yaml', ['- name: tppmessages', '  values:', '    athena:', '      database: pn_analytics'], undefined],
+      [
+        'presets.json',
+        ['\uFEFF{"presets":[{"name":"tppmessages","values":{"athena":{"database":"pn_analytics"}}}]}'],
+        undefined,
+      ],
+    ];
 
-    const preset = new GOScriptPresetLoader().loadSelectedPreset({
-      presetName: 'tppmessages',
-      presetFile: 'presets.prod.yaml',
-      paths,
-      schema: createSchema(),
-    });
+    for (const [fileName, lines, presetFile] of cases) {
+      const { configDir, paths } = createPresetTestContext();
+      writePresets(configDir, fileName, lines);
 
-    assert.strictEqual(preset.values.get('athena.database'), 'pn_analytics');
-    assert.strictEqual(preset.values.get('output.format'), 'csv');
-    assert.strictEqual(preset.sourceDisplayPath, 'presets.prod.yaml');
-    assert.strictEqual(preset.allowUnknownKeys, true);
+      const preset = load(paths, presetFile !== undefined ? { presetFile } : {});
+
+      assert.strictEqual(preset.values.get('athena.database'), 'pn_analytics', fileName);
+      assert.strictEqual(preset.sourceDisplayPath, fileName);
+    }
   });
 
-  it('loads top-level array presets', () => {
+  it('flattens nested values of a top-level map preset, allowing unknown keys by default', () => {
     const { configDir, paths } = createPresetTestContext();
-    fs.writeFileSync(
-      path.join(configDir, 'presets.yaml'),
-      ['- name: tppmessages', '  values:', '    athena:', '      database: pn_analytics'].join('\n'),
-    );
+    writePresets(configDir, 'presets.yaml', [...MAP_PRESET, '  output:', '    format: csv', '  athena.databse: typo']);
 
-    const preset = new GOScriptPresetLoader().loadSelectedPreset({
-      presetName: 'tppmessages',
-      paths,
-      schema: createSchema(),
-    });
+    const preset = load(paths);
 
-    assert.strictEqual(preset.values.get('athena.database'), 'pn_analytics');
+    assert.strictEqual(preset.values.get('output.format'), 'csv');
+    assert.strictEqual(preset.allowUnknownKeys, true);
+    assert.deepStrictEqual(preset.unknownKeys, ['athena.databse']);
   });
 
   it('rejects duplicate normalized preset names in top-level map files', () => {
     const { configDir, paths } = createPresetTestContext();
-    fs.writeFileSync(
-      path.join(configDir, 'presets.yaml'),
-      ['" tppmessages ":', '  athena.database: first', 'tppmessages:', '  athena.database: second'].join('\n'),
-    );
+    writePresets(configDir, 'presets.yaml', [
+      '" tppmessages ":',
+      '  athena.database: first',
+      'tppmessages:',
+      '  athena.database: second',
+    ]);
 
-    assert.throws(
-      () =>
-        new GOScriptPresetLoader().loadSelectedPreset({
-          presetName: 'tppmessages',
-          paths,
-          schema: createSchema(),
-        }),
-      /Duplicate preset name "tppmessages" in presets\.yaml/,
-    );
-  });
-
-  it('loads JSON presets with an UTF-8 BOM', () => {
-    const { configDir, paths } = createPresetTestContext();
-    fs.writeFileSync(
-      path.join(configDir, 'presets.json'),
-      '\uFEFF{"presets":[{"name":"tppmessages","values":{"athena":{"database":"pn_analytics"}}}]}',
-    );
-
-    const preset = new GOScriptPresetLoader().loadSelectedPreset({
-      presetName: 'tppmessages',
-      paths,
-      schema: createSchema(),
-    });
-
-    assert.strictEqual(preset.values.get('athena.database'), 'pn_analytics');
+    assert.throws(() => load(paths), /Duplicate preset name "tppmessages" in presets\.yaml/);
   });
 
   it('uses an injected filesystem when reading presets', () => {
@@ -169,17 +171,12 @@ describe('GOScriptPresetLoader', () => {
         realpathSync: (filePath) => filePath,
         readFileSync: (filePath) => {
           readPaths.push(filePath);
-          return ['tppmessages:', '  athena.database: pn_analytics'].join('\n');
+          return MAP_PRESET.join('\n');
         },
       },
     });
 
-    const preset = loader.loadSelectedPreset({
-      presetName: 'tppmessages',
-      presetFile,
-      paths,
-      schema: createSchema(),
-    });
+    const preset = load(paths, { presetFile, loader });
 
     assert.deepStrictEqual(readPaths, [presetFile]);
     assert.strictEqual(preset.values.get('athena.database'), 'pn_analytics');
@@ -187,108 +184,35 @@ describe('GOScriptPresetLoader', () => {
 
   it('allows custom preset files only inside config directories', () => {
     const { configDir, root, paths } = createPresetTestContext();
-    const nestedConfigDir = path.join(configDir, 'nested');
-    fs.mkdirSync(nestedConfigDir, { recursive: true });
-    const allowedFile = path.join(nestedConfigDir, 'presets.prod.yaml');
-    fs.writeFileSync(allowedFile, ['tppmessages:', '  athena.database: pn_analytics'].join('\n'));
+    fs.mkdirSync(path.join(configDir, 'nested'), { recursive: true });
+    const allowedFile = writePresets(configDir, path.join('nested', 'presets.prod.yaml'), MAP_PRESET);
 
-    const preset = new GOScriptPresetLoader().loadSelectedPreset({
-      presetName: 'tppmessages',
-      presetFile: allowedFile,
-      paths,
-      schema: createSchema(),
-    });
+    const preset = load(paths, { presetFile: allowedFile });
 
     assert.strictEqual(preset.values.get('athena.database'), 'pn_analytics');
     assert.strictEqual(preset.sourcePath, fs.realpathSync(allowedFile));
 
     const outsideDir = path.join(root, 'outside');
     fs.mkdirSync(outsideDir, { recursive: true });
-    const outsideFile = path.join(outsideDir, 'presets.yaml');
-    fs.writeFileSync(outsideFile, ['tppmessages:', '  athena.database: pn_analytics'].join('\n'));
-    const outsideRelativeFile = path.relative(process.cwd(), outsideFile);
+    const outsideFile = writePresets(outsideDir, 'presets.yaml', MAP_PRESET);
 
-    assert.throws(
-      () =>
-        new GOScriptPresetLoader().loadSelectedPreset({
-          presetName: 'tppmessages',
-          presetFile: outsideFile,
-          paths,
-          schema: createSchema(),
-        }),
-      /must be inside an allowed config directory/,
-    );
-    assert.throws(
-      () =>
-        new GOScriptPresetLoader().loadSelectedPreset({
-          presetName: 'tppmessages',
-          presetFile: outsideRelativeFile,
-          paths,
-          schema: createSchema(),
-        }),
-      /must be inside an allowed config directory/,
-    );
+    for (const presetFile of [outsideFile, path.relative(process.cwd(), outsideFile)]) {
+      assert.throws(() => load(paths, { presetFile }), /must be inside an allowed config directory/);
+    }
   });
 
-  it('reports unknown keys when allowUnknownKeys is true', () => {
+  it('throws a structured, suggesting error on unknown keys when allowUnknownKeys is false', () => {
     const { configDir, paths } = createPresetTestContext();
-    fs.writeFileSync(path.join(configDir, 'presets.yaml'), ['tppmessages:', '  athena.databse: typo'].join('\n'));
-
-    const preset = new GOScriptPresetLoader().loadSelectedPreset({
-      presetName: 'tppmessages',
-      paths,
-      schema: createSchema(),
-    });
-
-    assert.deepStrictEqual(preset.unknownKeys, ['athena.databse']);
-  });
-
-  it('throws on unknown keys when allowUnknownKeys is false', () => {
-    const { configDir, paths } = createPresetTestContext();
-    fs.writeFileSync(
-      path.join(configDir, 'presets.yaml'),
-      [
-        'allowUnknownKeys: false',
-        'presets:',
-        '  - name: tppmessages',
-        '    values:',
-        '      athena.databse: typo',
-      ].join('\n'),
-    );
+    writePresets(configDir, 'presets.yaml', UNKNOWN_KEY_PRESETS);
 
     assert.throws(
-      () =>
-        new GOScriptPresetLoader().loadSelectedPreset({
-          presetName: 'tppmessages',
-          paths,
-          schema: createSchema(),
-        }),
-      /Preset "tppmessages" contains unknown key "athena\.databse". Did you mean "athena\.database"\?/,
-    );
-  });
-
-  it('throws a structured error for unknown keys when allowUnknownKeys is false', () => {
-    const { configDir, paths } = createPresetTestContext();
-    fs.writeFileSync(
-      path.join(configDir, 'presets.yaml'),
-      [
-        'allowUnknownKeys: false',
-        'presets:',
-        '  - name: tppmessages',
-        '    values:',
-        '      athena.databse: typo',
-      ].join('\n'),
-    );
-
-    assert.throws(
-      () =>
-        new GOScriptPresetLoader().loadSelectedPreset({
-          presetName: 'tppmessages',
-          paths,
-          schema: createSchema(),
-        }),
+      () => load(paths),
       (error: unknown) => {
         assert.ok(error instanceof GOPresetUnknownKeysError);
+        assert.match(
+          error.message,
+          /Preset "tppmessages" contains unknown key "athena\.databse". Did you mean "athena\.database"\?/,
+        );
         assert.strictEqual(error.presetName, 'tppmessages');
         assert.deepStrictEqual(error.unknownKeys, ['athena.databse']);
         assert.deepStrictEqual([...error.knownKeys].sort(), [
@@ -307,90 +231,55 @@ describe('GOScriptPresetLoader', () => {
     const { configDir, paths } = createPresetTestContext();
 
     assert.throws(
-      () =>
-        new GOScriptPresetLoader().loadSelectedPreset({
-          presetName: 'missing',
-          paths,
-          schema: createSchema(),
-        }),
+      () => load(paths, { presetName: 'missing' }),
       /Preset "missing" requested but presets file was not found/,
     );
 
-    fs.writeFileSync(path.join(configDir, 'presets.yaml'), ['dev:', '  athena.database: pn_dev'].join('\n'));
+    writePresets(configDir, 'presets.yaml', ['dev:', '  athena.database: pn_dev']);
 
     assert.throws(
-      () =>
-        new GOScriptPresetLoader().loadSelectedPreset({
-          presetName: 'prod',
-          paths,
-          schema: createSchema(),
-        }),
+      () => load(paths, { presetName: 'prod' }),
       /Preset "prod" not found in presets.yaml. Available presets: dev/,
     );
   });
 
   it('includes the presets file path in per-preset metadata validation errors', () => {
     const { configDir, paths } = createPresetTestContext();
-    const loader = new GOScriptPresetLoader();
-
-    fs.writeFileSync(
-      path.join(configDir, 'presets.yaml'),
+    const cases: ReadonlyArray<readonly [ReadonlyArray<string>, RegExp]> = [
+      [['    allowUnknownKeys: maybe'], /Invalid presets\.yaml\.presets\[0\]\.allowUnknownKeys\. Expected a boolean\./],
       [
+        ['    description:', '      text: invalid'],
+        /Invalid presets\.yaml\.presets\[0\]\.description\. Expected a string\./,
+      ],
+    ];
+
+    for (const [metadata, message] of cases) {
+      writePresets(configDir, 'presets.yaml', [
         'presets:',
         '  - name: tppmessages',
-        '    allowUnknownKeys: maybe',
+        ...metadata,
         '    values:',
         '      athena.database: pn_analytics',
-      ].join('\n'),
-    );
+      ]);
 
-    assert.throws(
-      () => loader.loadSelectedPreset({ presetName: 'tppmessages', paths, schema: createSchema() }),
-      /Invalid presets\.yaml\.presets\[0\]\.allowUnknownKeys\. Expected a boolean\./,
-    );
-
-    fs.writeFileSync(
-      path.join(configDir, 'presets.yaml'),
-      [
-        'presets:',
-        '  - name: tppmessages',
-        '    description:',
-        '      text: invalid',
-        '    values:',
-        '      athena.database: pn_analytics',
-      ].join('\n'),
-    );
-
-    assert.throws(
-      () => loader.loadSelectedPreset({ presetName: 'tppmessages', paths, schema: createSchema() }),
-      /Invalid presets\.yaml\.presets\[0\]\.description\. Expected a string\./,
-    );
+      assert.throws(() => load(paths), message);
+    }
   });
 
   it('throws for empty, multiple, non-object and malformed presets', () => {
     const { configDir, paths } = createPresetTestContext();
-    const loader = new GOScriptPresetLoader();
 
+    assert.throws(() => load(paths, { presetName: ' ' }), /script\.preset\.name cannot be empty/);
     assert.throws(
-      () => loader.loadSelectedPreset({ presetName: ' ', paths, schema: createSchema() }),
-      /script\.preset\.name cannot be empty/,
-    );
-    assert.throws(
-      () => loader.loadSelectedPreset({ presetName: 'base,prod', paths, schema: createSchema() }),
+      () => load(paths, { presetName: 'base,prod' }),
       /Multiple script presets are not supported in v1: base,prod/,
     );
 
-    fs.writeFileSync(path.join(configDir, 'presets.yaml'), 'tppmessages: prod\n');
-    assert.throws(
-      () => loader.loadSelectedPreset({ presetName: 'tppmessages', paths, schema: createSchema() }),
-      /Preset "tppmessages" in presets.yaml must be an object/,
-    );
+    writePresets(configDir, 'presets.yaml', ['tppmessages: prod']);
+    assert.throws(() => load(paths), /Preset "tppmessages" in presets.yaml must be an object/);
 
-    fs.writeFileSync(path.join(configDir, 'presets.json'), '{bad');
+    writePresets(configDir, 'presets.json', ['{bad']);
     fs.rmSync(path.join(configDir, 'presets.yaml'));
-    assert.throws(
-      () => loader.loadSelectedPreset({ presetName: 'tppmessages', paths, schema: createSchema() }),
-      /Failed to load presets file/,
-    );
+    assert.throws(() => load(paths), /Failed to load presets file/);
   });
 });

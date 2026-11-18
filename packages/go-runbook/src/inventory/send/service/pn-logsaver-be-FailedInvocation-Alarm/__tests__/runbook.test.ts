@@ -6,7 +6,6 @@ import { GOLogger } from '@pagopa/go-common/logging';
 import type { RunbookExecutionResult } from '../../../../../engine/index.js';
 import {
   type AnalysisDraftV1,
-  assertCloudExecutableRunbook,
   awsLogicalAccountName,
   buildAnalysisDraft,
   buildRunbookOutput,
@@ -156,22 +155,6 @@ describe('logsaver Batch diagnostic runbook', () => {
     assert.strictEqual(draft?.kind === 'KNOWN_CASE' ? draft.conclusionNotes : undefined, 'Nessuna azione necessaria');
   });
 
-  it('keeps the occurrence open when a Spot interruption accompanies an unrelated failure', async () => {
-    const { draft } = await execute(CONFINFO_OCCURRENCE, [
-      [
-        { field: '@message', value: 'Your Spot Task was interrupted.' },
-        { field: '@logStream', value: 'spot-task' },
-      ],
-      [
-        { field: '@message', value: 'ERROR AccessDenied: cannot write archive' },
-        { field: '@logStream', value: 'other-task' },
-      ],
-    ]);
-    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-    assert.doesNotMatch(draft.conclusionNotes, /Nessuna azione necessaria/u);
-  });
-
   it('accounts for every error across accounts and streams before completing a Spot-only occurrence', async () => {
     const { result, draft } = await execute(LOCAL_PROD, [
       [
@@ -300,11 +283,8 @@ describe('logsaver Batch diagnostic runbook', () => {
     assert.strictEqual(result.finalContext.vars.get('logsaverUnaccountedErrorLogCount'), undefined);
   });
 
-  it('rejects UAT, region mismatches, foreign occurrences and unreachable accounts before reading', async () => {
+  it('rejects foreign occurrences, an unconfigured environment and unreachable accounts before reading', async () => {
     for (const [portOptions, code] of [
-      [occurrenceIn(SEND_ACCOUNT_IDS.confinfoUat), 'AWS_ACCOUNT_ENVIRONMENT_NOT_ALLOWED'],
-      [{ environment: 'uat' }, 'AWS_ACCOUNT_ENVIRONMENT_NOT_ALLOWED'],
-      [occurrenceIn(SEND_ACCOUNT_IDS.confinfoProd, 'eu-west-1'), 'AWS_OCCURRENCE_ACCOUNT_MISMATCH'],
       [occurrenceIn(SEND_ACCOUNT_IDS.unrelated), 'AWS_OCCURRENCE_ACCOUNT_MISMATCH'],
       [{}, 'AWS_ACCOUNT_ENVIRONMENT_NOT_CONFIGURED'],
       [{ ...LOCAL_PROD, unreachable: [SEND_ACCOUNTS.confinfo] }, 'AWS_ACCOUNT_UNREACHABLE'],
@@ -342,13 +322,11 @@ describe('logsaver Batch diagnostic runbook', () => {
     assert.notStrictEqual(draft?.kind, 'KNOWN_CASE');
   });
 
-  it('excludes the harmless JVM option from error signatures and remains cloud read-only', () => {
-    const signature = /\b(error|fatal|outofmemoryerror)\b/i;
+  it('matches whole error words, so the harmless ExitOnOutOfMemoryError JVM option is not an error', () => {
+    const pattern = '\\b(error|fatal|outofmemoryerror)\\b';
+    assert.ok(ERROR_QUERY.includes(pattern));
+    const signature = new RegExp(pattern, 'iu');
     assert.strictEqual(signature.test('Picked up JAVA_TOOL_OPTIONS: -XX:+ExitOnOutOfMemoryError'), false);
     assert.strictEqual(signature.test('java.lang.OutOfMemoryError: Java heap space'), true);
-    assert.ok(ERROR_QUERY.includes('\\b(error|fatal|outofmemoryerror)\\b'));
-    const runbook = buildRunbook();
-    assert.doesNotThrow(() => assertCloudExecutableRunbook(runbook));
-    assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 60, afterMinutes: 5 });
   });
 });

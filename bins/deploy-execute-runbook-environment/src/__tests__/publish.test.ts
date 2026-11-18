@@ -6,6 +6,7 @@ import type { S3Client } from '@aws-sdk/client-s3';
 
 import { buildCatalog, serializeCatalog } from '../catalog.js';
 import { publishCatalog, readCurrentCatalog } from '../publish.js';
+import { RUNBOOK } from './fixtures.js';
 
 const CATALOG = buildCatalog({
   environment: 'test',
@@ -13,20 +14,7 @@ const CATALOG = buildCatalog({
   actorArn: 'test',
   changeNote: 'publish',
   publishedAt: '2026-07-01T00:00:00.000Z',
-  runbooks: [
-    {
-      key: 'send-apigw-analysis',
-      version: '1.0.0',
-      name: 'SEND API Gateway analysis',
-      description: 'Analyzes a SEND API Gateway alarm',
-      team: 'GO',
-      kind: 'APIGW',
-      categories: ['DELIVERY'],
-      tags: ['send'],
-      alarmNames: ['send-api-errors'],
-      definitionDigest: `sha256-${'a'.repeat(64)}`,
-    },
-  ],
+  runbooks: [RUNBOOK],
 });
 
 interface SentCommand {
@@ -52,6 +40,11 @@ function fakeS3Client(handler: FakeS3Handler): {
   return { client, sent };
 }
 
+/** The `GetObject` output whose body reads as `text`. */
+function objectBody(text: string): { readonly Body: { transformToString(): Promise<string> } } {
+  return { Body: { transformToString: async (): Promise<string> => Promise.resolve(text) } };
+}
+
 describe('catalog publication', () => {
   it('returns undefined when no catalog object exists yet', async () => {
     const { client } = fakeS3Client(() => {
@@ -64,16 +57,7 @@ describe('catalog publication', () => {
     const body = serializeCatalog(CATALOG);
     const { client } = fakeS3Client((name) => {
       if (name === 'HeadObjectCommand') return { ETag: '"etag-1"', VersionId: 'v1' };
-      if (name === 'GetObjectCommand') {
-        return {
-          Body: {
-            transformToString: async () => {
-              const result = await Promise.resolve(body);
-              return result;
-            },
-          },
-        };
-      }
+      if (name === 'GetObjectCommand') return objectBody(body);
       throw new Error(`Unexpected command ${name}`);
     });
     const current = await readCurrentCatalog(client, 'bucket', 'key');
@@ -89,16 +73,7 @@ describe('catalog publication', () => {
         storedBody = input['Body'] as string; // Safe: publishCatalog always sends a string body
         return { ETag: '"etag-2"', VersionId: 'v2' };
       }
-      if (name === 'GetObjectCommand') {
-        return {
-          Body: {
-            transformToString: async () => {
-              const result = await Promise.resolve(storedBody);
-              return result;
-            },
-          },
-        };
-      }
+      if (name === 'GetObjectCommand') return objectBody(storedBody);
       throw new Error(`Unexpected command ${name}`);
     });
     const first = await publishCatalog(client, 'bucket', 'key', CATALOG, undefined);
@@ -115,16 +90,7 @@ describe('catalog publication', () => {
   it('rejects a publish whose read-back bytes differ', async () => {
     const { client } = fakeS3Client((name) => {
       if (name === 'PutObjectCommand') return { ETag: '"etag-3"' };
-      if (name === 'GetObjectCommand') {
-        return {
-          Body: {
-            transformToString: async () => {
-              const result = await Promise.resolve('{}');
-              return result;
-            },
-          },
-        };
-      }
+      if (name === 'GetObjectCommand') return objectBody('{}');
       throw new Error(`Unexpected command ${name}`);
     });
     await assert.rejects(publishCatalog(client, 'bucket', 'key', CATALOG, undefined), /bytes do not match/u);

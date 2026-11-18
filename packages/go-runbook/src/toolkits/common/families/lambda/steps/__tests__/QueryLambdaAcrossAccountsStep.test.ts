@@ -11,6 +11,8 @@ import type { InMemoryAwsAccountsPort } from '../../../../testing/InMemoryAwsAcc
 import type { InMemoryAwsAccountsPortOptions } from '../../../../testing/InMemoryAwsAccountsPortOptions.js';
 import type { QueryLambdaAcrossAccountsConfig } from '../../types/QueryLambdaAcrossAccountsConfig.js';
 import { QueryLambdaAcrossAccountsStep } from '../QueryLambdaAcrossAccountsStep.js';
+import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
+import { logRow } from '../../../../../../__tests__/helpers/logRow.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 /** Rows a fake source returns for a query. */
@@ -32,10 +34,7 @@ const BASE: Omit<QueryLambdaAcrossAccountsConfig, 'queryKind' | 'sources'> = {
 const ACCOUNTS: AwsAccountSelection = { subject: 'example', accounts: [CORE, EXTRA], scope: 'every-account' };
 
 function row(timestamp: string, requestId: string): ReadonlyArray<GOLogsInsightsResultField> {
-  return [
-    { field: '@timestamp', value: timestamp },
-    { field: '@requestId', value: requestId },
-  ];
+  return logRow({ '@timestamp': timestamp, '@requestId': requestId });
 }
 
 function reader(source: string, calls: QueryCall[], rowsFor: RowsForFn): AWSCloudWatchLogsQueryService {
@@ -78,17 +77,10 @@ function context(
   errorRows?: Rows,
   awsAccounts?: InMemoryAwsAccountsPort,
 ): OperationalContext {
-  return {
-    executionId: 'lambda-across-accounts-test',
-    startedAt: new Date('2026-10-06T18:05:00.000Z'),
-    stepResults: new Map(errorRows === undefined ? [] : [['query-lambda-errors', errorRows]]),
-    vars: new Map(),
-    params: new Map([
-      ['startTime', '2026-10-06T17:30:00Z'],
-      ['endTime', '2026-10-06T18:05:00Z'],
-    ]),
-    logs: [],
-    services: createTestServiceRegistry({
+  return createTestContext({
+    stepResults: errorRows === undefined ? {} : { 'query-lambda-errors': errorRows },
+    params: { startTime: '2026-10-06T17:30:00Z', endTime: '2026-10-06T18:05:00Z' },
+    services: {
       ...(awsAccounts === undefined ? {} : { awsAccounts }),
       cloudWatchLogs: {
         getConfiguredSources: () => [
@@ -96,9 +88,8 @@ function context(
           { key: 'profile-y', service: reader('profile-y', calls, rowsFor) },
         ],
       },
-    }),
-    recoveredErrors: [],
-  };
+    },
+  });
 }
 
 describe('QueryLambdaAcrossAccountsStep', () => {

@@ -21,7 +21,7 @@ function depsFor(alarmName: string): ExecuteRunbookDeps {
         alarmId: '0192c000-0000-7000-8000-0000000000dd',
         name: alarmName,
         firedAt: '2026-11-13T08:00:00.000Z',
-        awsAccountId: '510769970275',
+        awsAccountId: '123456789012',
         awsRegion: 'eu-south-1',
         product: { id: '0192c000-0000-7000-8000-0000000000bb' },
         environment: { id: '0192c000-0000-7000-8000-0000000000cc' },
@@ -39,9 +39,9 @@ function depsFor(alarmName: string): ExecuteRunbookDeps {
   };
 }
 
-// the catalog is lazy, and these run before any
-// listDescriptors() call in this process, i.e. on a cold catalog.
-describe('resolveExecuteRunbookInput on a cold catalog', () => {
+// The lazy catalog on a cold instance is covered by the go-runbook registry tests: here the shared
+// catalog may already be warm, since the test files run in one process.
+describe('resolveExecuteRunbookInput', () => {
   it('resolves a complete descriptor that the capability check accepts and that matches the listed one', async () => {
     const input = await resolveExecuteRunbookInput(depsFor(ALARM_NAME), {
       alarmEventId: '0192c000-0000-7000-8000-0000000000aa',

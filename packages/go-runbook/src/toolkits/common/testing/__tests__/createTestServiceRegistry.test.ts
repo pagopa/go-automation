@@ -8,17 +8,11 @@ import { CollectingRunbookReporter } from '../../../../engine/reporting/Collecti
 import { NOOP_RUNBOOK_REPORTER } from '../../../../engine/reporting/NOOP_RUNBOOK_REPORTER.js';
 
 describe('createTestServiceRegistry', () => {
-  it('defaults the reporter to the NOOP one', () => {
-    assert.strictEqual(createTestServiceRegistry().reporter, NOOP_RUNBOOK_REPORTER);
-  });
-
-  it('uses the reporter a test provides', () => {
+  it('uses the reporter a test provides, the NOOP one when absent or explicitly undefined', () => {
     const reporter = new CollectingRunbookReporter();
 
     assert.strictEqual(createTestServiceRegistry({ reporter }).reporter, reporter);
-  });
-
-  it('keeps the NOOP reporter when the override is explicitly undefined', () => {
+    assert.strictEqual(createTestServiceRegistry().reporter, NOOP_RUNBOOK_REPORTER);
     assert.strictEqual(createTestServiceRegistry({ reporter: undefined }).reporter, NOOP_RUNBOOK_REPORTER);
   });
 

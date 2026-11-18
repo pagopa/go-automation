@@ -1,39 +1,23 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { GOLogger } from '@pagopa/go-common/logging';
-import { ConsoleRunbookReporter } from '../../../../../../engine/reporting/ConsoleRunbookReporter.js';
 import { ApiGwReporter } from '../ApiGwReporter.js';
-
-/**
- * Minimal `GOLogger` stand-in that captures `text()` and `newline()`
- * emissions so tests can inspect the rendered banner content without
- * a real logger pipeline.
- */
-function captureLogger(): { logger: GOLogger; narrative: ConsoleRunbookReporter; lines: string[] } {
-  const lines: string[] = [];
-  const logger = {
-    text: (msg: string) => lines.push(msg),
-    newline: () => lines.push(''),
-  } as unknown as GOLogger;
-  return { logger, narrative: new ConsoleRunbookReporter(logger), lines };
-}
+import { captureNarrative } from '../../../../../../__tests__/helpers/captureNarrative.js';
 
 describe('ApiGwReporter', () => {
   describe('sectionPrepare', () => {
     it('renders the preparation banner with the log group', () => {
-      const { narrative, lines } = captureLogger();
+      const { reporter: narrative, lines } = captureNarrative();
       new ApiGwReporter(narrative).sectionPrepare('/aws/apigw/main');
       narrative.flush();
       assert.ok(lines.some((l) => l === '═══ Preparazione: query API Gateway ═══'));
-      narrative.flush();
       assert.ok(lines.some((l) => l.includes('Log group: /aws/apigw/main')));
     });
   });
 
   describe('apiGwResult', () => {
     it('renders error count, endpoint, error message and trace id when all are present', () => {
-      const { narrative, lines } = captureLogger();
+      const { reporter: narrative, lines } = captureNarrative();
       new ApiGwReporter(narrative).apiGwResult({
         errorCount: 3,
         statusCode: '500',
@@ -52,7 +36,7 @@ describe('ApiGwReporter', () => {
     });
 
     it('skips endpoint/error-message rows when only the API GW `-` placeholder is present', () => {
-      const { narrative, lines } = captureLogger();
+      const { reporter: narrative, lines } = captureNarrative();
       new ApiGwReporter(narrative).apiGwResult({
         errorCount: 1,
         statusCode: '504',
@@ -72,7 +56,7 @@ describe('ApiGwReporter', () => {
 
   describe('apiGwAuthorizerEvaluation', () => {
     it('renders authorizer fields and a no-failure outcome', () => {
-      const { narrative, lines } = captureLogger();
+      const { reporter: narrative, lines } = captureNarrative();
       new ApiGwReporter(narrative).apiGwAuthorizerEvaluation({
         lambdaName: 'pn-ioAuthorizerLambda',
         authorizerStatus: '200',
@@ -93,7 +77,7 @@ describe('ApiGwReporter', () => {
     });
 
     it('renders a generic authorizer error with unavailable latency explicit', () => {
-      const { narrative, lines } = captureLogger();
+      const { reporter: narrative, lines } = captureNarrative();
       new ApiGwReporter(narrative).apiGwAuthorizerEvaluation({
         lambdaName: 'pn-ioAuthorizerLambda',
         authorizerStatus: '503',
@@ -112,24 +96,19 @@ describe('ApiGwReporter', () => {
   });
 
   describe('queryFailed', () => {
-    it('renders a "Query fallita" banner with the log group and the cause', () => {
-      const { narrative, lines } = captureLogger();
-      new ApiGwReporter(narrative).queryFailed(
+    it('renders a "Query fallita" banner with the log group(s) and the cause', () => {
+      const { reporter: narrative, lines } = captureNarrative();
+      const reporter = new ApiGwReporter(narrative);
+      reporter.queryFailed(
         ['/aws/ecs/pn-data-vault-sep'],
         "Log group '/aws/ecs/pn-data-vault-sep' does not exist for account ID '000000000902'",
       );
+      reporter.queryFailed(['/a', '/b'], 'AccessDenied');
       narrative.flush();
       const joined = lines.join('\n');
       assert.match(joined, /⚠ Query fallita/);
       assert.match(joined, /Log group: \/aws\/ecs\/pn-data-vault-sep/);
       assert.match(joined, /Causa: Log group '\/aws\/ecs\/pn-data-vault-sep' does not exist/);
-    });
-
-    it('uses the plural form when multiple log groups are passed', () => {
-      const { narrative, lines } = captureLogger();
-      new ApiGwReporter(narrative).queryFailed(['/a', '/b'], 'AccessDenied');
-      narrative.flush();
-      const joined = lines.join('\n');
       assert.match(joined, /Log groups: \/a, \/b/);
       assert.match(joined, /Causa: AccessDenied/);
     });
@@ -137,7 +116,7 @@ describe('ApiGwReporter', () => {
 
   describe('apiGwExecutionLog', () => {
     it('renders execution-log requestIds and result count', () => {
-      const { narrative, lines } = captureLogger();
+      const { reporter: narrative, lines } = captureNarrative();
       const reporter = new ApiGwReporter(narrative);
       reporter.sectionApiGwExecutionLog();
       reporter.apiGwExecutionLogQuery('API-Gateway-Execution-Logs_test/prod', [
@@ -155,7 +134,7 @@ describe('ApiGwReporter', () => {
     });
 
     it('reports an execution-log query skipped before reaching AWS', () => {
-      const { narrative, lines } = captureLogger();
+      const { reporter: narrative, lines } = captureNarrative();
       const reporter = new ApiGwReporter(narrative);
       reporter.sectionApiGwExecutionLog();
       reporter.apiGwExecutionLogSkipped('API-Gateway-Execution-Logs_test/prod', 'over the limit of 1');

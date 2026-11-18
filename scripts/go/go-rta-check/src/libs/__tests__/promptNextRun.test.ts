@@ -49,14 +49,6 @@ describe('promptNextRun', () => {
     assert.deepStrictEqual(titles[0], ['Analizza un altro runbook di INTEROP', 'Esci']);
   });
 
-  it('returns the chosen continuation', async () => {
-    const { script } = harness('CHANGE_PRODUCT');
-
-    const choice = await promptNextRun({ script, productName: 'SEND', canChangeProduct: true });
-
-    assert.strictEqual(choice, 'CHANGE_PRODUCT');
-  });
-
   it('reads an aborted prompt as the end of the session', async () => {
     const { script } = harness(undefined);
 

@@ -8,27 +8,21 @@ import {
 } from '../AWSProfileValidationResult.js';
 
 describe('AWSProfileValidationResult', () => {
-  it('identifies successful profile validation results', () => {
-    const result: AWSProfileValidationResult = {
-      status: 'success',
-      profile: 'sso-dev',
-      accountId: '123456789012',
-    };
-
-    assert.strictEqual(isProfileValidationSuccess(result), true);
-    assert.strictEqual(isProfileValidationFailure(result), false);
-  });
-
-  it('identifies failed profile validation results', () => {
-    const error = new Error('SSO session expired');
-    const result: AWSProfileValidationResult = {
+  it('tells successful and failed profile validations apart', () => {
+    const success: AWSProfileValidationResult = { status: 'success', profile: 'profile-dev' };
+    const failure: AWSProfileValidationResult = {
       status: 'failure',
-      profile: 'sso-prod',
-      error,
+      profile: 'profile-prod',
+      error: new Error('SSO session expired'),
       isRecoverable: true,
     };
 
-    assert.strictEqual(isProfileValidationSuccess(result), false);
-    assert.strictEqual(isProfileValidationFailure(result), true);
+    assert.deepStrictEqual(
+      [success, failure].map((result) => [isProfileValidationSuccess(result), isProfileValidationFailure(result)]),
+      [
+        [true, false],
+        [false, true],
+      ],
+    );
   });
 });

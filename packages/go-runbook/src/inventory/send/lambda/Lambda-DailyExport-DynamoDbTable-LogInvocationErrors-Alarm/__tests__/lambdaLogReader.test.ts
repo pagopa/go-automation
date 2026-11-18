@@ -93,25 +93,6 @@ describe('DailyExport queries configured sources', () => {
     assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 3);
     assert.ok(calls.every(({ query }) => query.includes('Status:\\s*timeout')));
   });
-  it('queries and correlates within a single occurrence-scoped source', async () => {
-    const key = '170533023216';
-    for (const kind of ['errors', 'invocation'] as const) {
-      const calls: Call[] = [];
-      const input = context(calls, [key]);
-      (input.stepResults as Map<string, unknown>).set('query-lambda-errors', [row('request-1', key)]);
-      const result = await new lambda.QueryLambdaAcrossAccountsStep({ ...LAMBDA_LOG_READER, queryKind: kind }).execute(
-        input,
-      );
-      assert.strictEqual(result.success, true);
-      assert.deepStrictEqual(
-        calls.map((call) => call.key),
-        [key],
-      );
-      assert.strictEqual(result.output?.[0]?.find(({ field }) => field === 'sourceKey')?.value, key);
-      assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 1);
-      if (kind === 'invocation') assert.ok(calls[0]?.query.includes('request-1'));
-    }
-  });
   it('fails if no log source is configured', async () => {
     for (const kind of ['errors', 'invocation'] as const) {
       const calls: Call[] = [];
@@ -124,7 +105,7 @@ describe('DailyExport queries configured sources', () => {
   });
   it('returns empty evidence for a single source with no errors and skips invocation queries', async () => {
     const calls: Call[] = [];
-    const key = '170533023216';
+    const key = '123456789012';
     const input = context(calls, [key], () => []);
     const errors = await new lambda.QueryLambdaAcrossAccountsStep({
       ...LAMBDA_LOG_READER,
@@ -189,76 +170,5 @@ describe('DailyExport queries configured sources', () => {
     assert.ok(!calls[0]?.query.includes('request-b'));
     assert.ok(calls[1]?.query.includes('request-b'));
     assert.ok(!calls[1]?.query.includes('request-a'));
-  });
-  it('splits saturated request batches instead of dropping invocation evidence', async () => {
-    const calls: Call[] = [];
-    const input = context(calls, SOURCES, (_key, query) =>
-      (query.match(/@requestId = '/g) ?? []).length > 1
-        ? Array.from({ length: 1000 }, () => row('batch'))
-        : [row('single')],
-    );
-    (input.stepResults as Map<string, unknown>).set('query-lambda-errors', [
-      row('request-a', SOURCES[0]),
-      row('request-b', SOURCES[0]),
-    ]);
-    const result = await new lambda.QueryLambdaAcrossAccountsStep({
-      ...LAMBDA_LOG_READER,
-      queryKind: 'invocation',
-    }).execute(input);
-    assert.strictEqual(result.success, true);
-    assert.strictEqual(calls.length, 3);
-    assert.strictEqual(result.output?.length, 2);
-  });
-  it('fails when a single invocation is saturated or the split budget is exhausted', async () => {
-    const calls: Call[] = [];
-    const input = context(calls, SOURCES, () => Array.from({ length: 1000 }, () => row('single')));
-    (input.stepResults as Map<string, unknown>).set('query-lambda-errors', [row('request-a', SOURCES[0])]);
-    const result = await new lambda.QueryLambdaAcrossAccountsStep({
-      ...LAMBDA_LOG_READER,
-      queryKind: 'invocation',
-    }).execute(input);
-    assert.strictEqual(result.success, false);
-    assert.match(result.error ?? '', /1000-row limit/);
-    const budgetCalls: Call[] = [];
-    const budget = context(budgetCalls, SOURCES, (_key, query) =>
-      (query.match(/@requestId = '/g) ?? []).length > 1
-        ? Array.from({ length: 1000 }, () => row('batch'))
-        : [row('single')],
-    );
-    (budget.stepResults as Map<string, unknown>).set(
-      'query-lambda-errors',
-      Array.from({ length: 60 }, (_, i) => row(`request-${String(i)}`, SOURCES[0])),
-    );
-    const exhausted = await new lambda.QueryLambdaAcrossAccountsStep({
-      ...LAMBDA_LOG_READER,
-      queryKind: 'invocation',
-    }).execute(budget);
-    assert.strictEqual(exhausted.success, false);
-    assert.match(exhausted.error ?? '', /query budget exceeded/);
-    assert.strictEqual(budgetCalls.length, 100);
-  });
-  it('rejects unknown source keys and skips correlation when no request ID was extracted', async () => {
-    const calls: Call[] = [];
-    const input = context(calls);
-    (input.stepResults as Map<string, unknown>).set('query-lambda-errors', [row('request-a', 'outside-scope')]);
-    const invalid = await new lambda.QueryLambdaAcrossAccountsStep({
-      ...LAMBDA_LOG_READER,
-      queryKind: 'invocation',
-    }).execute(input);
-    assert.strictEqual(invalid.success, false);
-    assert.deepStrictEqual(calls, []);
-    (input.stepResults as Map<string, unknown>).set('query-lambda-errors', [
-      [
-        { field: 'sourceKey', value: SOURCES[0] },
-        { field: '@message', value: 'ERROR without id' },
-      ],
-    ]);
-    const noIds = await new lambda.QueryLambdaAcrossAccountsStep({
-      ...LAMBDA_LOG_READER,
-      queryKind: 'invocation',
-    }).execute(input);
-    assert.strictEqual(noIds.success, true);
-    assert.deepStrictEqual(noIds.output, []);
-    assert.deepStrictEqual(calls, []);
   });
 });

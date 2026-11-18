@@ -19,24 +19,19 @@ function familyOf(context: unknown): string {
 }
 
 describe('runbookContext product family', () => {
-  const families = new Map<string, number>();
-  for (const descriptor of RUNBOOK_CATALOG.listDescriptors()) {
-    const resolved = RUNBOOK_CATALOG.resolveByKey(descriptor.key);
-    const context = resolved?.build().runbookContext;
-    const family = familyOf(context);
-    families.set(family, (families.get(family) ?? 0) + 1);
+  it('declares in every context the product of its registration and tells the families apart', () => {
+    const families = new Map<string, number>();
+    for (const descriptor of RUNBOOK_CATALOG.listDescriptors()) {
+      const resolved = RUNBOOK_CATALOG.resolveByKey(descriptor.key);
+      const context = resolved?.build().runbookContext;
+      const family = familyOf(context);
+      families.set(family, (families.get(family) ?? 0) + 1);
+      if (context !== undefined) assert.strictEqual(context.product, resolved?.product, descriptor.key);
+    }
 
-    if (context === undefined) continue;
-    it(`${descriptor.key}: the context declares the product of its registration`, () => {
-      assert.strictEqual(context.product, resolved?.product);
-    });
-  }
-
-  it('tells the SEND pipeline apart from the INTEROP API Gateway and K8S runbooks', () => {
-    assert.ok((families.get('SEND apigw') ?? 0) > 0, 'SEND API Gateway runbooks');
-    assert.ok((families.get('INTEROP apigw') ?? 0) > 0, 'INTEROP API Gateway runbooks');
-    assert.ok((families.get('INTEROP k8s') ?? 0) > 0, 'INTEROP K8S runbooks');
-    assert.ok((families.get('SEND service') ?? 0) > 0, 'SEND service runbooks');
+    for (const family of ['SEND apigw', 'INTEROP apigw', 'INTEROP k8s', 'SEND service']) {
+      assert.ok((families.get(family) ?? 0) > 0, family);
+    }
     assert.strictEqual(families.get('INTEROP service'), undefined, 'every INTEROP service context is a K8S one');
   });
 });

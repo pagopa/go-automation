@@ -1,107 +1,59 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { MetricDatapoint, MetricDimension } from '@pagopa/go-aws/cloudwatch-metrics';
+import type { MetricDatapoint } from '@pagopa/go-aws/cloudwatch-metrics';
+import type { StepResult } from '../../../../../../engine/types/StepResult.js';
 import { CloudWatchMetricsStep } from '../CloudWatchMetricsStep.js';
-import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
-import type { OperationalContext } from '../../../../services/OperationalContext.js';
-
-interface MetricsCall {
-  readonly namespace: string;
-  readonly metricName: string;
-  readonly dimensions: ReadonlyArray<MetricDimension>;
-  readonly periodSeconds: number | undefined;
-  readonly stat: string | undefined;
-}
+import type { CloudWatchMetricsConfig } from '../CloudWatchMetricsStep.js';
+import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
 
 const DATAPOINTS: ReadonlyArray<MetricDatapoint> = [{ timestamp: new Date('2026-01-01T00:00:00.000Z'), value: 7 }];
 
-function makeContext(params: ReadonlyArray<readonly [string, string]>): {
-  readonly context: OperationalContext;
-  readonly calls: MetricsCall[];
-} {
-  const calls: MetricsCall[] = [];
-  const services = createTestServiceRegistry({
-    cloudWatchMetrics: {
-      async getMetricData(
-        namespace: string,
-        metricName: string,
-        dimensions: ReadonlyArray<MetricDimension>,
-        _timeRange: unknown,
-        periodSeconds?: number,
-        stat?: string,
-      ): Promise<ReadonlyArray<MetricDatapoint>> {
-        calls.push({ namespace, metricName, dimensions, periodSeconds, stat });
-        await Promise.resolve();
-        return DATAPOINTS;
-      },
-    },
-  });
-
-  return {
-    calls,
-    context: {
-      executionId: 'test',
-      startedAt: new Date('2026-01-01T00:00:00.000Z'),
-      stepResults: new Map(),
-      vars: new Map(),
-      params: new Map(params),
-      logs: [],
-      services,
-      recoveredErrors: [],
-    },
-  };
-}
-
-const TIME_PARAMS: ReadonlyArray<readonly [string, string]> = [
-  ['alarmDatetime', '2026-01-01T00:00:00Z'],
-  ['alarmDatetimeEnd', '2026-01-01T01:00:00Z'],
-];
-
-const base = {
+const BASE = {
   id: 'get-5xx',
   label: 'Get 5XX count',
   namespace: 'AWS/ApiGateway',
   metricName: '5XXError',
-  dimensions: [{ name: 'ApiName', value: 'pn-delivery' }],
+  dimensions: [{ name: 'ApiName', value: '{{params.apiName}}' }],
   timeRangeFromParams: { start: 'alarmDatetime', end: 'alarmDatetimeEnd' },
 } as const;
 
+/** Runs the step against a stub metrics service and returns its result with the recorded calls. */
+async function runMetrics(config: CloudWatchMetricsConfig): Promise<{
+  readonly result: StepResult<ReadonlyArray<MetricDatapoint>>;
+  readonly calls: unknown[][];
+}> {
+  const calls: unknown[][] = [];
+  const getMetricData = async (...args: unknown[]): Promise<ReadonlyArray<MetricDatapoint>> => {
+    // Namespace, metric, dimensions, time range, period and statistic; the abort signal follows.
+    calls.push(args.slice(0, 6));
+    return Promise.resolve(DATAPOINTS);
+  };
+  const result = await new CloudWatchMetricsStep(config).execute(
+    createTestContext({
+      params: { alarmDatetime: '2026-01-01T00:00:00Z', alarmDatetimeEnd: '2026-01-01T01:00:00Z', apiName: 'pn-api' },
+      services: { cloudWatchMetrics: { getMetricData } },
+    }),
+  );
+  return { result, calls };
+}
+
 describe('CloudWatchMetricsStep', () => {
-  it('returns the datapoints from the metrics service', async () => {
-    const { context } = makeContext(TIME_PARAMS);
+  it('returns the datapoints, forwarding the metric with interpolated dimensions and the default period and statistic', async () => {
+    const { result, calls } = await runMetrics(BASE);
 
-    const result = await new CloudWatchMetricsStep(base).execute(context);
-
-    assert.strictEqual(result.success, true);
-    assert.deepStrictEqual(result.output, DATAPOINTS);
-  });
-
-  it('forwards namespace, metric name and dimensions', async () => {
-    const { context, calls } = makeContext(TIME_PARAMS);
-
-    await new CloudWatchMetricsStep(base).execute(context);
-
-    assert.strictEqual(calls[0]?.namespace, 'AWS/ApiGateway');
-    assert.strictEqual(calls[0]?.metricName, '5XXError');
-    assert.deepStrictEqual(calls[0]?.dimensions, [{ name: 'ApiName', value: 'pn-delivery' }]);
-  });
-
-  it('interpolates params into dimension values', async () => {
-    const { context, calls } = makeContext([...TIME_PARAMS, ['apiName', 'pn-delivery-push']]);
-    const step = new CloudWatchMetricsStep({ ...base, dimensions: [{ name: 'ApiName', value: '{{params.apiName}}' }] });
-
-    await step.execute(context);
-
-    assert.deepStrictEqual(calls[0]?.dimensions, [{ name: 'ApiName', value: 'pn-delivery-push' }]);
+    assert.deepStrictEqual(result, { success: true, output: DATAPOINTS });
+    assert.deepStrictEqual(calls[0]?.slice(0, 3), [
+      'AWS/ApiGateway',
+      '5XXError',
+      [{ name: 'ApiName', value: 'pn-api' }],
+    ]);
+    assert.deepStrictEqual(calls[0]?.slice(4), [300, 'Sum']);
   });
 
   it('passes period and statistic through when configured', async () => {
-    const { context, calls } = makeContext(TIME_PARAMS);
+    const { calls } = await runMetrics({ ...BASE, periodSeconds: 60, stat: 'Average' });
 
-    await new CloudWatchMetricsStep({ ...base, periodSeconds: 60, stat: 'Average' }).execute(context);
-
-    assert.strictEqual(calls[0]?.periodSeconds, 60);
-    assert.strictEqual(calls[0]?.stat, 'Average');
+    assert.deepStrictEqual(calls[0]?.slice(4), [60, 'Average']);
   });
 });

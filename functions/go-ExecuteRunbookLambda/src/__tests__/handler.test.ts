@@ -7,6 +7,12 @@ import type { ExecuteRunbookDeps, ExecuteRunbookResult } from 'go-execute-runboo
 
 import { processExecuteRunbookBatch } from '../handler.js';
 
+const SUCCEEDED: ExecuteRunbookResult = {
+  disposition: 'COMPLETE_OUTCOME',
+  executionId: 'execution',
+  status: 'SUCCEEDED',
+};
+
 describe('go-ExecuteRunbookLambda handler', () => {
   it('returns only the failed SQS message id in the partial batch response', async () => {
     const event = sqsEvent('not-json');
@@ -14,56 +20,21 @@ describe('go-ExecuteRunbookLambda handler', () => {
     assert.deepStrictEqual(result, { batchItemFailures: [{ itemIdentifier: 'message-1' }] });
   });
 
-  it('ACKs a valid command when the shared execute core returns normally', async () => {
-    const body = JSON.stringify({
-      schemaVersion: '1.0.0',
-      executionId: '0192c000-0000-7000-8000-000000000001',
-      alarmEvent: {
-        id: '0192c000-0000-7000-8000-0000000000aa',
-        productId: '0192c000-0000-7000-8000-0000000000bb',
-        environmentId: '0192c000-0000-7000-8000-0000000000cc',
-        alarmId: '0192c000-0000-7000-8000-0000000000dd',
-        alarmName: 'alarm',
-        firedAt: '2026-06-22T10:00:00.000Z',
-        awsAccountId: '170533023216',
-        awsRegion: 'eu-south-1',
-      },
-      runbook: {
-        key: 'alarm',
-        version: '1.0.0',
-        definitionDigest: `sha256-${'a'.repeat(64)}`,
-        catalogRevision: `sha256-${'b'.repeat(64)}`,
-        workerRevision: 'build-abc123',
-      },
-      trigger: { kind: 'SLACK_INGESTOR' },
-    });
-    const execute = async (): Promise<ExecuteRunbookResult> => {
-      await Promise.resolve();
-      return { disposition: 'COMPLETE_OUTCOME', executionId: 'execution', status: 'SUCCEEDED' } as const;
-    };
-
-    const result = await processExecuteRunbookBatch(sqsEvent(body), {} as ExecuteRunbookDeps, () => 60_000, execute);
-
-    assert.deepStrictEqual(result, { batchItemFailures: [] });
-  });
-
   it('retries without invoking the shared execute core when Lambda time is below the safety budget', async () => {
-    const body = JSON.stringify(validCommand());
     let executeCalls = 0;
     const execute = async (): Promise<ExecuteRunbookResult> => {
       await Promise.resolve();
       executeCalls += 1;
-      return { disposition: 'COMPLETE_OUTCOME', executionId: 'execution', status: 'SUCCEEDED' } as const;
+      return SUCCEEDED;
     };
 
-    const result = await processExecuteRunbookBatch(sqsEvent(body), {} as ExecuteRunbookDeps, () => 30_000, execute);
+    const result = await processExecuteRunbookBatch(validEvent(), {} as ExecuteRunbookDeps, () => 30_000, execute);
 
     assert.deepStrictEqual(result, { batchItemFailures: [{ itemIdentifier: 'message-1' }] });
     assert.strictEqual(executeCalls, 0);
   });
 
-  it('passes a worker deadline inside the Lambda safety budget', async () => {
-    const body = JSON.stringify(validCommand());
+  it('ACKs a valid command, passing a worker deadline inside the Lambda safety budget', async () => {
     const before = Date.now();
     let workerDeadlineAt = '';
     const execute = async (
@@ -73,10 +44,10 @@ describe('go-ExecuteRunbookLambda handler', () => {
     ): Promise<ExecuteRunbookResult> => {
       await Promise.resolve();
       workerDeadlineAt = delivery.workerDeadlineAt;
-      return { disposition: 'COMPLETE_OUTCOME', executionId: 'execution', status: 'SUCCEEDED' } as const;
+      return SUCCEEDED;
     };
 
-    const result = await processExecuteRunbookBatch(sqsEvent(body), {} as ExecuteRunbookDeps, () => 60_000, execute);
+    const result = await processExecuteRunbookBatch(validEvent(), {} as ExecuteRunbookDeps, () => 60_000, execute);
 
     assert.deepStrictEqual(result, { batchItemFailures: [] });
     const deadlineMs = Date.parse(workerDeadlineAt);
@@ -122,12 +93,7 @@ describe('go-ExecuteRunbookLambda handler', () => {
       throw Object.assign(new Error('mismatch'), { workerFailureCode: 'RUNBOOK_CAPABILITY_MISMATCH' as const });
     };
 
-    const result = await processExecuteRunbookBatch(
-      sqsEvent(JSON.stringify(validCommand())),
-      deps,
-      () => 60_000,
-      execute,
-    );
+    const result = await processExecuteRunbookBatch(validEvent(), deps, () => 60_000, execute);
 
     assert.deepStrictEqual(result, { batchItemFailures: [] });
     assert.deepStrictEqual(failureBody, {
@@ -159,34 +125,37 @@ function sqsEvent(body: string): SQSEvent {
         messageAttributes: {},
         md5OfBody: 'md5',
         eventSource: 'aws:sqs',
-        eventSourceARN: 'arn:aws:sqs:eu-south-1:170533023216:queue.fifo',
+        eventSourceARN: 'arn:aws:sqs:eu-south-1:123456789012:queue.fifo',
         awsRegion: 'eu-south-1',
       },
     ],
   };
 }
 
-function validCommand(): Readonly<Record<string, unknown>> {
-  return {
-    schemaVersion: '1.0.0',
-    executionId: '0192c000-0000-7000-8000-000000000001',
-    alarmEvent: {
-      id: '0192c000-0000-7000-8000-0000000000aa',
-      productId: '0192c000-0000-7000-8000-0000000000bb',
-      environmentId: '0192c000-0000-7000-8000-0000000000cc',
-      alarmId: '0192c000-0000-7000-8000-0000000000dd',
-      alarmName: 'alarm',
-      firedAt: '2026-06-22T10:00:00.000Z',
-      awsAccountId: '170533023216',
-      awsRegion: 'eu-south-1',
-    },
-    runbook: {
-      key: 'alarm',
-      version: '1.0.0',
-      definitionDigest: `sha256-${'a'.repeat(64)}`,
-      catalogRevision: `sha256-${'b'.repeat(64)}`,
-      workerRevision: 'build-abc123',
-    },
-    trigger: { kind: 'SLACK_INGESTOR' },
-  };
+/** An SQS event carrying one valid execute-runbook command. */
+function validEvent(): SQSEvent {
+  return sqsEvent(
+    JSON.stringify({
+      schemaVersion: '1.0.0',
+      executionId: '0192c000-0000-7000-8000-000000000001',
+      alarmEvent: {
+        id: '0192c000-0000-7000-8000-0000000000aa',
+        productId: '0192c000-0000-7000-8000-0000000000bb',
+        environmentId: '0192c000-0000-7000-8000-0000000000cc',
+        alarmId: '0192c000-0000-7000-8000-0000000000dd',
+        alarmName: 'alarm',
+        firedAt: '2026-06-22T10:00:00.000Z',
+        awsAccountId: '123456789012',
+        awsRegion: 'eu-south-1',
+      },
+      runbook: {
+        key: 'alarm',
+        version: '1.0.0',
+        definitionDigest: `sha256-${'a'.repeat(64)}`,
+        catalogRevision: `sha256-${'b'.repeat(64)}`,
+        workerRevision: 'build-abc123',
+      },
+      trigger: { kind: 'SLACK_INGESTOR' },
+    }),
+  );
 }

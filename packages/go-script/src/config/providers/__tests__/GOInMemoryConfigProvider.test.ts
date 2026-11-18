@@ -5,16 +5,6 @@ import { GOSecretsSpecifierFactory } from '../../GOSecretsSpecifier.js';
 import { GOInMemoryConfigProvider } from '../GOInMemoryConfigProvider.js';
 
 describe('GOInMemoryConfigProvider', () => {
-  it('starts empty with the default name when no options are provided', () => {
-    const provider = new GOInMemoryConfigProvider();
-
-    assert.strictEqual(provider.getName(), 'InMemory');
-    assert.deepStrictEqual(provider.getAllKeys(), []);
-    assert.strictEqual(provider.getValue('missing'), undefined);
-    assert.strictEqual(provider.hasKey('missing'), false);
-    assert.strictEqual(provider.isSecret('missing'), false);
-  });
-
   it('stores initial values and redacts configured secrets', () => {
     const provider = new GOInMemoryConfigProvider({
       name: 'Defaults',
@@ -32,8 +22,11 @@ describe('GOInMemoryConfigProvider', () => {
     assert.strictEqual(provider.getDisplayValue('tokens'), '[REDACTED (2 items)]');
   });
 
-  it('sets, removes and clears values', () => {
+  it('starts empty under the default name, then sets, removes and clears values', () => {
     const provider = new GOInMemoryConfigProvider();
+    assert.strictEqual(provider.getName(), 'InMemory');
+    assert.deepStrictEqual(provider.getAllKeys(), []);
+    assert.strictEqual(provider.isSecret('single'), false);
 
     provider.setValue('single', 'value');
     provider.setValues({

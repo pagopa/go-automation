@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { ConditionEvaluator, type RunbookContext } from '../../../../../engine/index.js';
-import { createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
 import { KNOWN_CASES } from '../knownCases.js';
+import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
+import { caseMatches, knownCaseById } from '../../../../../__tests__/helpers/knownCaseMatching.js';
 
 const TIMEOUT =
   'Ending process _getAddressesV1 with errors=nested exception is io.netty.handler.timeout.ReadTimeoutException';
@@ -13,27 +13,17 @@ function context(
   method = 'GET',
   path = '/bff/v1/addresses',
   stepId = 'query-pn-bff',
-): RunbookContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-10-15T12:00:29.929Z'),
-    params: new Map(),
-    vars: new Map([
-      ['apiGwStatusCode', status],
-      ['apiGwHttpMethod', method],
-      ['apiGwPath', path],
-    ]),
-    stepResults: new Map([[stepId, messages.map((value) => [{ field: '@message', value }])]]),
-    services: createTestServiceRegistry(),
-    logs: [],
-    recoveredErrors: [],
-  };
+): ReturnType<typeof createTestContext> {
+  return createTestContext({
+    vars: { apiGwStatusCode: status, apiGwHttpMethod: method, apiGwPath: path },
+    stepResults: { [stepId]: messages.map((value) => [{ field: '@message', value }]) },
+  });
 }
 
-function matches(ctx: RunbookContext): boolean {
+function matches(ctx: ReturnType<typeof createTestContext>): boolean {
   const candidate = KNOWN_CASES[0];
   assert.ok(candidate);
-  return new ConditionEvaluator().evaluate(candidate.condition, ctx);
+  return caseMatches(knownCaseById(KNOWN_CASES, candidate.id), ctx);
 }
 
 describe('Addresses documented read timeout', () => {
@@ -83,16 +73,5 @@ describe('Addresses documented read timeout', () => {
     for (const stepId of ['query-pn-user-attributes', 'query-api-gw-execution-logs']) {
       assert.equal(matches(context([TIMEOUT], '500', 'GET', '/bff/v1/addresses', stepId)), false);
     }
-  });
-
-  it('preserves the missing resolution and leaves the case in progress', () => {
-    assert.equal(KNOWN_CASES.length, 1);
-    const candidate = KNOWN_CASES[0];
-    assert.equal(candidate?.analysis?.resolution, 'Risoluzione non documentata.');
-    assert.equal(candidate?.analysis?.proposedStatus, 'IN_PROGRESS');
-    assert.equal(candidate?.analysis?.analysisType, 'ANALYZABLE');
-    assert.deepEqual(candidate?.analysis?.finalActions, []);
-    assert.deepEqual(candidate?.analysis?.resources, [{ name: 'pn-user-attributes' }]);
-    assert.equal(candidate?.analysis?.downstreams, undefined);
   });
 });

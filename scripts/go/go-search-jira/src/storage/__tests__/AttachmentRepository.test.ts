@@ -1,67 +1,24 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { GOFtsIndex } from '@go-automation/go-documents';
-
-import { AttachmentRepository } from '../AttachmentRepository.js';
-import { IndexSchemaManager } from '../IndexSchemaManager.js';
 import { AttachmentSyncStatus } from '../../types/AttachmentSyncStatus.js';
-import type { JiraAttachment } from '../../types/JiraAttachment.js';
-import type { JiraIssue } from '../../types/JiraIssue.js';
-
-function makeAttachment(): JiraAttachment {
-  return {
-    id: '1001',
-    filename: 'doc.pdf',
-    mimeType: 'application/pdf',
-    size: 1024,
-    created: '2026-01-01T00:00:00.000Z',
-    contentUrl: 'https://example.invalid/doc.pdf',
-    author: 'tester',
-  };
-}
-
-function makeIssue(attachment: JiraAttachment): JiraIssue {
-  return {
-    key: 'PN-1',
-    summary: 'sample issue',
-    projectKey: 'PN',
-    updated: '2026-01-01T00:00:00.000Z',
-    attachments: [attachment],
-  };
-}
-
-async function openRepository(): Promise<{
-  readonly index: GOFtsIndex;
-  readonly repository: AttachmentRepository;
-}> {
-  const index = new GOFtsIndex({
-    databasePath: ':memory:',
-    ftsTableName: 'attachments_fts',
-    metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
-  });
-  await index.open();
-  new IndexSchemaManager(index).ensureSchema();
-  return { index, repository: new AttachmentRepository(index) };
-}
+import {
+  makeAttachment,
+  makeIssue,
+  openTestIndex,
+  seedIndexedAttachment,
+} from '../../__tests__/helpers/jiraTestFixtures.js';
 
 describe('AttachmentRepository', () => {
   it('clears stale index metadata when an indexed attachment becomes failed', async () => {
-    const { index, repository } = await openRepository();
+    const testIndex = await openTestIndex();
 
     try {
       const attachment = makeAttachment();
-      const issue = makeIssue(attachment);
+      const issue = makeIssue([attachment]);
+      seedIndexedAttachment(testIndex, issue, attachment, 'previous content');
 
-      repository.upsertAttachmentMetadata(
-        issue,
-        attachment,
-        AttachmentSyncStatus.INDEXED,
-        null,
-        '2026-01-01T00:00:00.000Z',
-        { contentHash: 'sha256-old', indexedAt: '2026-01-01T00:00:00.000Z' },
-      );
-      repository.upsertAttachmentMetadata(
+      testIndex.repository.upsertAttachmentMetadata(
         issue,
         attachment,
         AttachmentSyncStatus.FAILED,
@@ -70,13 +27,13 @@ describe('AttachmentRepository', () => {
         { contentHash: 'sha256-new', indexedAt: null },
       );
 
-      const row = repository.getAttachment(attachment.id);
+      const row = testIndex.repository.getAttachment(attachment.id);
       assert.strictEqual(row?.status, AttachmentSyncStatus.FAILED);
       assert.strictEqual(row?.statusReason, 'extract_error: parser failed');
       assert.strictEqual(row?.contentHash, null);
       assert.strictEqual(row?.indexedAt, null);
     } finally {
-      await index.close();
+      await testIndex.index.close();
     }
   });
 });

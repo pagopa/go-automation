@@ -1,11 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import * as os from 'node:os';
-import * as path from 'node:path';
-import * as fs from 'node:fs/promises';
 
 import { GOEmailTextExtractor } from '../GOEmailTextExtractor.js';
 import { GOTextExtractionError } from '../../GOTextExtractionError.js';
+import { writeTempFile } from '../../__tests__/tempFile.js';
 
 const SAMPLE_PLAIN_EML = [
   'From: sender@example.com',
@@ -36,41 +34,22 @@ const SAMPLE_HTML_EML = [
 describe('GOEmailTextExtractor', () => {
   const extractor = new GOEmailTextExtractor();
 
-  it('declares rfc822 MIME and common extensions', () => {
-    assert.ok(extractor.supportedMimeTypes.has('message/rfc822'));
-    assert.ok(extractor.supportedExtensions.has('.eml'));
+  it('extracts headers and body from a plain text EML', async (t) => {
+    const result = await extractor.extract(await writeTempFile(t, 'plain.eml', SAMPLE_PLAIN_EML));
+    assert.match(result.text, /From: sender@example\.com/);
+    assert.match(result.text, /Subject: hello world/);
+    assert.match(result.text, /keyword: orchestration/);
   });
 
-  it('extracts headers and body from a plain text EML', async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'go-eml-extractor-'));
-    const file = path.join(dir, 'plain.eml');
-    try {
-      await fs.writeFile(file, SAMPLE_PLAIN_EML);
-      const result = await extractor.extract(file);
-      assert.match(result.text, /From: sender@example\.com/);
-      assert.match(result.text, /Subject: hello world/);
-      assert.match(result.text, /keyword: orchestration/);
-    } finally {
-      await fs.rm(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('converts an HTML-only message to plain text', async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'go-eml-extractor-'));
-    const file = path.join(dir, 'html.eml');
-    try {
-      await fs.writeFile(file, SAMPLE_HTML_EML);
-      const result = await extractor.extract(file);
-      assert.match(result.text, /Hello world & team/);
-      assert.match(result.text, /Second paragraph/);
-      assert.match(result.text, /Next line/);
-      assert.doesNotMatch(result.text, /alert/);
-      assert.doesNotMatch(result.text, /display: none/);
-      assert.doesNotMatch(result.text, /<script/i);
-      assert.doesNotMatch(result.text, /<style/i);
-    } finally {
-      await fs.rm(dir, { recursive: true, force: true });
-    }
+  it('converts an HTML-only message to plain text', async (t) => {
+    const result = await extractor.extract(await writeTempFile(t, 'html.eml', SAMPLE_HTML_EML));
+    assert.match(result.text, /Hello world & team/);
+    assert.match(result.text, /Second paragraph/);
+    assert.match(result.text, /Next line/);
+    assert.doesNotMatch(result.text, /alert/);
+    assert.doesNotMatch(result.text, /display: none/);
+    assert.doesNotMatch(result.text, /<script/i);
+    assert.doesNotMatch(result.text, /<style/i);
   });
 
   it('throws GOTextExtractionError on a missing file', async () => {

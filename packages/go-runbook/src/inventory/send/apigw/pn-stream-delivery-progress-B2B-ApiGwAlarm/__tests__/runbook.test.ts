@@ -2,15 +2,12 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { GOLogger } from '@pagopa/go-common/logging';
-import {
-  ConditionEvaluator,
-  type RunbookContext,
-  RunbookEngine,
-  type RunbookExecutionResult,
-} from '../../../../../engine/index.js';
+import { RunbookEngine, type RunbookExecutionResult } from '../../../../../engine/index.js';
 import { createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
 import { buildRunbook } from '../runbook.js';
 import { KNOWN_CASES } from '../knownCases.js';
+import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
+import { caseMatches, knownCaseById } from '../../../../../__tests__/helpers/knownCaseMatching.js';
 import { API_GW_LOG_GROUP, AUTHORIZER_LOG_GROUP, ENTRY_SERVICE, VERSIONING_LOG_GROUP } from '../knownServices.js';
 
 const ID = 'a2240f30-32dc-407d-80d9-4fd363aeaeb4';
@@ -97,7 +94,6 @@ describe('pn-stream delivery progress API Gateway runbook', () => {
     assert.equal(result.matchedCases[0]?.id, 'stream-authorizer-runtime-timeout');
     assert.equal(result.resolvedAtStep, 'query-stream-authorizer-lambda');
     assert.deepEqual(calls, [API_GW_LOG_GROUP, AUTHORIZER_LOG_GROUP]);
-    assert.equal(result.matchedCases[0]?.analysis?.proposedStatus, 'IN_PROGRESS');
   });
 
   it('recognises invocation 504 without calling it a Lambda runtime timeout', async () => {
@@ -116,7 +112,6 @@ describe('pn-stream delivery progress API Gateway runbook', () => {
     );
     assert.equal(result.matchedCases[0]?.id, 'stream-lambda-invocation-504');
     assert.ok(!result.matchedCases.some((c) => c.id === 'stream-authorizer-runtime-timeout'));
-    assert.equal(result.matchedCases[0]?.analysis?.resolution, 'Risoluzione non documentata.');
   });
 
   it('does not infer runtime timeout, recovery or OOM from latency and empty logs', async () => {
@@ -184,10 +179,9 @@ describe('pn-stream delivery progress API Gateway runbook', () => {
     ]);
     assert.ok(calls.includes('/aws/ecs/pn-stream'));
     assert.equal(result.matchedCases[0]?.id, 'stream-endpoint-timeout');
-    assert.equal(result.matchedCases[0]?.analysis?.proposedStatus, 'IN_PROGRESS');
   });
 
-  it('matches each documented signature and keeps all resolution proposals open', () => {
+  it('matches each documented gateway signature', () => {
     const fixtures: ReadonlyArray<readonly [string, string, unknown]> = [
       [
         'stream-waf-evaluation-error',
@@ -206,23 +200,11 @@ describe('pn-stream delivery progress API Gateway runbook', () => {
       ],
     ];
     for (const [id, stepId, output] of fixtures) {
-      const known = KNOWN_CASES.find((c) => c.id === id);
-      assert.ok(known);
-      const ctx: RunbookContext = {
-        executionId: 'fixture',
-        startedAt: new Date(),
-        params,
-        vars: new Map(),
-        stepResults: new Map([[stepId, output]]),
-        logs: [],
-        recoveredErrors: [],
-        services: createTestServiceRegistry(),
-      };
-      assert.equal(new ConditionEvaluator().evaluate(known.condition, ctx), true, id);
-    }
-    for (const known of KNOWN_CASES) {
-      assert.equal(known.analysis?.proposedStatus, 'IN_PROGRESS');
-      assert.deepEqual(known.analysis?.finalActions, []);
+      assert.equal(
+        caseMatches(knownCaseById(KNOWN_CASES, id), createTestContext({ stepResults: { [stepId]: output } })),
+        true,
+        id,
+      );
     }
   });
 });

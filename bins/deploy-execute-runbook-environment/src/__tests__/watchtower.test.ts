@@ -14,32 +14,40 @@ const INPUT = {
   requireDrained: true,
 };
 
-afterEach(() => mock.restoreAll());
+/** Makes the worker secret readable without AWS; restored by `mock.restoreAll()`. */
+function mockServiceSecret(): void {
+  mock.method(SecretsManagerClient.prototype, 'send', async () => {
+    await Promise.resolve();
+    return { SecretString: 'test-service-password', $metadata: {} };
+  });
+}
 
 describe('trusted Watchtower endpoint', () => {
+  afterEach(() => mock.restoreAll());
+
   it('accepts the known production endpoint and normalizes API suffixes and trailing slashes', () => {
     assert.equal(validateWatchtowerBaseUrl(WATCHTOWER_PRODUCTION_BASE_URL), WATCHTOWER_PRODUCTION_BASE_URL);
     assert.equal(validateWatchtowerBaseUrl(`${WATCHTOWER_PRODUCTION_BASE_URL}/api///`), WATCHTOWER_PRODUCTION_BASE_URL);
   });
 
-  for (const url of [
-    'https://attacker.example/bff',
-    'https://d2xwbj6sp8axq2.cloudfront.net.attacker.example/bff',
-    'https://d2xwbj6sp8axq2.cloudfront.net:8443/bff',
-    `${WATCHTOWER_PRODUCTION_BASE_URL}/other`,
-    'http://d2xwbj6sp8axq2.cloudfront.net/bff',
-    'https://d2xwbj6sp8axq2.cloudfront.net@attacker.example/bff',
-    'https://user:password@d2xwbj6sp8axq2.cloudfront.net/bff',
-    `${WATCHTOWER_PRODUCTION_BASE_URL}?redirect=attacker`,
-    `${WATCHTOWER_PRODUCTION_BASE_URL}#fragment`,
-    `${WATCHTOWER_PRODUCTION_BASE_URL}?`,
-    `${WATCHTOWER_PRODUCTION_BASE_URL}#`,
-    '/relative/path',
-  ]) {
-    it(`rejects an untrusted or malformed configured destination: ${url}`, () => {
-      assert.throws(() => validateWatchtowerBaseUrl(url), /Watchtower|WATCHTOWER_INTERNAL_URL/);
-    });
-  }
+  it('rejects untrusted or malformed configured destinations', () => {
+    for (const url of [
+      'https://attacker.example/bff',
+      'https://d2xwbj6sp8axq2.cloudfront.net.attacker.example/bff',
+      'https://d2xwbj6sp8axq2.cloudfront.net:8443/bff',
+      `${WATCHTOWER_PRODUCTION_BASE_URL}/other`,
+      'http://d2xwbj6sp8axq2.cloudfront.net/bff',
+      'https://d2xwbj6sp8axq2.cloudfront.net@attacker.example/bff',
+      'https://user:password@d2xwbj6sp8axq2.cloudfront.net/bff',
+      `${WATCHTOWER_PRODUCTION_BASE_URL}?redirect=attacker`,
+      `${WATCHTOWER_PRODUCTION_BASE_URL}#fragment`,
+      `${WATCHTOWER_PRODUCTION_BASE_URL}?`,
+      `${WATCHTOWER_PRODUCTION_BASE_URL}#`,
+      '/relative/path',
+    ]) {
+      assert.throws(() => validateWatchtowerBaseUrl(url), /Watchtower|WATCHTOWER_INTERNAL_URL/, url);
+    }
+  });
 
   it('requires an independent explicit override for a different backend', () => {
     const custom = 'https://watchtower.example.test/bff';
@@ -71,12 +79,11 @@ describe('trusted Watchtower endpoint', () => {
 });
 
 describe('Watchtower deployment requests', () => {
+  afterEach(() => mock.restoreAll());
+
   for (const trustedBaseUrl of [undefined, 'https://watchtower.example.test/bff']) {
     it(`pins both authenticated requests to ${trustedBaseUrl ?? 'the production default'} and blocks redirects`, async () => {
-      mock.method(SecretsManagerClient.prototype, 'send', async () => {
-        await Promise.resolve();
-        return { SecretString: 'test-service-password', $metadata: {} };
-      });
+      mockServiceSecret();
       const expected = trustedBaseUrl ?? WATCHTOWER_PRODUCTION_BASE_URL;
       const request = mock.method(globalThis, 'fetch', async (input: string | URL | Request, options?: RequestInit) => {
         await Promise.resolve();
@@ -108,10 +115,7 @@ describe('Watchtower deployment requests', () => {
   }
 
   it('does not follow a login redirect or issue an authenticated polling request', async () => {
-    mock.method(SecretsManagerClient.prototype, 'send', async () => {
-      await Promise.resolve();
-      return { SecretString: 'test-service-password', $metadata: {} };
-    });
+    mockServiceSecret();
     const request = mock.method(globalThis, 'fetch', async (_input: string | URL | Request, options?: RequestInit) => {
       await Promise.resolve();
       assert.equal(options?.redirect, 'error');
@@ -122,10 +126,7 @@ describe('Watchtower deployment requests', () => {
   });
 
   it('does not follow a redirect from the authenticated status endpoint', async () => {
-    mock.method(SecretsManagerClient.prototype, 'send', async () => {
-      await Promise.resolve();
-      return { SecretString: 'test-service-password', $metadata: {} };
-    });
+    mockServiceSecret();
     const request = mock.method(globalThis, 'fetch', async (input: string | URL | Request, options?: RequestInit) => {
       await Promise.resolve();
       assert.equal(options?.redirect, 'error');

@@ -19,28 +19,19 @@ import {
   type UpdateScheduleCommandOutput,
 } from '@aws-sdk/client-scheduler';
 
+import { FakeAwsClient } from '../../__tests__/helpers/FakeAwsClient.js';
 import { AWSSchedulerService } from '../AWSSchedulerService.js';
 
 type SchedulerCommand = GetScheduleCommand | ListSchedulesCommand | UpdateScheduleCommand;
 
-/** Records every command sent and replies with the queued responses. */
-function createMockClient(responses: ReadonlyArray<unknown>): {
+/** Scheduler client double replying with `replies` in order. */
+function createMockClient(replies: ReadonlyArray<unknown>): {
   readonly client: SchedulerClient;
-  readonly sent: SchedulerCommand[];
+  readonly sent: ReadonlyArray<SchedulerCommand>;
 } {
-  const sent: SchedulerCommand[] = [];
-  let callIndex = 0;
-
-  const client = {
-    send: async (command: SchedulerCommand): Promise<unknown> => {
-      sent.push(command);
-      const response = responses[callIndex];
-      callIndex += 1;
-      return await Promise.resolve(response ?? {});
-    },
-  } as unknown as SchedulerClient;
-
-  return { client, sent };
+  const fake = new FakeAwsClient(replies);
+  // Safe: the service only sends Scheduler commands.
+  return { client: fake.as<SchedulerClient>(), sent: fake.commands as SchedulerCommand[] };
 }
 
 /** A fully populated schedule: every field here must survive an enable/disable. */
@@ -70,34 +61,17 @@ const FULL_SCHEDULE: GetScheduleCommandOutput = {
 };
 
 describe('AWSSchedulerService.getSchedule', () => {
-  it('returns the schedule the API answered with', async () => {
-    const { client, sent } = createMockClient([
-      { Name: 'my-scheduled-rule', ScheduleExpression: 'rate(5 minutes)', State: 'ENABLED' },
-    ]);
-    const service = new AWSSchedulerService(client);
-
-    const result = await service.getSchedule('my-scheduled-rule');
-
-    assert.ok(sent[0] instanceof GetScheduleCommand);
-    assert.equal(sent[0]?.input.Name, 'my-scheduled-rule');
-    assert.equal(result.Name, 'my-scheduled-rule');
-    assert.equal(result.ScheduleExpression, 'rate(5 minutes)');
-    assert.equal(result.State, 'ENABLED');
-  });
-
-  it('sends the schedule name and no GroupName when the group is omitted', async () => {
+  it('returns the schedule, sending no GroupName when the group is omitted', async () => {
     const { client, sent } = createMockClient([FULL_SCHEDULE]);
-    const service = new AWSSchedulerService(client);
 
-    const result = await service.getSchedule('nightly-job');
+    const result = await new AWSSchedulerService(client).getSchedule('nightly-job');
 
-    assert.equal(sent.length, 1);
+    assert.strictEqual(result, FULL_SCHEDULE);
     const [command] = sent;
     assert.ok(command instanceof GetScheduleCommand);
-    assert.deepEqual(command?.input, { Name: 'nightly-job' });
     // The key must be absent, not present with an undefined value.
-    assert.equal(command !== undefined && 'GroupName' in command.input, false);
-    assert.equal(result.Name, 'nightly-job');
+    assert.deepEqual(command.input, { Name: 'nightly-job' });
+    assert.equal('GroupName' in command.input, false);
   });
 
   it('forwards the group name when provided', async () => {

@@ -8,16 +8,10 @@ describe('text', () => {
     assert.strictEqual(normalize('Società   TIMEOUT'), 'societa timeout');
   });
 
-  it('tokenDice is 1 for identical token sets', () => {
+  it('tokenDice is 1 for identical token sets, 0 for disjoint ones and in between on partial overlap', () => {
     assert.strictEqual(tokenDice('timeout della lambda', 'timeout della lambda'), 1);
-  });
-
-  it('tokenDice is 0 for disjoint token sets', () => {
     assert.strictEqual(tokenDice('aaa bbb', 'ccc ddd'), 0);
-  });
-
-  it('tokenDice is between 0 and 1 for partial overlap', () => {
-    const score = tokenDice('timeout della lambda', 'timeout runtime');
-    assert.ok(score > 0 && score < 1);
+    const partial = tokenDice('timeout della lambda', 'timeout runtime');
+    assert.ok(partial > 0 && partial < 1, String(partial));
   });
 });

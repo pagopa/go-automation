@@ -8,6 +8,7 @@ import type { RunbookAnalysisDefaults } from '../../RunbookAnalysisDefaults.js';
 import { INTEROP_DOWNSTREAMS } from '../../../../interop/analysis/INTEROP_DOWNSTREAMS.js';
 import { SEND_DOWNSTREAMS } from '../../../../send/analysis/SEND_DOWNSTREAMS.js';
 import { assertAnalysisAnnotations } from '../assertAnalysisAnnotations.js';
+import { createTestRunbook } from '../../../../../__tests__/helpers/createTestRunbook.js';
 
 const SEND_CATALOG: ReadonlySet<string> = new Set<string>(Object.values(SEND_DOWNSTREAMS));
 
@@ -27,56 +28,46 @@ describe('assertAnalysisAnnotations', () => {
     assert.doesNotThrow(() => assertAnalysisAnnotations(runbook, 'SEND', SEND_CATALOG));
   });
 
-  it('rejects a downstream taken from the catalog of another product', () => {
-    // 'Selfcare' is an INTEROP census row; SEND spells it 'SelfCare'.
-    const runbook = buildRunbook({
-      defaults: {},
-      analysis: { ...VALID_ANALYSIS, downstreams: [INTEROP_DOWNSTREAMS.SELFCARE] },
-    });
-
-    assert.throws(() => assertAnalysisAnnotations(runbook, 'SEND', SEND_CATALOG), /outside the SEND catalog/);
+  it('rejects every invalid declaration, naming the problem', () => {
+    const url = 'https://example.test/dashboard';
+    const cases: ReadonlyArray<readonly [RunbookAnalysisDefaults, Partial<KnownCaseAnalysis>, RegExp]> = [
+      // 'Selfcare' is an INTEROP census row; SEND spells it 'SelfCare'.
+      [{}, { downstreams: [INTEROP_DOWNSTREAMS.SELFCARE] }, /outside the SEND catalog/],
+      [{}, { analysisType: 'IGNORABLE' }, /IGNORABLE without an ignoreReasonCode/],
+      [{}, { ignoreDetails: { diagnostic: 'already resolved' } }, /declares ignoreDetails without an ignoreReasonCode/],
+      [{}, { resolution: '   ' }, /empty resolution/],
+      [{}, { links: [{ url: 'ftp://example.invalid/doc' }] }, /is not an http\/https URL/],
+      [{}, { finalActions: ['a'.repeat(256)] }, /exceeds 255 characters/],
+      [{}, { finalActions: ['Nessuna azione', 'Nessuna azione'] }, /duplicate names/],
+      [
+        { resources: [{ name: 'pn-delivery', type: 'Service', role: 'PRIMARY' }] },
+        { resources: [{ name: 'pn-delivery', type: 'Lambda', role: 'CASE_RELATED' }] },
+        /resource "pn-delivery" has conflicting metadata/,
+      ],
+      [
+        { links: [{ url, name: 'Dashboard generale', type: 'dashboard' }] },
+        { links: [{ url, name: 'Dashboard del caso', type: 'dashboard' }] },
+        /link ".+" has conflicting metadata/,
+      ],
+    ];
+    for (const [defaults, analysis, error] of cases) {
+      const runbook = buildRunbook({ defaults, analysis: { ...VALID_ANALYSIS, ...analysis } });
+      assert.throws(() => assertAnalysisAnnotations(runbook, 'SEND', SEND_CATALOG), error);
+    }
   });
 
-  it('requires the annotation on every known case', () => {
-    const runbook: Runbook = {
-      ...buildRunbook({ defaults: {}, analysis: VALID_ANALYSIS }),
-      knownCases: [knownCase('annotated', VALID_ANALYSIS), knownCase('bare', undefined)],
-    };
+  it('requires the annotation on every known case, with or without defaults', () => {
+    for (const defaults of [{}, undefined]) {
+      const runbook: Runbook = {
+        ...buildRunbook({ defaults, analysis: VALID_ANALYSIS }),
+        knownCases: [knownCase('annotated', VALID_ANALYSIS), knownCase('bare', undefined)],
+      };
 
-    assert.throws(
-      () => assertAnalysisAnnotations(runbook, 'SEND', SEND_CATALOG),
-      /known case "bare" is missing the analysis/,
-    );
-  });
-
-  it('requires it even when the runbook declares no defaults', () => {
-    const runbook: Runbook = {
-      ...buildRunbook({ defaults: undefined, analysis: undefined }),
-      knownCases: [knownCase('bare', undefined)],
-    };
-
-    assert.throws(
-      () => assertAnalysisAnnotations(runbook, 'SEND', SEND_CATALOG),
-      /known case "bare" is missing the analysis/,
-    );
-  });
-
-  it('rejects an IGNORABLE case without an ignore reason', () => {
-    const runbook = buildRunbook({
-      defaults: {},
-      analysis: { ...VALID_ANALYSIS, analysisType: 'IGNORABLE' },
-    });
-
-    assert.throws(
-      () => assertAnalysisAnnotations(runbook, 'SEND', SEND_CATALOG),
-      /IGNORABLE without an ignoreReasonCode/,
-    );
-  });
-
-  it('rejects an empty resolution', () => {
-    const runbook = buildRunbook({ defaults: {}, analysis: { ...VALID_ANALYSIS, resolution: '   ' } });
-
-    assert.throws(() => assertAnalysisAnnotations(runbook, 'SEND', SEND_CATALOG), /empty resolution/);
+      assert.throws(
+        () => assertAnalysisAnnotations(runbook, 'SEND', SEND_CATALOG),
+        /known case "bare" is missing the analysis/,
+      );
+    }
   });
 
   it('enforces the 255 character bound on the default runbook name', () => {
@@ -109,15 +100,6 @@ describe('assertAnalysisAnnotations', () => {
     assert.throws(() => assertAnalysisAnnotations(blank, 'SEND', SEND_CATALOG), /declares an invalid type/);
   });
 
-  it('rejects a link that is not an http/https URL', () => {
-    const runbook = buildRunbook({
-      defaults: {},
-      analysis: { ...VALID_ANALYSIS, links: [{ url: 'ftp://example.invalid/doc' }] },
-    });
-
-    assert.throws(() => assertAnalysisAnnotations(runbook, 'SEND', SEND_CATALOG), /is not an http\/https URL/);
-  });
-
   it('requires a complete absolute URL and enforces its 2000 character bound', () => {
     const prefix = 'https://example.test/';
     const urlAtLimit = `${prefix}${'a'.repeat(2_000 - prefix.length)}`;
@@ -137,61 +119,6 @@ describe('assertAnalysisAnnotations', () => {
     assert.doesNotThrow(() => assertAnalysisAnnotations(valid, 'SEND', SEND_CATALOG));
     assert.throws(() => assertAnalysisAnnotations(incomplete, 'SEND', SEND_CATALOG), /is not an http\/https URL/);
     assert.throws(() => assertAnalysisAnnotations(overLimit, 'SEND', SEND_CATALOG), /URL exceeds 2000 characters/);
-  });
-
-  it('rejects ignore details without a reason code', () => {
-    const runbook = buildRunbook({
-      defaults: {},
-      analysis: { ...VALID_ANALYSIS, ignoreDetails: { diagnostic: 'already resolved' } },
-    });
-
-    assert.throws(
-      () => assertAnalysisAnnotations(runbook, 'SEND', SEND_CATALOG),
-      /declares ignoreDetails without an ignoreReasonCode/,
-    );
-  });
-
-  it('rejects a name over the 255 character registry bound', () => {
-    const runbook = buildRunbook({
-      defaults: {},
-      analysis: { ...VALID_ANALYSIS, finalActions: ['a'.repeat(256)] },
-    });
-
-    assert.throws(() => assertAnalysisAnnotations(runbook, 'SEND', SEND_CATALOG), /exceeds 255 characters/);
-  });
-
-  it('rejects duplicate final actions in a single declaration', () => {
-    const runbook = buildRunbook({
-      defaults: {},
-      analysis: { ...VALID_ANALYSIS, finalActions: ['Nessuna azione', 'Nessuna azione'] },
-    });
-
-    assert.throws(() => assertAnalysisAnnotations(runbook, 'SEND', SEND_CATALOG), /duplicate names/);
-  });
-
-  it('rejects conflicting resource metadata across defaults and known cases', () => {
-    const runbook = buildRunbook({
-      defaults: { resources: [{ name: 'pn-delivery', type: 'Service', role: 'PRIMARY' }] },
-      analysis: {
-        ...VALID_ANALYSIS,
-        resources: [{ name: 'pn-delivery', type: 'Lambda', role: 'CASE_RELATED' }],
-      },
-    });
-
-    assert.throws(
-      () => assertAnalysisAnnotations(runbook, 'SEND', SEND_CATALOG),
-      /resource "pn-delivery" has conflicting metadata/,
-    );
-  });
-
-  it('rejects conflicting link metadata across defaults and known cases', () => {
-    const url = 'https://example.test/dashboard';
-    const runbook = buildRunbook({
-      defaults: { links: [{ url, name: 'Dashboard generale', type: 'dashboard' }] },
-      analysis: { ...VALID_ANALYSIS, links: [{ url, name: 'Dashboard del caso', type: 'dashboard' }] },
-    });
-
-    assert.throws(() => assertAnalysisAnnotations(runbook, 'SEND', SEND_CATALOG), /link ".+" has conflicting metadata/);
   });
 
   it('allows an identical resource or link to be repeated across declarations', () => {
@@ -237,21 +164,10 @@ interface RunbookFixtureOptions {
 }
 
 function buildRunbook(options: RunbookFixtureOptions): Runbook {
-  return {
-    metadata: {
-      id: 'test-runbook',
-      name: 'Test runbook',
-      description: 'fixture',
-      version: '1.0.0',
-      type: 'alarm-resolution',
-      team: 'GO',
-      tags: [],
-    },
-    steps: [],
+  return createTestRunbook({
     knownCases: [knownCase('primary', options.analysis)],
-    fallbackAction: { type: 'log', level: 'info', title: 'fallback' },
     ...(options.defaults === undefined ? {} : { analysisDefaults: options.defaults }),
-  };
+  });
 }
 
 function knownCase(id: string, analysis: KnownCaseAnalysis | undefined): KnownCase {

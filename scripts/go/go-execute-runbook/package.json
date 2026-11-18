@@ -25,7 +25,7 @@
     "clean": "rm -rf dist *.tsbuildinfo",
     "dev": "pnpm --filter=@pagopa/go-runbook build && tsx src/index.ts",
     "start": "pnpm build && node dist/index.js",
-    "test": "pnpm --filter=@pagopa/go-runbook build && node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
+    "test": "pnpm --filter=@pagopa/go-runbook build && node --import tsx/esm --test --experimental-test-isolation=none 'src/**/__tests__/**/*.test.ts'",
     "watch": "tsc --watch"
   },
   "dependencies": {

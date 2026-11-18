@@ -8,15 +8,7 @@ import { knownCase } from '../../analysis/knownCase.js';
 import type { KnownCase } from '../../../../engine/types/KnownCase.js';
 import type { Runbook } from '../../../../engine/types/Runbook.js';
 import { SEND_SERVICE_PROFILE } from '../../../send/families/service/profiles/SEND_SERVICE_PROFILE.js';
-
-const METADATA = {
-  name: 'probe',
-  description: '',
-  version: '1.0.0',
-  type: 'alarm-resolution',
-  team: 'GO',
-  tags: [],
-} as const;
+import { TEST_RUNBOOK_METADATA } from '../../../../__tests__/helpers/TEST_RUNBOOK_METADATA.js';
 
 function caseOn(stepId: string): KnownCase {
   return knownCase({
@@ -32,7 +24,7 @@ function caseOn(stepId: string): KnownCase {
 function interopK8sRunbook(knownCases: ReadonlyArray<KnownCase>): Runbook {
   return createInteropK8sAlarmRunbook({
     id: 'probe-k8s',
-    metadata: METADATA,
+    metadata: TEST_RUNBOOK_METADATA,
     service: { name: 'interop-bff', logGroup: '/aws/eks/probe', varPrefix: 'interopBff' },
     queryProfile: INTEROP_K8S_QUERY_PROFILE,
     resolveAlarmContext: (alarmName: string) => ({
@@ -49,10 +41,10 @@ function interopK8sRunbook(knownCases: ReadonlyArray<KnownCase>): Runbook {
 }
 
 describe('finishAlarmRunbook known-case step refs', () => {
-  it('rejects a case left on a step id the INTEROP k8s runbook renamed', () => {
+  it('rejects a case left on a step id the INTEROP k8s runbook renamed, naming the builder the author called', () => {
     assert.throws(
       () => interopK8sRunbook([caseOn('query-interop-bff')]),
-      /knownCase "case-on-query-interop-bff" references step "query-interop-bff" which is not wired/u,
+      /createInteropK8sAlarmRunbook "probe-k8s": knownCase "case-on-query-interop-bff" references step "query-interop-bff" which is not wired/u,
     );
   });
 
@@ -65,7 +57,7 @@ describe('finishAlarmRunbook known-case step refs', () => {
       () =>
         createServiceAlarmRunbook({
           id: 'probe-service',
-          metadata: METADATA,
+          metadata: TEST_RUNBOOK_METADATA,
           service: { name: 'pn-foo', logGroup: '/aws/ecs/probe', varPrefix: 'foo' },
           knownCases: [caseOn('query-pn-bar')],
           queryProfile: SEND_SERVICE_PROFILE,
@@ -73,9 +65,5 @@ describe('finishAlarmRunbook known-case step refs', () => {
         }),
       /references step "query-pn-bar" which is not wired/u,
     );
-  });
-
-  it('names the builder the author called, so the error points at the right toolkit', () => {
-    assert.throws(() => interopK8sRunbook([caseOn('nowhere')]), /createInteropK8sAlarmRunbook "probe-k8s"/u);
   });
 });

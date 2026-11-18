@@ -1,16 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import * as fs from 'node:fs/promises';
-import * as os from 'node:os';
-import * as path from 'node:path';
 
 import { GOEnvFileParser } from '../GOEnvFileParser.js';
-
-async function makeTempDir(): Promise<string> {
-  return fs.mkdtemp(path.join(os.tmpdir(), 'go-common-env-parser-'));
-}
+import { useTempDir } from '../../__tests__/helpers/createTempDir.js';
 
 describe('GOEnvFileParser', () => {
+  const tmp = useTempDir('go-common-env-parser-');
+
   it('parses env content with quotes, comments, escapes and variable expansion', () => {
     const parsed = GOEnvFileParser.parseContent(
       [
@@ -53,11 +49,8 @@ describe('GOEnvFileParser', () => {
   });
 
   it('parses files in order and wraps file read errors with context', async () => {
-    const dir = await makeTempDir();
-    const firstPath = path.join(dir, 'first.env');
-    const secondPath = path.join(dir, 'second.env');
-    await fs.writeFile(firstPath, 'ONE=1\nSHARED=first\n', 'utf-8');
-    await fs.writeFile(secondPath, 'TWO=2\nSHARED=second\n', 'utf-8');
+    const firstPath = await tmp.write('first.env', 'ONE=1\nSHARED=first\n');
+    const secondPath = await tmp.write('second.env', 'TWO=2\nSHARED=second\n');
 
     assert.deepStrictEqual(
       GOEnvFileParser.parseFiles([firstPath, secondPath]),
@@ -68,9 +61,6 @@ describe('GOEnvFileParser', () => {
       ]),
     );
 
-    assert.throws(
-      () => GOEnvFileParser.parseFile(path.join(dir, 'missing.env')),
-      /Failed to parse env file .*missing\.env/,
-    );
+    assert.throws(() => GOEnvFileParser.parseFile(tmp.file('missing.env')), /Failed to parse env file .*missing\.env/);
   });
 });

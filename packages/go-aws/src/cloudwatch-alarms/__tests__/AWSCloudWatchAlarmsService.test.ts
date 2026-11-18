@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { DescribeAlarmHistoryCommand } from '@aws-sdk/client-cloudwatch';
-import type { AlarmHistoryItem, CloudWatchClient, DescribeAlarmHistoryCommandOutput } from '@aws-sdk/client-cloudwatch';
+import type { AlarmHistoryItem, CloudWatchClient } from '@aws-sdk/client-cloudwatch';
+
+import { FakeAwsClient } from '../../__tests__/helpers/FakeAwsClient.js';
 
 import {
   AWSCloudWatchAlarmsService,
@@ -12,42 +14,19 @@ import {
   selectAlarmHistoryProperties,
 } from '../AWSCloudWatchAlarmsService.js';
 
-interface FakeSendOptions {
-  readonly abortSignal?: AbortSignal;
-}
-
-class FakeCloudWatchClient {
-  readonly commands: DescribeAlarmHistoryCommand[] = [];
-  readonly sendOptions: FakeSendOptions[] = [];
-
-  constructor(private readonly responses: DescribeAlarmHistoryCommandOutput[]) {}
-
-  async send(
-    command: DescribeAlarmHistoryCommand,
-    options: FakeSendOptions = {},
-  ): Promise<DescribeAlarmHistoryCommandOutput> {
-    this.commands.push(command);
-    this.sendOptions.push(options);
-    await Promise.resolve();
-    const response = this.responses.shift();
-    if (response === undefined) throw new Error('Missing fake CloudWatch response');
-    return response;
-  }
-}
-
-function asCloudWatchClient(client: FakeCloudWatchClient): CloudWatchClient {
-  return client as unknown as CloudWatchClient;
+function serviceOf(client: FakeAwsClient): AWSCloudWatchAlarmsService {
+  return new AWSCloudWatchAlarmsService(client.as<CloudWatchClient>());
 }
 
 describe('AWSCloudWatchAlarmsService', () => {
   it('retrieves every page without mutating options and forwards the abort signal', async () => {
     const firstItem: AlarmHistoryItem = { AlarmName: 'alarm-a', Timestamp: new Date('2026-07-01T10:00:00Z') };
     const secondItem: AlarmHistoryItem = { AlarmName: 'alarm-b', Timestamp: new Date('2026-07-01T11:00:00Z') };
-    const client = new FakeCloudWatchClient([
-      { $metadata: {}, AlarmHistoryItems: [firstItem], NextToken: 'next-page' },
-      { $metadata: {}, AlarmHistoryItems: [secondItem] },
+    const client = new FakeAwsClient([
+      { AlarmHistoryItems: [firstItem], NextToken: 'next-page' },
+      { AlarmHistoryItems: [secondItem] },
     ]);
-    const service = new AWSCloudWatchAlarmsService(asCloudWatchClient(client));
+    const service = serviceOf(client);
     const start = new Date('2026-07-01T00:00:00Z');
     const end = new Date('2026-07-02T00:00:00Z');
     const options = {
@@ -61,8 +40,8 @@ describe('AWSCloudWatchAlarmsService', () => {
     const items = await service.describeAlarmHistory(options, controller.signal);
 
     assert.deepStrictEqual(items, [firstItem, secondItem]);
-    assert.strictEqual(client.commands.length, 2);
-    assert.deepStrictEqual(client.commands[0]?.input, {
+    const [first, second] = client.inputs(DescribeAlarmHistoryCommand);
+    assert.deepStrictEqual(first, {
       StartDate: start,
       EndDate: end,
       AlarmTypes: ['CompositeAlarm', 'MetricAlarm'],
@@ -71,16 +50,16 @@ describe('AWSCloudWatchAlarmsService', () => {
       AlarmName: 'alarm-a',
       HistoryItemType: 'Action',
     });
-    assert.strictEqual(client.commands[1]?.input.NextToken, 'next-page');
-    assert.strictEqual(client.sendOptions[0]?.abortSignal, controller.signal);
+    assert.strictEqual(second?.['NextToken'], 'next-page');
+    assert.deepStrictEqual(client.sendOptions[0], { abortSignal: controller.signal });
     assert.strictEqual(options.alarmName, '  alarm-a  ');
     assert.strictEqual(options.timeRange.start, start);
     assert.strictEqual(options.timeRange.end, end);
   });
 
   it('validates dates, alarm names and page sizes before sending requests', async () => {
-    const client = new FakeCloudWatchClient([]);
-    const service = new AWSCloudWatchAlarmsService(asCloudWatchClient(client));
+    const client = new FakeAwsClient([]);
+    const service = serviceOf(client);
     const validDate = new Date('2026-07-01T00:00:00Z');
 
     await assert.rejects(
@@ -107,9 +86,8 @@ describe('AWSCloudWatchAlarmsService', () => {
       AlarmName: 'alarm-a',
       HistoryData: JSON.stringify({ oldState: { stateValue: 'OK' }, newState: { stateValue: 'ALARM' } }),
     };
-    const client = new FakeCloudWatchClient([
+    const client = new FakeAwsClient([
       {
-        $metadata: {},
         AlarmHistoryItems: [
           matching,
           {
@@ -121,13 +99,13 @@ describe('AWSCloudWatchAlarmsService', () => {
         ],
       },
     ]);
-    const service = new AWSCloudWatchAlarmsService(asCloudWatchClient(client));
+    const service = serviceOf(client);
     const date = new Date('2026-07-01T00:00:00Z');
 
     const items = await service.describeAlarmStateTransitions({ timeRange: { start: date, end: date } });
 
     assert.deepStrictEqual(items, [matching]);
-    assert.strictEqual(client.commands[0]?.input.HistoryItemType, 'StateUpdate');
+    assert.strictEqual(client.inputs(DescribeAlarmHistoryCommand)[0]?.['HistoryItemType'], 'StateUpdate');
     assert.strictEqual(isCloudWatchAlarmStateTransition(matching), true);
   });
 

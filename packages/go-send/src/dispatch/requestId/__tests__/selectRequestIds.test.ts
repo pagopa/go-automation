@@ -113,7 +113,6 @@ describe('selectRequestIds', () => {
     const nanos = element('PREPARE_ANALOG_DOMICILE', '2026-01-02T10:00:00.000000001Z', 'PREPARE_ANALOG_DOMICILE.NANO');
 
     // As strings '…:00.5Z' < '…:00Z' ('.' < 'Z'): the later attempt would win.
-    assert.ok('2026-01-02T10:00:00.5Z' < '2026-01-02T10:00:00Z');
     assert.equal(
       selectRequestIds([later, earlier], DEFAULT_REQUEST_ID_OPTIONS).requestId,
       'PREPARE_ANALOG_DOMICILE.ATTEMPT_0',

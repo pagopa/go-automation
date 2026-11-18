@@ -80,114 +80,81 @@ function onlyPrompt(asked: ReadonlyArray<AskedPrompt>): AskedPrompt {
 }
 
 describe('promptChoice', () => {
-  describe('choosing the prompt', () => {
-    it('uses the plain list for a short menu without a way back', async () => {
+  const promptCases: ReadonlyArray<{
+    readonly menu: string;
+    readonly size: number;
+    readonly withBack: boolean;
+    readonly kind: string;
+    readonly backTitle?: string;
+  }> = [
+    { menu: 'a short menu without a way back', size: 3, withBack: false, kind: 'select' },
+    {
+      menu: 'a short menu offering a way back',
+      size: 3,
+      withBack: true,
+      kind: 'selectWithBack',
+      backTitle: '← Indietro · premi ←',
+    },
+    { menu: 'a long menu without a way back', size: LONG_MENU_SIZE, withBack: false, kind: 'autocomplete' },
+    {
+      menu: 'a long menu offering a way back',
+      size: LONG_MENU_SIZE,
+      withBack: true,
+      kind: 'autocompleteWithBack',
+      backTitle: '← Indietro · premi ← a filtro vuoto',
+    },
+  ];
+
+  for (const { menu: name, size, withBack, kind, backTitle } of promptCases) {
+    it(`uses the ${kind} prompt for ${name}, announcing the shortcut only with a way back`, async () => {
       const { script, asked } = harness('runbook-0');
 
-      await promptChoice<string>(script, 'Seleziona', menu(3, false));
-
-      assert.strictEqual(onlyPrompt(asked).kind, 'select');
-    });
-
-    it('uses the list with the shortcut for a short menu offering a way back', async () => {
-      const { script, asked } = harness('runbook-0');
-
-      await promptChoice<string>(script, 'Seleziona', menu(3, true));
+      await promptChoice<string>(script, 'Seleziona', menu(size, withBack));
 
       const prompt = onlyPrompt(asked);
-      assert.strictEqual(prompt.kind, 'selectWithBack');
-      assert.ok(prompt.titles.includes('← Indietro · premi ←'));
+      assert.strictEqual(prompt.kind, kind);
+      if (backTitle === undefined) assert.ok(!prompt.titles.some((title) => title.includes('premi ←')));
+      else assert.ok(prompt.titles.includes(backTitle));
     });
+  }
 
-    it('uses the searchable prompt with the shortcut for a long menu offering a way back', async () => {
-      const { script, asked } = harness('runbook-0');
-
-      await promptChoice<string>(script, 'Seleziona', menu(LONG_MENU_SIZE, true));
-
-      const prompt = onlyPrompt(asked);
-      assert.strictEqual(prompt.kind, 'autocompleteWithBack');
-      assert.ok(prompt.titles.includes('← Indietro · premi ← a filtro vuoto'));
-    });
-
-    it('uses the plain searchable prompt for a long menu without a way back', async () => {
-      const { script, asked } = harness('runbook-0');
-
-      await promptChoice<string>(script, 'Seleziona', menu(LONG_MENU_SIZE, false));
-
-      const prompt = onlyPrompt(asked);
-      assert.strictEqual(prompt.kind, 'autocomplete');
-      assert.ok(!prompt.titles.some((title) => title.includes('premi ←')));
-    });
-  });
-
-  describe('answering', () => {
-    it('reports the shortcut of the searchable prompt as the entry it stands for', async () => {
-      const { script } = harness(GO_PROMPT_BACK);
-
-      const answer = await promptChoice<string>(script, 'Seleziona', menu(LONG_MENU_SIZE, true));
+  for (const size of [3, LONG_MENU_SIZE]) {
+    it(`reports the ← shortcut as the entry it stands for (${String(size)} options)`, async () => {
+      const answer = await promptChoice<string>(harness(GO_PROMPT_BACK).script, 'Seleziona', menu(size, true));
 
       assert.strictEqual(answer, BACK_CHOICE);
     });
+  }
 
-    it('reports the shortcut of the plain list as the entry it stands for', async () => {
-      const { script } = harness(GO_PROMPT_BACK);
+  it('warns only when the user drops the prompt', async () => {
+    const { script, warnings } = harness(undefined);
 
-      const answer = await promptChoice<string>(script, 'Seleziona', menu(3, true));
+    const answer = await promptChoice<string>(script, 'Seleziona', menu(3, true));
 
-      assert.strictEqual(answer, BACK_CHOICE);
-    });
-
-    it('warns only when the user drops the prompt', async () => {
-      const { script, warnings } = harness(undefined);
-
-      const answer = await promptChoice<string>(script, 'Seleziona', menu(3, true));
-
-      assert.strictEqual(answer, undefined);
-      assert.deepStrictEqual(warnings, ['Selezione annullata.']);
-    });
+    assert.strictEqual(answer, undefined);
+    assert.deepStrictEqual(warnings, ['Selezione annullata.']);
   });
 
   describe('filtering the searchable prompt', () => {
-    it('keeps the way back reachable while the filter hides everything else', async () => {
+    /** Runs the searchable prompt and filters its options with `input`. */
+    async function suggestFor(input: string, withBack: boolean): Promise<ReadonlyArray<unknown>> {
       const { script, asked } = harness('runbook-0');
-
-      await promptChoice<string>(script, 'Seleziona', menu(LONG_MENU_SIZE, true));
-
+      await promptChoice<string>(script, 'Seleziona', menu(LONG_MENU_SIZE, withBack));
       const suggest = onlyPrompt(asked).options?.suggest;
       assert.ok(suggest !== undefined);
-      const filtered = await suggest('nothing-matches', menu(LONG_MENU_SIZE, true));
+      const filtered = await suggest(input, menu(LONG_MENU_SIZE, withBack));
+      return filtered.map((choice) => choice.value);
+    }
 
-      assert.deepStrictEqual(
-        filtered.map((choice) => choice.value),
-        [BACK_CHOICE],
-      );
+    it('keeps the way back reachable while the filter hides everything else', async () => {
+      assert.deepStrictEqual(await suggestFor('nothing-matches', true), [BACK_CHOICE]);
     });
 
     it('matches titles regardless of case', async () => {
-      const { script, asked } = harness('runbook-0');
-
-      await promptChoice<string>(script, 'Seleziona', menu(LONG_MENU_SIZE, false));
-
-      const suggest = onlyPrompt(asked).options?.suggest;
-      assert.ok(suggest !== undefined);
-      const filtered = await suggest('RUNBOOK-1', menu(LONG_MENU_SIZE, false));
-
-      assert.deepStrictEqual(
-        filtered.map((choice) => choice.value),
-        [
-          'runbook-1',
-          'runbook-10',
-          'runbook-11',
-          'runbook-12',
-          'runbook-13',
-          'runbook-14',
-          'runbook-15',
-          'runbook-16',
-          'runbook-17',
-          'runbook-18',
-          'runbook-19',
-        ],
-      );
+      assert.deepStrictEqual(await suggestFor('RUNBOOK-1', false), [
+        'runbook-1',
+        ...Array.from({ length: 10 }, (_, index) => `runbook-1${String(index)}`),
+      ]);
     });
   });
 });

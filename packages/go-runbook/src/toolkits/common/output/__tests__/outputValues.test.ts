@@ -5,37 +5,28 @@ import type { RunbookResultField } from '../RunbookOutputContext.js';
 import { addResultField, normalizeOutputValue, optionalNumber, optionalString } from '../outputValues.js';
 
 describe('normalizeOutputValue', () => {
-  it('trims the value', () => {
-    assert.strictEqual(normalizeOutputValue('  504 '), '504');
-  });
-
-  it('treats undefined, empty and whitespace-only as absent', () => {
-    assert.strictEqual(normalizeOutputValue(undefined), undefined);
-    assert.strictEqual(normalizeOutputValue(''), undefined);
-    assert.strictEqual(normalizeOutputValue('   '), undefined);
-  });
-
-  it('treats the "-" access-log placeholder as absent', () => {
-    // The log-domain rule this adds on top of go-common's trimToUndefined:
+  it('trims the value and treats undefined, blanks and the "-" access-log placeholder as absent', () => {
     // "-" is what CloudWatch and API Gateway write for a field they did not
-    // capture, so it must not reach the output as a value.
-    assert.strictEqual(normalizeOutputValue('-'), undefined);
-    assert.strictEqual(normalizeOutputValue('  -  '), undefined);
-  });
-
-  it('keeps a value that merely contains a hyphen', () => {
-    assert.strictEqual(normalizeOutputValue('no-match'), 'no-match');
+    // capture: the log-domain rule this adds on top of go-common's trimToUndefined.
+    for (const [value, expected] of [
+      ['  504 ', '504'],
+      ['no-match', 'no-match'],
+      [undefined, undefined],
+      ['', undefined],
+      ['   ', undefined],
+      ['-', undefined],
+      ['  -  ', undefined],
+    ] as const) {
+      assert.strictEqual(normalizeOutputValue(value), expected, String(value));
+    }
   });
 });
 
 describe('optionalString / optionalNumber', () => {
-  it('emits the key only when the value carries content', () => {
+  it('emits the key only when the value carries content, numbers including zero', () => {
     assert.deepStrictEqual(optionalString('name', ' alarm '), { name: 'alarm' });
     assert.deepStrictEqual(optionalString('name', '-'), {});
     assert.deepStrictEqual(optionalString('name', undefined), {});
-  });
-
-  it('emits numbers as-is, including zero', () => {
     assert.deepStrictEqual(optionalNumber('errorCount', 0), { errorCount: 0 });
     assert.deepStrictEqual(optionalNumber('errorCount', undefined), {});
   });

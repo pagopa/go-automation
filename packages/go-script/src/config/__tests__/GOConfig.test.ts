@@ -24,29 +24,24 @@ describe('GOConfig', () => {
     assert.strictEqual(config.sourceOf('count'), 'preset');
   });
 
-  it('set overrides the value and tags the source as prepared by default', () => {
+  it('set overrides the value, tagging the source as prepared unless a label is given', () => {
     const config = new GOConfig({ key: 'old' }, new Map([['key', 'preset']]));
 
     config.set('key', 'new');
     assert.strictEqual(config.getString('key'), 'new');
     assert.strictEqual(config.sourceOf('key'), GOCONFIG_PREPARED_SOURCE);
+
+    config.set('other', 'value', 'derived-from-env');
+    assert.strictEqual(config.sourceOf('other'), 'derived-from-env');
   });
 
-  it('set accepts a custom source label', () => {
-    const config = new GOConfig();
-    config.set('key', 'value', 'derived-from-env');
-    assert.strictEqual(config.sourceOf('key'), 'derived-from-env');
-  });
+  it('starts empty and snapshots prepared values in toRecord', () => {
+    const empty = new GOConfig();
+    assert.strictEqual(empty.has('anything'), false);
+    assert.deepStrictEqual(empty.toRecord(), {});
 
-  it('toRecord returns a plain snapshot including prepared values', () => {
     const config = new GOConfig({ a: 1 });
     config.set('b', 's3://bucket/prefix');
     assert.deepStrictEqual(config.toRecord(), { a: 1, b: 's3://bucket/prefix' });
-  });
-
-  it('starts empty when constructed without arguments', () => {
-    const config = new GOConfig();
-    assert.strictEqual(config.has('anything'), false);
-    assert.deepStrictEqual(config.toRecord(), {});
   });
 });

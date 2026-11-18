@@ -19,38 +19,35 @@ describe('scanText — positives', () => {
     );
   });
 
-  it('finds an ARN with an account', () => {
-    assert.ok(rulesOf(`"arn:aws:iam::${DECOY_ACCOUNT_ID}:role/x"`).includes('account-arn'));
-  });
+  const positives: ReadonlyArray<readonly [string, string, ReadonlyArray<string>]> = [
+    ['an ARN with an account', `"arn:aws:iam::${DECOY_ACCOUNT_ID}:role/x"`, ['account-id', 'account-arn']],
+    ['an SSO profile name in a README', 'Run with `--aws-profiles sso_x`.', ['profile-name']],
+    ['an SSO profile name in a source map', '{"sourcesContent":["const p = \\"sso_pn-core\\";"]}', ['profile-name']],
+    ['an SSO profile name in a package.json', '{ "description": "uses sso_prod" }', ['profile-name']],
+    ['a known profile name as a whole token', "profile: 'my-known-profile'", ['profile-name']],
+  ];
 
-  it('finds an SSO profile name in a README, a source map and a package.json', () => {
-    assert.deepStrictEqual(rulesOf('Run with `--aws-profiles sso_x`.'), ['profile-name']);
-    assert.deepStrictEqual(rulesOf('{"sourcesContent":["const p = \\"sso_pn-core\\";"]}'), ['profile-name']);
-    assert.deepStrictEqual(rulesOf('{ "description": "uses sso_prod" }'), ['profile-name']);
-  });
-
-  it('finds a known profile name as a whole token', () => {
-    assert.deepStrictEqual(rulesOf("profile: 'my-known-profile'"), ['profile-name']);
-    assert.deepStrictEqual(rulesOf('not-my-known-profile-at-all'), []);
-  });
+  for (const [name, text, expected] of positives) {
+    it(`finds ${name}`, () => {
+      assert.deepStrictEqual(rulesOf(text), expected);
+    });
+  }
 });
 
 describe('scanText — false positives', () => {
-  it('accepts the allowlisted synthetic ids, also inside an ARN', () => {
-    assert.deepStrictEqual(rulesOf("'000000000000' 'arn:aws:sts::123456789012:assumed-role/x'"), []);
-  });
+  const negatives: ReadonlyArray<readonly [string, string]> = [
+    ['the allowlisted synthetic ids, also inside an ARN', "'000000000000' 'arn:aws:sts::123456789012:assumed-role/x'"],
+    ['13-digit timestamps and longer digit runs', 'const firedAt = 1731499200000; const big = 98765432109876;'],
+    ['query profile ids, alarm and resource names', "queryProfile: 'interop-one-trust-notices-prod'"],
+    ['an SSO prefix inside a longer identifier', 'const my_sso_session = 1;'],
+    ['a known profile name inside a longer token', 'not-my-known-profile-at-all'],
+  ];
 
-  it('ignores 13-digit timestamps and longer digit runs', () => {
-    assert.deepStrictEqual(rulesOf('const firedAt = 1731499200000; const big = 98765432109876;'), []);
-  });
-
-  it('ignores query profile ids, alarm and resource names', () => {
-    assert.deepStrictEqual(rulesOf("queryProfile: 'interop-one-trust-notices-prod'"), []);
-  });
-
-  it('ignores an SSO prefix inside a longer identifier', () => {
-    assert.deepStrictEqual(rulesOf('const my_sso_session = 1;'), []);
-  });
+  for (const [name, text] of negatives) {
+    it(`accepts ${name}`, () => {
+      assert.deepStrictEqual(rulesOf(text), []);
+    });
+  }
 
   it('accepts a reasoned exception for that package, file and value only', () => {
     const config = {

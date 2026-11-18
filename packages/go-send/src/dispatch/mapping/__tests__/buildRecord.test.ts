@@ -197,15 +197,8 @@ describe('buildRecord', () => {
     assert.equal(result.issues[0]?.field, 'documents.reference.sha256');
   });
 
-  it('accepts a foreign address without an Italian ZIP', () => {
-    const row = validValues();
-    row.set('physicalAddress.foreignState', 'FRANCIA');
-    row.set('physicalAddress.zip', '75001 X');
-    assert.ok(buildRecord(0, 'k', row, CONTEXT).ok);
-  });
-
   it('sends any foreign ZIP code as is, whatever its length or characters', () => {
-    for (const zip of ['PLT 60 BLK B N.NW 16', 'PLT 60 BLK B N.NW 16 PLT 60', 'X'.repeat(64)]) {
+    for (const zip of ['75001 X', 'PLT 60 BLK B N.NW 16', 'PLT 60 BLK B N.NW 16 PLT 60', 'X'.repeat(64)]) {
       const row = validValues();
       row.set('physicalAddress.foreignState', 'GHANA');
       row.set('physicalAddress.zip', zip);
@@ -314,12 +307,16 @@ describe('buildRecord: products, options and dates', () => {
 });
 
 describe('buildRecord: recipient', () => {
-  it('upper-cases the tax id and accepts codice fiscale (with omocodia) or partita IVA', () => {
+  it('upper-cases the tax id, accepts codice fiscale (with omocodia) or partita IVA, rejects malformed ones', () => {
     for (const [raw, expected] of [
       ['rssmra80a01h501u', 'RSSMRA80A01H501U'],
       ['RSSMRA80A01H50RU', 'RSSMRA80A01H50RU'],
-      ['MRTMTT91D08F2O5L', undefined],
       ['12345678901', '12345678901'],
+      ['MRTMTT91D08F2O5L', undefined],
+      ['RSSMRA80A01H501', undefined],
+      ['1234567890', undefined],
+      ['RSSMRA80Z01H501U', undefined],
+      ['RSSMRA80A01H501U1', undefined],
     ] as const) {
       const row = validValues();
       row.set('recipient.taxId', raw);
@@ -330,14 +327,6 @@ describe('buildRecord: recipient', () => {
         assert.ok(result.ok, raw);
         assert.equal(result.record.recipient.taxId, expected);
       }
-    }
-  });
-
-  it('rejects malformed tax ids', () => {
-    for (const raw of ['RSSMRA80A01H501', '1234567890', 'RSSMRA80Z01H501U', 'RSSMRA80A01H501U1']) {
-      const row = validValues();
-      row.set('recipient.taxId', raw);
-      assert.deepEqual(issueKeys(buildRecord(0, 'k', row, CONTEXT)), ['INVALID_FORMAT:recipient.taxId'], raw);
     }
   });
 });

@@ -6,6 +6,7 @@ import { GOPromptInterruptedError } from '@go-automation/go-script';
 
 import type { DispatchTarget } from '../../types/DispatchTarget.js';
 import type { SendDispatchNotificationsConfig } from '../../types/SendDispatchNotificationsConfig.js';
+import type { ValidatedConfig } from '../../types/ValidatedConfig.js';
 import { DispatchShutdown } from '../DispatchShutdown.js';
 import { runDispatch } from '../runDispatch.js';
 import { validateConfig } from '../validateConfig.js';
@@ -64,16 +65,41 @@ async function run(
   const shutdown = new DispatchShutdown();
   const config = validateConfig({ ...RAW_CONFIG, inputFile: input, documentFile: [pdf], ...overrides });
   const code = await runDispatch(test.script, config, target, shutdown);
-  const report = await readFixture(test.script.paths.getExecutionOutputFilePath('report.csv'));
-  return { code, test, shutdown, report };
+  return { code, test, shutdown, report: await reportOf(test) };
 }
 
-/** Resolves to `released` when the cleanup hook returns, `hung` after one second. */
+/**
+ * Resolves to `released` when the cleanup hook returns without waiting for
+ * a session (within the pending microtasks), `hung` otherwise.
+ */
 async function cleanupHook(shutdown: DispatchShutdown): Promise<string> {
   return Promise.race([
     shutdown.stopAndWait().then(() => 'released'),
-    new Promise<string>((resolve) => setTimeout(() => resolve('hung'), 1_000).unref()),
+    new Promise<string>((resolve) => setImmediate(() => resolve('hung'))),
   ]);
+}
+
+/**
+ * A test script whose input holds `lines`, and a validated request-id run
+ * reading it (no document: nothing is sent).
+ *
+ * @param lines - CSV rows after the header
+ * @param overrides - Settings replacing the request-id run ones
+ * @returns The script double and the configuration
+ */
+async function requestIdRun(
+  lines: ReadonlyArray<string>,
+  overrides: Partial<SendDispatchNotificationsConfig> = {},
+): Promise<{ readonly test: TestScript; readonly config: ValidatedConfig }> {
+  const test = await createTestScript(true);
+  const input = path.join(test.dir, 'in', 'input.csv');
+  await writeFixture(input, `${[QA_HEADER, ...lines].join('\n')}\n`);
+  return { test, config: validateConfig({ ...RAW_CONFIG, ...REQUEST_ID_RUN, inputFile: input, ...overrides }) };
+}
+
+/** Report written by the run of `test`, `undefined` when missing. */
+async function reportOf(test: TestScript): Promise<string | undefined> {
+  return readFixture(test.script.paths.getExecutionOutputFilePath('report.csv'));
 }
 
 describe('runDispatch exit codes (dry run)', () => {
@@ -136,53 +162,36 @@ describe('runDispatch confirmation', () => {
   });
 
   it('stops before sending when a signal arrives during the confirmation', async () => {
-    const test = await createTestScript(true);
-    const input = path.join(test.dir, 'in', 'input.csv');
-    await writeFixture(input, `${[QA_HEADER, ...rows].join('\n')}\n`);
+    const { test, config } = await requestIdRun(rows);
     const shutdown = new DispatchShutdown();
     let hook: Promise<void> | undefined;
     test.prompt.onConfirm = (): void => {
       hook = shutdown.stopAndWait();
     };
-    const config = validateConfig({ ...RAW_CONFIG, ...REQUEST_ID_RUN, inputFile: input });
     const code = await runDispatch(test.script, config, TIMELINES_ONLY, shutdown);
     await hook;
     assert.equal(code, 1);
     assert.equal(shutdown.wasInterrupted, true);
     assert.ok(test.logger.of('warning').some((line) => line.startsWith("Run interrotto prima dell'invio")));
-    const report = await readFixture(test.script.paths.getExecutionOutputFilePath('report.csv'));
-    assert.ok(report !== undefined, 'the rows validated so far are reported');
+    assert.ok((await reportOf(test)) !== undefined, 'the rows validated so far are reported');
   });
 
   it('writes the report before a Ctrl-C on the confirmation reaches GOScript', async () => {
-    const test = await createTestScript(true);
-    const input = path.join(test.dir, 'in', 'input.csv');
-    await writeFixture(input, `${[QA_HEADER, ...rows].join('\n')}\n`);
+    const { test, config } = await requestIdRun(rows);
     test.prompt.onConfirm = (): void => {
       throw new GOPromptInterruptedError();
     };
-    const config = validateConfig({ ...RAW_CONFIG, ...REQUEST_ID_RUN, inputFile: input });
 
     await assert.rejects(
       runDispatch(test.script, config, TIMELINES_ONLY, new DispatchShutdown()),
       GOPromptInterruptedError,
     );
-    const report = await readFixture(test.script.paths.getExecutionOutputFilePath('report.csv'));
-    assert.ok(report !== undefined);
+    assert.ok((await reportOf(test)) !== undefined);
   });
 
   it('releases the cleanup hook even when the materialization fails', async () => {
-    const test = await createTestScript(true);
-    const input = path.join(test.dir, 'in', 'input.csv');
-    await writeFixture(input, `${[QA_HEADER, ...rows].join('\n')}\n`);
+    const { test, config } = await requestIdRun(rows, { yes: true, outputFile: '/dev/null/not-a-dir/output.csv' });
     const shutdown = new DispatchShutdown();
-    const config = validateConfig({
-      ...RAW_CONFIG,
-      ...REQUEST_ID_RUN,
-      inputFile: input,
-      yes: true,
-      outputFile: '/dev/null/not-a-dir/output.csv',
-    });
     await assert.rejects(runDispatch(test.script, config, TIMELINES_ONLY, shutdown));
     assert.equal(await cleanupHook(shutdown), 'released');
   });
@@ -227,7 +236,6 @@ describe('runDispatch confirmation', () => {
     assert.equal(code, 0);
     assert.ok(test.logger.of('info').some((line) => line.startsWith('Dry run della ripresa: ')));
     assert.ok(test.logger.of('kv').some((line) => line.startsWith('Run=') && line.includes('ripresa di')));
-    const report = await readFixture(test.script.paths.getExecutionOutputFilePath('report.csv'));
-    assert.match(report ?? '', /REQUEST_ID_NOT_FOUND/, 'statuses come from the previous journal');
+    assert.match((await reportOf(test)) ?? '', /REQUEST_ID_NOT_FOUND/, 'statuses come from the previous journal');
   });
 });

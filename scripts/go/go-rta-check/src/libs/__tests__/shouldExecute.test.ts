@@ -32,96 +32,66 @@ function harness(answer?: boolean): Harness {
 }
 
 describe('shouldExecute', () => {
-  it('stops when the period holds no occurrence', async () => {
-    const { script, messages, confirmed } = harness(true);
-
-    const proceed = await shouldExecute({
-      script,
-      config: {},
+  const cases: ReadonlyArray<{
+    readonly name: string;
+    readonly answer: boolean;
+    readonly dryRun?: boolean;
+    readonly totalEvents?: number;
+    readonly allowPrompt?: boolean;
+    readonly expected: boolean;
+    /** Text of the message explaining the stop, when the run stops. */
+    readonly reason?: string;
+    readonly asksConfirmation: boolean;
+  }> = [
+    {
+      name: 'stops when the period holds no occurrence',
+      answer: true,
       totalEvents: 0,
-      occurrences: 0,
-      allowPrompt: true,
-    });
-
-    assert.strictEqual(proceed, false);
-    assert.ok(messages.some((message) => message.includes('Nessuna occorrenza')));
-    assert.deepStrictEqual(confirmed, []);
-  });
-
-  it('stops on --dry-run, without asking for a confirmation', async () => {
-    const { script, messages, confirmed } = harness(true);
-
-    const proceed = await shouldExecute({
-      script,
-      config: { dryRun: true },
-      totalEvents: 12,
-      occurrences: 12,
-      allowPrompt: true,
-    });
-
-    assert.strictEqual(proceed, false);
-    assert.ok(messages.some((message) => message.includes('Dry-run')));
-    assert.deepStrictEqual(confirmed, []);
-  });
-
-  it('stops when the confirmation is declined', async () => {
-    const { script, messages, confirmed } = harness(false);
-
-    const proceed = await shouldExecute({
-      script,
-      config: {},
-      totalEvents: 12,
-      occurrences: 5,
-      allowPrompt: true,
-    });
-
-    assert.strictEqual(proceed, false);
-    assert.ok(messages.some((message) => message.includes('annullata')));
-    assert.strictEqual(confirmed.length, 1);
-    assert.match(confirmed[0] ?? '', /5 occorrenze/u);
-  });
-
-  it('proceeds once the confirmation is accepted', async () => {
-    const { script } = harness(true);
-
-    const proceed = await shouldExecute({
-      script,
-      config: {},
-      totalEvents: 12,
-      occurrences: 12,
-      allowPrompt: true,
-    });
-
-    assert.strictEqual(proceed, true);
-  });
-
-  it('proceeds without prompting when prompts are not allowed', async () => {
-    const { script, confirmed } = harness(false);
-
-    const proceed = await shouldExecute({
-      script,
-      config: {},
-      totalEvents: 12,
-      occurrences: 12,
+      expected: false,
+      reason: 'Nessuna occorrenza',
+      asksConfirmation: false,
+    },
+    {
+      name: 'stops on --dry-run, without asking for a confirmation',
+      answer: true,
+      dryRun: true,
+      expected: false,
+      reason: 'Dry-run',
+      asksConfirmation: false,
+    },
+    {
+      name: 'stops when the confirmation is declined',
+      answer: false,
+      expected: false,
+      reason: 'annullata',
+      asksConfirmation: true,
+    },
+    { name: 'proceeds once the confirmation is accepted', answer: true, expected: true, asksConfirmation: true },
+    {
+      name: 'proceeds without prompting when prompts are not allowed',
+      answer: false,
       allowPrompt: false,
+      expected: true,
+      asksConfirmation: false,
+    },
+  ];
+
+  for (const testCase of cases) {
+    it(testCase.name, async () => {
+      const { script, messages, confirmed } = harness(testCase.answer);
+
+      const proceed = await shouldExecute({
+        script,
+        config: testCase.dryRun === true ? { dryRun: true } : {},
+        totalEvents: testCase.totalEvents ?? 12,
+        occurrences: 5,
+        allowPrompt: testCase.allowPrompt ?? true,
+      });
+
+      assert.strictEqual(proceed, testCase.expected);
+      const { reason } = testCase;
+      if (reason !== undefined) assert.ok(messages.some((message) => message.includes(reason)));
+      assert.deepStrictEqual(confirmed, testCase.asksConfirmation ? ['Eseguo il runbook su 5 occorrenze?'] : []);
     });
-
-    assert.strictEqual(proceed, true);
-    assert.deepStrictEqual(confirmed, []);
-  });
-
-  it('keeps --dry-run winning over an accepted confirmation', async () => {
-    const { script, confirmed } = harness(true);
-
-    const proceed = await shouldExecute({
-      script,
-      config: { dryRun: true },
-      totalEvents: 12,
-      occurrences: 12,
-      allowPrompt: false,
-    });
-
-    assert.strictEqual(proceed, false);
-    assert.deepStrictEqual(confirmed, []);
-  });
+  }
 });

@@ -8,38 +8,23 @@
  * an uncaughtException. And because export()'s catch path calls writer.close() a
  * second time as cleanup, a naive implementation would emit export:error twice
  * for the same fault.
- *
- * These tests pin those invariants:
- *  - async writeStream errors do not surface as uncaughtException
- *  - export:error is emitted exactly once per fault
- *  - closeStream() is idempotent (no duplicate export:completed on repeat close)
  */
 
-import { describe, it, beforeEach, afterEach } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'fs/promises';
-import * as path from 'path';
-import * as os from 'os';
 
 import { GOCSVListExporter } from '../GOCSVListExporter.js';
-
-let tmpDir: string;
-
-beforeEach(async () => {
-  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'go-csv-list-exporter-'));
-});
-
-afterEach(async () => {
-  await fs.rm(tmpDir, { recursive: true, force: true });
-});
+import { useTempDir } from '../../../__tests__/helpers/createTempDir.js';
 
 describe('GOCSVListExporter — stream error handling', () => {
-  it('emits export:error exactly once when fd open fails (missing parent dir)', async () => {
-    // Missing intermediate directories — fs.createWriteStream returns synchronously
-    // but the underlying open(2) fails async, emitting 'error' on the writeStream
-    // a tick later. This is the canonical "late error" we want to cover.
-    const missingParent = path.join(tmpDir, 'does', 'not', 'exist', 'out.csv');
-    const exporter = new GOCSVListExporter<{ a: number }>({ outputPath: missingParent });
+  const tmp = useTempDir('go-csv-list-exporter-');
+
+  it('emits export:error exactly once, without an uncaughtException, when fd open fails late', async () => {
+    // fs.createWriteStream returns synchronously but open(2) fails a tick later
+    // for a missing parent directory: the canonical "late error". export() also
+    // closes the writer a second time from its catch path.
+    const exporter = new GOCSVListExporter<{ a: number }>({ outputPath: tmp.file('does', 'not', 'exist', 'out.csv') });
 
     const errors: Error[] = [];
     exporter.on('export:error', ({ error }) => {
@@ -53,11 +38,7 @@ describe('GOCSVListExporter — stream error handling', () => {
     process.on('uncaughtException', uncaughtHandler);
 
     try {
-      await assert.rejects(
-        exporter.export([{ a: 1 }]),
-        (err: unknown) => err instanceof Error && (err as NodeJS.ErrnoException).code === 'ENOENT',
-      );
-
+      await assert.rejects(exporter.export([{ a: 1 }, { a: 2 }]), { code: 'ENOENT' });
       // Drain a couple of I/O ticks so any stray duplicate emission / late
       // rejection would have time to fire before we assert counts.
       await new Promise((resolve) => setImmediate(resolve));
@@ -66,12 +47,13 @@ describe('GOCSVListExporter — stream error handling', () => {
       process.off('uncaughtException', uncaughtHandler);
     }
 
-    assert.strictEqual(errors.length, 1, `expected exactly one export:error, got ${errors.length}`);
-    assert.strictEqual(uncaught.length, 0, `expected no uncaughtException, got ${uncaught.length}`);
+    assert.strictEqual(errors.length, 1, `expected exactly one export:error, got ${String(errors.length)}`);
+    assert.strictEqual((errors[0] as NodeJS.ErrnoException).code, 'ENOENT');
+    assert.strictEqual(uncaught.length, 0, `expected no uncaughtException, got ${String(uncaught.length)}`);
   });
 
   it('is idempotent on close — second close does not re-emit export:completed', async () => {
-    const outputPath = path.join(tmpDir, 'out.csv');
+    const outputPath = tmp.file('out.csv');
     const exporter = new GOCSVListExporter<{ a: number }>({ outputPath });
 
     let completedCount = 0;
@@ -84,35 +66,7 @@ describe('GOCSVListExporter — stream error handling', () => {
     await writer.close();
     await writer.close(); // repeat call — must be a no-op
 
-    assert.strictEqual(completedCount, 1, `expected exactly one export:completed, got ${completedCount}`);
-
-    // Sanity: file was written.
-    const content = await fs.readFile(outputPath, 'utf-8');
-    assert.ok(content.includes('1'), 'expected exported row to be written');
-  });
-
-  it('emits export:error exactly once on fd-open failure even when closeStream is called again from the catch path', async () => {
-    // export() itself calls writer.close() a second time inside its catch block
-    // as a belt-and-suspenders cleanup. The first close rejects with the
-    // captured streamError, and the cached closePromise may reject again on the
-    // repeated cleanup close. What must remain idempotent is higher-level
-    // export:error emission: the same underlying stream fault should be reported
-    // exactly once per export attempt.
-    const missingParent = path.join(tmpDir, 'missing', 'out.csv');
-    const exporter = new GOCSVListExporter<{ a: number }>({ outputPath: missingParent });
-
-    const errors: Error[] = [];
-    exporter.on('export:error', ({ error }) => {
-      errors.push(error);
-    });
-
-    await assert.rejects(exporter.export([{ a: 1 }, { a: 2 }]));
-    await new Promise((resolve) => setImmediate(resolve));
-
-    assert.strictEqual(errors.length, 1);
-    // Same error object both times would still be "once"; checking identity here
-    // would over-specify. Just confirm the kind.
-    assert.ok(errors[0] instanceof Error);
-    assert.strictEqual((errors[0] as NodeJS.ErrnoException).code, 'ENOENT');
+    assert.strictEqual(completedCount, 1, `expected exactly one export:completed, got ${String(completedCount)}`);
+    assert.ok((await fs.readFile(outputPath, 'utf-8')).includes('1'), 'expected exported row to be written');
   });
 });

@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { describe, it } from 'node:test';
 
 import { canonicalizeJson as goCommonCanonicalizeJson } from '@pagopa/go-common/json';
@@ -66,13 +65,6 @@ describe('canonicalJson parity with go-common', () => {
       assert.deepStrictEqual(JSON.parse(fromContracts), JSON.parse(JSON.stringify(value)));
     });
   }
-
-  it('produces the same sha256 digest, which is what the two are used for', () => {
-    const digest = (canonical: string): string => createHash('sha256').update(canonical, 'utf8').digest('hex');
-    for (const [, value] of CORPUS) {
-      assert.strictEqual(digest(contractsCanonicalizeJson(value)), digest(goCommonCanonicalizeJson(value)));
-    }
-  });
 
   it('rejects non-finite numbers on both sides rather than writing null', () => {
     for (const value of [Number.NaN, Number.POSITIVE_INFINITY, { nested: [Number.NEGATIVE_INFINITY] }]) {

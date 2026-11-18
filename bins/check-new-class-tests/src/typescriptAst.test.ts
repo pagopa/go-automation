@@ -9,177 +9,133 @@ import {
   findNamedReExportsInAddedLines,
 } from './typescriptAst.js';
 
+/** One table row: a source (one line per entry), the added lines and the expected result. */
+interface AddedLinesCase<T> {
+  readonly name: string;
+  readonly source: ReadonlyArray<string>;
+  readonly added: ReadonlyArray<number>;
+  readonly expected: ReadonlyArray<T>;
+}
+
 describe('findExportedClassesInAddedLines', () => {
-  it('finds directly exported classes on added lines', () => {
-    const source = ['const ignored = true;', 'export class Foo {}', 'class Internal {}'].join('\n');
+  const cases: ReadonlyArray<AddedLinesCase<{ readonly name: string; readonly line: number }>> = [
+    {
+      name: 'a directly exported class on an added line',
+      source: ['const ignored = true;', 'export class Foo {}', 'class Internal {}'],
+      added: [2, 3],
+      expected: [{ name: 'Foo', line: 2 }],
+    },
+    {
+      name: 'a new class exported by a named export declaration',
+      source: ['class Foo {}', 'export { Foo };'],
+      added: [1, 2],
+      expected: [{ name: 'Foo', line: 1 }],
+    },
+    {
+      name: 'an existing class made public by an added named export declaration',
+      source: ['class Foo {}', 'export { Foo };'],
+      added: [2],
+      expected: [{ name: 'Foo', line: 2 }],
+    },
+    {
+      name: 'an existing class made public by an added specifier in a multiline export',
+      source: ['class Foo {}', 'class Bar {}', 'export {', '  Bar,', '  Foo,', '};'],
+      added: [5],
+      expected: [{ name: 'Foo', line: 5 }],
+    },
+    {
+      name: 'an existing class made public by an added default export assignment',
+      source: ['class Foo {}', 'export default Foo;'],
+      added: [2],
+      expected: [{ name: 'Foo', line: 2 }],
+    },
+    {
+      name: 'no type-only export declaration',
+      source: ['class Foo {}', 'export type { Foo };'],
+      added: [2],
+      expected: [],
+    },
+    {
+      name: 'no type-only export specifier',
+      source: ['class Foo {}', 'export { type Foo };'],
+      added: [2],
+      expected: [],
+    },
+    {
+      name: 'no exported class whose declaration line was not added',
+      source: ['export class Foo {}', 'export class Bar {}'],
+      added: [2],
+      expected: [{ name: 'Bar', line: 2 }],
+    },
+  ];
 
-    const classes = findExportedClassesInAddedLines('Foo.ts', source, new Set([2, 3]));
-
-    assert.deepStrictEqual(classes, [{ name: 'Foo', line: 2 }]);
-  });
-
-  it('finds new classes exported by named export declarations', () => {
-    const source = ['class Foo {}', 'export { Foo };'].join('\n');
-
-    const classes = findExportedClassesInAddedLines('Foo.ts', source, new Set([1, 2]));
-
-    assert.deepStrictEqual(classes, [{ name: 'Foo', line: 1 }]);
-  });
-
-  it('finds existing classes made public by an added named export declaration', () => {
-    const source = ['class Foo {}', 'export { Foo };'].join('\n');
-
-    const classes = findExportedClassesInAddedLines('Foo.ts', source, new Set([2]));
-
-    assert.deepStrictEqual(classes, [{ name: 'Foo', line: 2 }]);
-  });
-
-  it('finds existing classes made public by an added specifier in a multiline export declaration', () => {
-    const source = ['class Foo {}', 'class Bar {}', 'export {', '  Bar,', '  Foo,', '};'].join('\n');
-
-    const classes = findExportedClassesInAddedLines('Foo.ts', source, new Set([5]));
-
-    assert.deepStrictEqual(classes, [{ name: 'Foo', line: 5 }]);
-  });
-
-  it('finds existing classes made public by an added default export assignment', () => {
-    const source = ['class Foo {}', 'export default Foo;'].join('\n');
-
-    const classes = findExportedClassesInAddedLines('Foo.ts', source, new Set([2]));
-
-    assert.deepStrictEqual(classes, [{ name: 'Foo', line: 2 }]);
-  });
-
-  it('ignores type-only export declarations when finding newly public classes', () => {
-    const source = ['class Foo {}', 'export type { Foo };'].join('\n');
-
-    const classes = findExportedClassesInAddedLines('Foo.ts', source, new Set([2]));
-
-    assert.deepStrictEqual(classes, []);
-  });
-
-  it('ignores type-only export specifiers when finding newly public classes', () => {
-    const source = ['class Foo {}', 'export { type Foo };'].join('\n');
-
-    const classes = findExportedClassesInAddedLines('Foo.ts', source, new Set([2]));
-
-    assert.deepStrictEqual(classes, []);
-  });
-
-  it('ignores exported classes whose class declaration line was not added', () => {
-    const source = ['export class Foo {}', 'export class Bar {}'].join('\n');
-
-    const classes = findExportedClassesInAddedLines('Foo.ts', source, new Set([2]));
-
-    assert.deepStrictEqual(classes, [{ name: 'Bar', line: 2 }]);
-  });
+  for (const { name, source, added, expected } of cases) {
+    it(`finds ${name}`, () => {
+      assert.deepStrictEqual(findExportedClassesInAddedLines('Foo.ts', source.join('\n'), new Set(added)), expected);
+    });
+  }
 });
 
 describe('findNamedReExportsInAddedLines', () => {
-  it('finds named re-exports on added lines', () => {
-    const source = ["export { Foo } from './Foo.js';"].join('\n');
-
-    const reExports = findNamedReExportsInAddedLines('index.ts', source, new Set([1]));
-
-    assert.deepStrictEqual(reExports, [
-      {
-        exportedName: 'Foo',
-        sourceName: 'Foo',
-        moduleSpecifier: './Foo.js',
-        line: 1,
-      },
-    ]);
+  const foo = (sourceName: string, line: number): Readonly<Record<string, unknown>> => ({
+    exportedName: 'Foo',
+    sourceName,
+    moduleSpecifier: './Foo.js',
+    line,
   });
+  const cases: ReadonlyArray<AddedLinesCase<Readonly<Record<string, unknown>>>> = [
+    { name: 'a named re-export', source: ["export { Foo } from './Foo.js';"], added: [1], expected: [foo('Foo', 1)] },
+    {
+      name: 'the added specifier of a multiline re-export',
+      source: ['export {', '  Bar,', '  Foo,', "} from './Foo.js';"],
+      added: [3],
+      expected: [foo('Foo', 3)],
+    },
+    {
+      name: 'the source and exported names of an aliased re-export',
+      source: ["export { default as Foo } from './Foo.js';"],
+      added: [1],
+      expected: [foo('default', 1)],
+    },
+    { name: 'no type-only re-export', source: ["export type { Foo } from './Foo.js';"], added: [1], expected: [] },
+    { name: 'no type-only specifier', source: ["export { type Foo } from './Foo.js';"], added: [1], expected: [] },
+  ];
 
-  it('finds added specifiers in multiline re-export declarations', () => {
-    const source = ['export {', '  Bar,', '  Foo,', "} from './Foo.js';"].join('\n');
-
-    const reExports = findNamedReExportsInAddedLines('index.ts', source, new Set([3]));
-
-    assert.deepStrictEqual(reExports, [
-      {
-        exportedName: 'Foo',
-        sourceName: 'Foo',
-        moduleSpecifier: './Foo.js',
-        line: 3,
-      },
-    ]);
-  });
-
-  it('keeps source and exported names for aliased re-exports', () => {
-    const source = ["export { default as Foo } from './Foo.js';"].join('\n');
-
-    const reExports = findNamedReExportsInAddedLines('index.ts', source, new Set([1]));
-
-    assert.deepStrictEqual(reExports, [
-      {
-        exportedName: 'Foo',
-        sourceName: 'default',
-        moduleSpecifier: './Foo.js',
-        line: 1,
-      },
-    ]);
-  });
-
-  it('ignores type-only re-export declarations', () => {
-    const source = ["export type { Foo } from './Foo.js';"].join('\n');
-
-    const reExports = findNamedReExportsInAddedLines('index.ts', source, new Set([1]));
-
-    assert.deepStrictEqual(reExports, []);
-  });
-
-  it('ignores type-only re-export specifiers', () => {
-    const source = ["export { type Foo } from './Foo.js';"].join('\n');
-
-    const reExports = findNamedReExportsInAddedLines('index.ts', source, new Set([1]));
-
-    assert.deepStrictEqual(reExports, []);
-  });
+  for (const { name, source, added, expected } of cases) {
+    it(`finds ${name}`, () => {
+      assert.deepStrictEqual(findNamedReExportsInAddedLines('index.ts', source.join('\n'), new Set(added)), expected);
+    });
+  }
 });
 
 describe('findModuleReExportsInAddedLines', () => {
-  it('finds added export-star declarations', () => {
-    const source = ["export * from './Foo.js';"].join('\n');
+  const cases: ReadonlyArray<AddedLinesCase<{ readonly moduleSpecifier: string; readonly line: number }>> = [
+    {
+      name: 'an export-star declaration',
+      source: ["export * from './Foo.js';"],
+      added: [1],
+      expected: [{ moduleSpecifier: './Foo.js', line: 1 }],
+    },
+    {
+      name: 'a namespace re-export',
+      source: ["export * as FooModule from './Foo.js';"],
+      added: [1],
+      expected: [{ moduleSpecifier: './Foo.js', line: 1 }],
+    },
+    {
+      name: 'no named re-export (handled separately)',
+      source: ["export { Foo } from './Foo.js';"],
+      added: [1],
+      expected: [],
+    },
+    { name: 'no type-only module re-export', source: ["export type * from './Foo.js';"], added: [1], expected: [] },
+  ];
 
-    const reExports = findModuleReExportsInAddedLines('index.ts', source, new Set([1]));
-
-    assert.deepStrictEqual(reExports, [
-      {
-        moduleSpecifier: './Foo.js',
-        line: 1,
-      },
-    ]);
-  });
-
-  it('finds added namespace re-export declarations', () => {
-    const source = ["export * as FooModule from './Foo.js';"].join('\n');
-
-    const reExports = findModuleReExportsInAddedLines('index.ts', source, new Set([1]));
-
-    assert.deepStrictEqual(reExports, [
-      {
-        moduleSpecifier: './Foo.js',
-        line: 1,
-      },
-    ]);
-  });
-
-  it('ignores named re-exports because they are handled separately', () => {
-    const source = ["export { Foo } from './Foo.js';"].join('\n');
-
-    const reExports = findModuleReExportsInAddedLines('index.ts', source, new Set([1]));
-
-    assert.deepStrictEqual(reExports, []);
-  });
-
-  it('ignores type-only module re-exports', () => {
-    const source = ["export type * from './Foo.js';"].join('\n');
-
-    const reExports = findModuleReExportsInAddedLines('index.ts', source, new Set([1]));
-
-    assert.deepStrictEqual(reExports, []);
-  });
+  for (const { name, source, added, expected } of cases) {
+    it(`finds ${name}`, () => {
+      assert.deepStrictEqual(findModuleReExportsInAddedLines('index.ts', source.join('\n'), new Set(added)), expected);
+    });
+  }
 });
 
 describe('findExportedClassDeclarations', () => {
@@ -192,9 +148,7 @@ describe('findExportedClassDeclarations', () => {
       'export default class DefaultFoo {}',
     ].join('\n');
 
-    const classes = findExportedClassDeclarations('Foo.ts', source);
-
-    assert.deepStrictEqual(classes, [
+    assert.deepStrictEqual(findExportedClassDeclarations('Foo.ts', source), [
       { name: 'Foo', line: 1 },
       { name: 'Bar', line: 2 },
       { name: 'DefaultFoo', line: 5 },
@@ -203,35 +157,16 @@ describe('findExportedClassDeclarations', () => {
 });
 
 describe('findExportedClassName', () => {
-  it('finds a class exported by name', () => {
-    const source = ['export class Foo {}'].join('\n');
+  const cases: ReadonlyArray<readonly [string, string, string, string | undefined]> = [
+    ['a class exported by name', 'export class Foo {}', 'Foo', 'Foo'],
+    ['a class exported through a same-file export declaration', 'class Foo {}\nexport { Foo };', 'Foo', 'Foo'],
+    ['a default exported class through an aliased re-export', 'export default class Foo {}', 'default', 'Foo'],
+    ['no class that is not exported', 'class Foo {}', 'Foo', undefined],
+  ];
 
-    const className = findExportedClassName('Foo.ts', source, 'Foo', 'Foo');
-
-    assert.equal(className, 'Foo');
-  });
-
-  it('finds a class exported through a same-file export declaration', () => {
-    const source = ['class Foo {}', 'export { Foo };'].join('\n');
-
-    const className = findExportedClassName('Foo.ts', source, 'Foo', 'Foo');
-
-    assert.equal(className, 'Foo');
-  });
-
-  it('finds a default exported class through an aliased re-export', () => {
-    const source = ['export default class Foo {}'].join('\n');
-
-    const className = findExportedClassName('Foo.ts', source, 'default', 'Foo');
-
-    assert.equal(className, 'Foo');
-  });
-
-  it('ignores non-exported classes', () => {
-    const source = ['class Foo {}'].join('\n');
-
-    const className = findExportedClassName('Foo.ts', source, 'Foo', 'Foo');
-
-    assert.equal(className, undefined);
-  });
+  for (const [name, source, sourceName, expected] of cases) {
+    it(`finds ${name}`, () => {
+      assert.equal(findExportedClassName('Foo.ts', source, sourceName, 'Foo'), expected);
+    });
+  }
 });

@@ -6,6 +6,7 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 
 import { reproduceRelease } from '../reproduceRelease.js';
+import type { ReproductionInput } from '../types/ReproductionInput.js';
 import type { RunCommandFn } from '../types/RunCommandFn.js';
 import { FakeGit, packageFiles } from './fakes.js';
 
@@ -39,6 +40,13 @@ describe('release-pr-guard reproduction', () => {
   let work = '';
   let calls: string[] = [];
 
+  const input = (): ReproductionInput => ({
+    repositoryRoot: root,
+    base: 'base',
+    head: 'head',
+    workDirectory: work,
+  });
+
   /** Fake changeset CLI: `version` turns the base worktree into {@link RELEASED_TREE}. */
   const changesetCli: RunCommandFn = (_command, args, cwd) => {
     calls.push(args.slice(1).join(' '));
@@ -66,8 +74,7 @@ describe('release-pr-guard reproduction', () => {
 
   it('enters pre mode like the head, runs changeset version on the base and finds the same files', async () => {
     const git = repository();
-    const input = { repositoryRoot: root, base: 'base', head: 'head', workDirectory: work };
-    assert.deepStrictEqual(await reproduceRelease(git, changesetCli, input), []);
+    assert.deepStrictEqual(await reproduceRelease(git, changesetCli, input()), []);
     assert.deepStrictEqual(calls, ['pre enter next', 'version']);
     assert.deepStrictEqual(git.worktrees, [], 'the worktree is removed');
   });
@@ -78,8 +85,7 @@ describe('release-pr-guard reproduction', () => {
       'packages/go-common/package.json': '{"name":"@pagopa/go-common","version":"9.9.9"}',
       '.changeset/extra.md': 'x',
     };
-    const input = { repositoryRoot: root, base: 'base', head: 'head', workDirectory: work };
-    const differences = await reproduceRelease(repository(head), changesetCli, input);
+    const differences = await reproduceRelease(repository(head), changesetCli, input());
     assert.deepStrictEqual(differences, [
       '.changeset/extra.md is in the PR but changeset version does not produce it',
       'packages/go-common/package.json differs from what changeset version produces on the base',
@@ -89,16 +95,14 @@ describe('release-pr-guard reproduction', () => {
   it('reports a failing changeset command and still removes the worktree', async () => {
     const git = repository();
     const failing: RunCommandFn = () => ({ status: 1, stdout: '', stderr: 'boom' });
-    const input = { repositoryRoot: root, base: 'base', head: 'head', workDirectory: work };
-    const differences = await reproduceRelease(git, failing, input);
+    const differences = await reproduceRelease(git, failing, input());
     assert.match(differences[0] ?? '', /changeset pre enter next failed on the base: boom/u);
     assert.deepStrictEqual(git.worktrees, []);
   });
 
   it('rejects a prerelease channel other than next before running anything', async () => {
     const git = repository({ ...RELEASED_TREE, '.changeset/pre.json': '{"mode":"pre","tag":"alpha"}' });
-    const input = { repositoryRoot: root, base: 'base', head: 'head', workDirectory: work };
-    const differences = await reproduceRelease(git, changesetCli, input);
+    const differences = await reproduceRelease(git, changesetCli, input());
     assert.match(differences[0] ?? '', /must be absent or \{"mode":"pre","tag":"next"\}/u);
     assert.deepStrictEqual(calls, []);
   });

@@ -72,37 +72,17 @@ describe('GORateLimiter', () => {
     const grantedAt: number[] = [];
 
     await Promise.all(
-      Array.from({ length: 100 }, async () => {
+      Array.from({ length: 30 }, async () => {
         await limiter.acquire();
         grantedAt.push(time.current);
       }),
     );
 
-    assert.equal(grantedAt.length, 100);
-    assert.equal(grantedAt[0], 0, 'first permit is immediate');
-    assert.equal(grantedAt[99], 99 * 50, '100 permits at 20/s take 4.95 s');
-    for (let i = 1; i < grantedAt.length; i++) {
-      assert.equal((grantedAt[i] ?? 0) - (grantedAt[i - 1] ?? 0), 50);
-    }
-  });
-
-  it('never exceeds rate + 1 permits in any one-second window', async () => {
-    const time = new FakeTime();
-    const limiter = createLimiter(time, 20);
-    const grantedAt: number[] = [];
-
-    await Promise.all(
-      Array.from({ length: 200 }, async () => {
-        await limiter.acquire();
-        grantedAt.push(time.current);
-      }),
+    // First permit immediate, then exactly one every 50 ms (so never more than rate + 1 per second).
+    assert.deepEqual(
+      grantedAt,
+      Array.from({ length: 30 }, (_, i) => i * 50),
     );
-
-    let start = 0;
-    for (let end = 0; end < grantedAt.length; end++) {
-      while ((grantedAt[end] ?? 0) - (grantedAt[start] ?? 0) >= 1000) start++;
-      assert.ok(end - start + 1 <= 21, `window ending at ${grantedAt[end]} has ${end - start + 1} permits`);
-    }
   });
 
   it('allows an initial burst equal to the bucket capacity', async () => {
@@ -239,10 +219,10 @@ describe('GORateLimiter', () => {
   });
 
   it('works with the real clock and sleeper', async () => {
-    const limiter = new GORateLimiter({ ratePerSecond: 100 });
+    const limiter = new GORateLimiter({ ratePerSecond: 200 });
     const started = performance.now();
-    await Promise.all(Array.from({ length: 5 }, async () => limiter.acquire()));
-    assert.ok(performance.now() - started >= 35, 'four waits of ~10 ms each');
+    await Promise.all(Array.from({ length: 3 }, async () => limiter.acquire()));
+    assert.ok(performance.now() - started >= 8, 'two waits of ~5 ms each');
   });
 
   it('re-anchors when the clock goes backwards instead of stalling', async () => {

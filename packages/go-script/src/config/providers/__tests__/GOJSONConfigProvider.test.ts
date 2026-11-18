@@ -1,15 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import * as fs from 'node:fs/promises';
-import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { GOSecretsSpecifierFactory } from '../../GOSecretsSpecifier.js';
 import { GOJSONConfigProvider } from '../GOJSONConfigProvider.js';
-
-async function makeTempDir(): Promise<string> {
-  return fs.mkdtemp(path.join(os.tmpdir(), 'go-common-json-provider-'));
-}
+import { makeTempDir } from './makeTempDir.js';
 
 describe('GOJSONConfigProvider', () => {
   it('loads nested data objects and redacts configured secrets', () => {
@@ -34,8 +30,8 @@ describe('GOJSONConfigProvider', () => {
     assert.strictEqual(provider.getDisplayValue('token'), '[REDACTED (12 chars)]');
   });
 
-  it('loads, names and reloads JSON files', async () => {
-    const dir = await makeTempDir();
+  it('loads, names and reloads JSON files', async (t) => {
+    const dir = await makeTempDir(t);
     const filePath = path.join(dir, 'config.json');
     await fs.writeFile(filePath, JSON.stringify({ feature: { enabled: true } }), 'utf-8');
 
@@ -51,8 +47,8 @@ describe('GOJSONConfigProvider', () => {
     assert.strictEqual(provider.getValue('name'), 'updated');
   });
 
-  it('uses a custom display name and allows optional missing configuration', async () => {
-    const dir = await makeTempDir();
+  it('uses a custom display name and allows optional missing configuration', async (t) => {
+    const dir = await makeTempDir(t);
     const missingPath = path.join(dir, 'missing.json');
     const fileProvider = new GOJSONConfigProvider({
       filePath: missingPath,
@@ -70,8 +66,8 @@ describe('GOJSONConfigProvider', () => {
     assert.deepStrictEqual(dataProvider.getAllKeys(), []);
   });
 
-  it('throws for missing required files, malformed JSON and reload without a file path', async () => {
-    const dir = await makeTempDir();
+  it('throws for missing required files, malformed JSON and reload without a file path', async (t) => {
+    const dir = await makeTempDir(t);
     const missingPath = path.join(dir, 'missing.json');
     const badPath = path.join(dir, 'bad.json');
     await fs.writeFile(badPath, '{bad json', 'utf-8');

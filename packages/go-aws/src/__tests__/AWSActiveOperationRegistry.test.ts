@@ -16,12 +16,9 @@ describe('AWSActiveOperationRegistry', () => {
       },
     });
 
-    const [first, second] = await Promise.all([operation.stop(), operation.stop()]);
-    const third = await operation.stop();
+    await Promise.all([operation.stop(), operation.stop()]);
+    await operation.stop();
 
-    assert.strictEqual(first, undefined);
-    assert.strictEqual(second, undefined);
-    assert.strictEqual(third, undefined);
     assert.strictEqual(stops, 1);
     assert.strictEqual(registry.size, 0);
   });

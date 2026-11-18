@@ -13,7 +13,6 @@ import { VirtualClock } from '../../__tests__/helpers/VirtualClock.js';
 import type { DispatchError } from '../../DispatchError.js';
 import { DocumentResolver } from '../../documents/DocumentResolver.js';
 import { LocalDocumentInspector } from '../../documents/LocalDocumentInspector.js';
-import { RequestIdTemplate } from '../../ids/RequestIdTemplate.js';
 import { UploadError } from '../../documents/UploadError.js';
 import { RowLedger } from '../../journal/RowLedger.js';
 import { RateAdapter } from '../../stages/RateAdapter.js';
@@ -103,18 +102,6 @@ describe('buildDirectRecord', () => {
   it('accepts a foreign address without province', () => {
     const foreign = record({ receiverCountry: 'FRANCIA', receiverPr: '', receiverCap: '75001' });
     assert.equal(foreign.physicalAddress.foreignState, 'FRANCIA');
-  });
-});
-
-describe('RequestIdTemplate', () => {
-  it('renders the placeholders and rejects unknown ones', () => {
-    const template = RequestIdTemplate.parse('PNMAN.GO-{runId}.{rowKey}.R{rowIndex}.{col:caso}.PCRETRY_{attempt}');
-    assert.equal(template.render('run', 'TC-1', 3, { caso: ' A ' }), 'PNMAN.GO-run.TC-1.R3.A.PCRETRY_0');
-    assert.throws(() => RequestIdTemplate.parse('X-{iun}'), /unknown placeholder \{iun\}/);
-    assert.throws(() => RequestIdTemplate.parse('X-{col:}'), /unknown placeholder/);
-    assert.deepEqual(template.emptyColumns({ caso: ' A ' }), []);
-    assert.deepEqual(template.emptyColumns({ caso: '  ' }), ['caso']);
-    assert.deepEqual(RequestIdTemplate.parse('X-{col:a}-{col:b}').emptyColumns({ b: 'v' }), ['a']);
   });
 });
 

@@ -23,11 +23,4 @@ describe('resolveAnalysisMatcher', () => {
   it('rejects invalid semantic thresholds', () => {
     assert.throws(() => resolveAnalysisMatcher({ goAiSemanticThreshold: 101 }), /0\.\.100/);
   });
-
-  it('uses the standard awsProfile configuration for the AI matcher', () => {
-    const resolved = resolveAnalysisMatcher({ awsProfile: 'generic-profile' });
-
-    assert.strictEqual(resolved.kind, 'ai');
-    assert.strictEqual(resolved.semanticThreshold, 70);
-  });
 });

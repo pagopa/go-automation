@@ -4,83 +4,31 @@ import assert from 'node:assert/strict';
 import { GOLogger } from '@pagopa/go-common/logging';
 
 import { RunbookEngine } from '../RunbookEngine.js';
-import type { CaseAction } from '../../types/CaseAction.js';
 import type { ServiceRegistry } from '../../../toolkits/common/services/ServiceRegistry.js';
-import type { FlowDirective } from '../../types/FlowDirective.js';
 import type { KnownCase } from '../../types/KnownCase.js';
-import type { Runbook } from '../../types/Runbook.js';
-import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { Step } from '../../types/Step.js';
-import type { StepDescriptor } from '../../types/StepDescriptor.js';
-import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import { createTestServiceRegistry } from '../../../toolkits/common/testing/createTestServiceRegistry.js';
+import { createTestRunbook } from '../../../__tests__/helpers/createTestRunbook.js';
 
-class RecordingStep implements Step<void> {
-  readonly label: string;
-  readonly kind: StepKind = 'control';
-
-  constructor(
-    readonly id: string,
-    private readonly executions: string[],
-    private readonly directive?: FlowDirective,
-  ) {
-    this.label = `Step ${id}`;
-  }
-
-  async execute(_context: RunbookContext): Promise<StepResult<void>> {
-    await Promise.resolve();
-    this.executions.push(this.id);
-    if (this.directive === undefined) {
-      return { success: true };
-    }
-    return { success: true, next: this.directive };
-  }
+/** A step that records its run and returns the given result. */
+function recordingStep(id: string, executions: string[], result: StepResult<void> = { success: true }): Step<void> {
+  return {
+    id,
+    label: id,
+    kind: 'control',
+    execute: async () => {
+      await Promise.resolve();
+      executions.push(id);
+      return result;
+    },
+  };
 }
 
-class ReturnedFailureStep implements Step<void> {
-  readonly label: string;
-  readonly kind: StepKind = 'data';
-
-  constructor(
-    readonly id: string,
-    private readonly executions: string[],
-    private readonly error: string,
-  ) {
-    this.label = `Step ${id}`;
-  }
-
-  async execute(_context: RunbookContext): Promise<StepResult<void>> {
-    await Promise.resolve();
-    this.executions.push(this.id);
-    return { success: false, error: this.error };
-  }
-}
+const PLANNED_FAILURE: StepResult<void> = { success: false, error: 'planned failure' };
 
 function createEngine(): RunbookEngine {
   return new RunbookEngine(new GOLogger());
-}
-
-function emptyServices(): ServiceRegistry {
-  return createTestServiceRegistry();
-}
-
-function createRunbook(steps: ReadonlyArray<StepDescriptor>, knownCases: ReadonlyArray<KnownCase> = []): Runbook {
-  const fallbackAction: CaseAction = { type: 'log', level: 'warn', title: 'fallback' };
-  return {
-    metadata: {
-      id: 'test-runbook',
-      name: 'Test Runbook',
-      description: 'desc',
-      version: '1.0.0',
-      type: 'alarm-resolution',
-      team: 'GO',
-      tags: [],
-    },
-    steps,
-    knownCases,
-    fallbackAction,
-  };
 }
 
 describe('RunbookEngine status handling', () => {
@@ -95,15 +43,15 @@ describe('RunbookEngine status handling', () => {
     };
 
     const result = await createEngine().execute(
-      createRunbook(
-        [
-          { step: new ReturnedFailureStep('failing-step', executions, 'planned failure') },
-          { step: new RecordingStep('after-failure', executions) },
+      createTestRunbook({
+        steps: [
+          { step: recordingStep('failing-step', executions, PLANNED_FAILURE) },
+          { step: recordingStep('after-failure', executions) },
         ],
-        [matchingCase],
-      ),
+        knownCases: [matchingCase],
+      }),
       new Map([['mode', 'match']]),
-      emptyServices(),
+      createTestServiceRegistry(),
     );
 
     assert.strictEqual(result.status, 'failed');
@@ -127,12 +75,14 @@ describe('RunbookEngine status handling', () => {
   it("treats next: 'stop' as a normal completed execution", async () => {
     const executions: string[] = [];
     const result = await createEngine().execute(
-      createRunbook([
-        { step: new RecordingStep('stopper', executions, 'stop') },
-        { step: new RecordingStep('after-stop', executions) },
-      ]),
+      createTestRunbook({
+        steps: [
+          { step: recordingStep('stopper', executions, { success: true, next: 'stop' }) },
+          { step: recordingStep('after-stop', executions) },
+        ],
+      }),
       new Map(),
-      emptyServices(),
+      createTestServiceRegistry(),
     );
 
     assert.strictEqual(result.status, 'completed');
@@ -151,9 +101,9 @@ describe('RunbookEngine status handling', () => {
     controller.abort();
 
     const result = await createEngine().execute(
-      createRunbook([{ step: new RecordingStep('never-runs', executions) }]),
+      createTestRunbook({ steps: [{ step: recordingStep('never-runs', executions) }] }),
       new Map(),
-      emptyServices(),
+      createTestServiceRegistry(),
       undefined,
       controller.signal,
     );
@@ -189,9 +139,9 @@ describe('RunbookEngine status handling', () => {
     ];
 
     const result = await createEngine().execute(
-      createRunbook([], cases),
+      createTestRunbook({ knownCases: cases }),
       new Map([['mode', 'match']]),
-      emptyServices(),
+      createTestServiceRegistry(),
     );
 
     assert.deepStrictEqual(
@@ -229,7 +179,7 @@ describe('RunbookEngine narrative flushing', () => {
     const executions: string[] = [];
 
     const result = await createEngine().execute(
-      createRunbook([{ step: new RecordingStep('only-step', executions) }]),
+      createTestRunbook({ steps: [{ step: recordingStep('only-step', executions) }] }),
       new Map(),
       explodingReporter(),
     );
@@ -242,7 +192,7 @@ describe('RunbookEngine narrative flushing', () => {
     const executions: string[] = [];
 
     const result = await createEngine().execute(
-      createRunbook([{ step: new ReturnedFailureStep('failing-step', executions, 'planned failure') }]),
+      createTestRunbook({ steps: [{ step: recordingStep('failing-step', executions, PLANNED_FAILURE) }] }),
       new Map(),
       explodingReporter(),
     );

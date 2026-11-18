@@ -4,26 +4,13 @@ import { describe, it } from 'node:test';
 import { anyStepEvidenceMatches, stepEvidenceMatches } from '../evidenceConditions.js';
 
 describe('evidence conditions', () => {
-  it('builds a condition for one step', () => {
-    assert.deepStrictEqual(stepEvidenceMatches('query-errors', 'ECONNRESET'), {
-      type: 'contains',
-      ref: 'steps.query-errors',
-      regex: 'ECONNRESET',
-    });
-    assert.deepStrictEqual(anyStepEvidenceMatches(['query-errors'], 'ECONNRESET'), {
-      type: 'contains',
-      ref: 'steps.query-errors',
-      regex: 'ECONNRESET',
-    });
-  });
-
-  it('builds an OR condition for multiple steps', () => {
+  it('builds one contains predicate for one step and an OR for several', () => {
+    const single = { type: 'contains', ref: 'steps.query-a', regex: 'timeout' };
+    assert.deepStrictEqual(stepEvidenceMatches('query-a', 'timeout'), single);
+    assert.deepStrictEqual(anyStepEvidenceMatches(['query-a'], 'timeout'), single);
     assert.deepStrictEqual(anyStepEvidenceMatches(['query-a', 'query-b'], 'timeout'), {
       type: 'or',
-      conditions: [
-        { type: 'contains', ref: 'steps.query-a', regex: 'timeout' },
-        { type: 'contains', ref: 'steps.query-b', regex: 'timeout' },
-      ],
+      conditions: [single, { type: 'contains', ref: 'steps.query-b', regex: 'timeout' }],
     });
   });
 

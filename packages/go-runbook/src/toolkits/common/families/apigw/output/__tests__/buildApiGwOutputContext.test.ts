@@ -1,155 +1,82 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import type { Runbook } from '../../../../../../engine/types/Runbook.js';
-import type { RunbookContext } from '../../../../../../engine/types/RunbookContext.js';
 import type { RunbookExecutionResult } from '../../../../../../engine/types/RunbookExecutionResult.js';
-import type { RunbookExecutionTrace } from '../../../../../../engine/tracing/RunbookExecutionTrace.js';
 import type { ApiGwOutputContext } from '../ApiGwOutputContext.js';
 import { buildApiGwOutputContext } from '../buildApiGwOutputContext.js';
-import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
+import { createTestExecutionResult } from '../../../../../../__tests__/helpers/createTestExecutionResult.js';
+import { createTestRunbook } from '../../../../../../__tests__/helpers/createTestRunbook.js';
+import { logRow } from '../../../../../../__tests__/helpers/logRow.js';
 
-function row(fields: Record<string, string>): GOLogsInsightsResultField[] {
-  return Object.entries(fields).map(([field, value]) => ({ field, value }));
-}
+const RUNBOOK = createTestRunbook({
+  runbookContext: {
+    kind: 'apigw',
+    product: 'SEND',
+    apiGwLogGroup: 'access-log-group',
+    queryProfileId: 'send',
+    services: [{ name: 'pn-delivery', varPrefix: 'delivery', logGroup: '/aws/ecs/pn-delivery' }],
+  },
+});
 
-function createRunbook(withContext: boolean = true): Runbook {
-  return {
-    metadata: {
-      id: 'api-gw-runbook',
-      name: 'API GW Runbook',
-      description: 'desc',
-      version: '1.0.0',
-      type: 'alarm-resolution',
-      team: 'GO',
-      tags: [],
+const VARS: Readonly<Record<string, string>> = {
+  apiGwErrorCount: '3',
+  apiGwStatusCode: '500',
+  apiGwHttpMethod: 'POST',
+  apiGwPath: '/delivery/check',
+  apiGwSourceIp: '203.0.113.42',
+  xRayTraceId: '1-abc',
+  apiGwErrorMessage: 'Internal server error',
+  apiGwAuthorizerLambdaName: 'pn-ioAuthorizerLambda',
+  apiGwAuthorizerStatus: '500',
+  apiGwAuthorizerLatencyMs: '5011',
+  apiGwAuthorizerRequestId: 'auth-req',
+  apiGwAuthorizerTimeoutMs: '5000',
+  apiGwAuthorizerOutcome: 'timeout',
+  apiGwExecutionLogMode: 'queried',
+  apiGwExecutionLogGroup: 'execution-log-group',
+  apiGwExecutionLogRequestCount: '2',
+  apiGwExecutionLogRequestIds: 'req-1,req-2',
+  apiGwExecutionLogPaths: '/a,/b',
+  apiGwExecutionLogCount: '10',
+  deliveryLogCount: '3',
+  deliveryErrorMsg: 'service failed',
+  deliveryNextUrl: 'http://internal/service',
+  deliveryNextUrlTarget: 'pn-next',
+  lastErrorMsg: 'service failed',
+  apiGwServicesVisited: 'pn-delivery|3',
+};
+
+/** A finished API Gateway execution, with `vars` replacing the default variables. */
+function createResult(vars: Readonly<Record<string, string>> = {}): RunbookExecutionResult {
+  return createTestExecutionResult({
+    vars: { ...VARS, ...vars },
+    params: {
+      alarmName: 'alarm',
+      alarmDatetime: '2026-01-01T00:00:00.000Z',
+      startTime: '2025-12-31T23:55:00.000Z',
+      endTime: '2026-01-01T00:05:00.000Z',
     },
-    steps: [],
-    knownCases: [],
-    fallbackAction: { type: 'log', level: 'warn', title: 'fallback' },
-    ...(withContext
-      ? {
-          runbookContext: {
-            kind: 'apigw',
-            product: 'SEND',
-            apiGwLogGroup: 'access-log-group',
-            queryProfileId: 'send',
-            services: [{ name: 'pn-delivery', varPrefix: 'delivery', logGroup: '/aws/ecs/pn-delivery' }],
-          },
-        }
-      : {}),
-  };
-}
-
-function createResult(): RunbookExecutionResult {
-  const vars = new Map<string, string>([
-    ['apiGwErrorCount', '3'],
-    ['apiGwStatusCode', '500'],
-    ['apiGwHttpMethod', 'POST'],
-    ['apiGwPath', '/delivery/check'],
-    ['apiGwSourceIp', '203.0.113.42'],
-    ['xRayTraceId', '1-abc'],
-    ['apiGwErrorMessage', 'Internal server error'],
-    ['apiGwAuthorizerLambdaName', 'pn-ioAuthorizerLambda'],
-    ['apiGwAuthorizerStatus', '500'],
-    ['apiGwAuthorizerLatencyMs', '5011'],
-    ['apiGwAuthorizerRequestId', 'auth-req'],
-    ['apiGwAuthorizerTimeoutMs', '5000'],
-    ['apiGwAuthorizerOutcome', 'timeout'],
-    ['apiGwExecutionLogMode', 'queried'],
-    ['apiGwExecutionLogGroup', 'execution-log-group'],
-    ['apiGwExecutionLogRequestCount', '2'],
-    ['apiGwExecutionLogRequestIds', 'req-1,req-2'],
-    ['apiGwExecutionLogPaths', '/a,/b'],
-    ['apiGwExecutionLogCount', '10'],
-    ['deliveryLogCount', '3'],
-    ['deliveryErrorMsg', 'service failed'],
-    ['deliveryNextUrl', 'http://internal/service'],
-    ['deliveryNextUrlTarget', 'pn-next'],
-    ['lastErrorMsg', 'service failed'],
-    ['apiGwServicesVisited', 'pn-delivery|3'],
-  ]);
-  const stepResults = new Map<string, unknown>([
-    [
-      'query-api-gw-logs',
-      [
-        row({ '@timestamp': '2026-01-01T00:00:01.000Z', '@message': 'old api gw' }),
-        row({ '@timestamp': '2026-01-01T00:00:03.000Z', '@message': 'new api gw' }),
+    stepResults: {
+      'query-api-gw-logs': [
+        logRow({ '@timestamp': '2026-01-01T00:00:01.000Z', '@message': 'old api gw' }),
+        logRow({ '@timestamp': '2026-01-01T00:00:03.000Z', '@message': 'new api gw' }),
       ],
-    ],
-    [
-      'query-pn-delivery',
-      [
-        row({ '@timestamp': '2026-01-01T00:00:01.000Z', '@message': 'old service' }),
-        row({ '@timestamp': '2026-01-01T00:00:02.000Z', message: 'fallback message field' }),
-        row({ '@timestamp': '2026-01-01T00:00:03.000Z', '@message': 'new service' }),
+      'query-pn-delivery': [
+        logRow({ '@timestamp': '2026-01-01T00:00:01.000Z', '@message': 'old service' }),
+        logRow({ '@timestamp': '2026-01-01T00:00:02.000Z', message: 'fallback message field' }),
+        logRow({ '@timestamp': '2026-01-01T00:00:03.000Z', '@message': 'new service' }),
       ],
-    ],
-  ]);
-  const finalContext: RunbookContext = {
-    executionId: 'exec-1',
-    startedAt: new Date('2026-01-01T00:00:00.000Z'),
-    stepResults,
-    vars,
-    params: new Map<string, string>([
-      ['alarmName', 'alarm'],
-      ['alarmDatetime', '2026-01-01T00:00:00.000Z'],
-      ['startTime', '2025-12-31T23:55:00.000Z'],
-      ['endTime', '2026-01-01T00:05:00.000Z'],
-    ]),
-    logs: [],
-    services: createTestServiceRegistry(),
-    recoveredErrors: [],
-  };
-  const trace: RunbookExecutionTrace = {
-    schemaVersion: '1.0.0',
-    execution: {
-      executionId: 'exec-1',
-      runbookId: 'api-gw-runbook',
-      runbookName: 'API GW Runbook',
-      runbookVersion: '1.0.0',
-      runbookType: 'alarm-resolution',
-      startedAt: '2026-01-01T00:00:00.000Z',
-      completedAt: '2026-01-01T00:00:05.000Z',
-      durationMs: 5000,
-      status: 'completed',
-      environment: { awsProfiles: [], region: 'eu-south-1', invokedBy: 'manual' },
     },
-    input: {},
-    pipeline: [],
-    variables: Object.fromEntries(vars),
-    caseMatching: { casesEvaluated: 0, evaluations: [], matchedCaseIds: [] },
-    actionsExecuted: [],
-    summary: {
-      description: 'completed',
-      totalSteps: 0,
-      stepsExecuted: 0,
-      stepsFailed: 0,
-      stepsRecovered: 0,
-      stepsSkipped: 0,
-      outcome: 'no-match',
-    },
-  };
-  return {
-    runbookId: 'api-gw-runbook',
-    status: 'completed',
-    matchedCases: [],
-    durationMs: 5000,
-    stepsExecuted: 0,
-    finalContext,
-    recoveredErrors: [],
-    trace,
-  };
+  });
 }
 
 describe('buildApiGwOutputContext', () => {
   it('returns undefined when the runbook has no API Gateway context', () => {
-    assert.strictEqual(buildApiGwOutputContext(createRunbook(false), createResult()), undefined);
+    assert.strictEqual(buildApiGwOutputContext(createTestRunbook(), createResult()), undefined);
   });
 
   it('builds fields, evidence and typed details from vars and step results', () => {
-    const context = buildApiGwOutputContext(createRunbook(), createResult(), { maxRecentLogs: 2 });
+    const context = buildApiGwOutputContext(RUNBOOK, createResult(), { maxRecentLogs: 2 });
 
     assert.ok(context !== undefined);
     assert.strictEqual(context.fields.find((field) => field.name === 'endpoint')?.value, 'POST /delivery/check');
@@ -174,17 +101,15 @@ describe('buildApiGwOutputContext', () => {
   });
 
   it('exposes why execution logs are unavailable in fields and typed details', () => {
-    const result = createResult();
-    const vars = new Map(result.finalContext.vars);
     const reason = 'MalformedQueryException: time range exceeds the log retention settings';
-    vars.set('apiGwExecutionLogMode', 'unavailable');
-    vars.set('apiGwExecutionLogCount', '0');
-    vars.set('apiGwExecutionLogUnavailableReason', reason);
-
-    const context = buildApiGwOutputContext(createRunbook(), {
-      ...result,
-      finalContext: { ...result.finalContext, vars },
-    });
+    const context = buildApiGwOutputContext(
+      RUNBOOK,
+      createResult({
+        apiGwExecutionLogMode: 'unavailable',
+        apiGwExecutionLogCount: '0',
+        apiGwExecutionLogUnavailableReason: reason,
+      }),
+    );
 
     assert.strictEqual(context?.fields.find((field) => field.name === 'executionLogUnavailableReason')?.value, reason);
     const details = context?.details as unknown as ApiGwOutputContext;
@@ -192,20 +117,10 @@ describe('buildApiGwOutputContext', () => {
   });
 
   it('includes a successful authorizer gate outcome when exposed by vars', () => {
-    const result = createResult();
-    const noErrorResult: RunbookExecutionResult = {
-      ...result,
-      finalContext: {
-        ...result.finalContext,
-        vars: new Map([
-          ...result.finalContext.vars,
-          ['apiGwAuthorizerOutcome', 'no-error'],
-          ['apiGwAuthorizerStatus', '200'],
-        ]),
-      },
-    };
-
-    const context = buildApiGwOutputContext(createRunbook(), noErrorResult);
+    const context = buildApiGwOutputContext(
+      RUNBOOK,
+      createResult({ apiGwAuthorizerOutcome: 'no-error', apiGwAuthorizerStatus: '200' }),
+    );
 
     const details = context?.details as unknown as ApiGwOutputContext;
     assert.strictEqual(details.authorizer?.outcome, 'no-error');

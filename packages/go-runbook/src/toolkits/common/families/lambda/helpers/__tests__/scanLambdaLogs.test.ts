@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { logRow, messageRow } from '../../../../../../__tests__/helpers/logRow.js';
 
 import { scanLambdaLogs as scanWithSignatures } from '../scanLambdaLogs.js';
 
@@ -11,13 +12,6 @@ function scanLambdaLogs(
   rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
 ): ReturnType<typeof scanWithSignatures> {
   return scanWithSignatures(rows, DOWNSTREAM_SIGNATURES);
-}
-
-function row(message: string, timestamp = '2026-01-01T00:00:00.000Z'): ReadonlyArray<GOLogsInsightsResultField> {
-  return [
-    { field: '@timestamp', value: timestamp },
-    { field: '@message', value: message },
-  ];
 }
 
 const REPORT_TIMEOUT =
@@ -34,7 +28,7 @@ describe('scanLambdaLogs', () => {
   });
 
   it('classifies a bare REPORT timeout (no application error line)', () => {
-    const scan = scanLambdaLogs([row(REPORT_TIMEOUT)]);
+    const scan = scanLambdaLogs([messageRow(REPORT_TIMEOUT)]);
     assert.ok(scan !== undefined);
     assert.strictEqual(scan.category, 'timeout');
     assert.strictEqual(scan.requestId, 'd848f0c5-1089-5c2b-9a3b-91a94511ee52');
@@ -43,7 +37,7 @@ describe('scanLambdaLogs', () => {
   });
 
   it('classifies a bare REPORT Status: error (no application ERROR line)', () => {
-    const scan = scanLambdaLogs([row(REPORT_ERROR)]);
+    const scan = scanLambdaLogs([messageRow(REPORT_ERROR)]);
     assert.ok(scan !== undefined);
     assert.strictEqual(scan.category, 'application-error');
     assert.strictEqual(scan.report?.status, 'error');
@@ -53,9 +47,9 @@ describe('scanLambdaLogs', () => {
 
   it('prefers a real error line over runtime lines as the representative message', () => {
     const scan = scanLambdaLogs([
-      row('START RequestId: 11111111-2222-3333-4444-555555555555 Version: $LATEST'),
-      row('ERROR Invalid source details header QRCODE'),
-      row(REPORT_TIMEOUT),
+      messageRow('START RequestId: 11111111-2222-3333-4444-555555555555 Version: $LATEST'),
+      messageRow('ERROR Invalid source details header QRCODE'),
+      messageRow(REPORT_TIMEOUT),
     ]);
     assert.ok(scan !== undefined);
     assert.strictEqual(scan.message, 'ERROR Invalid source details header QRCODE');
@@ -70,7 +64,7 @@ describe('scanLambdaLogs', () => {
       ['Task timed out after 10.00 seconds', 'timeout'],
       ['FATAL ERROR: JavaScript heap out of memory', 'out-of-memory'],
     ] as const) {
-      const scan = scanLambdaLogs([row(applicationError), row(runtimeMessage)]);
+      const scan = scanLambdaLogs([messageRow(applicationError), messageRow(runtimeMessage)]);
       assert.ok(scan !== undefined);
       assert.strictEqual(scan.message, applicationError);
       assert.strictEqual(scan.category, category);
@@ -79,9 +73,9 @@ describe('scanLambdaLogs', () => {
 
   it('gives timeout precedence when timeout and explicit OOM both appear', () => {
     const scan = scanLambdaLogs([
-      row('ERROR Record routed to quarantine. Result=Ok'),
-      row('FATAL ERROR: JavaScript heap out of memory'),
-      row('Task timed out after 10.00 seconds'),
+      messageRow('ERROR Record routed to quarantine. Result=Ok'),
+      messageRow('FATAL ERROR: JavaScript heap out of memory'),
+      messageRow('Task timed out after 10.00 seconds'),
     ]);
     assert.ok(scan !== undefined);
     assert.strictEqual(scan.category, 'timeout');
@@ -89,35 +83,28 @@ describe('scanLambdaLogs', () => {
 
   it('does not treat a saturated REPORT as explicit OOM over an application error', () => {
     const scan = scanLambdaLogs([
-      row('ERROR Record routed to quarantine. Result=Ok'),
-      row('REPORT RequestId: 11111111-2222-3333-4444-555555555555 Memory Size: 128 MB Max Memory Used: 128 MB'),
+      messageRow('ERROR Record routed to quarantine. Result=Ok'),
+      messageRow('REPORT RequestId: 11111111-2222-3333-4444-555555555555 Memory Size: 128 MB Max Memory Used: 128 MB'),
     ]);
     assert.ok(scan !== undefined);
     assert.strictEqual(scan.category, 'application-error');
   });
 
   it('prefers the @requestId field when the message has no RequestId: token', () => {
-    const rowWithField: ReadonlyArray<GOLogsInsightsResultField> = [
-      { field: '@timestamp', value: '2026-01-01T00:00:00.000Z' },
-      { field: '@message', value: 'ERROR Something failed without a request id token' },
-      { field: '@requestId', value: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' },
-    ];
-    const scan = scanLambdaLogs([rowWithField]);
+    const scan = scanLambdaLogs([
+      logRow({
+        '@message': 'ERROR Something failed without a request id token',
+        '@requestId': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      }),
+    ]);
     assert.ok(scan !== undefined);
     assert.strictEqual(scan.requestId, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
     assert.strictEqual(scan.category, 'application-error');
   });
 
-  it('recovers the requestId from a tab-separated application line', () => {
-    const line = '2026-01-01T00:00:00.000Z\t99999999-8888-7777-6666-555555555555\tERROR\tInvoke Error';
-    const scan = scanLambdaLogs([row(line)]);
-    assert.ok(scan !== undefined);
-    assert.strictEqual(scan.requestId, '99999999-8888-7777-6666-555555555555');
-  });
-
   it('keeps the downstream category across the two classification passes and repeated scans with a global signature', () => {
     const signatures = [/External service\s+\S+\s+returned errors/gi];
-    const rows = [row('External service pn-emd-integration returned errors')];
+    const rows = [messageRow('External service pn-emd-integration returned errors')];
 
     assert.deepStrictEqual(
       [1, 2].map(() => scanWithSignatures(rows, signatures)?.category),

@@ -78,7 +78,7 @@ function fakeSource(): RunbookCatalogSource {
 }
 
 describe('collectRunbookCatalogEntries', () => {
-  it('flattens descriptors and runbook shape, sorted by key', () => {
+  it('flattens descriptors and runbook shape, sorted by key, skipping unresolvable descriptors', () => {
     const entries = collectRunbookCatalogEntries(fakeSource());
 
     assert.deepEqual(
@@ -94,15 +94,6 @@ describe('collectRunbookCatalogEntries', () => {
     assert.equal(zeta.knownCaseCount, 2);
     assert.equal(zeta.annotatedKnownCaseCount, 1);
     assert.deepEqual(zeta.alarmNames, ['zeta-dev', 'zeta-prod']);
-  });
-
-  it('skips descriptors that the registry cannot resolve', () => {
-    const entries = collectRunbookCatalogEntries(fakeSource());
-
-    assert.equal(
-      entries.some((item) => item.key === 'orphan-alarm'),
-      false,
-    );
   });
 
   it('reads the real repository catalog without any remote call', () => {

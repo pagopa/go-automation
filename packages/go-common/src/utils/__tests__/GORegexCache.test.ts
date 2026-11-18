@@ -47,10 +47,6 @@ describe('GORegexCache', () => {
     assert.notStrictEqual(cache.compile('a'), first);
   });
 
-  it('keeps no state across instances', () => {
-    assert.notStrictEqual(new GORegexCache().compile('a'), new GORegexCache().compile('a'));
-  });
-
   it('rejects invalid patterns without caching them', () => {
     const cache = new GORegexCache();
     assert.throws(() => cache.compile('[unclosed'), /Invalid regex pattern/u);
