@@ -61,9 +61,38 @@ describe('nodeMatrix', () => {
       ['@pagopa/r', pkg('@pagopa/r', '>=22.19.0', ['@pagopa/c'])],
     ]);
     assert.deepStrictEqual(nodeMatrix(scenarios, packages), [
-      { node: '22.19.0', scenarios: 'S1,S6' },
-      { node: '24', scenarios: 'S1,S6' },
+      { node: '22.19.0', shard: '1/1', scenarios: 'S1,S6' },
+      { node: '24', shard: '1/1', scenarios: 'S1,S6' },
     ]);
+  });
+
+  it('splits the scenarios of each Node version into consecutive shards of nearly equal size', () => {
+    const many = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7'].map((id) => scenario(id, ['@pagopa/c']));
+    const packages = new Map([['@pagopa/c', pkg('@pagopa/c', '>=22.19.0')]]);
+    const cells = nodeMatrix(many, packages, 3);
+    assert.deepStrictEqual(cells, [
+      { node: '22.19.0', shard: '1/3', scenarios: 'S1,S2,S3' },
+      { node: '22.19.0', shard: '2/3', scenarios: 'S4,S5' },
+      { node: '22.19.0', shard: '3/3', scenarios: 'S6,S7' },
+      { node: '24', shard: '1/3', scenarios: 'S1,S2,S3' },
+      { node: '24', shard: '2/3', scenarios: 'S4,S5' },
+      { node: '24', shard: '3/3', scenarios: 'S6,S7' },
+    ]);
+  });
+
+  it('never creates an empty shard and rejects a shard count below one', () => {
+    const packages = new Map([
+      ['@pagopa/c', pkg('@pagopa/c', '>=22.19.0')],
+      ['@pagopa/r', pkg('@pagopa/r', '>=22.19.0', ['@pagopa/c'])],
+    ]);
+    assert.deepStrictEqual(nodeMatrix(scenarios, packages, 5), [
+      { node: '22.19.0', shard: '1/2', scenarios: 'S1' },
+      { node: '22.19.0', shard: '2/2', scenarios: 'S6' },
+      { node: '24', shard: '1/2', scenarios: 'S1' },
+      { node: '24', shard: '2/2', scenarios: 'S6' },
+    ]);
+    assert.throws(() => nodeMatrix(scenarios, packages, 0), /positive integer/u);
+    assert.throws(() => nodeMatrix(scenarios, packages, Number.NaN), /positive integer/u);
   });
 
   it('raising one package moves only the scenarios that install it', () => {
@@ -72,9 +101,9 @@ describe('nodeMatrix', () => {
       ['@pagopa/r', pkg('@pagopa/r', '>=24.0.0', ['@pagopa/c'])],
     ]);
     assert.deepStrictEqual(nodeMatrix(scenarios, packages), [
-      { node: '22.19.0', scenarios: 'S1' },
-      { node: '24', scenarios: 'S1,S6' },
-      { node: '24.0.0', scenarios: 'S6' },
+      { node: '22.19.0', shard: '1/1', scenarios: 'S1' },
+      { node: '24', shard: '1/1', scenarios: 'S1,S6' },
+      { node: '24.0.0', shard: '1/1', scenarios: 'S6' },
     ]);
   });
 

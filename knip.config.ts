@@ -2,6 +2,10 @@ import type { KnipConfig } from 'knip';
 
 const config: KnipConfig = {
   workspaces: {
+    // Root: bins/check.sh runs these entry points, and knip reads only the scripts of package.json.
+    '.': {
+      entry: ['bins/check-new-class-tests/src/index.ts', 'bins/validate-scaffold/src/index.ts'],
+    },
     // Shared libraries
     'packages/go-ai': {
       project: ['src/**/*.ts'],
@@ -69,6 +73,8 @@ const config: KnipConfig = {
     'packages/go-watchtower-client/src/generated/**',
   ],
   ignoreDependencies: [
+    // Run by bins/check.sh (types), which knip does not read
+    'type-coverage',
     // ESLint plugins used in flat config (eslint.config.mjs)
     '@typescript-eslint/eslint-plugin',
     '@typescript-eslint/parser',

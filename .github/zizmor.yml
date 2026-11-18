@@ -1,0 +1,14 @@
+# zizmor: security audit of the GitHub workflows, run by the CI (Static Checks).
+rules:
+  # GitHub's `uses: $/...` self-repository syntax is safer than `./...`, but actionlint 1.7.12 rejects it.
+  # Switch the local actions to `$/` and drop this rule once actionlint accepts the syntax.
+  self-repository:
+    disable: true
+  # The release job keeps the app token in the git configuration on purpose: it pushes the tags with it.
+  artipacked:
+    ignore:
+      - release.yml
+  # GitHub Packages has no trusted publishing (OIDC): the release publishes with the GITHUB_TOKEN.
+  use-trusted-publishing:
+    ignore:
+      - release.yml

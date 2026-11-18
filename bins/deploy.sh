@@ -20,7 +20,6 @@ BOLD='\033[1m'
 
 # Unicode symbols
 CHECK="${GREEN}✔${NC}"
-CROSS="${RED}✖${NC}"
 ARROW="${CYAN}›${NC}"
 
 # Get the script directory and project root
@@ -151,6 +150,8 @@ select_option() {
     tput cnorm
 
     # Set return values
+    # select_option returns the index and the value; this script reads only SELECTED_VALUE.
+    # shellcheck disable=SC2034
     SELECTED_INDEX=$selected
     SELECTED_VALUE="${options[$selected]}"
 }
@@ -290,7 +291,8 @@ discover_scripts() {
             # Find all script directories (contain package.json)
             for script_dir in "$category_path"/*; do
                 if [[ -d "$script_dir" && -f "$script_dir/package.json" ]]; then
-                    local script_name=$(basename "$script_dir")
+                    local script_name
+                    script_name=$(basename "$script_dir")
                     ALL_SCRIPTS+=("$script_name")
                     SCRIPT_PATHS+=("$script_dir")
                     SCRIPT_CATEGORIES+=("$category")
@@ -308,7 +310,8 @@ build_display_options() {
     for ((i = 0; i < ${#ALL_SCRIPTS[@]}; i++)); do
         local script_name="${ALL_SCRIPTS[$i]}"
         local category="${SCRIPT_CATEGORIES[$i]}"
-        local padded_category=$(printf "%-8s" "[$category]")
+        local padded_category
+        padded_category=$(printf "%-8s" "[$category]")
         DISPLAY_OPTIONS+=("$padded_category $script_name")
     done
 }
@@ -463,8 +466,9 @@ deploy_script() {
     echo -e "${CYAN}${BOLD}============================================${NC}"
     echo ""
 
-    local folder_size=$(get_folder_size "$deploy_path")
-    local file_count=$(get_file_count "$deploy_path")
+    local folder_size file_count
+    folder_size=$(get_folder_size "$deploy_path")
+    file_count=$(get_file_count "$deploy_path")
 
     echo -e "  ${BOLD}Script:${NC}      $script_name"
     echo -e "  ${BOLD}Location:${NC}    $deploy_path"

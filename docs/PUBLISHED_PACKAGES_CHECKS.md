@@ -267,13 +267,15 @@ PATH="$(dirname "$N22"):$PATH" node --import tsx/esm bins/check-published-packag
 
 In `.github/workflows/ci.yml` ci sono tre job, tutti richiesti per avere la CI verde (`ci-success`):
 
-| Job                                 | Cosa fa                                                                                                                                                                                                                        |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Published Packages**              | `pnpm test:published:static` sulla build del job `Build`.                                                                                                                                                                      |
-| **Published Packages (pack)**       | Crea i pacchetti `.tgz` **una volta sola**, su Node 24, e li carica come artefatto `published-tarballs`. Calcola anche le versioni di Node da provare (`--print-node-matrix`).                                                 |
-| **Published Packages (Node x.y.z)** | Uno per ogni versione calcolata: scarica gli stessi pacchetti ed esegue i loro scenari con quella versione di Node. Il monorepo si installa su Node 24, poi si passa alla versione della cella per la parte "di chi installa". |
+| Job                                      | Cosa fa                                                                                                                                                                                                                                                    |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Published Packages**                   | Compila il workspace ed esegue `pnpm test:published:static`.                                                                                                                                                                                               |
+| **Published Packages (pack)**            | Crea i pacchetti `.tgz` **una volta sola**, su Node 24 (`pnpm pack` compila ogni package con il suo `prepack`), e li carica come artefatto `published-tarballs`. Calcola anche le celle da provare (`--print-node-matrix --shards 3`).                     |
+| **Published Packages (Node x.y.z, i/3)** | Una per ogni versione calcolata e per ogni shard: scarica gli stessi pacchetti ed esegue con quella versione di Node gli scenari del suo shard. Il monorepo si installa su Node 24, poi si passa alla versione della cella per la parte "di chi installa". |
 
-**Come si calcolano le versioni di Node.** Per ogni scenario si prendono gli `engines.node` dei package che installa. Lo scenario gira sulla **versione minima** che tutti accettano, e anche su **Node 24**, la versione della toolchain e della Lambda. Oggi tutti i package dichiarano `>=22.19.0`, quindi ci sono due celle: `22.19.0` e `24`, con tutti gli scenari.
+**Come si calcolano le versioni di Node.** Per ogni scenario si prendono gli `engines.node` dei package che installa. Lo scenario gira sulla **versione minima** che tutti accettano, e anche su **Node 24**, la versione della toolchain e della Lambda. Oggi tutti i package dichiarano `>=22.19.0`, quindi ci sono due versioni, `22.19.0` e `24`, con tutti gli scenari.
+
+**Gli shard.** Gli scenari di ogni versione si dividono in tre gruppi consecutivi di dimensione quasi uguale (`--shards 3`), ciascuno su un runner suo: le installazioni sono le stesse, ma girano in parallelo. Senza `--shards` c'è una cella sola per versione, come in locale.
 
 Se un giorno go-runbook alzasse il minimo a `>=24.0.0`, la CI lo seguirebbe da sola: gli scenari di go-runbook passerebbero a `24.0.0`, mentre go-common resterebbe provato su `22.19.0`. Non c'è nessuna versione scritta a mano.
 

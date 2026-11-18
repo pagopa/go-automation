@@ -524,39 +524,59 @@ La lista completa è in [CONVENTIONS.md](CONVENTIONS.md).
 
 ## Quality Gates: i Check Automatici
 
-La qualità del codice in GO Automation non è affidata solo alla code review. Una **pipeline CI** con 8 check paralleli protegge il repository da regressioni.
+La qualità del codice in GO Automation non è affidata solo alla code review. Una **pipeline CI** con job paralleli protegge il repository da regressioni.
 
 ### La CI Pipeline
 
 Ogni push su `main`/`develop` e ogni Pull Request esegue questi check:
 
 ```
-┌─────────────┐  ┌───────┐  ┌──────────┐  ┌──────┐
-│  Type Check  │  │ Lint  │  │  Format  │  │ Knip │
-└──────┬───────┘  └───┬───┘  └─────┬────┘  └──┬───┘
-       │              │            │           │
-┌──────┴───────┐  ┌───┴───┐  ┌────┴────┐  ┌───┴──────┐
-│  Scaffold    │  │ Build │  │  Test   │  │ Coverage │
-└──────────────┘  └───────┘  └─────────┘  └──────────┘
-                       │
-                       ▼
-              ┌─────────────────┐
-              │   CI Success    │  Tutti devono passare
-              └─────────────────┘
+┌───────────────┐ ┌──────┐ ┌────────────────┐ ┌────────────────────┐ ┌───────────────────────────┐
+│ Static Checks │ │ Lint │ │ Build and Test │ │ Published Packages │ │ Published Packages (pack) │
+└───────┬───────┘ └──┬───┘ └───────┬────────┘ └─────────┬──────────┘ └─────────────┬─────────────┘
+        │            │             │                    │                          ▼
+        │            │             │                    │             ┌──────────────────────────┐
+        │            │             │                    │             │  Smoke: Node × 3 shard   │
+        │            │             │                    │             └─────────────┬────────────┘
+        └────────────┴─────────────┴─────────┬──────────┴───────────────────────────┘
+                                             ▼
+                                    ┌─────────────────┐
+                                    │   CI Success    │  Tutti devono passare
+                                    └─────────────────┘
 ```
 
-| Check          | Comando              | Cosa verifica                        |
-| -------------- | -------------------- | ------------------------------------ |
-| **Type Check** | `tsc --noEmit`       | Compilazione TypeScript senza errori |
-| **Lint**       | `eslint`             | Regole di qualità del codice         |
-| **Format**     | `prettier --check`   | Formattazione uniforme               |
-| **Knip**       | `knip`               | Codice e export inutilizzati         |
-| **Scaffold**   | `validate:scaffold`  | Struttura corretta degli script      |
-| **Build**      | `tsc`                | Compilazione produce output valido   |
-| **Test**       | `pnpm test`          | Test unitari passano                 |
-| **Coverage**   | `pnpm test:coverage` | Copertura >= 90% linee, 80% branch   |
+| Job                           | Comandi                                                                                                                                                     | Cosa verifica                                                                                                                                                                           |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Static Checks**             | `format:check`, `knip`, `deps:check`, `dup:report`, `type-coverage`, `validate:scaffold`, `check:new-class-tests` (solo PR), actionlint, zizmor, ShellCheck | Formato, codice inutilizzato, dipendenze, duplicati, copertura dei tipi, struttura degli script, test delle classi nuove, workflow GitHub (errori e sicurezza), script shell di `bins/` |
+| **Lint**                      | `pnpm lint`                                                                                                                                                 | Regole ESLint e dati sensibili nei sorgenti pubblicati                                                                                                                                  |
+| **Build and Test**            | `pnpm build`, `pnpm test`, `pnpm test:coverage`                                                                                                             | Compilazione, test, copertura >= 90% linee, 80% branch, 90% funzioni                                                                                                                    |
+| **Published Packages**        | `pnpm test:published:static`                                                                                                                                | publint, attw, fotografia dell'API, costo degli import, dati sensibili                                                                                                                  |
+| **Published Packages (pack)** | `check:published-packages --pack-to`                                                                                                                        | Archivi `.tgz` e matrice dello smoke                                                                                                                                                    |
+| **Smoke** (Node × shard)      | `check:published-packages --from-tarballs`                                                                                                                  | Installazione e uso dei package come li vede chi li installa                                                                                                                            |
 
-**Tutti e 8 i check devono passare** perché la PR possa essere mergiata.
+**Tutti i job devono passare** perché la PR possa essere mergiata: lo controlla `CI Success`, il check obbligatorio.
+
+### Lo stesso gate in locale: `pnpm check`
+
+Ogni controllo è un comando di [`bins/check.sh`](../bins/check.sh), che la CI e gli script di `package.json` richiamano:
+in locale e in CI girano gli stessi comandi.
+
+```bash
+pnpm check                          # tutto il gate: la build, poi gli altri controlli anche se uno fallisce, e il riepilogo
+bins/check.sh lint                  # un controllo solo (bins/check.sh --help per l'elenco)
+bins/check.sh new-classes --base origin/main
+```
+
+Il gate non comprende lo smoke dei package pubblicati (`bins/check.sh smoke`), che dura minuti e gira in CI su ogni
+PR. Il controllo dei workflow (`bins/check.sh workflows`) usa Docker e le stesse immagini fissate in `ci.yml`; con
+`GH_TOKEN` impostato zizmor fa anche i controlli online.
+
+**La cache di ESLint.** Fuori dalla CI `pnpm lint` tiene una cache in `node_modules/.cache/eslint/`: dopo il primo
+giro ricontrolla solo i file cambiati (circa 5 secondi invece di 90). Le regole con le informazioni di tipo dipendono
+anche da file che la cache non guarda, quindi un risultato in cache può essere vecchio: la CI, dove `CI=true`, fa sempre
+il lint da zero e resta il controllo che fa fede. Un `eslint-disable` che non sopprime più nulla è un errore
+(`reportUnusedDisableDirectives`). Per un lint locale da zero basta cancellare
+`node_modules/.cache/eslint/`.
 
 ### ESLint: Regole Custom
 
@@ -654,7 +674,7 @@ pnpm knip
 
 ### Prettier: Formattazione Automatica
 
-Prettier è configurato come ultima regola ESLint (override) per garantire formattazione uniforme. Non serve pensarci: configura il tuo editor per formattare al salvataggio.
+Prettier gira da solo (`pnpm format:check`, passo di Static Checks); in ESLint c'è solo `eslint-config-prettier`, che spegne le regole in conflitto con Prettier. Non serve pensarci: configura il tuo editor per formattare al salvataggio.
 
 ```bash
 # Verifica (non modifica i file)
@@ -1150,21 +1170,21 @@ Le opzioni strict più importanti:
 
 Struttura della configurazione:
 
-| Sezione                   | Cosa fa                                            |
-| ------------------------- | -------------------------------------------------- |
-| **TypeScript rules**      | Strict typing, no-any, naming conventions          |
-| **Import rules**          | Ordine import, no duplicati, no circular           |
-| **Security rules**        | No eval, no unsafe regex, no prototype pollution   |
-| **no-restricted-imports** | Blocca librerie con equivalente in go-common       |
-| **no-restricted-syntax**  | Blocca pattern come `new EventEmitter()`           |
-| **main.ts rules**         | Regole strutturali per i file main.ts degli script |
-| **Prettier**              | Override finale per formattazione                  |
+| Sezione                   | Cosa fa                                               |
+| ------------------------- | ----------------------------------------------------- |
+| **TypeScript rules**      | Strict typing, no-any, naming conventions             |
+| **Import rules**          | Ordine import, no duplicati, no circular              |
+| **Security rules**        | No eval, no unsafe regex, no prototype pollution      |
+| **no-restricted-imports** | Blocca librerie con equivalente in go-common          |
+| **no-restricted-syntax**  | Blocca pattern come `new EventEmitter()`              |
+| **main.ts rules**         | Regole strutturali per i file main.ts degli script    |
+| **Prettier**              | Regole in conflitto spente (`eslint-config-prettier`) |
 
 La configurazione include anche un **plugin custom inline** (`goAutomationPlugin`) che definisce la regola `no-extra-functions-in-main`.
 
 ```bash
-pnpm lint          # Esegui ESLint
-pnpm lint --fix    # Correggi automaticamente dove possibile
+pnpm lint          # Esegui ESLint (con la cache, fuori dalla CI)
+pnpm lint:fix      # Correggi automaticamente dove possibile
 ```
 
 ### Prettier (Formatter)
@@ -1173,7 +1193,7 @@ pnpm lint --fix    # Correggi automaticamente dove possibile
 
 **Perché è stato scelto**: Elimina le discussioni sullo stile di formattazione. Tutti scrivono codice che sembra uguale.
 
-**Configurazione**: Integrato come ultima regola ESLint (`eslint-plugin-prettier`). Le impostazioni base sono in `prettier.config.*` o nel `package.json`.
+**Configurazione**: Gira da solo, non dentro ESLint: `pnpm format:check` controlla, `pnpm format` corregge. ESLint spegne le regole in conflitto con `eslint-config-prettier`. Le impostazioni sono in `.prettierrc.json`.
 
 ```bash
 pnpm format:check  # Verifica senza modificare
@@ -1243,9 +1263,9 @@ pnpm validate:scaffold
 
 **Configurazione**: `.github/workflows/ci.yml`
 
-La pipeline definisce 8 job paralleli (typecheck, lint, format, knip, scaffold, build, test, coverage) e un job finale `ci-success` che verifica che tutti siano passati. Questo job è il **branch protection check** — senza il suo successo, la PR non può essere mergiata.
+La pipeline definisce i job della tabella sopra e un job finale `ci-success` che verifica che tutti siano passati. Questo job è il **branch protection check** — senza il suo successo, la PR non può essere mergiata.
 
-I job usano un workflow riutilizzabile (`.github/workflows/ci-job.yml`) per evitare duplicazione della configurazione di setup (checkout, Node.js, pnpm, cache).
+La preparazione comune (pnpm, Node.js, cache, installazione) sta nell'action locale `.github/actions/setup-ci`. Ogni job compila ciò che gli serve: la build dura circa 30 secondi, meno di quanto costerebbe passarla da un job all'altro come artefatto.
 
 ---
 

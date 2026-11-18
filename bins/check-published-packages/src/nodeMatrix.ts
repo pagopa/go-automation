@@ -34,14 +34,22 @@ export function scenarioMinimum(ranges: ReadonlyArray<string>): string {
  * dependency closure, not the whole workspace) and on the toolchain major when all of them accept it.
  * Derived from the manifests, so raising or lowering one package's minimum moves only its scenarios.
  *
+ * The scenarios of each Node version are split into `shards` consecutive groups whose sizes differ by at most one,
+ * so the CI runs them on parallel runners; a version with fewer scenarios than shards gets one shard per scenario.
+ *
  * @param scenarios - All smoke scenarios
  * @param packages - Published packages by name (only `enginesNode` and `internalDependencies` are read)
- * @returns One cell per Node version, ordered by version
+ * @param shards - Shards per Node version (at least 1)
+ * @returns One cell per Node version and shard, ordered by version then shard
+ * @throws Error when `shards` is not a positive integer
  */
 export function nodeMatrix(
   scenarios: ReadonlyArray<SmokeScenario>,
   packages: ReadonlyMap<string, PackedPackage>,
+  shards = 1,
 ): ReadonlyArray<NodeMatrixCell> {
+  if (!Number.isInteger(shards) || shards < 1)
+    throw new Error(`shards must be a positive integer, not ${String(shards)}`);
   const byNode = new Map<string, string[]>();
   for (const scenario of scenarios) {
     const ranges = closeInternalDependencies(scenario.packages, packages).map(
@@ -51,9 +59,37 @@ export function nodeMatrix(
     if (ranges.every((range) => semver.intersects(range, `${TOOLCHAIN_NODE}.x`))) nodes.push(TOOLCHAIN_NODE);
     for (const node of nodes) byNode.set(node, [...(byNode.get(node) ?? []), scenario.id]);
   }
-  const cells = [...byNode].map(([node, ids]): NodeMatrixCell => ({ node, scenarios: ids.join(',') }));
-  cells.sort((left, right) =>
-    semver.compare(semver.coerce(left.node) ?? '0.0.0', semver.coerce(right.node) ?? '0.0.0'),
+  const nodes = [...byNode.keys()].sort((left, right) =>
+    semver.compare(semver.coerce(left) ?? '0.0.0', semver.coerce(right) ?? '0.0.0'),
   );
-  return cells;
+  return nodes.flatMap((node) => {
+    const groups = splitEvenly(byNode.get(node) ?? [], shards);
+    return groups.map((ids, index): NodeMatrixCell => ({
+      node,
+      shard: `${String(index + 1)}/${String(groups.length)}`,
+      scenarios: ids.join(','),
+    }));
+  });
+}
+
+/**
+ * Splits a list into at most `parts` consecutive, non-empty groups whose sizes differ by at most one.
+ *
+ * @param items - Items to split, in order
+ * @param parts - Wanted number of groups
+ * @returns The groups, in order
+ */
+function splitEvenly(items: ReadonlyArray<string>, parts: number): ReadonlyArray<ReadonlyArray<string>> {
+  if (items.length === 0) return [];
+  const count = Math.min(parts, items.length);
+  const base = Math.floor(items.length / count);
+  const larger = items.length % count;
+  const groups: ReadonlyArray<string>[] = [];
+  let start = 0;
+  for (let index = 0; index < count; index++) {
+    const size = base + (index < larger ? 1 : 0);
+    groups.push(items.slice(start, start + size));
+    start += size;
+  }
+  return groups;
 }
