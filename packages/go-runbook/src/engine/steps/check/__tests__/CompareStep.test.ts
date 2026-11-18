@@ -1,72 +1,42 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { RunbookContext } from '../../../types/RunbookContext.js';
+import { createTestContext } from '../../../../__tests__/helpers/createTestContext.js';
+import type { TestContextOptions } from '../../../../__tests__/helpers/TestContextOptions.js';
 import { CompareStep } from '../CompareStep.js';
-import { createTestServiceRegistry } from '../../../../toolkits/common/testing/createTestServiceRegistry.js';
-
-function createContext(args: {
-  readonly vars?: Record<string, string>;
-  readonly params?: Record<string, string>;
-  readonly stepResults?: ReadonlyArray<readonly [string, unknown]>;
-}): RunbookContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-01-01T00:00:00.000Z'),
-    stepResults: new Map<string, unknown>(args.stepResults ?? []),
-    vars: new Map(Object.entries(args.vars ?? {})),
-    params: new Map(Object.entries(args.params ?? {})),
-    logs: [],
-    services: createTestServiceRegistry(),
-    recoveredErrors: [],
-  };
-}
 
 describe('CompareStep', () => {
-  it('succeeds when the resolved context value satisfies the comparison', async () => {
-    const step = new CompareStep({
-      id: 'check-count',
-      label: 'Check count',
-      leftRef: 'vars.count',
-      operator: '>',
-      rightValue: 5,
+  const cases: ReadonlyArray<
+    readonly [string, string, '>' | '==' | '>=', string | number, TestContextOptions, RegExp | undefined]
+  > = [
+    ['a satisfied comparison', 'vars.count', '>', 5, { vars: { count: '10' } }, undefined],
+    [
+      'an unsatisfied comparison',
+      'params.status',
+      '==',
+      '200',
+      { params: { status: '500' } },
+      /"500" == "200" is false/,
+    ],
+    [
+      'an unresolved reference',
+      'steps.query.output.count',
+      '>=',
+      1,
+      {},
+      /reference "steps\.query\.output\.count" resolved to undefined/,
+    ],
+  ];
+
+  for (const [name, leftRef, operator, rightValue, init, error] of cases) {
+    it(`${error === undefined ? 'succeeds' : 'fails'} on ${name}`, async () => {
+      const step = new CompareStep({ id: 'compare', label: 'Compare', leftRef, operator, rightValue });
+
+      const result = await step.execute(createTestContext(init));
+
+      assert.strictEqual(result.success, error === undefined);
+      assert.strictEqual(result.output, error === undefined);
+      if (error !== undefined) assert.match(result.error ?? '', error);
     });
-
-    const result = await step.execute(createContext({ vars: { count: '10' } }));
-
-    assert.strictEqual(result.success, true);
-    assert.strictEqual(result.output, true);
-  });
-
-  it('fails when the resolved context value does not satisfy the comparison', async () => {
-    const step = new CompareStep({
-      id: 'check-status',
-      label: 'Check status',
-      leftRef: 'params.status',
-      operator: '==',
-      rightValue: '200',
-    });
-
-    const result = await step.execute(createContext({ params: { status: '500' } }));
-
-    assert.strictEqual(result.success, false);
-    assert.strictEqual(result.output, false);
-    assert.match(result.error ?? '', /"500" == "200" is false/);
-  });
-
-  it('fails clearly when the reference cannot be resolved', async () => {
-    const step = new CompareStep({
-      id: 'check-missing',
-      label: 'Check missing',
-      leftRef: 'steps.query.output.count',
-      operator: '>=',
-      rightValue: 1,
-    });
-
-    const result = await step.execute(createContext({}));
-
-    assert.strictEqual(result.success, false);
-    assert.strictEqual(result.output, false);
-    assert.match(result.error ?? '', /reference "steps\.query\.output\.count" resolved to undefined/);
-  });
+  }
 });

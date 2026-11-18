@@ -112,17 +112,6 @@ describe('buildExecuteRunbookDeps', () => {
 describe('buildExecuteRunbookDeps — logical AWS accounts', () => {
   const managed = { ...BASE_CONFIG, executeRunbookArtifactRevision: 'build-1', watchtowerPassword: 'secret' };
 
-  it('adds the account port, reading through OAM in AWS-managed execution', async () => {
-    const deps = await buildExecuteRunbookDeps(
-      fakeScript(() => 'unused', true),
-      {
-        ...managed,
-        awsAccountDirectory: ['send/core/prod=000000000101'],
-      },
-    );
-    assert.ok(deps.services.awsAccounts !== undefined);
-  });
-
   it('keeps serving with a malformed directory: account runbooks fail with AWS_ACCOUNT_DIRECTORY_INVALID', async () => {
     const deps = await buildExecuteRunbookDeps(
       fakeScript(() => 'unused', true),

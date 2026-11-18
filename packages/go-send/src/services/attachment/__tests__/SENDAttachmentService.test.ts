@@ -19,9 +19,14 @@ interface FakeHttpClient {
   readonly puts: RecordedPut[];
 }
 
+/**
+ * HTTP client double: the preload POST answers with one item built from
+ * `preloadResponse`, or with `preloadBody` as is when given.
+ */
 function createFakeHttpClient(
   preloadResponse: Partial<SENDPreloadResponse> = {},
   putResponseHeaders: Record<string, string> = {},
+  preloadBody?: unknown,
 ): FakeHttpClient {
   const preloadBodies: SENDPreloadRequest[][] = [];
   const puts: RecordedPut[] = [];
@@ -35,10 +40,10 @@ function createFakeHttpClient(
     ...preloadResponse,
   };
 
-  const post = mock.fn(async (_path: string, body: unknown): Promise<SENDPreloadResponse[]> => {
+  const post = mock.fn(async (_path: string, body: unknown): Promise<unknown> => {
     await Promise.resolve();
     preloadBodies.push(body as SENDPreloadRequest[]);
-    return [response];
+    return preloadBody ?? [response];
   });
   const put = mock.fn(
     async (url: string, buffer: Buffer, headers?: Record<string, string>): Promise<Record<string, string>> => {
@@ -68,92 +73,92 @@ describe('SENDAttachmentService', () => {
     const result = await service.upload(buffer, 'application/json');
 
     assert.strictEqual(fake.preloadBodies.length, 1);
-    assert.strictEqual(fake.preloadBodies[0]![0]!.contentType, 'application/json');
-    assert.strictEqual(fake.preloadBodies[0]![0]!.sha256, sha256Base64(buffer));
+    assert.strictEqual(fake.preloadBodies[0]?.[0]?.contentType, 'application/json');
+    assert.strictEqual(fake.preloadBodies[0]?.[0]?.sha256, sha256Base64(buffer));
 
     assert.strictEqual(fake.puts.length, 1);
-    const put = fake.puts[0]!;
-    assert.strictEqual(put.url, 'https://s3.example/presigned');
-    assert.strictEqual(put.headers?.['Content-Type'], 'application/json');
-    assert.strictEqual(put.headers?.['x-amz-checksum-sha256'], sha256Base64(buffer));
-    assert.strictEqual(put.headers?.['x-amz-meta-secret'], 'secret-1');
+    const put = fake.puts[0];
+    assert.strictEqual(put?.url, 'https://s3.example/presigned');
+    assert.strictEqual(put?.headers?.['Content-Type'], 'application/json');
+    assert.strictEqual(put?.headers?.['x-amz-checksum-sha256'], sha256Base64(buffer));
+    assert.strictEqual(put?.headers?.['x-amz-meta-secret'], 'secret-1');
     // Content-Length must NOT be set manually: forbidden fetch header,
     // undici computes it from the buffer body
-    assert.strictEqual(put.headers?.['Content-Length'], undefined);
+    assert.strictEqual(put?.headers?.['Content-Length'], undefined);
 
     assert.strictEqual(result.ref.key, 'safe-storage-key');
     assert.strictEqual(result.ref.versionToken, 'token-1');
     assert.strictEqual(result.digests.sha256, sha256Base64(buffer));
   });
 
-  it('upload defaults to application/pdf', async () => {
+  it('upload defaults to PDF; uploadPDF and uploadJSON set their content type', async () => {
     const fake = createFakeHttpClient();
     const service = new SENDAttachmentService(fake.client);
+    const pdf = Buffer.from('%PDF-1.7 legacy');
+    const data = { operationType: 'F24', amount: 100 };
 
     await service.upload(Buffer.from('%PDF-1.7'));
+    const legacyPdf = await service.uploadPDF(pdf);
+    const json = await service.uploadJSON(data);
 
-    assert.strictEqual(fake.preloadBodies[0]![0]!.contentType, 'application/pdf');
-    assert.strictEqual(fake.puts[0]!.headers?.['Content-Type'], 'application/pdf');
+    const contentTypes = ['application/pdf', 'application/pdf', 'application/json'];
+    assert.deepStrictEqual(
+      fake.preloadBodies.map((body) => body[0]?.contentType),
+      contentTypes,
+    );
+    assert.deepStrictEqual(
+      fake.puts.map((put) => put.headers?.['Content-Type']),
+      contentTypes,
+    );
+    assert.strictEqual(legacyPdf.buffer, pdf);
+    assert.strictEqual(json.digests.sha256, sha256Base64(Buffer.from(JSON.stringify(data), 'utf-8')));
   });
 
-  it('upload uses the x-amz-version-id response header as versionToken', async () => {
-    const fake = createFakeHttpClient({}, { 'x-amz-version-id': 's3-version-42' });
-    const service = new SENDAttachmentService(fake.client);
+  it('upload takes the versionToken from x-amz-version-id, falling back to v1', async () => {
+    const fromHeader = createFakeHttpClient({}, { 'x-amz-version-id': 's3-version-42' });
+    const fallback = createFakeHttpClient({ versionToken: '' });
 
-    const result = await service.upload(Buffer.from('content'));
+    const versioned = await new SENDAttachmentService(fromHeader.client).upload(Buffer.from('content'));
+    const unversioned = await new SENDAttachmentService(fallback.client).upload(Buffer.from('content'));
 
-    assert.strictEqual(result.ref.versionToken, 's3-version-42');
-  });
-
-  it('upload falls back to versionToken v1 when preload and upload omit it', async () => {
-    const fake = createFakeHttpClient({ versionToken: '' });
-    const service = new SENDAttachmentService(fake.client);
-
-    const result = await service.upload(Buffer.from('content'));
-
-    assert.strictEqual(result.ref.versionToken, 'v1');
+    assert.strictEqual(versioned.ref.versionToken, 's3-version-42');
+    assert.strictEqual(unversioned.ref.versionToken, 'v1');
   });
 
   it('upload accepts a preload body returned as a raw JSON string (non-JSON content type)', async () => {
     const body = JSON.stringify([
-      {
-        preloadIdx: '0',
-        key: 'safe-storage-key',
-        secret: 'secret-1',
-        httpMethod: 'PUT',
-        url: 'https://s3.example/presigned',
-      },
+      { preloadIdx: '0', key: 'safe-storage-key', secret: 's', httpMethod: 'PUT', url: 'https://s3.example/presigned' },
     ]);
-    const post = mock.fn(async (): Promise<unknown> => {
-      await Promise.resolve();
-      return body;
-    });
-    const put = mock.fn(async (): Promise<Record<string, string>> => {
-      await Promise.resolve();
-      return { 'x-amz-version-id': 's3-version-9' };
-    });
-    const service = new SENDAttachmentService({ post, put } as unknown as GOHttpClient);
+    const fake = createFakeHttpClient({}, { 'x-amz-version-id': 's3-version-9' }, body);
 
-    const result = await service.upload(Buffer.from('content'));
+    const result = await new SENDAttachmentService(fake.client).upload(Buffer.from('content'));
 
     assert.strictEqual(result.ref.key, 'safe-storage-key');
     assert.strictEqual(result.ref.versionToken, 's3-version-9');
   });
 
-  it('upload rejects with a descriptive error when the preload response is not a JSON array', async () => {
-    const post = mock.fn(async (): Promise<unknown> => {
-      await Promise.resolve();
-      return 'Service temporarily unavailable, "secret":"leak-me" included';
-    });
-    const service = new SENDAttachmentService({ post } as unknown as GOHttpClient);
-
-    await assert.rejects(service.upload(Buffer.from('x')), (error: unknown) => {
-      assert.ok(error instanceof Error);
-      assert.match(error.message, /Unexpected preload response from SafeStorage \(expected a JSON array\)/);
-      assert.match(error.message, /\[REDACTED\]/, 'secret values must be redacted in raw dumps');
-      assert.doesNotMatch(error.message, /leak-me/, 'secret value must not leak');
-      return true;
-    });
+  it('upload rejects malformed preload responses with a redacted, descriptive error', async () => {
+    const redacted = /\[REDACTED\]/;
+    const cases: ReadonlyArray<readonly [unknown, ReadonlyArray<RegExp>]> = [
+      [
+        'Service temporarily unavailable, "secret":"leak-me" included',
+        [/Unexpected preload response from SafeStorage \(expected a JSON array\)/, redacted],
+      ],
+      [[], [/Empty preload response/]],
+      [
+        [{ preloadIdx: '0', key: 'some-key', secret: 'leak-me', httpMethod: 'PUT' }],
+        [/Invalid preload response from SafeStorage \(missing or empty: url\)/, /"key":"some-key"/, redacted],
+      ],
+    ];
+    for (const [body, expected] of cases) {
+      const service = new SENDAttachmentService(createFakeHttpClient({}, {}, body).client);
+      await assert.rejects(service.upload(Buffer.from('x')), (error: unknown) => {
+        assert.ok(error instanceof Error);
+        for (const pattern of expected) assert.match(error.message, pattern);
+        assert.doesNotMatch(error.message, /leak-me/, 'secret values must never leak');
+        return true;
+      });
+    }
   });
 
   it('upload rejects clearly when SafeStorage requests a POST upload', async () => {
@@ -161,60 +166,6 @@ describe('SENDAttachmentService', () => {
     const service = new SENDAttachmentService(fake.client);
 
     await assert.rejects(service.upload(Buffer.from('x')), /HTTP POST upload, which is not supported/);
-  });
-
-  it('uploadPDF keeps the legacy application/pdf behavior', async () => {
-    const fake = createFakeHttpClient();
-    const service = new SENDAttachmentService(fake.client);
-    const buffer = Buffer.from('%PDF-1.7 legacy');
-
-    const result = await service.uploadPDF(buffer);
-
-    assert.strictEqual(fake.preloadBodies[0]![0]!.contentType, 'application/pdf');
-    assert.strictEqual(fake.puts[0]!.headers?.['Content-Type'], 'application/pdf');
-    assert.strictEqual(result.digests.sha256, sha256Base64(buffer));
-    assert.strictEqual(result.buffer, buffer);
-  });
-
-  it('uploadJSON keeps the legacy application/json behavior', async () => {
-    const fake = createFakeHttpClient();
-    const service = new SENDAttachmentService(fake.client);
-    const data = { operationType: 'F24', amount: 100 };
-    const expectedBuffer = Buffer.from(JSON.stringify(data), 'utf-8');
-
-    const result = await service.uploadJSON(data);
-
-    assert.strictEqual(fake.preloadBodies[0]![0]!.contentType, 'application/json');
-    assert.strictEqual(fake.puts[0]!.headers?.['Content-Type'], 'application/json');
-    assert.strictEqual(fake.puts[0]!.buffer.length, expectedBuffer.length);
-    assert.strictEqual(result.digests.sha256, sha256Base64(expectedBuffer));
-  });
-
-  it('upload rejects on empty preload response', async () => {
-    const post = mock.fn(async (): Promise<SENDPreloadResponse[]> => {
-      await Promise.resolve();
-      return [];
-    });
-    const service = new SENDAttachmentService({ post } as unknown as GOHttpClient);
-
-    await assert.rejects(service.upload(Buffer.from('x')), /Empty preload response/);
-  });
-
-  it('upload rejects with a descriptive error when the preload response lacks the presigned url', async () => {
-    const post = mock.fn(async (): Promise<unknown[]> => {
-      await Promise.resolve();
-      return [{ preloadIdx: '0', key: 'some-key', secret: 's3cret', httpMethod: 'PUT' }];
-    });
-    const service = new SENDAttachmentService({ post } as unknown as GOHttpClient);
-
-    await assert.rejects(service.upload(Buffer.from('x')), (error: unknown) => {
-      assert.ok(error instanceof Error);
-      assert.match(error.message, /Invalid preload response from SafeStorage \(missing or empty: url\)/);
-      assert.match(error.message, /"key":"some-key"/, 'message must include the response body for diagnosis');
-      assert.match(error.message, /\[REDACTED\]/, 'secret must be redacted');
-      assert.doesNotMatch(error.message, /s3cret/, 'secret value must not leak');
-      return true;
-    });
   });
 
   describe('preloadMany', () => {

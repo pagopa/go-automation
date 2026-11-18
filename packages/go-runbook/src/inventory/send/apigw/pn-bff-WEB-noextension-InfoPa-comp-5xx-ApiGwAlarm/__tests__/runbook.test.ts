@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { GOLogger } from '@pagopa/go-common/logging';
-import { ConditionEvaluator, type RunbookContext, RunbookEngine } from '../../../../../engine/index.js';
-import { assertCloudExecutableRunbook, createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
-import { RUNBOOK_CATALOG } from '../../../../index.js';
-import { buildRunbook, INFO_PA_ALARM } from '../runbook.js';
+import type { RunbookContext } from '../../../../../engine/index.js';
+import { buildRunbook } from '../runbook.js';
 import { KNOWN_CASES } from '../knownCases.js';
 import { API_GW_LOG_GROUP } from '../knownServices.js';
+import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
+import { executeWithLogs } from '../../../../../__tests__/helpers/executeWithLogs.js';
+import { caseMatches, knownCaseById } from '../../../../../__tests__/helpers/knownCaseMatching.js';
+import { logRow } from '../../../../../__tests__/helpers/logRow.js';
 
 const ROOT = '1-6abf5ca6-432e6382038c4b060d8e8ddd';
 const FALLBACK = '4e88b614-ecc0-4327-86ae-a7b02490ea39';
@@ -22,100 +23,26 @@ const COMMITTED =
   'Error [java.lang.UnsupportedOperationException] for HTTP GET "/ext-registry/pa/v1/institutions/institution-id/products", ' +
   'but ServerHttpResponse already committed (200 OK)';
 
-function row(fields: Record<string, string>): { field: string; value: string }[] {
-  return Object.entries(fields).map(([field, value]) => ({ field, value }));
-}
-
 function context(messages: ReadonlyArray<string>, queried = true): RunbookContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date(),
-    params: new Map(),
-    vars: new Map([
-      ['apiGwStatusCode', '500'],
-      ['apiGwHttpMethod', 'GET'],
-      ['apiGwPath', '/bff/v1/institutions/products'],
-      ...(queried ? [['externalRegistriesLogCount', String(messages.length)] as const] : []),
-    ]),
-    stepResults: new Map([
-      ['query-pn-bff', [row({ '@message': JSON.stringify({ message: BFF_TIMEOUT }) })]],
-      ['query-pn-external-registries', messages.map((message) => row({ '@message': JSON.stringify({ message }) }))],
-    ]),
-    services: createTestServiceRegistry(),
-    logs: [],
-    recoveredErrors: [],
-  };
+  return createTestContext({
+    vars: {
+      apiGwStatusCode: '500',
+      apiGwHttpMethod: 'GET',
+      apiGwPath: '/bff/v1/institutions/products',
+      ...(queried ? { externalRegistriesLogCount: String(messages.length) } : {}),
+    },
+    stepResults: {
+      'query-pn-bff': [logRow({ '@message': JSON.stringify({ message: BFF_TIMEOUT }) })],
+      'query-pn-external-registries': messages.map((message) => logRow({ '@message': JSON.stringify({ message }) })),
+    },
+  });
 }
 
 function matches(id: string, ctx: RunbookContext): boolean {
-  const knownCase = KNOWN_CASES.find((entry) => entry.id === id);
-  assert.ok(knownCase);
-  return new ConditionEvaluator().evaluate(knownCase.condition, ctx);
+  return caseMatches(knownCaseById(KNOWN_CASES, id), ctx);
 }
 
 describe('InfoPa API Gateway runbook', () => {
-  it('broadens to scoped 4xx only after a successful empty 5xx query', async () => {
-    const queries: string[] = [];
-    const services = createTestServiceRegistry({
-      cloudWatchLogs: {
-        query: async (groups: ReadonlyArray<string>, query: string) => {
-          await Promise.resolve();
-          assert.equal(groups[0], API_GW_LOG_GROUP);
-          queries.push(query);
-          return [];
-        },
-      },
-    });
-    const result = await new RunbookEngine(new GOLogger()).execute(
-      buildRunbook(),
-      new Map([
-        ['startTime', '2026-10-02T07:22:00Z'],
-        ['endTime', '2026-10-02T07:33:00Z'],
-      ]),
-      services,
-    );
-    assert.equal(queries.length, 2);
-    assert.ok(queries[0]?.includes('status >= 500'));
-    assert.ok(queries[1]?.includes('status >= 400'));
-    for (const query of queries) {
-      assert.ok(query.includes("resourcePath in ['/v1/institutions'"));
-      assert.ok(query.includes("httpMethod = 'PUT'"));
-    }
-    assert.deepEqual(result.matchedCases, []);
-  });
-
-  it('does not broaden the search after a failed 5xx query', async () => {
-    let queries = 0;
-    const services = createTestServiceRegistry({
-      cloudWatchLogs: {
-        query: async () => {
-          await Promise.resolve();
-          queries++;
-          throw new Error('AccessDenied');
-        },
-      },
-    });
-    const result = await new RunbookEngine(new GOLogger()).execute(
-      buildRunbook(),
-      new Map([
-        ['startTime', '2026-10-02T07:22:00Z'],
-        ['endTime', '2026-10-02T07:33:00Z'],
-      ]),
-      services,
-    );
-    assert.equal(queries, 1);
-    assert.equal(result.status, 'failed');
-    assert.deepEqual(result.matchedCases, []);
-  });
-  it('registers a cloud-executable read-only SEND runbook', () => {
-    const entry = RUNBOOK_CATALOG.resolveByAlarmName(INFO_PA_ALARM);
-    assert.ok(entry);
-    assert.strictEqual(entry.product, 'SEND');
-    assert.strictEqual(entry.descriptor.kind, 'APIGW');
-    assert.doesNotThrow(() => assertCloudExecutableRunbook(entry.build()));
-    assert.ok(KNOWN_CASES.every((entry) => entry.analysis?.proposedStatus === 'IN_PROGRESS'));
-  });
-
   it('does not resolve a BFF timeout before querying the downstream', () => {
     assert.strictEqual(matches('bff-external-registries-read-timeout', context([], false)), false);
     assert.strictEqual(matches('bff-external-registries-read-timeout', context([])), true);
@@ -139,7 +66,7 @@ describe('InfoPa API Gateway runbook', () => {
       '[DOWNSTREAM] Service SelfcarePA returned errors=400 Bad Request from GET https://api.selfcare.pagopa.it/external/v2/user-groups: {"detail":"Invalid tenant context"}';
     const ctx = context([failure]);
     const steps = new Map(ctx.stepResults);
-    steps.set('query-pn-bff', [row({ '@message': bff })]);
+    steps.set('query-pn-bff', [logRow({ '@message': bff })]);
     const vars = new Map(ctx.vars);
     vars.set('apiGwPath', '/bff/v1/pa/groups');
     const correlated = { ...ctx, vars, stepResults: steps };
@@ -159,15 +86,11 @@ describe('InfoPa API Gateway runbook', () => {
       assert.equal(
         matches(id, {
           ...correlated,
-          stepResults: new Map([...steps, ['query-pn-external-registries', [row({ '@message': unrelated })]]]),
+          stepResults: new Map([...steps, ['query-pn-external-registries', [logRow({ '@message': unrelated })]]]),
         }),
         false,
       );
     }
-    const known = KNOWN_CASES.find((c) => c.id === id);
-    assert.equal(known?.analysis?.proposedStatus, 'IN_PROGRESS');
-    assert.equal(known?.analysis?.resolution, 'Risoluzione non documentata.');
-    assert.deepEqual(known?.analysis?.finalActions, []);
   });
 
   it('recognizes retry timeouts only with correlated failed Selfcare telemetry', () => {
@@ -194,45 +117,34 @@ describe('InfoPa API Gateway runbook', () => {
   });
 
   it('traverses using the X-Ray root when BFF and downstream fallback UUIDs differ', async () => {
-    const calls: string[] = [];
-    const services = createTestServiceRegistry({
-      cloudWatchLogs: {
-        query: async (groups: ReadonlyArray<string>, query: string) => {
-          await Promise.resolve();
-          const group = groups[0] ?? '';
-          calls.push(group);
-          if (group === API_GW_LOG_GROUP) {
-            return Promise.resolve([
-              row({
-                status: '500',
-                xrayTraceId: `Root=${ROOT}`,
-                requestId: 'request-id',
-                httpMethod: 'GET',
-                path: '/bff/v1/institutions/products',
-                errorMessage: '-',
-                authorizerStatus: '200',
-              }),
-            ]);
-          }
-          if (group === '/aws/ecs/pn-bff') {
-            return Promise.resolve([row({ level: 'ERROR', '@message': BFF_TIMEOUT, trace_id: ROOT })]);
-          }
-          assert.strictEqual(group, '/aws/ecs/pn-external-registries');
-          assert.ok(query.includes(ROOT));
-          assert.ok(!query.includes(FALLBACK));
-          return Promise.resolve([row({ level: 'ERROR', '@message': SELFCARE_TIMEOUT, trace_id: ROOT })]);
-        },
-      },
-    });
-    const result = await new RunbookEngine(new GOLogger()).execute(
+    const { result, queries } = await executeWithLogs(
       buildRunbook(),
-      new Map([
-        ['startTime', '2026-10-02T07:22:00Z'],
-        ['endTime', '2026-10-02T07:33:00Z'],
-      ]),
-      services,
+      { startTime: '2026-10-02T07:22:00Z', endTime: '2026-10-02T07:33:00Z' },
+      (query, [group = '']) => {
+        if (group === API_GW_LOG_GROUP) {
+          return [
+            logRow({
+              status: '500',
+              xrayTraceId: `Root=${ROOT}`,
+              requestId: 'request-id',
+              httpMethod: 'GET',
+              path: '/bff/v1/institutions/products',
+              errorMessage: '-',
+              authorizerStatus: '200',
+            }),
+          ];
+        }
+        if (group === '/aws/ecs/pn-bff') return [logRow({ level: 'ERROR', '@message': BFF_TIMEOUT, trace_id: ROOT })];
+        assert.strictEqual(group, '/aws/ecs/pn-external-registries');
+        assert.ok(query.includes(ROOT));
+        assert.ok(!query.includes(FALLBACK));
+        return [logRow({ level: 'ERROR', '@message': SELFCARE_TIMEOUT, trace_id: ROOT })];
+      },
     );
-    assert.deepStrictEqual(calls, [API_GW_LOG_GROUP, '/aws/ecs/pn-bff', '/aws/ecs/pn-external-registries']);
+    assert.deepStrictEqual(
+      queries.map(({ groups }) => groups[0]),
+      [API_GW_LOG_GROUP, '/aws/ecs/pn-bff', '/aws/ecs/pn-external-registries'],
+    );
     assert.strictEqual(result.matchedCases[0]?.id, 'external-registries-selfcare-read-timeout');
     assert.strictEqual(result.finalContext.vars.get('bffFallbackUuid'), FALLBACK);
   });

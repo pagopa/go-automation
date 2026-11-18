@@ -6,7 +6,7 @@ import { describe, it } from 'node:test';
 
 import { compileScanRules } from '../scanText.js';
 import { decodeText, scanTree } from '../scanTree.js';
-import { CONFIG, DECOY_ACCOUNT_ID } from './fixtures.js';
+import { CONFIG, DECOY_ACCOUNT_ID, utf32WithBom } from './fixtures.js';
 
 const TEXT = `Account ${DECOY_ACCOUNT_ID}`;
 
@@ -26,26 +26,15 @@ describe('decodeText', () => {
   });
 
   it('decodes UTF-32 with BOM, never mistaking its little-endian BOM for UTF-16', () => {
-    const codePoints = [...TEXT].map((character) => character.codePointAt(0) ?? 0);
-    const le = Buffer.alloc(4 * (codePoints.length + 1));
-    const be = Buffer.alloc(4 * (codePoints.length + 1));
-    le.writeUInt32LE(0xfeff, 0);
-    be.writeUInt32BE(0xfeff, 0);
-    for (const [index, codePoint] of codePoints.entries()) {
-      le.writeUInt32LE(codePoint, 4 * (index + 1));
-      be.writeUInt32BE(codePoint, 4 * (index + 1));
-    }
+    const le = utf32WithBom(TEXT, 'le');
+    const be = utf32WithBom(TEXT, 'be');
     assert.strictEqual(decodeText(le), TEXT);
     assert.strictEqual(decodeText(be), TEXT);
   });
 
   it('decodes a UTF-32 document far larger than the argument limit of a single call', () => {
     const size = 1_000_000;
-    const content = Buffer.alloc(4 * (size + 1));
-    content.writeUInt32LE(0xfeff, 0);
-    for (let index = 1; index <= size; index += 1) content.writeUInt32LE(0x61, 4 * index);
-    const text = decodeText(content);
-    assert.strictEqual(text?.length, size);
+    assert.strictEqual(decodeText(utf32WithBom('a'.repeat(size)))?.length, size);
   });
 
   it('rejects a decoding that leaves NUL characters in the text', () => {
@@ -63,12 +52,7 @@ describe('scanTree — encodings', () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'scan-tree-test-'));
     try {
       await fs.writeFile(path.join(root, 'README.md'), Buffer.from(TEXT, 'utf16le'));
-      const utf32 = Buffer.alloc(4 * (TEXT.length + 1));
-      utf32.writeUInt32LE(0xfeff, 0);
-      for (const [index, character] of [...TEXT].entries()) {
-        utf32.writeUInt32LE(character.codePointAt(0) ?? 0, 4 * (index + 1));
-      }
-      await fs.writeFile(path.join(root, 'NOTES.md'), utf32);
+      await fs.writeFile(path.join(root, 'NOTES.md'), utf32WithBom(TEXT));
       await fs.writeFile(path.join(root, 'broken.js'), Buffer.from([0x00, 0x01, 0x02, 0x00, 0x00]));
       await fs.writeFile(path.join(root, 'logo.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x00, 0x01]));
       const findings = await scanTree(root, {

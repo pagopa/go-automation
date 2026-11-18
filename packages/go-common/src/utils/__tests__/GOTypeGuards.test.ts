@@ -95,11 +95,10 @@ describe('GOTypeGuards', () => {
     assert.strictEqual(isBigInt(10), false);
   });
 
-  it('covers instance-based guards', async () => {
+  it('covers instance-based guards', () => {
     const error = new Error('boom');
     const nodeError = Object.assign(new Error('enoent'), { code: 'ENOENT' });
     const invalidDate = new Date('invalid');
-    const promise = Promise.resolve('ok');
 
     assert.strictEqual(isError(error), true);
     assert.strictEqual(isError({ message: 'boom' }), false);
@@ -138,10 +137,8 @@ describe('GOTypeGuards', () => {
     assert.strictEqual(isRegExp(/abc/u), true);
     assert.strictEqual(isRegExp('abc'), false);
 
-    assert.strictEqual(isPromise(promise), true);
+    assert.strictEqual(isPromise(Promise.resolve('ok')), true);
     assert.strictEqual(isPromise({ then: () => undefined }), false);
-
-    await promise;
   });
 
   it('covers non-empty guards', () => {
@@ -156,16 +153,10 @@ describe('GOTypeGuards', () => {
 });
 
 describe('isNonBlankString', () => {
-  it('accepts a string with content', () => {
+  it('accepts a string with content and rejects blank strings and non-strings, unlike isNonEmptyString', () => {
     assert.strictEqual(isNonBlankString('eu-south-1'), true);
-  });
-
-  it('rejects whitespace-only strings, unlike isNonEmptyString', () => {
     assert.strictEqual(isNonBlankString('   '), false);
     assert.strictEqual(isNonEmptyString('   '), true);
-  });
-
-  it('rejects empty strings and non-strings', () => {
     assert.strictEqual(isNonBlankString(''), false);
     assert.strictEqual(isNonBlankString(undefined), false);
     assert.strictEqual(isNonBlankString(42), false);

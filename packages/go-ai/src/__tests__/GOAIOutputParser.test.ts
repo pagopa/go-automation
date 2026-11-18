@@ -4,16 +4,10 @@ import assert from 'node:assert/strict';
 import { parseGOAIJsonOutput, stripGOAIOutputFence } from '../GOAIOutputParser.js';
 
 describe('stripGOAIOutputFence', () => {
-  it('returns unfenced output unchanged apart from outer trimming', () => {
-    assert.strictEqual(stripGOAIOutputFence('  {"ok":true}  '), '{"ok":true}');
-  });
-
-  it('unwraps JSON markdown fences', () => {
-    assert.strictEqual(stripGOAIOutputFence('```json\n{"ok":true}\n```'), '{"ok":true}');
-  });
-
-  it('unwraps plain markdown fences', () => {
-    assert.strictEqual(stripGOAIOutputFence('```\n{"ok":true}\n```'), '{"ok":true}');
+  it('trims unfenced output and unwraps JSON and plain markdown fences', () => {
+    for (const input of ['  {"ok":true}  ', '```json\n{"ok":true}\n```', '```\n{"ok":true}\n```']) {
+      assert.strictEqual(stripGOAIOutputFence(input), '{"ok":true}', input);
+    }
   });
 
   it('does not use a polynomial regex on long whitespace input', () => {

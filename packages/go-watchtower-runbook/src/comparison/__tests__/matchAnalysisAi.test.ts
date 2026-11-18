@@ -1,82 +1,50 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { RunbookOutput } from '@pagopa/go-runbook/output';
-import type { GOAISemanticMatcher } from '@go-automation/go-ai';
+import type { GOAISemanticMatcher, GOSemanticMatchResult } from '@go-automation/go-ai';
 
 import { matchAnalysis } from '../matchAnalysis.js';
 import { matchAnalysisAi } from '../matchAnalysisAi.js';
-import type { RunbookCheck } from '../../types/RtaCheckReport.js';
-import { alarmAnalysisFixture as analysis } from './alarmAnalysisFixture.js';
+import type { MatchAnalysisAiOptions } from '../matchAnalysisAi.js';
+import { alarmAnalysisFixture as analysis, HIT, NOW, runbookOutputFixture } from './comparisonFixtures.js';
 
-const NOW = '2026-01-01T00:00:00.000Z';
-const HIT: RunbookCheck = {
-  status: 'HIT',
-  primaryCaseId: 'lambda-timeout',
-  primaryCaseDescription: 'Timeout runtime della Lambda',
-  matchedCaseIds: ['lambda-timeout'],
-};
+type SemanticMatcher = Pick<GOAISemanticMatcher, 'match'>;
 
-function outputWithRequestId(requestId: string): RunbookOutput {
-  return {
-    schemaVersion: '1.0.0',
-    generatedAt: NOW,
-    runbook: { id: 'r', name: 'r', type: 'alarm-resolution', version: '1.0.0', team: 'GO' },
-    execution: {
-      executionId: 'e',
-      startedAt: NOW,
-      completedAt: NOW,
-      durationMs: 1,
-      status: 'completed',
-      stepsExecuted: 1,
-      earlyResolution: false,
-      recoveredErrors: [],
-    },
-    input: {},
-    outcome: {
-      kind: 'known-case-matched',
-      primaryCaseId: 'lambda-timeout',
-      primaryCaseDescription: 'Timeout runtime della Lambda',
-      matchedCases: [
-        { id: 'lambda-timeout', description: 'Timeout', priority: 100, resolvedMessage: 'Timeout Lambda' },
-      ],
-      message: 'La Lambda ha superato il timeout configurato.',
-    },
-    context: { fields: [{ name: 'lambdaRequestId', label: 'requestId', value: requestId }], evidence: [] },
-  };
+const OUTPUT = runbookOutputFixture('r1');
+
+/** Matcher answering with a fixed result, counting its invocations. */
+class FixedSemanticMatcher implements SemanticMatcher {
+  calls = 0;
+
+  constructor(private readonly result: GOSemanticMatchResult) {}
+
+  async match(): Promise<GOSemanticMatchResult> {
+    await Promise.resolve();
+    this.calls += 1;
+    return this.result;
+  }
 }
 
-function semanticMatcher(score: number): Pick<GOAISemanticMatcher, 'match'> {
-  return {
-    match: async () => {
-      await Promise.resolve();
-      return {
-        score,
-        explanation: 'Entrambe le analisi indicano un timeout Lambda.',
-        verdict: score >= 70 ? 'equivalent' : 'conflicting',
-      };
-    },
-  };
-}
-
-function semanticMatcherResult(
+function semanticMatcher(
   score: number,
   verdict: 'equivalent' | 'conflicting',
-): Pick<GOAISemanticMatcher, 'match'> {
+  explanation = 'Risultato semantico controllato dal test.',
+): FixedSemanticMatcher {
+  return new FixedSemanticMatcher({ score, explanation, verdict });
+}
+
+/** Matcher whose every invocation fails like an unavailable Bedrock. */
+function failingMatcher(): SemanticMatcher {
   return {
     match: async () => {
       await Promise.resolve();
-      return {
-        score,
-        explanation: 'Risultato semantico controllato dal test.',
-        verdict,
-      };
+      throw new Error('Bedrock unavailable');
     },
   };
 }
 
 /** Matcher that fails the test if the AI path is entered at all. */
-function neverInvoked(): Pick<GOAISemanticMatcher, 'match'> {
+function neverInvoked(): SemanticMatcher {
   return {
     match: () => {
       throw new Error('semanticMatcher invoked for a comparison the AI must skip');
@@ -84,81 +52,51 @@ function neverInvoked(): Pick<GOAISemanticMatcher, 'match'> {
   };
 }
 
+function aiOptions(matcher: SemanticMatcher): MatchAnalysisAiOptions {
+  return {
+    includeIgnorable: false,
+    includeIncomplete: false,
+    semanticMatcher: matcher,
+    semanticThreshold: 70,
+    fallbackToLexical: true,
+  };
+}
+
 describe('matchAnalysisAi', () => {
-  it('uses GO-AI semantic score for non-exact HIT comparisons', async () => {
-    const linked = analysis({ errorDetails: 'La funzione Lambda non ha completato entro il tempo massimo.' });
-    const result = await matchAnalysisAi(outputWithRequestId('r1'), HIT, linked, NOW, {
-      includeIgnorable: false,
-      includeIncomplete: false,
-      semanticMatcher: semanticMatcher(88),
-      semanticThreshold: 70,
-      fallbackToLexical: true,
-    });
+  it('maps the AI score of a non-exact HIT comparison to the status', async () => {
+    const cases = [
+      { score: 88, verdict: 'equivalent', status: 'MATCH_STRONG' },
+      // Low similarity that is not a strong contradiction.
+      { score: 45, verdict: 'conflicting', status: 'NO_EVIDENCE' },
+      { score: 20, verdict: 'conflicting', status: 'CONFLICT' },
+    ] as const;
 
-    assert.strictEqual(result.status, 'MATCH_STRONG');
-    assert.strictEqual(result.matcher, 'ai');
-    assert.strictEqual(result.aiAttempted, true);
-    assert.strictEqual(result.aiFallback, undefined);
-    assert.strictEqual(result.aiError, undefined);
-    assert.strictEqual(result.signals.semanticScore, 88);
-    assert.strictEqual(result.signals.semanticVerdict, 'equivalent');
-  });
+    for (const { score, verdict, status } of cases) {
+      const linked = analysis({ errorDetails: 'La funzione Lambda non ha completato entro il tempo massimo.' });
+      const result = await matchAnalysisAi(OUTPUT, HIT, linked, NOW, aiOptions(semanticMatcher(score, verdict)));
 
-  it('maps low AI similarity to NO_EVIDENCE when it is not a strong contradiction', async () => {
-    const linked = analysis({ errorDetails: 'Testo operatore scarno e non specifico.' });
-    const result = await matchAnalysisAi(outputWithRequestId('r1'), HIT, linked, NOW, {
-      includeIgnorable: false,
-      includeIncomplete: false,
-      semanticMatcher: semanticMatcherResult(45, 'conflicting'),
-      semanticThreshold: 70,
-      fallbackToLexical: true,
-    });
-
-    assert.strictEqual(result.status, 'NO_EVIDENCE');
-    assert.strictEqual(result.matcher, 'ai');
-    assert.strictEqual(result.aiAttempted, true);
-    assert.strictEqual(result.signals.semanticScore, 45);
-  });
-
-  it('maps very low conflicting AI similarity to CONFLICT', async () => {
-    const linked = analysis({ errorDetails: 'Testo operatore con causa diversa.' });
-    const result = await matchAnalysisAi(outputWithRequestId('r1'), HIT, linked, NOW, {
-      includeIgnorable: false,
-      includeIncomplete: false,
-      semanticMatcher: semanticMatcherResult(20, 'conflicting'),
-      semanticThreshold: 70,
-      fallbackToLexical: true,
-    });
-
-    assert.strictEqual(result.status, 'CONFLICT');
-    assert.strictEqual(result.matcher, 'ai');
-    assert.strictEqual(result.aiAttempted, true);
-    assert.strictEqual(result.signals.semanticScore, 20);
+      assert.strictEqual(result.status, status, `score ${score}`);
+      assert.strictEqual(result.matcher, 'ai');
+      assert.strictEqual(result.aiAttempted, true);
+      assert.strictEqual(result.aiFallback, undefined);
+      assert.strictEqual(result.aiError, undefined);
+      assert.strictEqual(result.signals.semanticScore, score);
+      assert.strictEqual(result.signals.semanticVerdict, verdict);
+    }
   });
 
   it('keeps MATCH_EXACT and still audits operator text with GO-AI on deterministic trace overlap', async () => {
     const linked = analysis({
       trackingIds: [{ traceId: 'r1', timestamp: NOW, errorDetail: 'Timeout Lambda confermato' }],
     });
-    let invoked = false;
-    const result = await matchAnalysisAi(outputWithRequestId('r1'), HIT, linked, NOW, {
-      includeIgnorable: false,
-      includeIncomplete: false,
-      semanticMatcher: {
-        match: async () => {
-          await Promise.resolve();
-          invoked = true;
-          return { score: 90, explanation: 'Stessa diagnosi.', verdict: 'equivalent' };
-        },
-      },
-      semanticThreshold: 70,
-      fallbackToLexical: true,
-    });
+    const matcher = semanticMatcher(90, 'equivalent', 'Stessa diagnosi.');
+
+    const result = await matchAnalysisAi(OUTPUT, HIT, linked, NOW, aiOptions(matcher));
 
     assert.strictEqual(result.status, 'MATCH_EXACT');
     assert.strictEqual(result.matcher, 'deterministic+ai');
     assert.strictEqual(result.aiAttempted, true);
-    assert.strictEqual(invoked, true);
+    assert.strictEqual(matcher.calls, 1);
     assert.deepStrictEqual(result.signals.traceIdOverlap, ['r1']);
     assert.strictEqual(result.signals.semanticScore, 90);
     assert.strictEqual(result.semanticExplanation, 'Stessa diagnosi.');
@@ -166,25 +104,14 @@ describe('matchAnalysisAi', () => {
 
   it('keeps MATCH_EXACT and records a conflicting AI audit when the analysis mentions the matched case id', async () => {
     const linked = analysis({ errorDetails: 'Caso lambda-timeout confermato da Watchtower.' });
-    let invoked = false;
-    const result = await matchAnalysisAi(outputWithRequestId('r1'), HIT, linked, NOW, {
-      includeIgnorable: false,
-      includeIncomplete: false,
-      semanticMatcher: {
-        match: async () => {
-          await Promise.resolve();
-          invoked = true;
-          return { score: 20, explanation: 'Il testo operatore descrive una causa diversa.', verdict: 'conflicting' };
-        },
-      },
-      semanticThreshold: 70,
-      fallbackToLexical: true,
-    });
+    const matcher = semanticMatcher(20, 'conflicting');
+
+    const result = await matchAnalysisAi(OUTPUT, HIT, linked, NOW, aiOptions(matcher));
 
     assert.strictEqual(result.status, 'MATCH_EXACT');
     assert.strictEqual(result.matcher, 'deterministic+ai');
     assert.strictEqual(result.aiAttempted, true);
-    assert.strictEqual(invoked, true);
+    assert.strictEqual(matcher.calls, 1);
     assert.strictEqual(result.signals.caseIdMentioned, true);
     assert.strictEqual(result.signals.semanticScore, 20);
     assert.strictEqual(result.signals.semanticVerdict, 'conflicting');
@@ -195,18 +122,8 @@ describe('matchAnalysisAi', () => {
     const linked = analysis({
       trackingIds: [{ traceId: 'r1', timestamp: NOW, errorDetail: 'Timeout Lambda confermato' }],
     });
-    const result = await matchAnalysisAi(outputWithRequestId('r1'), HIT, linked, NOW, {
-      includeIgnorable: false,
-      includeIncomplete: false,
-      semanticMatcher: {
-        match: async () => {
-          await Promise.resolve();
-          throw new Error('Bedrock unavailable');
-        },
-      },
-      semanticThreshold: 70,
-      fallbackToLexical: true,
-    });
+
+    const result = await matchAnalysisAi(OUTPUT, HIT, linked, NOW, aiOptions(failingMatcher()));
 
     assert.strictEqual(result.status, 'MATCH_EXACT');
     assert.strictEqual(result.matcher, 'deterministic');
@@ -218,18 +135,8 @@ describe('matchAnalysisAi', () => {
 
   it('falls back to lexical comparison when GO-AI fails and fallback is enabled', async () => {
     const linked = analysis({ errorDetails: 'Timeout runtime della Lambda' });
-    const result = await matchAnalysisAi(outputWithRequestId('r1'), HIT, linked, NOW, {
-      includeIgnorable: false,
-      includeIncomplete: false,
-      semanticMatcher: {
-        match: async () => {
-          await Promise.resolve();
-          throw new Error('Bedrock unavailable');
-        },
-      },
-      semanticThreshold: 70,
-      fallbackToLexical: true,
-    });
+
+    const result = await matchAnalysisAi(OUTPUT, HIT, linked, NOW, aiOptions(failingMatcher()));
 
     assert.strictEqual(result.matcher, 'lexical');
     assert.strictEqual(result.aiAttempted, true);
@@ -238,68 +145,28 @@ describe('matchAnalysisAi', () => {
     assert.match(result.reasons.join('\n'), /fallback lessicale/);
   });
 
-  it('keeps the ignore reason on an IGNORED analysis, so the console can say why', async () => {
-    const ignorable = analysis({
-      analysisType: 'IGNORABLE',
-      ignoreReasonCode: 'FALSE_POSITIVE',
-      ignoreReason: {
-        code: 'FALSE_POSITIVE',
-        description: null,
-        detailsSchema: null,
-        label: 'Falso positivo',
-        sortOrder: 1,
-      },
-    });
-    const result = await matchAnalysisAi(outputWithRequestId('r1'), HIT, ignorable, NOW, {
-      includeIgnorable: false,
-      includeIncomplete: false,
-      semanticMatcher: neverInvoked(),
-      semanticThreshold: 70,
-      fallbackToLexical: true,
-    });
+  it('agrees with the lexical matcher on every comparison the AI never ran on', async () => {
+    const skipped = [
+      analysis({ status: 'IN_PROGRESS' }),
+      analysis({
+        analysisType: 'IGNORABLE',
+        ignoreReasonCode: 'MAINTENANCE',
+        ignoreReason: {
+          code: 'MAINTENANCE',
+          description: null,
+          detailsSchema: null,
+          label: 'Manutenzione',
+          sortOrder: 2,
+        },
+      }),
+    ];
 
-    assert.strictEqual(result.status, 'IGNORED');
-    assert.strictEqual(result.ignoreReasonCode, 'FALSE_POSITIVE');
-    assert.strictEqual(result.ignoreReasonLabel, 'Falso positivo');
-    assert.strictEqual(result.aiAttempted, false);
-  });
+    for (const linked of skipped) {
+      const lexical = matchAnalysis(OUTPUT, HIT, linked, NOW, { includeIgnorable: false, includeIncomplete: false });
+      const withAi = await matchAnalysisAi(OUTPUT, HIT, linked, NOW, aiOptions(neverInvoked()));
 
-  it('keeps the lexical matcher on a comparison the AI never ran on', async () => {
-    const inProgress = analysis({ status: 'IN_PROGRESS' });
-    const result = await matchAnalysisAi(outputWithRequestId('r1'), HIT, inProgress, NOW, {
-      includeIgnorable: false,
-      includeIncomplete: false,
-      semanticMatcher: neverInvoked(),
-      semanticThreshold: 70,
-      fallbackToLexical: true,
-    });
-
-    assert.strictEqual(result.status, 'NOT_ANALYZED');
-    assert.strictEqual(result.matcher, 'lexical');
-    assert.strictEqual(result.aiAttempted, false);
-  });
-
-  it('agrees with the lexical matcher on every field it did not compute', async () => {
-    const ignorable = analysis({
-      analysisType: 'IGNORABLE',
-      ignoreReasonCode: 'MAINTENANCE',
-      ignoreReason: {
-        code: 'MAINTENANCE',
-        description: null,
-        detailsSchema: null,
-        label: 'Manutenzione',
-        sortOrder: 2,
-      },
-    });
-    const options = { includeIgnorable: false, includeIncomplete: false };
-    const lexical = matchAnalysis(outputWithRequestId('r1'), HIT, ignorable, NOW, options);
-    const withAi = await matchAnalysisAi(outputWithRequestId('r1'), HIT, ignorable, NOW, {
-      ...options,
-      semanticMatcher: neverInvoked(),
-      semanticThreshold: 70,
-      fallbackToLexical: true,
-    });
-
-    assert.deepStrictEqual(withAi, { ...lexical, aiAttempted: false });
+      assert.strictEqual(withAi.matcher, 'lexical');
+      assert.deepStrictEqual(withAi, { ...lexical, aiAttempted: false });
+    }
   });
 });

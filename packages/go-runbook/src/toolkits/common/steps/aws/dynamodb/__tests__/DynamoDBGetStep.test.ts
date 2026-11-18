@@ -2,70 +2,16 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { DynamoDBGetStep } from '../DynamoDBGetStep.js';
-import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
-import type { OperationalContext } from '../../../../services/OperationalContext.js';
-
-interface GetItemCall {
-  readonly tableName: string;
-  readonly key: Record<string, unknown>;
-}
-
-function makeContext(args: {
-  readonly params?: ReadonlyArray<readonly [string, string]>;
-  /** Item the stubbed table returns; omit to simulate a missing item. */
-  readonly item?: Record<string, unknown>;
-}): { readonly context: OperationalContext; readonly calls: GetItemCall[] } {
-  const { params = [], item } = args;
-  const calls: GetItemCall[] = [];
-  const services = createTestServiceRegistry({
-    dynamodb: {
-      async getItem(tableName: string, key: Record<string, unknown>): Promise<Record<string, unknown> | undefined> {
-        calls.push({ tableName, key });
-        await Promise.resolve();
-        return item;
-      },
-    },
-  });
-
-  return {
-    calls,
-    context: {
-      executionId: 'test',
-      startedAt: new Date('2026-01-01T00:00:00.000Z'),
-      stepResults: new Map(),
-      vars: new Map(),
-      params: new Map(params),
-      logs: [],
-      services,
-      recoveredErrors: [],
-    },
-  };
-}
+import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
 
 describe('DynamoDBGetStep', () => {
-  it('returns the item fetched from the table', async () => {
-    const { context } = makeContext({ item: { pk: 'a' } });
-    const step = new DynamoDBGetStep({
-      id: 'get-item',
-      label: 'Get item',
-      tableName: 'pn-Table',
-      key: { pk: 'a' },
-    });
-
-    const result = await step.execute(context);
-
-    assert.strictEqual(result.success, true);
-    assert.deepStrictEqual(result.output, { pk: 'a' });
-  });
-
-  it('interpolates params into the table name and the key', async () => {
-    const { context, calls } = makeContext({
-      params: [
-        ['env', 'prod'],
-        ['iun', 'ABC-123'],
-      ],
-      item: { pk: 'a' },
-    });
+  it('interpolates params into the table name and the key, and returns the fetched item', async () => {
+    const calls: unknown[][] = [];
+    const getItem = async (...args: unknown[]): Promise<Record<string, unknown>> => {
+      // Table name and key; the abort signal follows.
+      calls.push(args.slice(0, 2));
+      return Promise.resolve({ pk: 'a' });
+    };
     const step = new DynamoDBGetStep({
       id: 'get-item',
       label: 'Get item',
@@ -73,16 +19,19 @@ describe('DynamoDBGetStep', () => {
       key: { iun: '{{params.iun}}' },
     });
 
-    await step.execute(context);
+    const result = await step.execute(
+      createTestContext({ params: { env: 'prod', iun: 'ABC-123' }, services: { dynamodb: { getItem } } }),
+    );
 
-    assert.deepStrictEqual(calls, [{ tableName: 'pn-Table-prod', key: { iun: 'ABC-123' } }]);
+    assert.deepStrictEqual(result, { success: true, output: { pk: 'a' } });
+    assert.deepStrictEqual(calls, [['pn-Table-prod', { iun: 'ABC-123' }]]);
   });
 
   it('reports a missing item as an undefined output, not as a failure', async () => {
-    const { context } = makeContext({});
+    const getItem = async (): Promise<undefined> => Promise.resolve(undefined);
     const step = new DynamoDBGetStep({ id: 'get-item', label: 'Get item', tableName: 'pn-Table', key: { pk: 'a' } });
 
-    const result = await step.execute(context);
+    const result = await step.execute(createTestContext({ services: { dynamodb: { getItem } } }));
 
     assert.strictEqual(result.success, true);
     assert.strictEqual(result.output, undefined);

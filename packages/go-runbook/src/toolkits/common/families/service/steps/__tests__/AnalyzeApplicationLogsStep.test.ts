@@ -1,29 +1,15 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { RunbookContext } from '../../../../../../engine/types/RunbookContext.js';
 import type { ServiceLogSchema } from '../../../../parsing/applicationLogs/ServiceLogSchema.js';
 import { AnalyzeApplicationLogsStep } from '../AnalyzeApplicationLogsStep.js';
-import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
+import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
 
 const SCHEMA: ServiceLogSchema = {
   messageFieldCandidates: ['message', '@message'],
   levelField: 'level',
   traceIdField: 'trace_id',
 };
-
-function ctx(stepResults: ReadonlyArray<readonly [string, unknown]> = []): RunbookContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-06-09T00:00:00.000Z'),
-    stepResults: new Map<string, unknown>(stepResults),
-    vars: new Map<string, string>(),
-    params: new Map<string, string>(),
-    logs: [],
-    services: createTestServiceRegistry(),
-    recoveredErrors: [],
-  };
-}
 
 function step(): AnalyzeApplicationLogsStep {
   return new AnalyzeApplicationLogsStep({
@@ -45,7 +31,7 @@ describe('AnalyzeApplicationLogsStep', () => {
       ],
     ];
 
-    const result = await step().execute(ctx([['query-pn-foo', rows]]));
+    const result = await step().execute(createTestContext({ stepResults: { 'query-pn-foo': rows } }));
 
     assert.strictEqual(result.success, true);
     assert.strictEqual(result.output?.logCount, 1);
@@ -68,7 +54,7 @@ describe('AnalyzeApplicationLogsStep', () => {
   });
 
   it('fails with the canonical "not found" message when the upstream step is missing', async () => {
-    const result = await step().execute(ctx());
+    const result = await step().execute(createTestContext());
 
     assert.strictEqual(result.success, false);
     assert.match(result.error ?? '', /Step output not found/);

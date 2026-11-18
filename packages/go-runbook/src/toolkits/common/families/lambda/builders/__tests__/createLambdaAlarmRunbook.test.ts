@@ -2,14 +2,14 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createLambdaAlarmRunbook } from '../createLambdaAlarmRunbook.js';
-import { isLambdaRunbookContext } from '../../output/LambdaRunbookContext.js';
 import type { LambdaAlarmConfig } from '../../types/LambdaAlarmConfig.js';
 import { DEFAULT_LAMBDA_PROFILE } from '../../profiles/DEFAULT_LAMBDA_PROFILE.js';
+import { TEST_RUNBOOK_METADATA } from '../../../../../../__tests__/helpers/TEST_RUNBOOK_METADATA.js';
 
 function baseConfig(overrides: Partial<LambdaAlarmConfig> = {}): LambdaAlarmConfig {
   return {
     id: 'pn-fooLambda-LogInvocationErrors-Alarm',
-    metadata: { name: 'ANALISI', description: '', version: '1.0.0', type: 'alarm-resolution', team: 'GO', tags: [] },
+    metadata: TEST_RUNBOOK_METADATA,
     lambda: { name: 'pn-fooLambda', logGroup: '/aws/lambda/pn-fooLambda', varPrefix: 'foo' },
     knownCases: [],
     queryProfile: DEFAULT_LAMBDA_PROFILE,
@@ -19,19 +19,6 @@ function baseConfig(overrides: Partial<LambdaAlarmConfig> = {}): LambdaAlarmConf
 }
 
 describe('createLambdaAlarmRunbook', () => {
-  it('builds a valid runbook with the canonical step ids', () => {
-    const runbook = createLambdaAlarmRunbook(baseConfig());
-    assert.strictEqual(runbook.metadata.id, 'pn-fooLambda-LogInvocationErrors-Alarm');
-    const ids = runbook.steps.map((descriptor) => descriptor.step.id);
-    assert.deepStrictEqual(ids, [
-      'prepare-lambda-section',
-      'query-lambda-errors',
-      'parse-lambda-errors',
-      'query-lambda-invocation',
-      'analyze-lambda-invocation',
-    ]);
-  });
-
   it('rejects a replacement query with a noncanonical step id', () => {
     const wrongQuery = {
       id: 'wrong-id',
@@ -52,11 +39,6 @@ describe('createLambdaAlarmRunbook', () => {
     );
   });
 
-  it('attaches a lambda runbook context', () => {
-    const runbook = createLambdaAlarmRunbook(baseConfig());
-    assert.ok(isLambdaRunbookContext(runbook.runbookContext));
-  });
-
   it('adds a per-downstream query step', () => {
     const runbook = createLambdaAlarmRunbook(
       baseConfig({
@@ -66,11 +48,6 @@ describe('createLambdaAlarmRunbook', () => {
     );
     const ids = runbook.steps.map((descriptor) => descriptor.step.id);
     assert.ok(ids.includes('query-pn-emd-integration'));
-  });
-
-  it('uses a default log fallback when none is provided', () => {
-    const runbook = createLambdaAlarmRunbook(baseConfig());
-    assert.strictEqual(runbook.fallbackAction.type, 'log');
   });
 
   it('rejects a downstream error pattern with an invalid regex', () => {

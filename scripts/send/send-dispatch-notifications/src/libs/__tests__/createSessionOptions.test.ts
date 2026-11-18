@@ -30,13 +30,14 @@ const TARGET: DispatchTarget = {
 
 const QA_TEST = Dispatch.BUILT_IN_PROFILES.get('qa-test');
 
-/** Writes a qa-test CSV and a PDF in `dir`. */
-async function inputFixture(dir: string): Promise<{ input: string; pdf: string }> {
+/** Writes a qa-test CSV and a PDF in a fresh temp directory. */
+async function inputFixture(): Promise<{ dir: string; input: string; pdf: string }> {
+  const { dir } = await createTestScript();
   const input = path.join(dir, 'in', 'input.csv');
   const pdf = path.join(dir, 'in', 'atto.pdf');
   await writeFixture(input, `${[QA_HEADER, qaRow('S-1'), qaRow('S-2')].join('\n')}\n`);
   await writeFixture(pdf, '%PDF-1.4 atto');
-  return { input, pdf };
+  return { dir, input, pdf };
 }
 
 /** Writes the run.json of a "previous" session with the given parameters; returns its directory. */
@@ -52,6 +53,13 @@ async function previousRun(dir: string, input: string, parameters: Readonly<Reco
   };
   await new GOJSONFileExporter({ outputPath: path.join(runDir, 'run.json'), pretty: true }).export(info);
   return runDir;
+}
+
+/** Prepares a session with the default settings and writes its run.json as a previous run. */
+async function resumable(): Promise<{ input: string; resumeDir: string }> {
+  const { dir, input } = await inputFixture();
+  const first = await prepare({ ...RAW_CONFIG, inputFile: input });
+  return { input, resumeDir: await previousRun(dir, input, first.options.parameters) };
 }
 
 async function prepare(
@@ -108,8 +116,7 @@ describe('formats', () => {
   });
 
   it('honours --output-format', async () => {
-    const { dir } = await createTestScript();
-    const { input } = await inputFixture(dir);
+    const { input } = await inputFixture();
     const { options } = await prepare({ ...RAW_CONFIG, inputFile: input, outputFormat: 'jsonl' });
     assert.equal(options.input.format, 'csv');
     assert.equal(options.output.format, 'jsonl');
@@ -119,8 +126,7 @@ describe('formats', () => {
 
 describe('createSessionOptions', () => {
   it('passes the parsed durations and records the script version and the identity in run.json', async () => {
-    const { dir } = await createTestScript();
-    const { input } = await inputFixture(dir);
+    const { input } = await inputFixture();
     const { options, timelinesProfile: profile } = await prepare({
       ...RAW_CONFIG,
       inputFile: input,
@@ -144,8 +150,7 @@ describe('createSessionOptions', () => {
   });
 
   it('does not use documents without the send phase, nor a B2B API without a B2B target', async () => {
-    const { dir } = await createTestScript();
-    const { input, pdf } = await inputFixture(dir);
+    const { input, pdf } = await inputFixture();
     const { name, production, defaults } = TARGET;
     const { options } = await prepare(
       { ...RAW_CONFIG, inputFile: input, phases: ['request-id'], awsProfiles: ['sso_a'], documentFile: [pdf] },
@@ -158,8 +163,7 @@ describe('createSessionOptions', () => {
   });
 
   it('hashes a custom mapping profile file', async () => {
-    const { dir } = await createTestScript();
-    const { input } = await inputFixture(dir);
+    const { dir, input } = await inputFixture();
     const profileFile = path.join(dir, 'profile.json');
     await writeFixture(profileFile, JSON.stringify({ name: 'custom', columns: { Scenario: 'subject' } }));
     const { options } = await prepare({ ...RAW_CONFIG, inputFile: input, mappingProfile: profileFile });
@@ -171,10 +175,7 @@ describe('createSessionOptions', () => {
 
 describe('createSessionOptions on resume', () => {
   it('resumes with the same settings, reusing run id and input', async () => {
-    const { dir } = await createTestScript();
-    const { input } = await inputFixture(dir);
-    const first = await prepare({ ...RAW_CONFIG, inputFile: input });
-    const resumeDir = await previousRun(dir, input, first.options.parameters);
+    const { input, resumeDir } = await resumable();
 
     const { run } = await prepare({
       ...RAW_CONFIG,
@@ -189,10 +190,7 @@ describe('createSessionOptions on resume', () => {
   });
 
   it('refuses a resume with different settings, listing them', async () => {
-    const { dir } = await createTestScript();
-    const { input } = await inputFixture(dir);
-    const first = await prepare({ ...RAW_CONFIG, inputFile: input });
-    const resumeDir = await previousRun(dir, input, first.options.parameters);
+    const { resumeDir } = await resumable();
 
     await assert.rejects(
       prepare(
@@ -216,10 +214,7 @@ describe('createSessionOptions on resume', () => {
   });
 
   it('compares environment and defaults only for the phases that use them', async () => {
-    const { dir } = await createTestScript();
-    const { input } = await inputFixture(dir);
-    const first = await prepare({ ...RAW_CONFIG, inputFile: input });
-    const resumeDir = await previousRun(dir, input, first.options.parameters);
+    const { resumeDir } = await resumable();
     const { name, production, defaults } = TARGET;
 
     // request-id only: no B2B target and no defaults needed, the row identity is unchanged.
@@ -239,8 +234,7 @@ describe('createSessionOptions on resume', () => {
   });
 
   it('refuses to resume a run.json without the saved identity', async () => {
-    const { dir } = await createTestScript();
-    const { input } = await inputFixture(dir);
+    const { dir, input } = await inputFixture();
     const resumeDir = await previousRun(dir, input, { env: 'ente-test', mode: 'e2e' });
     await assert.rejects(
       prepare({ ...RAW_CONFIG, inputFile: undefined, resume: resumeDir }),

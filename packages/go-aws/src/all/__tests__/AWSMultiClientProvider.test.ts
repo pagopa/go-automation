@@ -98,7 +98,9 @@ describe('AWSMultiClientProvider — profileSetFor', () => {
     assert.deepStrictEqual(scoped.profileNames, ['sso_uat_reader', 'sso_uat_admin']);
   });
 
-  it('fails with a typed error when no profile owns the account', async () => {
+  it('fails with a typed error when no profile owns the account, even with a single profile', async () => {
+    // A lone profile used to be treated as "nothing to choose", which returned
+    // the wrong account's empty results in silence.
     const provider = new ScriptedMultiClientProvider(scripted([['sso_prod', ['111111111111']]]), ['sso_prod']);
 
     const error = await provider
@@ -108,18 +110,7 @@ describe('AWSMultiClientProvider — profileSetFor', () => {
 
     assert.ok(isAWSTargetNotConfiguredError(error));
     assert.strictEqual(error.code, 'AWS_ACCOUNT_NOT_CONFIGURED');
-    assert.match(error.message, /222222222222/u);
-  });
-
-  it('fails on a single misconfigured profile instead of querying it anyway', async () => {
-    // A lone profile used to be treated as "nothing to choose", which returned
-    // the wrong account's empty results in silence.
-    const provider = new ScriptedMultiClientProvider(scripted([['sso_prod', ['111111111111']]]), ['sso_prod']);
-
-    await assert.rejects(
-      async () => provider.profileSetFor({ accountId: '222222222222', region: REGION }),
-      /No configured AWS profile resolves to account/u,
-    );
+    assert.match(error.message, /No configured AWS profile resolves to account 222222222222/u);
   });
 
   it('rejects a target in another region rather than reading the configured one', async () => {

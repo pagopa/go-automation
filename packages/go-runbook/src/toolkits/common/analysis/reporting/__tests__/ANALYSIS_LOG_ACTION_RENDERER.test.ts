@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { GOLogEvent, GOLogEventCategory, GOLogger, type GOLoggerHandler } from '@pagopa/go-common/logging';
 
 import { ActionExecutor } from '../../../../../engine/actions/ActionExecutor.js';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
-import { createTestServiceRegistry } from '../../../testing/createTestServiceRegistry.js';
+import type { OperationalContext } from '../../../services/OperationalContext.js';
+import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
 import { ANALYSIS_LOG_ACTION_RENDERER } from '../ANALYSIS_LOG_ACTION_RENDERER.js';
 
 class RecordingHandler implements GOLoggerHandler {
@@ -21,17 +21,8 @@ class RecordingHandler implements GOLoggerHandler {
   }
 }
 
-function createContext(vars: ReadonlyMap<string, string> = new Map()): RunbookContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-01-01T00:00:00.000Z'),
-    stepResults: new Map(),
-    vars,
-    params: new Map(),
-    logs: [],
-    services: createTestServiceRegistry(),
-    recoveredErrors: [],
-  };
+function createContext(vars: Readonly<Record<string, string>> = {}): OperationalContext {
+  return createTestContext({ vars });
 }
 
 describe('ANALYSIS_LOG_ACTION_RENDERER', () => {
@@ -74,7 +65,7 @@ describe('ANALYSIS_LOG_ACTION_RENDERER', () => {
   it('resolves each row on its own, so a value carrying a newline stays in its row', async () => {
     // Regression: the executor used to re-parse the rendered message, which
     // turned every line of a stack trace into a column name of its own.
-    const vars = new Map([['lastErrorMsg', 'java.lang.NullPointerException\n\tat it.pagopa.Foo.bar(Foo.java:42)']]);
+    const vars = { lastErrorMsg: 'java.lang.NullPointerException\n\tat it.pagopa.Foo.bar(Foo.java:42)' };
     const result = await new ActionExecutor(new GOLogger(), ANALYSIS_LOG_ACTION_RENDERER).execute(
       {
         type: 'log',
@@ -111,7 +102,7 @@ describe('ANALYSIS_LOG_ACTION_RENDERER', () => {
           ['Status API Gateway', '{{vars.apiGwStatusCode}}'],
         ],
       },
-      createContext(new Map([['apiGwErrorCount', '3']])),
+      createContext({ apiGwErrorCount: '3' }),
     );
 
     const joined = handler.events.map((event) => event.message).join('\n');
@@ -166,7 +157,7 @@ describe('ANALYSIS_LOG_ACTION_RENDERER', () => {
 
     const result = await new ActionExecutor(new GOLogger([handler]), ANALYSIS_LOG_ACTION_RENDERER).execute(
       { type: 'log', level: 'warn', renderAs: 'toString', title: 'Esito {{vars.x}}' },
-      createContext(new Map([['x', 'ok']])),
+      createContext({ x: 'ok' }),
     );
 
     assert.strictEqual(result.status, 'success');

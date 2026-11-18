@@ -1,160 +1,79 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ConditionEvaluator, type KnownCase, type RunbookContext } from '../../../engine/index.js';
-import { createTestServiceRegistry, SEND_DOWNSTREAMS } from '../../../toolkits/send/index.js';
+import { KNOWN_CASES } from '../apigw/pn-national-registries-PNPG-ApiGwAlarm/knownCases.js';
+import { createTestContext } from '../../../__tests__/helpers/createTestContext.js';
+import { caseMatches, knownCaseById } from '../../../__tests__/helpers/knownCaseMatching.js';
+import type { TestContextOptions } from '../../../__tests__/helpers/TestContextOptions.js';
 
-import { KNOWN_CASES as NATIONAL_REGISTRIES_PNPG_CASES } from '../apigw/pn-national-registries-PNPG-ApiGwAlarm/knownCases.js';
+const AUTHENTICATION = 'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/authentication';
+const ADE_TIMEOUT_VARS = {
+  apiGwStatusCode: '504',
+  nationalRegistriesLogCount: '0',
+  apiGwErrorMessage: 'Endpoint request timed out',
+  apiGwHttpMethod: 'POST',
+};
 
-function ctx(args: {
-  readonly vars?: Record<string, string>;
-  readonly stepResults?: ReadonlyArray<readonly [string, unknown]>;
-}): RunbookContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-06-03T09:21:00.000Z'),
-    stepResults: new Map<string, unknown>(args.stepResults ?? []),
-    vars: new Map(Object.entries(args.vars ?? {})),
-    params: new Map(),
-    logs: [],
-    services: createTestServiceRegistry(),
-    recoveredErrors: [],
-  };
+/** Context with national-registries messages and API Gateway variables. */
+function evidence(messages: ReadonlyArray<string>, vars: Readonly<Record<string, string>> = {}): TestContextOptions {
+  return { vars, stepResults: { 'query-pn-national-registries': messages } };
 }
 
-function knownCaseById(cases: ReadonlyArray<KnownCase>, id: string): KnownCase {
-  const knownCase = cases.find((candidate) => candidate.id === id);
-  assert.ok(knownCase !== undefined);
-  return knownCase;
-}
-
-describe('API Gateway runbook known cases', () => {
-  const evaluator = new ConditionEvaluator();
-
-  it('matches the AdE legal API Gateway timeout when service logs are absent', () => {
-    const knownCase = knownCaseById(NATIONAL_REGISTRIES_PNPG_CASES, 'apigw-504-ade-legal-timeout-no-service-logs');
-
-    assert.strictEqual(
-      evaluator.evaluate(
-        knownCase.condition,
-        ctx({
-          vars: {
-            apiGwStatusCode: '504',
-            nationalRegistriesLogCount: '0',
-            apiGwErrorMessage: 'Endpoint request timed out',
-            apiGwHttpMethod: 'POST',
-            apiGwPath: '/national-registries-private/agenzia-entrate/legal',
-          },
-        }),
-      ),
-      true,
-    );
-  });
-
-  it('does not match the AdE no-log timeout case for InfoCamere paths', () => {
-    const knownCase = knownCaseById(NATIONAL_REGISTRIES_PNPG_CASES, 'apigw-504-ade-legal-timeout-no-service-logs');
-
-    assert.strictEqual(
-      evaluator.evaluate(
-        knownCase.condition,
-        ctx({
-          vars: {
-            apiGwStatusCode: '504',
-            nationalRegistriesLogCount: '0',
-            apiGwErrorMessage: 'Endpoint request timed out',
-            apiGwHttpMethod: 'POST',
-            apiGwPath: '/national-registries-private/infocamere/legal-institutions',
-          },
-        }),
-      ),
-      false,
-    );
-  });
-
-  it('matches InfoCamere authentication 500 when the log URL has no query string', () => {
-    const knownCase = knownCaseById(NATIONAL_REGISTRIES_PNPG_CASES, 'downstream-infocamere-500-authentication');
-
-    assert.strictEqual(
-      evaluator.evaluate(
-        knownCase.condition,
-        ctx({
-          stepResults: [
-            [
-              'query-pn-national-registries',
-              [
-                '[DOWNSTREAM] Service InfoCamere returned errors=500 Internal Server Error from POST https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/authentication',
-              ],
-            ],
+describe('PNPG national registries API Gateway known cases', () => {
+  it('matches each documented signature, with or without a query string, and the AdE timeout only on its path', () => {
+    for (const [id, options, expected] of [
+      [
+        'apigw-504-ade-legal-timeout-no-service-logs',
+        evidence([], { ...ADE_TIMEOUT_VARS, apiGwPath: '/national-registries-private/agenzia-entrate/legal' }),
+        true,
+      ],
+      [
+        'apigw-504-ade-legal-timeout-no-service-logs',
+        evidence([], { ...ADE_TIMEOUT_VARS, apiGwPath: '/national-registries-private/infocamere/legal-institutions' }),
+        false,
+      ],
+      [
+        'downstream-infocamere-500-authentication',
+        evidence([
+          `[DOWNSTREAM] Service InfoCamere returned errors=500 Internal Server Error from POST ${AUTHENTICATION}`,
+        ]),
+        true,
+      ],
+      [
+        'downstream-infocamere-500-authentication',
+        evidence([
+          `[DOWNSTREAM] Service InfoCamere returned errors=500 Internal Server Error from POST ${AUTHENTICATION}?client_id=pn`,
+        ]),
+        true,
+      ],
+      [
+        'downstream-infocamere-connection-reset-authentication',
+        evidence([
+          '[DOWNSTREAM] Service InfoCamere returned errors=recvAddress(..) failed: Connection reset by peer\n' +
+            'org.springframework.web.reactive.function.client.WebClientRequestException\n' +
+            `Request to POST ${AUTHENTICATION} [DefaultWebClient]`,
+        ]),
+        true,
+      ],
+      [
+        'downstream-infocamere-read-timeout-authentication',
+        evidence(
+          [
+            '[DOWNSTREAM] Service InfoCamere returned errors=<not specified>\n' +
+              `Request to POST ${AUTHENTICATION} [DefaultWebClient]\n` +
+              'Caused by: io.netty.handler.timeout.ReadTimeoutException: null',
           ],
-        }),
-      ),
-      true,
-    );
-  });
-
-  it('keeps matching InfoCamere authentication 500 when the log URL has client_id', () => {
-    const knownCase = knownCaseById(NATIONAL_REGISTRIES_PNPG_CASES, 'downstream-infocamere-500-authentication');
-
-    assert.strictEqual(
-      evaluator.evaluate(
-        knownCase.condition,
-        ctx({
-          stepResults: [
-            [
-              'query-pn-national-registries',
-              [
-                '[DOWNSTREAM] Service InfoCamere returned errors=500 Internal Server Error from POST https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/authentication?client_id=pn',
-              ],
-            ],
-          ],
-        }),
-      ),
-      true,
-    );
-  });
-
-  it('matches the production InfoCamere connection reset during authentication', () => {
-    const knownCase = knownCaseById(
-      NATIONAL_REGISTRIES_PNPG_CASES,
-      'downstream-infocamere-connection-reset-authentication',
-    );
-    const message =
-      '[DOWNSTREAM] Service InfoCamere returned errors=recvAddress(..) failed: Connection reset by peer\n' +
-      'org.springframework.web.reactive.function.client.WebClientRequestException\n' +
-      'Request to POST https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/authentication [DefaultWebClient]';
-
-    assert.strictEqual(
-      evaluator.evaluate(knownCase.condition, ctx({ stepResults: [['query-pn-national-registries', [message]]] })),
-      true,
-    );
-    assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.INFOCAMERE]);
-  });
-
-  it('matches the production InfoCamere read timeout when correlated service logs are present', () => {
-    const knownCase = knownCaseById(
-      NATIONAL_REGISTRIES_PNPG_CASES,
-      'downstream-infocamere-read-timeout-authentication',
-    );
-    const message =
-      '[DOWNSTREAM] Service InfoCamere returned errors=<not specified>\n' +
-      'Request to POST https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/authentication [DefaultWebClient]\n' +
-      'Caused by: io.netty.handler.timeout.ReadTimeoutException: null';
-
-    assert.strictEqual(
-      evaluator.evaluate(
-        knownCase.condition,
-        ctx({
-          vars: {
+          {
             apiGwStatusCode: '504',
             nationalRegistriesLogCount: '1',
             apiGwErrorMessage: 'Endpoint request timed out',
             apiGwPath: '/national-registries-private/infocamere/legal-institutions',
           },
-          stepResults: [['query-pn-national-registries', [message]]],
-        }),
-      ),
-      true,
-    );
-    assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.INFOCAMERE]);
+        ),
+        true,
+      ],
+    ] as const) {
+      assert.strictEqual(caseMatches(knownCaseById(KNOWN_CASES, id), createTestContext(options)), expected, id);
+    }
   });
 });

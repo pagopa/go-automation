@@ -1,376 +1,182 @@
-/**
- * Tests for GOJSONFieldExtractor
- *
- * Covers all three extraction strategies:
- * - extract()       : path-first + recursive fallback
- * - extractByPath() : dot-notation / bracket navigation only
- * - extractByKey()  : depth-limited recursive key search
- */
-
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+
 import { GOJSONFieldExtractor } from '../GOJSONFieldExtractor.js';
 
-// ── extractByPath ───────────────────────────────────────────────────────────
+/** One extraction expectation: source object, path or key, expected value. */
+interface ExtractionCase {
+  readonly label: string;
+  readonly source: unknown;
+  readonly field: string;
+  readonly expected: unknown;
+}
 
-describe('GOJSONFieldExtractor.extractByPath', () => {
-  const extractor = new GOJSONFieldExtractor();
+/** One extraction strategy under test. */
+type ExtractFn = (source: unknown, field: string) => unknown;
 
-  it('navigates simple dot-notation path', () => {
-    const obj = { user: { name: 'Ada' } };
-    assert.strictEqual(extractor.extractByPath(obj, 'user.name'), 'Ada');
+/** Runs every case through the given extraction function. */
+function assertExtractions(extract: ExtractFn, cases: ReadonlyArray<ExtractionCase>): void {
+  for (const { label, source, field, expected } of cases) {
+    assert.deepStrictEqual(extract(source, field), expected, label);
+  }
+}
+
+/** Builds an object with `target` nested `levels` objects deep. */
+function nestedTarget(levels: number): Record<string, unknown> {
+  let obj: Record<string, unknown> = { target: 'found' };
+  for (let i = 0; i < levels; i++) {
+    obj = { nested: obj };
+  }
+  return obj;
+}
+
+describe('GOJSONFieldExtractor', () => {
+  it('extractByPath navigates dot-notation and bracket indices', () => {
+    const extractor = new GOJSONFieldExtractor();
+    const falsy = { count: 0, active: false, label: '', value: null };
+    assertExtractions(
+      (source, field) => extractor.extractByPath(source, field),
+      [
+        { label: 'multi-level path', source: { a: { b: { c: { d: 42 } } } }, field: 'a.b.c.d', expected: 42 },
+        { label: 'bracket index', source: { items: ['zero', 'one'] }, field: 'items[1]', expected: 'one' },
+        {
+          label: 'mixed dot and bracket',
+          source: { data: { results: [{ status: 'OK' }, { status: 'ERROR' }] } },
+          field: 'data.results[1].status',
+          expected: 'ERROR',
+        },
+        { label: 'root-level bracket', source: [{ id: 1 }, { id: 2 }], field: '[0].id', expected: 1 },
+        { label: 'numeric-like key', source: { '0': 'zero' }, field: '0', expected: 'zero' },
+        { label: 'empty path returns the root', source: { a: 1 }, field: '', expected: { a: 1 } },
+        { label: 'zero', source: falsy, field: 'count', expected: 0 },
+        { label: 'false', source: falsy, field: 'active', expected: false },
+        { label: 'empty string', source: falsy, field: 'label', expected: '' },
+        { label: 'null is a value, not missing', source: falsy, field: 'value', expected: null },
+        { label: 'missing key', source: { user: { name: 'Ada' } }, field: 'user.email', expected: undefined },
+        { label: 'through a primitive', source: { user: 'string-value' }, field: 'user.name', expected: undefined },
+        { label: 'out-of-bounds index', source: { items: ['a'] }, field: 'items[5]', expected: undefined },
+        { label: 'null source', source: null, field: 'any.path', expected: undefined },
+      ],
+    );
   });
 
-  it('navigates nested multi-level path', () => {
-    const obj = { a: { b: { c: { d: 42 } } } };
-    assert.strictEqual(extractor.extractByPath(obj, 'a.b.c.d'), 42);
+  it('extractByKey searches depth-first for the first own key, up to maxDepth', () => {
+    const extractor = new GOJSONFieldExtractor();
+    const withProto = Object.assign(Object.create({ inherited: 'proto-value' }) as object, { own: 'own-value' });
+    assertExtractions(
+      (source, field) => extractor.extractByKey(source, field),
+      [
+        { label: 'root level', source: { name: 'Ada' }, field: 'name', expected: 'Ada' },
+        {
+          label: 'nested object',
+          source: { wrapper: { deep: { target: 'found' } } },
+          field: 'target',
+          expected: 'found',
+        },
+        {
+          label: 'inside array elements',
+          source: { items: [{ id: 1 }, { id: 2, secret: 'hidden' }] },
+          field: 'secret',
+          expected: 'hidden',
+        },
+        {
+          label: 'first match wins',
+          source: { a: { value: 'first' }, b: { value: 'second' } },
+          field: 'value',
+          expected: 'first',
+        },
+        { label: 'own property', source: withProto, field: 'own', expected: 'own-value' },
+        { label: 'inherited property ignored', source: withProto, field: 'inherited', expected: undefined },
+        { label: 'missing key', source: { a: 1, b: { c: 2 } }, field: 'nonExistent', expected: undefined },
+        { label: 'null input', source: null, field: 'any', expected: undefined },
+        { label: 'primitive input', source: 42, field: 'key', expected: undefined },
+        {
+          label: 'embedded JSON not parsed by default',
+          source: { Body: '{"hidden":"value"}' },
+          field: 'hidden',
+          expected: undefined,
+        },
+        // Default maxDepth is 50: a target 60 levels deep is not reached.
+        { label: 'beyond default maxDepth', source: nestedTarget(60), field: 'target', expected: undefined },
+      ],
+    );
+
+    const deep = nestedTarget(3);
+    assert.strictEqual(new GOJSONFieldExtractor({ maxDepth: 2 }).extractByKey(deep, 'target'), undefined);
+    assert.strictEqual(new GOJSONFieldExtractor({ maxDepth: 3 }).extractByKey(deep, 'target'), 'found');
   });
 
-  it('navigates array bracket indices', () => {
-    const obj = { items: ['zero', 'one', 'two'] };
-    assert.strictEqual(extractor.extractByPath(obj, 'items[1]'), 'one');
+  it('extractByKey parses embedded JSON strings when enabled', () => {
+    const extractor = new GOJSONFieldExtractor({ parseEmbeddedJson: true });
+    assertExtractions(
+      (source, field) => extractor.extractByKey(source, field),
+      [
+        {
+          label: 'embedded object',
+          source: { Body: '{"orderId":"ORD-123","status":"completed"}' },
+          field: 'orderId',
+          expected: 'ORD-123',
+        },
+        {
+          label: 'nested embedded JSON (SQS → SNS)',
+          source: { Body: JSON.stringify({ Message: JSON.stringify({ eventType: 'NOTIFY' }) }) },
+          field: 'eventType',
+          expected: 'NOTIFY',
+        },
+        { label: 'embedded array', source: { data: '[{"x":1},{"x":2}]' }, field: 'x', expected: 1 },
+        {
+          label: 'invalid JSON skipped',
+          source: { message: '{not valid json', actual: { target: 'found' } },
+          field: 'target',
+          expected: 'found',
+        },
+        {
+          label: 'plain string skipped',
+          source: { note: 'plain string with {braces}', nested: { target: 'correct' } },
+          field: 'target',
+          expected: 'correct',
+        },
+      ],
+    );
+
+    const strict = new GOJSONFieldExtractor({ parseEmbeddedJson: true, minEmbeddedJsonLength: 50 });
+    assert.strictEqual(
+      strict.extractByKey({ short: '{"a":1}', fallback: { a: 'from-object' } }, 'a'),
+      'from-object',
+      'strings shorter than minEmbeddedJsonLength are not parsed',
+    );
   });
 
-  it('navigates mixed dot-notation and bracket indices', () => {
-    const obj = { data: { results: [{ status: 'OK' }, { status: 'ERROR' }] } };
-    assert.strictEqual(extractor.extractByPath(obj, 'data.results[1].status'), 'ERROR');
-  });
-
-  it('navigates root-level bracket index on array', () => {
-    const arr = [{ id: 1 }, { id: 2 }];
-    assert.strictEqual(extractor.extractByPath(arr, '[0].id'), 1);
-  });
-
-  it('returns undefined for non-existent path', () => {
-    const obj = { user: { name: 'Ada' } };
-    assert.strictEqual(extractor.extractByPath(obj, 'user.email'), undefined);
-  });
-
-  it('returns undefined for path through primitive', () => {
-    const obj = { user: 'string-value' };
-    assert.strictEqual(extractor.extractByPath(obj, 'user.name'), undefined);
-  });
-
-  it('returns undefined for out-of-bounds index', () => {
-    const obj = { items: ['a'] };
-    assert.strictEqual(extractor.extractByPath(obj, 'items[5]'), undefined);
-  });
-
-  it('returns undefined when source is null', () => {
-    assert.strictEqual(extractor.extractByPath(null, 'any.path'), undefined);
-  });
-
-  it('returns undefined when source is undefined', () => {
-    assert.strictEqual(extractor.extractByPath(undefined, 'any'), undefined);
-  });
-
-  it('returns the root object for empty path', () => {
-    const obj = { a: 1 };
-    // Empty path means no segments to navigate, so it returns the object itself
-    assert.deepStrictEqual(extractor.extractByPath(obj, ''), obj);
-  });
-
-  it('returns falsy values correctly (0, false, empty string)', () => {
-    const obj = { count: 0, active: false, label: '' };
-    assert.strictEqual(extractor.extractByPath(obj, 'count'), 0);
-    assert.strictEqual(extractor.extractByPath(obj, 'active'), false);
-    assert.strictEqual(extractor.extractByPath(obj, 'label'), '');
-  });
-
-  it('returns null value without treating it as missing', () => {
-    const obj = { value: null };
-    assert.strictEqual(extractor.extractByPath(obj, 'value'), null);
-  });
-});
-
-// ── extractByKey ────────────────────────────────────────────────────────────
-
-describe('GOJSONFieldExtractor.extractByKey', () => {
-  const extractor = new GOJSONFieldExtractor();
-
-  it('finds key at root level', () => {
-    const obj = { name: 'Ada', age: 36 };
-    assert.strictEqual(extractor.extractByKey(obj, 'name'), 'Ada');
-  });
-
-  it('finds key in nested object', () => {
-    const obj = { wrapper: { deep: { target: 'found' } } };
-    assert.strictEqual(extractor.extractByKey(obj, 'target'), 'found');
-  });
-
-  it('finds key inside array elements', () => {
-    const obj = { items: [{ id: 1 }, { id: 2, secret: 'hidden' }] };
-    assert.strictEqual(extractor.extractByKey(obj, 'secret'), 'hidden');
-  });
-
-  it('returns first match in depth-first order', () => {
-    const obj = {
-      a: { value: 'first' },
-      b: { value: 'second' },
-    };
-    assert.strictEqual(extractor.extractByKey(obj, 'value'), 'first');
-  });
-
-  it('returns undefined for non-existent key', () => {
-    const obj = { a: 1, b: { c: 2 } };
-    assert.strictEqual(extractor.extractByKey(obj, 'nonExistent'), undefined);
-  });
-
-  it('returns undefined for null input', () => {
-    assert.strictEqual(extractor.extractByKey(null, 'any'), undefined);
-  });
-
-  it('returns undefined for primitive input', () => {
-    assert.strictEqual(extractor.extractByKey('just a string', 'key'), undefined);
-    assert.strictEqual(extractor.extractByKey(42, 'key'), undefined);
-  });
-
-  it('respects maxDepth option', () => {
-    const extractor2 = new GOJSONFieldExtractor({ maxDepth: 2 });
-    const obj = { level1: { level2: { level3: { target: 'deep' } } } };
-    // At maxDepth 2, level3 is at depth 3, so target at depth 4 is unreachable
-    assert.strictEqual(extractor2.extractByKey(obj, 'target'), undefined);
-  });
-
-  it('finds key within maxDepth limit', () => {
-    const extractor2 = new GOJSONFieldExtractor({ maxDepth: 5 });
-    const obj = { level1: { level2: { level3: { target: 'reachable' } } } };
-    assert.strictEqual(extractor2.extractByKey(obj, 'target'), 'reachable');
-  });
-});
-
-// ── extractByKey with embedded JSON parsing ─────────────────────────────────
-
-describe('GOJSONFieldExtractor.extractByKey (parseEmbeddedJson)', () => {
-  const extractor = new GOJSONFieldExtractor({ parseEmbeddedJson: true });
-
-  it('parses embedded JSON string and extracts key from it', () => {
-    const obj = {
-      Body: '{"orderId":"ORD-123","status":"completed"}',
-    };
-    assert.strictEqual(extractor.extractByKey(obj, 'orderId'), 'ORD-123');
-  });
-
-  it('parses nested embedded JSON (SQS → SNS pattern)', () => {
-    const obj = {
-      Body: JSON.stringify({
-        Message: JSON.stringify({ eventType: 'NOTIFY', payload: { id: 99 } }),
-      }),
-    };
-    assert.strictEqual(extractor.extractByKey(obj, 'eventType'), 'NOTIFY');
-  });
-
-  it('parses embedded JSON array', () => {
-    const obj = {
-      data: '[{"x":1},{"x":2}]',
-    };
-    // The key 'x' is found inside the first element of the parsed array
-    assert.strictEqual(extractor.extractByKey(obj, 'x'), 1);
-  });
-
-  it('ignores invalid JSON strings gracefully', () => {
-    const obj = {
-      message: '{not valid json',
-      actual: { target: 'found' },
-    };
-    assert.strictEqual(extractor.extractByKey(obj, 'target'), 'found');
-  });
-
-  it('ignores strings shorter than minEmbeddedJsonLength', () => {
-    const extractor2 = new GOJSONFieldExtractor({
-      parseEmbeddedJson: true,
-      minEmbeddedJsonLength: 50,
-    });
-    const obj = {
-      short: '{"a":1}',
-      fallback: { a: 'from-object' },
-    };
-    // The embedded JSON string is too short (7 chars < 50), so it falls back
-    assert.strictEqual(extractor2.extractByKey(obj, 'a'), 'from-object');
-  });
-
-  it('does NOT parse embedded JSON when option is disabled', () => {
-    const noParseExtractor = new GOJSONFieldExtractor({ parseEmbeddedJson: false });
-    const obj = {
-      Body: '{"hidden":"value"}',
-    };
-    assert.strictEqual(noParseExtractor.extractByKey(obj, 'hidden'), undefined);
-  });
-
-  it('ignores non-JSON strings (no { or [ prefix)', () => {
-    const obj = {
-      note: 'just a plain string with {braces} inside',
-      nested: { target: 'correct' },
-    };
-    assert.strictEqual(extractor.extractByKey(obj, 'target'), 'correct');
-  });
-});
-
-// ── extract (combined strategy) ─────────────────────────────────────────────
-
-describe('GOJSONFieldExtractor.extract', () => {
-  const extractor = new GOJSONFieldExtractor({ parseEmbeddedJson: true });
-
-  it('prefers path-based result over recursive', () => {
-    const obj = {
-      user: { name: 'path-value' },
-      nested: { deep: { name: 'recursive-value' } },
-    };
-    // 'user.name' resolves by path, so recursive search is not attempted
-    assert.strictEqual(extractor.extract(obj, 'user.name'), 'path-value');
-  });
-
-  it('falls back to recursive search when path fails', () => {
-    const obj = {
-      wrapper: { deep: { city: 'Rome' } },
-    };
-    // 'city' is not a valid path from root, but recursive finds it
-    assert.strictEqual(extractor.extract(obj, 'city'), 'Rome');
-  });
-
-  it('uses last segment of dot-path for recursive fallback', () => {
-    const obj = {
-      data: { nested: { email: 'ada@example.com' } },
-    };
-    // 'contact.email' fails by path (no 'contact' key at root)
-    // Falls back to recursive search using 'email' (last segment)
-    assert.strictEqual(extractor.extract(obj, 'contact.email'), 'ada@example.com');
-  });
-
-  it('returns undefined when neither strategy finds the value', () => {
-    const obj = { a: 1, b: { c: 2 } };
-    assert.strictEqual(extractor.extract(obj, 'nonExistent'), undefined);
-  });
-
-  it('handles real-world SQS message structure', () => {
+  it('extract prefers the path and falls back to a recursive search on the last segment', () => {
+    const extractor = new GOJSONFieldExtractor({ parseEmbeddedJson: true });
     const sqsMessage = {
       messageId: 'msg-001',
       body: JSON.stringify({
         Type: 'Notification',
-        Message: JSON.stringify({
-          eventType: 'DELIVERY_FAILED',
-          iun: 'IUN-2024-001',
-          recipient: { fiscalCode: 'ABCDEF12G34H567I' },
-        }),
+        Message: JSON.stringify({ eventType: 'DELIVERY_FAILED', recipient: { fiscalCode: 'ABCDEF12G34H567I' } }),
       }),
     };
-
-    assert.strictEqual(extractor.extract(sqsMessage, 'eventType'), 'DELIVERY_FAILED');
-    assert.strictEqual(extractor.extract(sqsMessage, 'iun'), 'IUN-2024-001');
-    assert.strictEqual(extractor.extract(sqsMessage, 'fiscalCode'), 'ABCDEF12G34H567I');
-    assert.strictEqual(extractor.extract(sqsMessage, 'messageId'), 'msg-001');
-  });
-
-  it('handles CloudWatch alarm structure', () => {
-    const alarm = {
-      AlarmName: 'pn-delivery-B2B-ApiGwAlarm',
-      StateValue: 'ALARM',
-      Trigger: {
-        MetricName: '5XXError',
-        Namespace: 'AWS/ApiGateway',
-        Dimensions: [{ name: 'ApiName', value: 'pn-delivery-B2B' }],
-      },
-    };
-
-    assert.strictEqual(extractor.extract(alarm, 'AlarmName'), 'pn-delivery-B2B-ApiGwAlarm');
-    assert.strictEqual(extractor.extract(alarm, 'Trigger.MetricName'), '5XXError');
-    assert.strictEqual(extractor.extract(alarm, 'Trigger.Dimensions[0].value'), 'pn-delivery-B2B');
-  });
-});
-
-// ── Constructor defaults ────────────────────────────────────────────────────
-
-describe('GOJSONFieldExtractor constructor defaults', () => {
-  it('creates instance with default options', () => {
-    const extractor = new GOJSONFieldExtractor();
-    // Verify it works — defaults are maxDepth=50, parseEmbeddedJson=false
-    const obj = { key: 'value' };
-    assert.strictEqual(extractor.extract(obj, 'key'), 'value');
-  });
-
-  it('creates instance with explicit options', () => {
-    const extractor = new GOJSONFieldExtractor({
-      maxDepth: 10,
-      parseEmbeddedJson: true,
-      minEmbeddedJsonLength: 5,
-    });
-    const obj = { data: '{"nested":"ok"}' };
-    assert.strictEqual(extractor.extractByKey(obj, 'nested'), 'ok');
-  });
-
-  it('does not parse embedded JSON by default', () => {
-    const extractor = new GOJSONFieldExtractor();
-    const obj = { data: '{"hidden":"value"}' };
-    assert.strictEqual(extractor.extractByKey(obj, 'hidden'), undefined);
-  });
-});
-
-// ── Edge cases ──────────────────────────────────────────────────────────────
-
-describe('GOJSONFieldExtractor edge cases', () => {
-  const extractor = new GOJSONFieldExtractor({ parseEmbeddedJson: true });
-
-  it('handles empty object', () => {
-    assert.strictEqual(extractor.extract({}, 'any'), undefined);
-  });
-
-  it('handles empty array', () => {
-    assert.strictEqual(extractor.extract([], 'any'), undefined);
-  });
-
-  it('handles deeply nested structure without stack overflow', () => {
-    // Build 60 levels deep - exceeds default maxDepth of 50
-    let obj: Record<string, unknown> = { target: 'found' };
-    for (let i = 0; i < 60; i++) {
-      obj = { nested: obj };
-    }
-    // Default maxDepth is 50, so target at depth 61 should not be found
-    const defaultExtractor = new GOJSONFieldExtractor();
-    assert.strictEqual(defaultExtractor.extractByKey(obj, 'target'), undefined);
-
-    // With higher maxDepth it should be found
-    const deepExtractor = new GOJSONFieldExtractor({ maxDepth: 100 });
-    assert.strictEqual(deepExtractor.extractByKey(obj, 'target'), 'found');
-  });
-
-  it('handles objects with numeric-like keys', () => {
-    const obj = { '0': 'zero', '1': 'one' };
-    assert.strictEqual(extractor.extractByPath(obj, '0'), 'zero');
-  });
-
-  it('handles value that is explicitly undefined', () => {
-    const obj = { key: undefined };
-    // extractByKey returns undefined — same as "not found"
-    // but extractByPath should also return undefined since the value IS undefined
-    assert.strictEqual(extractor.extractByPath(obj, 'key'), undefined);
-  });
-
-  it('handles circular-like structures (not truly circular, but repeated references)', () => {
-    const shared = { id: 'shared-ref' };
-    const obj = { a: shared, b: shared, c: { inner: shared } };
-    assert.strictEqual(extractor.extractByKey(obj, 'id'), 'shared-ref');
-  });
-
-  it('extracts from object with prototype chain properties', () => {
-    const proto = { inherited: 'proto-value' };
-    const obj = Object.create(proto) as Record<string, unknown>;
-    obj['own'] = 'own-value';
-    // extractByKey uses hasOwnProperty, so inherited should NOT be found
-    assert.strictEqual(extractor.extractByKey(obj, 'own'), 'own-value');
-    assert.strictEqual(extractor.extractByKey(obj, 'inherited'), undefined);
-  });
-
-  it('handles special characters in key names', () => {
-    const obj = { 'key-with-dashes': 'dash', key_with_underscores: 'under' };
-    assert.strictEqual(extractor.extractByKey(obj, 'key-with-dashes'), 'dash');
-    assert.strictEqual(extractor.extractByKey(obj, 'key_with_underscores'), 'under');
-  });
-
-  it('handles large flat object efficiently', () => {
-    const obj: Record<string, number> = {};
-    for (let i = 0; i < 10000; i++) {
-      obj[`key_${i}`] = i;
-    }
-    assert.strictEqual(extractor.extractByKey(obj, 'key_9999'), 9999);
+    assertExtractions(
+      (source, field) => extractor.extract(source, field),
+      [
+        {
+          label: 'path wins over recursive',
+          source: { user: { name: 'path-value' }, nested: { deep: { name: 'recursive-value' } } },
+          field: 'user.name',
+          expected: 'path-value',
+        },
+        {
+          label: 'last segment fallback',
+          source: { data: { nested: { email: 'ada@example.com' } } },
+          field: 'contact.email',
+          expected: 'ada@example.com',
+        },
+        { label: 'SQS: root key', source: sqsMessage, field: 'messageId', expected: 'msg-001' },
+        { label: 'SQS: embedded key', source: sqsMessage, field: 'eventType', expected: 'DELIVERY_FAILED' },
+        { label: 'SQS: deeply embedded key', source: sqsMessage, field: 'fiscalCode', expected: 'ABCDEF12G34H567I' },
+        { label: 'not found', source: { a: 1, b: { c: 2 } }, field: 'nonExistent', expected: undefined },
+        { label: 'empty array', source: [], field: 'any', expected: undefined },
+      ],
+    );
   });
 });

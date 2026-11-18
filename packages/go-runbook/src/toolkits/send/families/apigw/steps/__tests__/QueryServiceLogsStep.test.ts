@@ -1,352 +1,144 @@
-import { describe, it, mock } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { AWSCloudWatchLogsService } from '@pagopa/go-aws/cloudwatch-logs';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { GOLogger } from '@pagopa/go-common/logging';
-import type { TimeRange } from '../../../../../common/time/TimeRange.js';
 
-import { QueryServiceLogsStep } from '../QueryServiceLogsStep.js';
-import { createTestServiceRegistry } from '../../../../../common/testing/createTestServiceRegistry.js';
+import { QueryServiceLogsStep, type QueryServiceLogsConfig } from '../QueryServiceLogsStep.js';
 import { ConsoleRunbookReporter } from '../../../../../../engine/reporting/ConsoleRunbookReporter.js';
-import { NOOP_RUNBOOK_REPORTER } from '../../../../../../engine/reporting/NOOP_RUNBOOK_REPORTER.js';
+import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
+import { logRow } from '../../../../../../__tests__/helpers/logRow.js';
+import { TEST_TIME_RANGE_PARAMS } from '../../../../../../__tests__/helpers/TEST_TIME_RANGE_PARAMS.js';
 import type { OperationalContext } from '../../../../../common/services/OperationalContext.js';
 
-interface CapturedCall {
-  readonly logGroups: ReadonlyArray<string>;
-  readonly query: string;
-  readonly timeRange: TimeRange;
+const ROWS: ReadonlyArray<GOLogsInsightsResultField[]> = [
+  logRow({ '@message': 'row1' }),
+  logRow({ '@message': 'row2' }),
+];
+
+function step(overrides: Partial<QueryServiceLogsConfig> = {}): QueryServiceLogsStep {
+  return new QueryServiceLogsStep({
+    id: 'q',
+    label: 'Q',
+    serviceName: 'pn-foo',
+    entryService: true,
+    logGroups: ['/aws/ecs/foo'],
+    timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+    ...overrides,
+  });
 }
 
-function createFakeCwLogs(results: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = []): {
-  service: AWSCloudWatchLogsService;
-  calls: CapturedCall[];
-} {
-  const calls: CapturedCall[] = [];
-  const service = {
-    query: mock.fn(
-      async (
-        logGroups: ReadonlyArray<string>,
-        query: string,
-        timeRange: TimeRange,
-      ): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> => {
-        await Promise.resolve();
-        calls.push({ logGroups: [...logGroups], query, timeRange });
-        return results;
-      },
-    ),
-  } as unknown as AWSCloudWatchLogsService;
-  return { service, calls };
-}
-
-function createContext(args: {
-  readonly vars?: Record<string, string>;
-  readonly cloudWatchLogs: AWSCloudWatchLogsService;
-  readonly capturedLines?: string[];
-}): OperationalContext {
-  const captured = args.capturedLines;
-  const reporter =
-    captured === undefined
-      ? NOOP_RUNBOOK_REPORTER
-      : new ConsoleRunbookReporter({
-          text: (msg: string) => captured.push(msg),
-          newline: () => captured.push(''),
-        } as unknown as GOLogger);
-
+/** A context whose logs service records every query and answers with `ROWS`. */
+function recording(vars: Readonly<Record<string, string>>): { context: OperationalContext; queries: string[] } {
+  const queries: string[] = [];
+  const query = async (_groups: ReadonlyArray<string>, text: string): Promise<typeof ROWS> => {
+    await Promise.resolve();
+    queries.push(text);
+    return ROWS;
+  };
   return {
-    executionId: 'test',
-    startedAt: new Date('2026-01-01T00:00:00.000Z'),
-    stepResults: new Map(),
-    vars: new Map(Object.entries(args.vars ?? {})),
-    params: new Map<string, string>([
-      ['startTime', '2026-01-01T00:00:00.000Z'],
-      ['endTime', '2026-01-01T00:10:00.000Z'],
-    ]),
-    logs: [],
-    services: createTestServiceRegistry({ cloudWatchLogs: args.cloudWatchLogs, reporter }),
-    recoveredErrors: [],
+    context: createTestContext({ vars, params: TEST_TIME_RANGE_PARAMS, services: { cloudWatchLogs: { query } } }),
+    queries,
   };
 }
 
-describe('queryServiceLogs', () => {
+describe('QueryServiceLogsStep', () => {
   it('skips the AWS call when no identifier is available', async () => {
-    const { service, calls } = createFakeCwLogs();
-    const step = new QueryServiceLogsStep({
-      id: 'q',
-      label: 'Q',
-      serviceName: 'pn-foo',
-      entryService: true,
-      logGroups: ['/aws/ecs/foo'],
-      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
-    });
+    const { context, queries } = recording({});
 
-    const result = await step.execute(createContext({ cloudWatchLogs: service }));
+    const result = await step().execute(context);
 
     assert.strictEqual(result.success, true);
     assert.deepStrictEqual(result.output, []);
-    assert.strictEqual(calls.length, 0);
+    assert.deepStrictEqual(queries, []);
   });
 
-  it('issues a single-clause filter when only xRayTraceId is present', async () => {
-    const { service, calls } = createFakeCwLogs([[{ field: '@message', value: 'hit' }]]);
-    const step = new QueryServiceLogsStep({
-      id: 'q',
-      label: 'Q',
-      serviceName: 'pn-foo',
-      entryService: true,
-      logGroups: ['/aws/ecs/foo'],
-      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
-    });
+  it('queries a single identifier, escaped, and returns the rows', async () => {
+    const { context, queries } = recording({ xRayTraceId: "trace'1" });
 
-    const result = await step.execute(createContext({ vars: { xRayTraceId: '1-abc' }, cloudWatchLogs: service }));
+    const result = await step().execute(context);
 
-    assert.strictEqual(result.success, true);
-    assert.strictEqual(calls.length, 1);
-    const call = calls[0];
-    assert.ok(call !== undefined);
-    assert.match(call.query, /filter @message like '1-abc'/);
-    assert.doesNotMatch(call.query, /\bor\b/);
+    assert.strictEqual(result.output, ROWS);
+    assert.strictEqual(queries.length, 1);
+    assert.match(queries[0] ?? '', /filter @message like 'trace''1'/);
+    assert.doesNotMatch(queries[0] ?? '', /\bor\b/);
   });
 
-  it('uses only fallbackUuid when both xRayTraceId and fallbackUuid are present', async () => {
-    const { service, calls } = createFakeCwLogs();
-    const step = new QueryServiceLogsStep({
-      id: 'q',
-      label: 'Q',
-      serviceName: 'pn-foo',
-      entryService: true,
-      logGroups: ['/aws/ecs/foo'],
-      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
-    });
-
-    await step.execute(
-      createContext({
-        vars: { xRayTraceId: '1-abc', fallbackUuid: 'uuid-1' },
-        cloudWatchLogs: service,
-      }),
-    );
-
-    const call = calls[0];
-    assert.ok(call !== undefined);
-    assert.match(call.query, /filter @message like 'uuid-1'/);
-    assert.doesNotMatch(call.query, /1-abc/);
-    assert.doesNotMatch(call.query, /\bor\b/);
-  });
-
-  it('escapes single quotes in identifiers (SQL escaping)', async () => {
-    const { service, calls } = createFakeCwLogs();
-    const step = new QueryServiceLogsStep({
-      id: 'q',
-      label: 'Q',
-      serviceName: 'pn-foo',
-      entryService: true,
-      logGroups: ['/aws/ecs/foo'],
-      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
-    });
-
-    await step.execute(createContext({ vars: { xRayTraceId: "trace'injected" }, cloudWatchLogs: service }));
-
-    const call = calls[0];
-    assert.ok(call !== undefined);
-    assert.match(call.query, /'trace''injected'/);
-  });
-
-  it('queries only the fallback when xRayTraceId is empty', async () => {
-    const { service, calls } = createFakeCwLogs();
-    const step = new QueryServiceLogsStep({
-      id: 'q',
-      label: 'Q',
-      serviceName: 'pn-foo',
-      entryService: true,
-      logGroups: ['/aws/ecs/foo'],
-      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
-    });
-
-    await step.execute(
-      createContext({
-        vars: { xRayTraceId: '   ', fallbackUuid: 'uuid-only' },
-        cloudWatchLogs: service,
-      }),
-    );
-
-    const call = calls[0];
-    assert.ok(call !== undefined);
-    assert.match(call.query, /filter @message like 'uuid-only'/);
-    assert.doesNotMatch(call.query, /1-abc/);
-  });
-
-  it('reads the trace id from the profile-provided context var name', async () => {
-    const { service, calls } = createFakeCwLogs();
-    const step = new QueryServiceLogsStep({
-      id: 'q',
-      label: 'Q',
-      serviceName: 'pn-foo',
-      entryService: true,
-      logGroups: ['/aws/ecs/foo'],
-      accessLogSchemaTraceIdContextVar: 'customTrace',
-      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
-    });
-
-    await step.execute(
-      createContext({
-        vars: { customTrace: 'trace-1', fallbackUuid: 'fb-1' },
-        cloudWatchLogs: service,
-      }),
-    );
-
-    const call = calls[0];
-    assert.ok(call !== undefined);
-    // fallbackUuid wins over trace id when both are present.
-    assert.match(call.query, /'fb-1'/);
-    assert.doesNotMatch(call.query, /'trace-1'/);
-  });
-
-  it('returns the rows produced by the CloudWatch Logs service', async () => {
-    const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [
-      [{ field: '@message', value: 'row1' }],
-      [{ field: '@message', value: 'row2' }],
+  it('prefers the fallback UUID over the trace id, read from the profile var', async () => {
+    const cases: ReadonlyArray<readonly [Readonly<Record<string, string>>, string | undefined]> = [
+      [{ xRayTraceId: '1-abc', fallbackUuid: 'uuid-1' }, undefined],
+      [{ xRayTraceId: '   ', fallbackUuid: 'uuid-1' }, undefined],
+      [{ customTrace: '1-abc', fallbackUuid: 'uuid-1' }, 'customTrace'],
     ];
-    const { service } = createFakeCwLogs(rows);
-    const step = new QueryServiceLogsStep({
-      id: 'q',
-      label: 'Q',
-      serviceName: 'pn-foo',
-      entryService: true,
-      logGroups: ['/aws/ecs/foo'],
-      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
-    });
-
-    const result = await step.execute(createContext({ vars: { xRayTraceId: '1-abc' }, cloudWatchLogs: service }));
-
-    assert.deepStrictEqual(result.output, rows);
+    for (const [vars, traceVar] of cases) {
+      const { context, queries } = recording(vars);
+      await step(traceVar === undefined ? {} : { accessLogSchemaTraceIdContextVar: traceVar }).execute(context);
+      assert.match(queries[0] ?? '', /filter @message like 'uuid-1'/);
+      assert.doesNotMatch(queries[0] ?? '', /1-abc|\bor\b/);
+    }
   });
 
-  it('increments apiGwVisitCount only when entering a NEW service', async () => {
-    const { service } = createFakeCwLogs([[{ field: '@message', value: 'r' }]]);
-    const step = new QueryServiceLogsStep({
-      id: 'q',
-      label: 'Q',
-      serviceName: 'pn-foo',
-      entryService: true,
-      logGroups: ['/aws/ecs/foo'],
-      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
-    });
-
-    // First visit on pn-foo (no previous service tracked).
-    const r1 = await step.execute(createContext({ vars: { xRayTraceId: '1-abc' }, cloudWatchLogs: service }));
-    assert.strictEqual(r1.vars?.['apiGwVisitCount'], '1');
-    assert.strictEqual(r1.vars?.['apiGwLastService'], 'pn-foo');
-    assert.strictEqual(r1.vars?.['apiGwQueryCount'], '1');
-    assert.strictEqual(r1.vars?.['apiGwServicesVisited'], 'pn-foo|1');
-
-    // Re-query on the SAME service (fallback-uuid retry / trace_id swap).
-    const r2 = await step.execute(
-      createContext({
-        vars: {
-          xRayTraceId: '1-abc',
-          apiGwVisitCount: '1',
-          apiGwLastService: 'pn-foo',
-          apiGwQueryCount: '1',
-          apiGwServicesVisited: 'pn-foo|1',
-        },
-        cloudWatchLogs: service,
-      }),
-    );
-    // Visit counter unchanged, query counter bumped, chain entry rewritten.
-    assert.strictEqual(r2.vars?.['apiGwVisitCount'], '1');
-    assert.strictEqual(r2.vars?.['apiGwQueryCount'], '2');
-    assert.strictEqual(r2.vars?.['apiGwServicesVisited'], 'pn-foo|1');
-  });
-
-  it('increments apiGwVisitCount and appends to the chain when switching to a different service', async () => {
-    const { service } = createFakeCwLogs([[{ field: '@message', value: 'r1' }], [{ field: '@message', value: 'r2' }]]);
-    const step = new QueryServiceLogsStep({
-      id: 'q',
-      label: 'Q',
-      serviceName: 'pn-bar',
-      entryService: false,
-      logGroups: ['/aws/ecs/bar'],
-      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
-    });
-
-    const result = await step.execute(
-      createContext({
-        vars: {
-          xRayTraceId: '1-abc',
-          apiGwVisitCount: '1',
-          apiGwLastService: 'pn-foo',
-          apiGwQueryCount: '1',
-          apiGwServicesVisited: 'pn-foo|42',
-        },
-        cloudWatchLogs: service,
-      }),
+  it('counts a visit only when entering a new service, and every query', async () => {
+    const first = await step().execute(recording({ xRayTraceId: '1-abc' }).context);
+    assert.deepStrictEqual(
+      ['apiGwVisitCount', 'apiGwLastService', 'apiGwQueryCount', 'apiGwServicesVisited'].map(
+        (key) => first.vars?.[key],
+      ),
+      ['1', 'pn-foo', '1', 'pn-foo|2'],
     );
 
-    assert.strictEqual(result.vars?.['apiGwVisitCount'], '2');
-    assert.strictEqual(result.vars?.['apiGwLastService'], 'pn-bar');
-    assert.strictEqual(result.vars?.['apiGwQueryCount'], '2');
-    assert.strictEqual(result.vars?.['apiGwServicesVisited'], 'pn-foo|42,pn-bar|2');
+    const visited = { xRayTraceId: '1-abc', apiGwVisitCount: '1', apiGwLastService: 'pn-foo', apiGwQueryCount: '1' };
+    // Re-query of the same service (fallback-uuid retry / trace_id swap): the chain entry is rewritten.
+    const again = await step().execute(recording({ ...visited, apiGwServicesVisited: 'pn-foo|1' }).context);
+    assert.deepStrictEqual(
+      ['apiGwVisitCount', 'apiGwQueryCount', 'apiGwServicesVisited'].map((key) => again.vars?.[key]),
+      ['1', '2', 'pn-foo|2'],
+    );
+
+    const next = await step({ serviceName: 'pn-bar', entryService: false }).execute(
+      recording({ ...visited, apiGwServicesVisited: 'pn-foo|42' }).context,
+    );
+    assert.deepStrictEqual(
+      ['apiGwVisitCount', 'apiGwLastService', 'apiGwQueryCount', 'apiGwServicesVisited'].map((key) => next.vars?.[key]),
+      ['2', 'pn-bar', '2', 'pn-foo|42,pn-bar|2'],
+    );
   });
 
-  it('emits the "Query fallita" reporter banner when the AWS call throws', async () => {
-    // Simulate a CloudWatch ResourceNotFoundException (e.g. a runbook
-    // pointing at a misconfigured log group).
-    const throwingService = {
-      query: async (): Promise<never> => {
-        await Promise.resolve();
-        throw new Error(
-          "[ResourceNotFoundException] Log group '/aws/ecs/pn-data-vault-sep' does not exist for account ID '000000000902'",
-        );
-      },
-    } as unknown as AWSCloudWatchLogsService;
-
-    const step = new QueryServiceLogsStep({
-      id: 'q',
-      label: 'Q',
-      serviceName: 'pn-data-vault',
-      entryService: false,
-      logGroups: ['/aws/ecs/pn-data-vault-sep'],
-      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
-    });
-
-    const captured: string[] = [];
-    const context = createContext({
+  it('reports the failed query before failing the step', async () => {
+    const lines: string[] = [];
+    const reporter = new ConsoleRunbookReporter({
+      text: (line: string) => lines.push(line),
+      newline: () => lines.push(''),
+    } as unknown as GOLogger);
+    const query = async (): Promise<never> => {
+      await Promise.resolve();
+      throw new Error("[ResourceNotFoundException] Log group '/aws/ecs/pn-data-vault-sep' does not exist");
+    };
+    const context = createTestContext({
       vars: { xRayTraceId: '1-abc' },
-      cloudWatchLogs: throwingService,
-      capturedLines: captured,
+      params: TEST_TIME_RANGE_PARAMS,
+      services: { cloudWatchLogs: { query }, reporter },
     });
-    const result = await step.execute(context);
-    // The reporter holds the last node back; the engine would flush it.
-    context.services.reporter.flush();
 
-    // The step returns a failed StepResult (executeStep converts the
-    // thrown error), and the reporter banner is rendered before the
-    // re-throw so the failure is visible in the structured output.
+    const result = await step({ logGroups: ['/aws/ecs/pn-data-vault-sep'] }).execute(context);
+    // The reporter holds the last node back; the engine would flush it.
+    reporter.flush();
+
     assert.strictEqual(result.success, false);
     assert.match(result.error ?? '', /CloudWatch service logs query failed/);
-    const joined = captured.join('\n');
-    assert.match(joined, /⚠ Query fallita/);
-    assert.match(joined, /Log group: \/aws\/ecs\/pn-data-vault-sep/);
+    const rendered = lines.join('\n');
+    assert.match(rendered, /⚠ Query fallita/);
+    assert.match(rendered, /Log group: \/aws\/ecs\/pn-data-vault-sep/);
     assert.match(
-      joined,
+      rendered,
       /Causa: \[ResourceNotFoundException\] Log group '\/aws\/ecs\/pn-data-vault-sep' does not exist/,
     );
   });
 
-  it('throws at construction when the queryTemplate lacks the {{FILTER_CLAUSE}} placeholder', () => {
+  it('rejects a query template without the {{FILTER_CLAUSE}} placeholder', () => {
+    // Without the placeholder the step would silently scan the whole log group.
     assert.throws(
-      () =>
-        new QueryServiceLogsStep({
-          id: 'q',
-          label: 'Q',
-          serviceName: 'pn-foo',
-          entryService: true,
-          logGroups: ['/aws/ecs/foo'],
-          // Missing `{{FILTER_CLAUSE}}` — without the placeholder the
-          // step would silently scan the whole log group.
-          queryTemplateOverride: 'fields @timestamp, @message | sort @timestamp asc',
-          timeRangeFromParams: { start: 'startTime', end: 'endTime' },
-        }),
+      () => step({ queryTemplateOverride: 'fields @timestamp, @message | sort @timestamp asc' }),
       /\{\{FILTER_CLAUSE\}\} placeholder/,
     );
   });

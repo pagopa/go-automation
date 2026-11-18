@@ -107,26 +107,16 @@ describe('AWSProfileClientCache — clients', () => {
 });
 
 describe('AWSProfileClientCache — account identity', () => {
-  it('shares one GetCallerIdentity across concurrent callers', async (t) => {
-    const sts = scriptedSts(['111111111111']);
+  it('shares one GetCallerIdentity across concurrent callers and reuses it later', async (t) => {
+    const sts = scriptedSts(['123456789012']);
     t.mock.method(STS_CLIENT, 'create', () => sts as unknown as STSClient);
-    const cache = new AWSProfileClientCache({ profile: 'sso_prod', region: 'eu-south-1' });
+    const cache = new AWSProfileClientCache({ profile: 'profile-prod', region: 'eu-south-1' });
 
     const resolved = await Promise.all([cache.resolveAccountId(), cache.resolveAccountId(), cache.resolveAccountId()]);
-
-    assert.deepStrictEqual(resolved, ['111111111111', '111111111111', '111111111111']);
-    assert.strictEqual(sts.sends.length, 1, 'the in-flight lookup must be shared, not repeated');
-  });
-
-  it('reuses the resolved account id on later calls', async (t) => {
-    const sts = scriptedSts(['111111111111']);
-    t.mock.method(STS_CLIENT, 'create', () => sts as unknown as STSClient);
-    const cache = new AWSProfileClientCache({ profile: 'sso_prod', region: 'eu-south-1' });
-
-    await cache.resolveAccountId();
     await cache.resolveAccountId();
 
-    assert.strictEqual(sts.sends.length, 1);
+    assert.deepStrictEqual(resolved, ['123456789012', '123456789012', '123456789012']);
+    assert.strictEqual(sts.sends.length, 1, 'the lookup must be shared, not repeated');
   });
 
   it('drops a failed lookup, so a renewed SSO session can recover', async (t) => {

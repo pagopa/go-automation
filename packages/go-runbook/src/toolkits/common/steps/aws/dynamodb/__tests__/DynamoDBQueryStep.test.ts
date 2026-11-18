@@ -1,116 +1,56 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import type { StepResult } from '../../../../../../engine/types/StepResult.js';
 import { DynamoDBQueryStep } from '../DynamoDBQueryStep.js';
-import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
-import type { OperationalContext } from '../../../../services/OperationalContext.js';
+import type { DynamoDBQueryConfig } from '../DynamoDBQueryStep.js';
+import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
 
-interface QueryCall {
-  readonly tableName: string;
-  readonly keyConditionExpression: string;
-  readonly values: Record<string, unknown>;
-  readonly names: Record<string, string> | undefined;
-}
+const BASE = {
+  id: 'query-items',
+  label: 'Query items',
+  tableName: 'pn-Table',
+  keyConditionExpression: 'pk = :pk',
+  expressionAttributeValues: { ':pk': { S: 'a' } },
+} as const;
 
-function makeContext(params: ReadonlyArray<readonly [string, string]> = []): {
-  readonly context: OperationalContext;
-  readonly calls: QueryCall[];
-} {
-  const calls: QueryCall[] = [];
-  const services = createTestServiceRegistry({
-    dynamodb: {
-      async query(
-        tableName: string,
-        keyConditionExpression: string,
-        values: Record<string, unknown>,
-        names: Record<string, string> | undefined,
-      ): Promise<ReadonlyArray<Record<string, unknown>>> {
-        calls.push({ tableName, keyConditionExpression, values, names });
-        await Promise.resolve();
-        return [{ pk: 'a' }];
-      },
-    },
-  });
-
-  return {
-    calls,
-    context: {
-      executionId: 'test',
-      startedAt: new Date('2026-01-01T00:00:00.000Z'),
-      stepResults: new Map(),
-      vars: new Map(),
-      params: new Map(params),
-      logs: [],
-      services,
-      recoveredErrors: [],
-    },
+/** Runs the query step against a stub table and returns its result with the recorded calls. */
+async function runQuery(
+  config: DynamoDBQueryConfig,
+  params: Readonly<Record<string, string>> = {},
+): Promise<{ readonly result: StepResult<ReadonlyArray<Record<string, unknown>>>; readonly calls: unknown[][] }> {
+  const calls: unknown[][] = [];
+  const query = async (...args: unknown[]): Promise<ReadonlyArray<Record<string, unknown>>> => {
+    // Table, key condition, values and names; the options and the abort signal follow.
+    calls.push(args.slice(0, 4));
+    return Promise.resolve([{ pk: 'a' }]);
   };
+  const result = await new DynamoDBQueryStep(config).execute(
+    createTestContext({ params, services: { dynamodb: { query } } }),
+  );
+  return { result, calls };
 }
 
 describe('DynamoDBQueryStep', () => {
-  it('returns the rows produced by the query', async () => {
-    const { context } = makeContext();
-    const step = new DynamoDBQueryStep({
-      id: 'query-items',
-      label: 'Query items',
-      tableName: 'pn-Table',
-      keyConditionExpression: 'pk = :pk',
-      expressionAttributeValues: { ':pk': { S: 'a' } },
-    });
+  it('returns the rows produced by the query, passing no attribute names when none are configured', async () => {
+    const { result, calls } = await runQuery(BASE);
 
-    const result = await step.execute(context);
-
-    assert.strictEqual(result.success, true);
-    assert.deepStrictEqual(result.output, [{ pk: 'a' }]);
+    assert.deepStrictEqual(result, { success: true, output: [{ pk: 'a' }] });
+    assert.deepStrictEqual(calls, [['pn-Table', 'pk = :pk', { ':pk': { S: 'a' } }, undefined]]);
   });
 
-  it('interpolates params into the table name and the attribute values', async () => {
-    const { context, calls } = makeContext([
-      ['env', 'prod'],
-      ['iun', 'ABC-123'],
-    ]);
-    const step = new DynamoDBQueryStep({
-      id: 'query-items',
-      label: 'Query items',
-      tableName: 'pn-Table-{{params.env}}',
-      keyConditionExpression: 'pk = :pk',
-      expressionAttributeValues: { ':pk': { S: '{{params.iun}}' } },
-    });
+  it('interpolates params into the table name, the attribute values and the attribute names', async () => {
+    const { calls } = await runQuery(
+      {
+        ...BASE,
+        tableName: 'pn-Table-{{params.env}}',
+        keyConditionExpression: '#f = :pk',
+        expressionAttributeValues: { ':pk': { S: '{{params.iun}}' } },
+        expressionAttributeNames: { '#f': '{{params.field}}' },
+      },
+      { env: 'prod', iun: 'ABC-123', field: 'status' },
+    );
 
-    await step.execute(context);
-
-    assert.strictEqual(calls[0]?.tableName, 'pn-Table-prod');
-    assert.deepStrictEqual(calls[0]?.values, { ':pk': { S: 'ABC-123' } });
-  });
-
-  it('passes no attribute names when none are configured', async () => {
-    const { context, calls } = makeContext();
-    const step = new DynamoDBQueryStep({
-      id: 'query-items',
-      label: 'Query items',
-      tableName: 'pn-Table',
-      keyConditionExpression: 'pk = :pk',
-      expressionAttributeValues: { ':pk': { S: 'a' } },
-    });
-
-    await step.execute(context);
-
-    assert.strictEqual(calls[0]?.names, undefined);
-  });
-
-  it('resolves expression attribute names when configured', async () => {
-    const { context, calls } = makeContext([['field', 'status']]);
-    const step = new DynamoDBQueryStep({
-      id: 'query-items',
-      label: 'Query items',
-      tableName: 'pn-Table',
-      keyConditionExpression: '#f = :pk',
-      expressionAttributeValues: { ':pk': { S: 'a' } },
-      expressionAttributeNames: { '#f': '{{params.field}}' },
-    });
-
-    await step.execute(context);
-
-    assert.deepStrictEqual(calls[0]?.names, { '#f': 'status' });
+    assert.deepStrictEqual(calls, [['pn-Table-prod', '#f = :pk', { ':pk': { S: 'ABC-123' } }, { '#f': 'status' }]]);
   });
 });

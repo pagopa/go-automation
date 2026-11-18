@@ -1,94 +1,90 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
-import type { Runbook } from '../../../../../../engine/types/Runbook.js';
-import type { RunbookExecutionResult } from '../../../../../../engine/types/RunbookExecutionResult.js';
 import { createLambdaAlarmRunbook } from '../../builders/createLambdaAlarmRunbook.js';
 import { buildLambdaOutputContext } from '../buildLambdaOutputContext.js';
 import { DEFAULT_LAMBDA_PROFILE } from '../../profiles/DEFAULT_LAMBDA_PROFILE.js';
+import { createTestExecutionResult } from '../../../../../../__tests__/helpers/createTestExecutionResult.js';
+import { createTestRunbook } from '../../../../../../__tests__/helpers/createTestRunbook.js';
+import { messageRow } from '../../../../../../__tests__/helpers/logRow.js';
+import { TEST_RUNBOOK_METADATA } from '../../../../../../__tests__/helpers/TEST_RUNBOOK_METADATA.js';
 
-function row(message: string): ReadonlyArray<GOLogsInsightsResultField> {
-  return [
-    { field: '@timestamp', value: '2026-01-01T00:00:00.000Z' },
-    { field: '@message', value: message },
-  ];
-}
+const RUNBOOK = createLambdaAlarmRunbook({
+  id: 'pn-fooLambda-LogInvocationErrors-Alarm',
+  metadata: TEST_RUNBOOK_METADATA,
+  lambda: {
+    name: 'pn-fooLambda',
+    logGroup: '/aws/lambda/pn-fooLambda',
+    varPrefix: 'foo',
+    eventSource: 'sqs',
+    configuredTimeoutMs: 15000,
+  },
+  knownCases: [],
+  queryProfile: DEFAULT_LAMBDA_PROFILE,
+  product: 'SEND',
+});
 
-function fakeResult(
-  vars: Map<string, string>,
-  params: Map<string, string>,
-  stepResults: Map<string, unknown>,
-): RunbookExecutionResult {
-  return { finalContext: { vars, params, stepResults } } as unknown as RunbookExecutionResult;
-}
+const API_GW_CONTEXT = {
+  kind: 'apigw',
+  product: 'SEND',
+  apiGwLogGroup: 'access-log-group',
+  queryProfileId: 'send',
+  services: [],
+} as const;
 
 describe('buildLambdaOutputContext', () => {
-  it('returns undefined for a non-lambda runbook', () => {
-    const runbook = { runbookContext: { kind: 'apigw' } } as unknown as Runbook;
-    assert.strictEqual(buildLambdaOutputContext(runbook, fakeResult(new Map(), new Map(), new Map())), undefined);
+  it('returns undefined for a runbook without a lambda context', () => {
+    for (const runbook of [createTestRunbook(), createTestRunbook({ runbookContext: API_GW_CONTEXT })]) {
+      assert.strictEqual(buildLambdaOutputContext(runbook, createTestExecutionResult()), undefined);
+    }
   });
 
   it('builds details.lambda, fields and evidence for a lambda runbook', () => {
-    const runbook = createLambdaAlarmRunbook({
-      id: 'pn-fooLambda-LogInvocationErrors-Alarm',
-      metadata: { name: 'x', description: '', version: '1.0.0', type: 'alarm-resolution', team: 'GO', tags: [] },
-      lambda: { name: 'pn-fooLambda', logGroup: '/aws/lambda/pn-fooLambda', varPrefix: 'foo', eventSource: 'sqs' },
-      knownCases: [],
-      queryProfile: DEFAULT_LAMBDA_PROFILE,
-      product: 'SEND',
-    });
-
-    const vars = new Map<string, string>([
-      ['lambdaFunctionName', 'pn-fooLambda'],
-      ['lambdaLogGroup', '/aws/lambda/pn-fooLambda'],
-      ['lambdaEventSource', 'sqs'],
-      ['lambdaErrorCount', '1'],
-      ['lambdaErrorCategory', 'timeout'],
-      ['lambdaRuntimeStatus', 'timeout'],
-      ['lambdaRequestId', 'd848f0c5-1089-5c2b-9a3b-91a94511ee52'],
-      ['lambdaDurationMs', '10000'],
-      ['lastErrorMsg', 'Status: timeout'],
-    ]);
-    const params = new Map<string, string>([
-      ['alarmName', 'pn-fooLambda-LogInvocationErrors-Alarm'],
-      ['alarmDatetime', '2026-01-01T00:00:00Z'],
-    ]);
-    const stepResults = new Map<string, unknown>([['query-lambda-errors', [row('REPORT ... Status: timeout')]]]);
-
-    const ctx = buildLambdaOutputContext(runbook, fakeResult(vars, params, stepResults));
+    const ctx = buildLambdaOutputContext(
+      RUNBOOK,
+      createTestExecutionResult({
+        vars: {
+          lambdaFunctionName: 'pn-fooLambda',
+          lambdaLogGroup: '/aws/lambda/pn-fooLambda',
+          lambdaEventSource: 'sqs',
+          lambdaErrorCount: '1',
+          lambdaErrorCategory: 'timeout',
+          lambdaRuntimeStatus: 'timeout',
+          lambdaRequestId: 'd848f0c5-1089-5c2b-9a3b-91a94511ee52',
+          lambdaDurationMs: '10000',
+          lastErrorMsg: 'Status: timeout',
+        },
+        params: { alarmName: 'pn-fooLambda-LogInvocationErrors-Alarm', alarmDatetime: '2026-01-01T00:00:00Z' },
+        stepResults: { 'query-lambda-errors': [messageRow('REPORT ... Status: timeout')] },
+      }),
+    );
     assert.ok(ctx !== undefined);
 
     const details = ctx.details as {
-      readonly lambda: { readonly functionName: string; readonly errorCategory?: string };
+      readonly lambda: {
+        readonly functionName: string;
+        readonly errorCategory?: string;
+        readonly configuredTimeoutMs?: number;
+      };
     };
     assert.strictEqual(details.lambda.functionName, 'pn-fooLambda');
     assert.strictEqual(details.lambda.errorCategory, 'timeout');
+    assert.strictEqual(details.lambda.configuredTimeoutMs, 15000);
     assert.ok(ctx.fields.some((field) => field.name === 'lambda' && field.value === 'pn-fooLambda'));
     assert.ok(ctx.evidence.some((evidence) => evidence.id === 'lambda-recent-errors'));
   });
 
-  it('surfaces configuredTimeoutMs in details.lambda when configured', () => {
-    const runbook = createLambdaAlarmRunbook({
-      id: 'pn-fooLambda-LogInvocationErrors-Alarm',
-      metadata: { name: 'x', description: '', version: '1.0.0', type: 'alarm-resolution', team: 'GO', tags: [] },
-      lambda: {
-        name: 'pn-fooLambda',
-        logGroup: '/aws/lambda/pn-fooLambda',
-        varPrefix: 'foo',
-        configuredTimeoutMs: 15000,
-      },
-      knownCases: [],
-      queryProfile: DEFAULT_LAMBDA_PROFILE,
-      product: 'SEND',
-    });
-
+  it('omits from details.lambda what the execution did not produce, keeping the configured timeout', () => {
     const ctx = buildLambdaOutputContext(
-      runbook,
-      fakeResult(new Map([['lambdaFunctionName', 'pn-fooLambda']]), new Map(), new Map()),
+      RUNBOOK,
+      createTestExecutionResult({ vars: { lambdaFunctionName: 'pn-fooLambda' } }),
     );
-    assert.ok(ctx !== undefined);
-    const details = ctx.details as { readonly lambda: { readonly configuredTimeoutMs?: number } };
-    assert.strictEqual(details.lambda.configuredTimeoutMs, 15000);
+
+    assert.deepStrictEqual(ctx?.details?.['lambda'], {
+      functionName: 'pn-fooLambda',
+      logGroup: '/aws/lambda/pn-fooLambda',
+      configuredTimeoutMs: 15000,
+      recentLogs: [],
+    });
   });
 });

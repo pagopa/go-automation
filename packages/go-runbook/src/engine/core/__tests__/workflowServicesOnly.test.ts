@@ -6,21 +6,12 @@ import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine } from '../RunbookEngine.js';
 import { SetVarStep } from '../../steps/control/SetVarStep.js';
 import { createTestWorkflowServices } from '../../testing/createTestWorkflowServices.js';
-import type { Runbook } from '../../types/Runbook.js';
+import { createTestRunbook } from '../../../__tests__/helpers/createTestRunbook.js';
 
 // the engine runs a complete runbook in memory with WorkflowServices only.
 describe('RunbookEngine with WorkflowServices only', () => {
   it('runs the pipeline, matches a known case and returns the trace', async () => {
-    const runbook: Runbook = {
-      metadata: {
-        id: 'in-memory',
-        name: 'In memory',
-        description: 'Engine without operational services',
-        version: '1.0.0',
-        type: 'alarm-resolution',
-        team: 'GO',
-        tags: [],
-      },
+    const runbook = createTestRunbook({
       steps: [
         { step: new SetVarStep({ id: 'set-outcome', label: 'Set outcome', varName: 'outcome', value: 'known' }) },
       ],
@@ -33,8 +24,7 @@ describe('RunbookEngine with WorkflowServices only', () => {
           action: { type: 'log', level: 'info', title: 'Known outcome' },
         },
       ],
-      fallbackAction: { type: 'log', level: 'warn', title: 'Unknown outcome' },
-    };
+    });
 
     const result = await new RunbookEngine(new GOLogger()).execute(runbook, new Map(), createTestWorkflowServices());
 

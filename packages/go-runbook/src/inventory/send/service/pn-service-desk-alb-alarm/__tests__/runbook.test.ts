@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine, type RunbookExecutionResult } from '../../../../../engine/index.js';
-import { assertCloudExecutableRunbook, createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
+import { createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
 import { buildRunbook } from '../runbook.js';
 
 const TRACE_ID = '1-6ac782cf-29dda2b21b4f9db14013b7a0';
@@ -66,15 +66,6 @@ async function execute(
 }
 
 describe('service desk runbook with injected AWS services', () => {
-  it('uses the canonical service pipeline without account or profile overrides', () => {
-    const runbook = buildRunbook();
-    assert.doesNotThrow(() => assertCloudExecutableRunbook(runbook));
-    assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 5, afterMinutes: 5 });
-    assert.deepStrictEqual(
-      runbook.steps.map(({ step }) => step.id),
-      ['prepare-service-section', 'query-pn-service-desk', 'analyze-pn-service-desk', 'query-pn-service-desk-trace'],
-    );
-  });
   it('recognizes the documented 404 through the injected reader', async () => {
     const { result } = await execute([row(NOT_FOUND)]);
     assert.strictEqual(result.status, 'completed');

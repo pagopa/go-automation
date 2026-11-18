@@ -30,6 +30,7 @@ describe('parseDateInput', () => {
 
   it('resolves signed offsets from the reference instant', () => {
     assert.strictEqual(iso('-7d'), '2026-08-17T10:00:00.000Z');
+    assert.strictEqual(parseDateInput('-7d', { now: NOW }).date.toISOString(), '2026-08-17T10:00:00.000Z');
     assert.strictEqual(iso('-24h'), '2026-08-23T10:00:00.000Z');
     assert.strictEqual(iso('-30m'), '2026-08-24T09:30:00.000Z');
     assert.strictEqual(iso('-2w'), '2026-08-10T10:00:00.000Z');
@@ -70,33 +71,23 @@ describe('parseDateInput', () => {
     assert.strictEqual(iso('2026-08-24T14:30:00Z', { timeZone: 'Europe/Rome' }), '2026-08-24T14:30:00.000Z');
   });
 
-  it('returns the parsed date alongside its ISO form', () => {
-    const result = parseDateInput('-7d', { now: NOW });
-    assert.ok(result.date instanceof Date);
-    assert.strictEqual(result.date.toISOString(), result.iso);
-  });
-
-  it('rejects empty input', () => {
-    assert.throws(() => parseDateInput('   ', { now: NOW }), /cannot be empty/);
-  });
-
-  it('rejects an unknown time zone', () => {
-    assert.throws(() => parseDateInput('now', { now: NOW, timeZone: 'Mars/Olympus' }), /Invalid timezone/);
-  });
-
-  it('rejects input no format matches', () => {
-    assert.throws(() => parseDateInput('domani', { now: NOW }), /Invalid date value/);
-    assert.throws(() => parseDateInput('31/02/2026', { now: NOW }), /Invalid date value/);
-    assert.throws(() => parseDateInput('yesterday morning', { now: NOW }), /Invalid date value/);
+  it('rejects empty input, an unknown time zone and input no format matches', () => {
+    const cases: ReadonlyArray<readonly [input: string, timeZone: string | undefined, error: RegExp]> = [
+      ['   ', undefined, /cannot be empty/],
+      ['now', 'Mars/Olympus', /Invalid timezone/],
+      ['domani', undefined, /Invalid date value/],
+      ['31/02/2026', undefined, /Invalid date value/],
+      ['yesterday morning', undefined, /Invalid date value/],
+    ];
+    for (const [input, timeZone, error] of cases) {
+      assert.throws(() => parseDateInput(input, { now: NOW, ...(timeZone !== undefined ? { timeZone } : {}) }), error);
+    }
   });
 });
 
 describe('tryParseDateInput', () => {
-  it('returns the result for valid input', () => {
+  it('returns the result for valid input and undefined instead of throwing', () => {
     assert.strictEqual(tryParseDateInput('-7d', { now: NOW })?.iso, '2026-08-17T10:00:00.000Z');
-  });
-
-  it('returns undefined instead of throwing', () => {
     assert.strictEqual(tryParseDateInput('domani', { now: NOW }), undefined);
     assert.strictEqual(tryParseDateInput('', { now: NOW }), undefined);
   });

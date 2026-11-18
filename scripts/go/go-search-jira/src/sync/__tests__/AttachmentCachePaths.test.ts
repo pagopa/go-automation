@@ -3,90 +3,44 @@ import assert from 'node:assert/strict';
 import * as path from 'node:path';
 
 import { AttachmentCachePaths } from '../AttachmentCachePaths.js';
-import type { JiraAttachment } from '../../types/JiraAttachment.js';
+import { makeAttachment } from '../../__tests__/helpers/jiraTestFixtures.js';
 
 const ROOT = '/tmp/cache';
-
-function attachment(overrides: Partial<JiraAttachment> = {}): JiraAttachment {
-  return {
-    id: '1001',
-    filename: 'doc.pdf',
-    mimeType: 'application/pdf',
-    size: 1024,
-    created: '2026-01-01T00:00:00.000Z',
-    contentUrl: 'https://example.invalid/x',
-    author: 'tester',
-    ...overrides,
-  };
-}
+const ATTACHMENTS = path.join(ROOT, 'attachments');
 
 describe('AttachmentCachePaths', () => {
   const paths = new AttachmentCachePaths(ROOT);
 
-  it('returns the cache root under the configured data directory', () => {
-    assert.strictEqual(paths.attachmentsRoot(), path.join(ROOT, 'attachments'));
-  });
-
-  it('builds a deterministic issue directory', () => {
-    assert.strictEqual(paths.issueDir('PN-1234'), path.join(ROOT, 'attachments', 'PN-1234'));
-  });
-
-  it('builds a deterministic attachment path', () => {
+  it('builds deterministic paths under the attachments root', () => {
+    assert.strictEqual(paths.attachmentsRoot(), ATTACHMENTS);
+    assert.strictEqual(paths.issueDir('PN-1234'), path.join(ATTACHMENTS, 'PN-1234'));
     assert.strictEqual(
-      paths.attachmentPath('PN-1234', attachment({ id: '42', filename: 'file.pdf' })),
-      path.join(ROOT, 'attachments', 'PN-1234', '42-file.pdf'),
+      paths.attachmentPath('PN-1234', makeAttachment({ id: '42', filename: 'file.pdf' })),
+      path.join(ATTACHMENTS, 'PN-1234', '42-file.pdf'),
     );
   });
 
-  it('replaces unsafe characters with underscores', () => {
-    const result = paths.issueDir('PN/../../etc/passwd');
-    // No segment of the result should equal `..`
-    for (const segment of result.split(path.sep)) {
-      assert.notStrictEqual(segment, '..');
-    }
-    // The original path traversal characters must not be preserved as `..`.
-    assert.doesNotMatch(result, /\/\.\.\//);
-  });
+  // Every sanitised segment must stay a strict child of its parent: no `.`,
+  // `..`, empty or hidden segment can reach `path.join`.
+  const issueKeyCases: ReadonlyArray<readonly [string, string]> = [
+    ['PN/../../etc/passwd', 'PN_.._.._etc_passwd'],
+    ['..', '__'],
+    ['.', '_'],
+    ['.gitignore', '_gitignore'],
+    ['', '_'],
+    ['A'.repeat(500), 'A'.repeat(200)],
+  ];
 
-  it('defuses a `..` issue key (path-traversal)', () => {
-    const result = paths.issueDir('..');
-    const root = paths.attachmentsRoot();
-    // The result must remain a strict child of the cache root.
-    assert.ok(result.startsWith(`${root}${path.sep}`), `expected ${result} to start with ${root}${path.sep}`);
-    // The leaf segment must NOT be `..` (would escape the root via path.join).
-    const leaf = result.slice(root.length + 1);
-    assert.notStrictEqual(leaf, '..');
-    assert.notStrictEqual(leaf, '.');
-  });
-
-  it('defuses a `.` issue key', () => {
-    const result = paths.issueDir('.');
-    const leaf = result.slice(paths.attachmentsRoot().length + 1);
-    assert.notStrictEqual(leaf, '.');
-    assert.notStrictEqual(leaf, '');
-  });
-
-  it('rewrites leading dots so hidden segments cannot reach the FS', () => {
-    const result = paths.issueDir('.gitignore');
-    const leaf = result.slice(paths.attachmentsRoot().length + 1);
-    assert.ok(!leaf.startsWith('.'), `leaf "${leaf}" still starts with a dot`);
-  });
+  for (const [issueKey, segment] of issueKeyCases) {
+    it(`sanitises the issue key "${issueKey.slice(0, 24)}" to a safe segment`, () => {
+      assert.strictEqual(paths.issueDir(issueKey), path.join(ATTACHMENTS, segment));
+    });
+  }
 
   it('defuses a `..` attachment filename', () => {
-    const result = paths.attachmentPath('PN-1', attachment({ id: '7', filename: '..' }));
-    const dir = paths.issueDir('PN-1');
-    // result = <dir>/7-<sanitised-name>
-    const leaf = result.slice(dir.length + 1);
-    assert.ok(leaf.startsWith('7-'));
-    // The portion after `7-` must not be `..` or `.`.
-    const name = leaf.slice('7-'.length);
-    assert.notStrictEqual(name, '..');
-    assert.notStrictEqual(name, '.');
-  });
-
-  it('caps segments at 200 characters', () => {
-    const longKey = 'A'.repeat(500);
-    const leaf = paths.issueDir(longKey).slice(paths.attachmentsRoot().length + 1);
-    assert.ok(leaf.length <= 200, `leaf length ${leaf.length} exceeds 200`);
+    assert.strictEqual(
+      paths.attachmentPath('PN-1', makeAttachment({ id: '7', filename: '..' })),
+      path.join(ATTACHMENTS, 'PN-1', '7-__'),
+    );
   });
 });

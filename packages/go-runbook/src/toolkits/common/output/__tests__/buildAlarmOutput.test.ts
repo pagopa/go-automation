@@ -12,8 +12,8 @@ const FULL = new Map([
 ]);
 
 describe('buildAlarmOutput', () => {
-  it('copies every parameter, in the serialized key order', () => {
-    const alarm = buildAlarmOutput(FULL);
+  it('copies every alarm parameter, in the serialized key order, ignoring the others', () => {
+    const alarm = buildAlarmOutput(new Map([...FULL, ['awsRegion', 'eu-south-1']]));
     assert.deepStrictEqual(alarm, {
       name: 'pn-foo-Alarm',
       datetime: '2026-11-15T10:00:00.000Z',
@@ -25,41 +25,24 @@ describe('buildAlarmOutput', () => {
     assert.deepStrictEqual(Object.keys(alarm.timeRange), ['start', 'end']);
   });
 
-  it('normalises values: trims them and omits blanks and the "-" placeholder', () => {
-    assert.deepStrictEqual(
-      buildAlarmOutput(
-        new Map([
+  it('trims values and omits blanks, the "-" placeholder and missing parameters, keeping the timeRange', () => {
+    // deepStrictEqual also fails on a key set to undefined.
+    const cases: ReadonlyArray<readonly [ReadonlyArray<readonly [string, string]>, unknown]> = [
+      [
+        [
           ['alarmName', '  pn-foo-Alarm  '],
           ['alarmDatetime', '   '],
           ['alarmDatetimeEnd', '-'],
           ['startTime', ''],
           ['endTime', ' 2026-11-15T10:35:00.000Z '],
-        ]),
-      ),
-      { name: 'pn-foo-Alarm', timeRange: { end: '2026-11-15T10:35:00.000Z' } },
-    );
-  });
-
-  it('omits the missing properties instead of setting them to undefined', () => {
-    const alarm = buildAlarmOutput(new Map([['alarmName', 'pn-foo-Alarm']]));
-    assert.deepStrictEqual(Object.keys(alarm), ['name', 'timeRange']);
-    assert.ok(!('datetime' in alarm) && !('datetimeEnd' in alarm));
-  });
-
-  it('keeps an empty timeRange when no bound is available', () => {
-    assert.deepStrictEqual(buildAlarmOutput(new Map()), { timeRange: {} });
-  });
-
-  it('keeps a partial window with only the available bound', () => {
-    assert.deepStrictEqual(buildAlarmOutput(new Map([['startTime', '2026-11-15T09:50:00.000Z']])), {
-      timeRange: { start: '2026-11-15T09:50:00.000Z' },
-    });
-    assert.deepStrictEqual(buildAlarmOutput(new Map([['endTime', '2026-11-15T10:35:00.000Z']])), {
-      timeRange: { end: '2026-11-15T10:35:00.000Z' },
-    });
-  });
-
-  it('ignores parameters that are not part of the alarm block', () => {
-    assert.deepStrictEqual(buildAlarmOutput(new Map([...FULL, ['awsRegion', 'eu-south-1']])), buildAlarmOutput(FULL));
+        ],
+        { name: 'pn-foo-Alarm', timeRange: { end: '2026-11-15T10:35:00.000Z' } },
+      ],
+      [[['startTime', '2026-11-15T09:50:00.000Z']], { timeRange: { start: '2026-11-15T09:50:00.000Z' } }],
+      [[], { timeRange: {} }],
+    ];
+    for (const [params, expected] of cases) {
+      assert.deepStrictEqual(buildAlarmOutput(new Map(params)), expected);
+    }
   });
 });

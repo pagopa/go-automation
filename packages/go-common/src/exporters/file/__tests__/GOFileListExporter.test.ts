@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import * as fs from 'node:fs/promises';
-import * as os from 'node:os';
-import * as path from 'node:path';
 
 import { GOFileListExporter } from '../GOFileListExporter.js';
+import { useTempDir } from '../../../__tests__/helpers/createTempDir.js';
 
 interface ThrowingWriteStream {
   write(chunk: string): boolean;
@@ -15,14 +14,11 @@ interface ExporterWithWriteStream {
   writeStream?: ThrowingWriteStream;
 }
 
-async function makeTempDir(): Promise<string> {
-  return fs.mkdtemp(path.join(os.tmpdir(), 'go-common-file-list-exporter-'));
-}
-
 describe('GOFileListExporter', () => {
+  const tmp = useTempDir('go-common-file-list-exporter-');
+
   it('exports items in batch mode, creates directories and emits lifecycle events', async () => {
-    const dir = await makeTempDir();
-    const outputPath = path.join(dir, 'nested', 'items.txt');
+    const outputPath = tmp.file('nested', 'items.txt');
     const exporter = new GOFileListExporter({
       outputPath,
       lineSeparator: '|',
@@ -57,8 +53,7 @@ describe('GOFileListExporter', () => {
   });
 
   it('exports items in stream mode and reports progress without a known total', async () => {
-    const dir = await makeTempDir();
-    const outputPath = path.join(dir, 'stream.txt');
+    const outputPath = tmp.file('stream.txt');
     const exporter = new GOFileListExporter({ outputPath });
     const progressTotals: (number | undefined)[] = [];
     const startedModes: string[] = [];
@@ -81,11 +76,7 @@ describe('GOFileListExporter', () => {
   });
 
   it('emits export errors and rejects when writing fails', async () => {
-    const dir = await makeTempDir();
-    const outputPath = path.join(dir, 'items.txt');
-    const exporter = new GOFileListExporter({
-      outputPath,
-    });
+    const exporter = new GOFileListExporter({ outputPath: tmp.file('items.txt') });
     const errors: string[] = [];
     exporter.on('export:error', (event) => {
       errors.push(event.error.message);

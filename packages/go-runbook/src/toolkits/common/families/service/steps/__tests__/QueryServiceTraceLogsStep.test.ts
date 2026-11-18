@@ -3,8 +3,7 @@ import assert from 'node:assert/strict';
 
 import type { QueryServiceTraceLogsConfig } from '../QueryServiceTraceLogsStep.js';
 import { QueryServiceTraceLogsStep } from '../QueryServiceTraceLogsStep.js';
-import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
-import type { OperationalContext } from '../../../../services/OperationalContext.js';
+import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
 
 const BASE: Omit<QueryServiceTraceLogsConfig, 'queryTemplate'> = {
   id: 'query-pn-foo-trace',
@@ -15,19 +14,6 @@ const BASE: Omit<QueryServiceTraceLogsConfig, 'queryTemplate'> = {
   queryProfileId: 'send-service',
   timeRangeFromParams: { start: 'startTime', end: 'endTime' },
 };
-
-function ctx(vars: ReadonlyArray<readonly [string, string]> = []): OperationalContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-06-09T00:00:00.000Z'),
-    stepResults: new Map<string, unknown>(),
-    vars: new Map<string, string>(vars),
-    params: new Map<string, string>(),
-    logs: [],
-    services: createTestServiceRegistry(),
-    recoveredErrors: [],
-  };
-}
 
 describe('QueryServiceTraceLogsStep', () => {
   it('throws when the query template does not contain the trace placeholder', () => {
@@ -40,7 +26,7 @@ describe('QueryServiceTraceLogsStep', () => {
   it('skips the query (no network) when no trace id is available', async () => {
     const step = new QueryServiceTraceLogsStep({ ...BASE, queryTemplate: "filter @message like '{{TRACE_ID}}'" });
 
-    const result = await step.execute(ctx());
+    const result = await step.execute(createTestContext());
 
     assert.strictEqual(result.success, true);
     assert.deepStrictEqual(result.output, []);

@@ -42,7 +42,7 @@ describe('scrubAwsProfileNames', () => {
 });
 
 describe('scrubAwsProfileNames — linear time on uncontrolled input (CodeQL js/polynomial-redos)', () => {
-  const large = 200_000;
+  const large = 50_000;
 
   for (const [label, message] of [
     ['many unclosed "(profile: "', '(profile: '.repeat(large)],

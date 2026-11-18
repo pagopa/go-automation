@@ -31,64 +31,41 @@ function row(partial: Partial<AnalysisMatch>): RtaCheckRow {
 }
 
 describe('formatVerificationCell', () => {
-  it('shows when the verification was computed by AI', () => {
-    assert.strictEqual(formatVerificationCell(row({ matcher: 'ai', aiAttempted: true })), 'MATCH_STRONG (0.88) · ai');
-  });
-
-  it('shows when lexical fallback was used after an AI error', () => {
-    assert.strictEqual(
-      formatVerificationCell(row({ matcher: 'lexical', aiAttempted: true, aiFallback: true, aiError: 'Bedrock down' })),
+  const ignored = { status: 'IGNORED', confidence: 0, aiAttempted: false } as const;
+  const cases: ReadonlyArray<readonly [string, Partial<AnalysisMatch>, string]> = [
+    ['the verification was computed by AI', { matcher: 'ai', aiAttempted: true }, 'MATCH_STRONG (0.88) · ai'],
+    [
+      'lexical fallback was used after an AI error',
+      { matcher: 'lexical', aiAttempted: true, aiFallback: true, aiError: 'Bedrock down' },
       'MATCH_STRONG (0.88) · lexical fallback',
-    );
-  });
-
-  it('shows when deterministic evidence was also audited by AI', () => {
-    assert.strictEqual(
-      formatVerificationCell(row({ status: 'MATCH_EXACT', matcher: 'deterministic+ai', aiAttempted: true })),
+    ],
+    [
+      'deterministic evidence was also audited by AI',
+      { status: 'MATCH_EXACT', matcher: 'deterministic+ai', aiAttempted: true },
       'MATCH_EXACT (0.88) · deterministic+ai',
-    );
-  });
-
-  it('shows when deterministic evidence preserved the match without AI result', () => {
-    assert.strictEqual(
-      formatVerificationCell(row({ status: 'MATCH_EXACT', matcher: 'deterministic', aiAttempted: false })),
+    ],
+    [
+      'deterministic evidence preserved the match without AI result',
+      { status: 'MATCH_EXACT', matcher: 'deterministic', aiAttempted: false },
       'MATCH_EXACT (0.88) · deterministic',
-    );
-  });
-
-  it('shows n/a when AI was not applicable to the row', () => {
-    assert.strictEqual(formatVerificationCell(row({ aiAttempted: false })), 'MATCH_STRONG (0.88) · n/a');
-  });
-
-  it('shows the ignore reason code instead of the matcher for an ignored analysis', () => {
-    assert.strictEqual(
-      formatVerificationCell(
-        row({
-          status: 'IGNORED',
-          confidence: 0,
-          matcher: 'lexical',
-          aiAttempted: false,
-          ignoreReasonCode: 'FALSE_POSITIVE',
-          ignoreReasonLabel: 'Falso positivo',
-        }),
-      ),
+    ],
+    ['AI was not applicable to the row', { aiAttempted: false }, 'MATCH_STRONG (0.88) · n/a'],
+    [
+      'an ignored analysis has a reason code, shown instead of the matcher',
+      { ...ignored, matcher: 'lexical', ignoreReasonCode: 'FALSE_POSITIVE', ignoreReasonLabel: 'Falso positivo' },
       'IGNORED (FALSE_POSITIVE)',
-    );
-  });
-
-  it('falls back to the ignore reason label when no code is available', () => {
-    assert.strictEqual(
-      formatVerificationCell(
-        row({ status: 'IGNORED', confidence: 0, aiAttempted: false, ignoreReasonLabel: 'Falso positivo' }),
-      ),
+    ],
+    [
+      'an ignored analysis has only a reason label',
+      { ...ignored, ignoreReasonLabel: 'Falso positivo' },
       'IGNORED (Falso positivo)',
-    );
-  });
+    ],
+    ['an ignored analysis carries no reason', ignored, 'IGNORED'],
+  ];
 
-  it('shows the bare status when the ignored analysis carries no reason', () => {
-    assert.strictEqual(
-      formatVerificationCell(row({ status: 'IGNORED', confidence: 0, aiAttempted: false })),
-      'IGNORED',
-    );
-  });
+  for (const [when, comparison, expected] of cases) {
+    it(`renders ${expected} when ${when}`, () => {
+      assert.strictEqual(formatVerificationCell(row(comparison)), expected);
+    });
+  }
 });

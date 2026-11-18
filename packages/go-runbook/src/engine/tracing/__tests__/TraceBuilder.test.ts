@@ -1,27 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { Runbook } from '../../types/Runbook.js';
-import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { ExecutionEnvironment } from '../ExecutionEnvironment.js';
 import type { CaseEvaluationTrace } from '../CaseEvaluationTrace.js';
+import type { StepDiagnostics } from '../StepDiagnostics.js';
 import { TraceBuilder } from '../TraceBuilder.js';
-import { createTestServiceRegistry } from '../../../toolkits/common/testing/createTestServiceRegistry.js';
+import { createTestContext } from '../../../__tests__/helpers/createTestContext.js';
+import { createTestRunbook } from '../../../__tests__/helpers/createTestRunbook.js';
 
-const RUNBOOK: Runbook = {
-  metadata: {
-    id: 'tb-test',
-    name: 'Trace builder test',
-    description: '',
-    version: '1.0.0',
-    type: 'alarm-resolution',
-    team: 'GO',
-    tags: [],
-  },
-  steps: [],
-  knownCases: [],
-  fallbackAction: { type: 'log', level: 'warn', title: 'fallback' },
-};
+const RUNBOOK = createTestRunbook();
 
 const ENV: ExecutionEnvironment = {
   awsProfiles: [],
@@ -29,21 +16,8 @@ const ENV: ExecutionEnvironment = {
   invokedBy: 'manual',
 };
 
-function emptyContext(): RunbookContext {
-  return {
-    executionId: 'exec',
-    startedAt: new Date('2026-05-13T00:00:00.000Z'),
-    stepResults: new Map(),
-    vars: new Map(),
-    params: new Map(),
-    logs: [],
-    services: createTestServiceRegistry(),
-    recoveredErrors: [],
-  };
-}
-
-/** Helper: a TraceBuilder primed with a single step (so traceEarlyResolution can attach to it). */
-function builderWithOneStep(): TraceBuilder {
+/** A TraceBuilder primed with one step, so an early resolution can attach to it. */
+function builderWithOneStep(diagnostics?: StepDiagnostics): TraceBuilder {
   const builder = new TraceBuilder('exec', RUNBOOK, new Map());
   builder.traceStep(
     'analyze-x',
@@ -59,43 +33,34 @@ function builderWithOneStep(): TraceBuilder {
     null,
     {},
     'resolve',
+    diagnostics,
   );
   return builder;
 }
 
+/** The trace of a `vars.x` case evaluation. */
+function evaluation(caseId: string, matched: boolean): CaseEvaluationTrace {
+  return {
+    caseId,
+    description: caseId,
+    priority: 1,
+    condition: { type: 'exists', ref: 'vars.x' },
+    matched,
+    resolvedValues: { 'vars.x': 'foo' },
+  };
+}
+
 describe('TraceBuilder', () => {
   it('stores step diagnostics in the pipeline trace', () => {
-    const builder = new TraceBuilder('exec', RUNBOOK, new Map());
-    builder.traceStep(
-      'query-logs',
-      'Query logs',
-      'data',
-      'sequential',
-      '2026-05-13T00:00:00.000Z',
-      '2026-05-13T00:00:00.001Z',
-      1,
-      'success',
-      false,
-      {},
-      [],
-      {},
-      'continue',
-      {
-        cloudWatchLogs: {
-          rowsReturned: 2,
-          statistics: { bytesScanned: 2048, recordsScanned: 100, recordsMatched: 2 },
-          queryExecutions: [
-            {
-              queryId: 'qid-1',
-              profile: 'profile-1',
-              logGroups: ['/aws/logs'],
-              statistics: { bytesScanned: 2048, recordsScanned: 100, recordsMatched: 2 },
-            },
-          ],
-        },
+    const statistics = { bytesScanned: 2048, recordsScanned: 100, recordsMatched: 2 };
+    const builder = builderWithOneStep({
+      cloudWatchLogs: {
+        rowsReturned: 2,
+        statistics,
+        queryExecutions: [{ queryId: 'qid-1', profile: 'profile-1', logGroups: ['/aws/logs'], statistics }],
       },
-    );
-    const trace = builder.build(emptyContext(), 'completed', ENV);
+    });
+    const trace = builder.build(createTestContext(), 'completed', ENV);
 
     assert.strictEqual(trace.pipeline[0]?.diagnostics?.cloudWatchLogs?.statistics.bytesScanned, 2048);
     assert.strictEqual(trace.pipeline[0]?.diagnostics?.cloudWatchLogs?.queryExecutions[0]?.queryId, 'qid-1');
@@ -103,24 +68,7 @@ describe('TraceBuilder', () => {
 
   describe('traceEarlyResolution', () => {
     it('promotes evaluations into caseEvaluations when the early resolution matched', () => {
-      const evaluations: CaseEvaluationTrace[] = [
-        {
-          caseId: 'pdv-404',
-          description: 'PDV 404',
-          priority: 100,
-          condition: { type: 'pattern', ref: 'vars.x', regex: 'foo' },
-          matched: true,
-          resolvedValues: { 'vars.x': 'foo' },
-        },
-        {
-          caseId: 'other-case',
-          description: 'Other',
-          priority: 50,
-          condition: { type: 'pattern', ref: 'vars.x', regex: 'bar' },
-          matched: false,
-          resolvedValues: { 'vars.x': 'foo' },
-        },
-      ];
+      const evaluations = [evaluation('pdv-404', true), evaluation('other-case', false)];
 
       const builder = builderWithOneStep();
       builder.traceEarlyResolution({
@@ -128,7 +76,7 @@ describe('TraceBuilder', () => {
         matchedCaseIds: ['pdv-404'],
         evaluations,
       });
-      const trace = builder.build(emptyContext(), 'completed', ENV);
+      const trace = builder.build(createTestContext(), 'completed', ENV);
 
       // Top-level caseMatching reflects the early resolution.
       assert.strictEqual(trace.caseMatching.casesEvaluated, 2);
@@ -141,16 +89,7 @@ describe('TraceBuilder', () => {
     });
 
     it('does NOT promote evaluations when the early resolution had no match', () => {
-      const evaluations: CaseEvaluationTrace[] = [
-        {
-          caseId: 'pdv-404',
-          description: 'PDV 404',
-          priority: 100,
-          condition: { type: 'pattern', ref: 'vars.x', regex: 'foo' },
-          matched: false,
-          resolvedValues: { 'vars.x': 'bar' },
-        },
-      ];
+      const evaluations = [evaluation('pdv-404', false)];
 
       const builder = builderWithOneStep();
       builder.traceEarlyResolution({
@@ -158,7 +97,7 @@ describe('TraceBuilder', () => {
         matchedCaseIds: [],
         evaluations,
       });
-      const trace = builder.build(emptyContext(), 'completed', ENV);
+      const trace = builder.build(createTestContext(), 'completed', ENV);
 
       // No promotion: caseEvaluations stays empty, ready for a later
       // matchKnownCases pass to populate it.
@@ -174,18 +113,9 @@ describe('TraceBuilder', () => {
       builder.traceEarlyResolution({
         resolved: true,
         matchedCaseIds: ['x'],
-        evaluations: [
-          {
-            caseId: 'x',
-            description: '',
-            priority: 1,
-            condition: { type: 'exists', ref: 'vars.x' },
-            matched: true,
-            resolvedValues: {},
-          },
-        ],
+        evaluations: [evaluation('x', true)],
       });
-      const trace = builder.build(emptyContext(), 'completed', ENV);
+      const trace = builder.build(createTestContext(), 'completed', ENV);
 
       // No step trace, no promotion, no crash.
       assert.strictEqual(trace.pipeline.length, 0);

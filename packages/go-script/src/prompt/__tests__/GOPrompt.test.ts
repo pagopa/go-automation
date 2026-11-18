@@ -46,164 +46,102 @@ describe('GOPrompt', () => {
     stdoutWriteMock.mock.restore();
   });
 
-  it('text prompt returns value', async () => {
-    const prompt = createPrompt(['test value']);
+  it('returns the answer of every prompt, or undefined when it is cancelled', async () => {
+    const prompts: ReadonlyArray<readonly [string, (prompt: GOPrompt) => Promise<unknown>, unknown]> = [
+      ['text', async (prompt) => prompt.text('Enter text'), 'test value'],
+      ['password', async (prompt) => prompt.password('Enter password'), 'secret'],
+      ['number', async (prompt) => prompt.number('Enter number'), 7],
+      ['confirm', async (prompt) => prompt.confirm('Confirm?'), true],
+      [
+        'select',
+        async (prompt) =>
+          prompt.select('Select one', [
+            { title: 'Choice 1', value: 'choice1' },
+            { title: 'Choice 2', value: 'choice2' },
+          ]),
+        'choice1',
+      ],
+      [
+        'multiselect',
+        async (prompt) =>
+          prompt.multiselect('Select many', [
+            { title: 'C1', value: 'c1' },
+            { title: 'C2', value: 'c2' },
+          ]),
+        ['c1', 'c2'],
+      ],
+      ['autocomplete', async (prompt) => prompt.autocomplete('Find', ['match', 'other']), 'match'],
+    ];
 
-    const result = await prompt.text('Enter text');
-    assert.strictEqual(result, 'test value');
+    for (const [name, ask, answer] of prompts) {
+      assert.deepStrictEqual(await ask(createPrompt([answer])), answer, name);
+      assert.strictEqual(await ask(createPrompt([undefined])), undefined, `${name} cancelled`);
+    }
   });
 
-  it('text prompt returns undefined when cancelled', async () => {
-    const prompt = createPrompt([undefined]);
-
-    const result = await prompt.text('Enter text');
-    assert.strictEqual(result, undefined);
-  });
-
-  it('password prompt returns undefined when cancelled', async () => {
-    const prompt = createPrompt([undefined]);
-
-    const result = await prompt.password('Enter password');
-    assert.strictEqual(result, undefined);
-  });
-
-  it('number prompt returns undefined when cancelled', async () => {
-    const prompt = createPrompt([undefined]);
-
-    const result = await prompt.number('Enter number');
-    assert.strictEqual(result, undefined);
-  });
-
-  it('confirm prompt returns undefined when cancelled', async () => {
-    const prompt = createPrompt([undefined]);
-
-    const result = await prompt.confirm('Confirm?');
-    assert.strictEqual(result, undefined);
-  });
-
-  it('select prompt returns value', async () => {
-    const prompt = createPrompt(['choice1']);
-
-    const result = await prompt.select('Select one', [
-      { title: 'Choice 1', value: 'choice1' },
-      { title: 'Choice 2', value: 'choice2' },
-    ]);
-    assert.strictEqual(result, 'choice1');
-  });
-
-  it('select prompt returns undefined when cancelled', async () => {
-    const prompt = createPrompt([undefined]);
-
-    const result = await prompt.select('Select one', [{ title: 'Choice 1', value: 'choice1' }]);
-    assert.strictEqual(result, undefined);
-  });
-
-  it('multiselect prompt returns value', async () => {
-    const prompt = createPrompt([['c1', 'c2']]);
-
-    const result = await prompt.multiselect('Select many', [
-      { title: 'C1', value: 'c1' },
-      { title: 'C2', value: 'c2' },
-    ]);
-    assert.deepStrictEqual(result, ['c1', 'c2']);
-  });
-
-  it('multiselect prompt returns undefined when cancelled', async () => {
-    const prompt = createPrompt([undefined]);
-
-    const result = await prompt.multiselect('Select many', [{ title: 'C1', value: 'c1' }]);
-    assert.strictEqual(result, undefined);
-  });
-
-  it('autocomplete prompt returns value', async () => {
-    const prompt = createPrompt(['match']);
-
-    const result = await prompt.autocomplete('Find', ['match', 'other']);
-    assert.strictEqual(result, 'match');
-  });
-
-  it('autocomplete prompt returns undefined when cancelled', async () => {
-    const prompt = createPrompt([undefined]);
-
-    const result = await prompt.autocomplete('Find', ['match']);
-    assert.strictEqual(result, undefined);
-  });
-
-  it('spinner methods', () => {
+  it('starts and ends the spinner through every terminal method, honouring the indent', () => {
     const prompt = new GOPrompt(logger);
-    prompt.startSpinner('Spinning');
-    assert.strictEqual(prompt.isSpinnerActive(), true);
-    prompt.updateSpinner('Updated');
-    prompt.stopSpinner();
-    assert.strictEqual(prompt.isSpinnerActive(), false);
+    prompt.setSpinnerIndent(2);
+    const ends: ReadonlyArray<(prompt: GOPrompt) => void> = [
+      (p) => p.stopSpinner(),
+      (p) => p.spinnerStop('Stopped'),
+      (p) => p.spinnerSucceed('Success'),
+      (p) => p.spinnerFail('Fail'),
+      (p) => p.spinnerWarn('Warn'),
+      (p) => p.spinnerInfo('Info'),
+    ];
 
-    prompt.startSpinner('Spinning');
-    prompt.spinnerStop('Stopped');
-    assert.strictEqual(prompt.isSpinnerActive(), false);
-
-    prompt.startSpinner('Spinning');
-    prompt.spinnerSucceed('Success');
-    assert.strictEqual(prompt.isSpinnerActive(), false);
-
-    prompt.startSpinner('Spinning');
-    prompt.spinnerFail('Fail');
-    assert.strictEqual(prompt.isSpinnerActive(), false);
-
-    prompt.startSpinner('Spinning');
-    prompt.spinnerWarn('Warn');
-    assert.strictEqual(prompt.isSpinnerActive(), false);
-
-    prompt.startSpinner('Spinning');
-    prompt.spinnerInfo('Info');
-    assert.strictEqual(prompt.isSpinnerActive(), false);
+    for (const end of ends) {
+      prompt.startSpinner('Spinning');
+      assert.strictEqual(prompt.isSpinnerActive(), true);
+      prompt.updateSpinner('Updated');
+      end(prompt);
+      assert.strictEqual(prompt.isSpinnerActive(), false);
+    }
+    // Under test stdout is not a TTY, so the spinner writes plain indented lines.
+    assert.ok(stdoutWriteMock.mock.calls.some((call) => String(call.arguments[0]) === '  Spinning\n'));
   });
 
-  it('multi-spinner methods', () => {
+  it('starts and ends a multi-spinner task through every terminal method', () => {
     const prompt = new GOPrompt(logger);
-    prompt.spin('task1', 'Task 1');
-    assert.strictEqual(prompt.isSpinnerActive(), true);
-    prompt.spinSucceed('task1', 'Task 1 Done');
-    assert.strictEqual(prompt.isSpinnerActive(), false);
+    const ends: ReadonlyArray<(prompt: GOPrompt) => void> = [
+      (p) => p.spinSucceed('task1', 'Task 1 Done'),
+      (p) => p.spinFail('task1', 'Task 1 Fail'),
+      (p) => p.spinWarn('task1', 'Task 1 Warn'),
+      (p) => p.spinInfo('task1', 'Task 1 Info'),
+      (p) => p.spinRemove('task1'),
+    ];
 
-    prompt.spin('task1', 'Task 1');
-    prompt.spinFail('task1', 'Task 1 Fail');
-    assert.strictEqual(prompt.isSpinnerActive(), false);
-
-    prompt.spin('task1', 'Task 1');
-    prompt.spinWarn('task1', 'Task 1 Warn');
-    assert.strictEqual(prompt.isSpinnerActive(), false);
-
-    prompt.spin('task1', 'Task 1');
-    prompt.spinInfo('task1', 'Task 1 Info');
-    assert.strictEqual(prompt.isSpinnerActive(), false);
-
-    prompt.spin('task1', 'Task 1');
-    prompt.spinRemove('task1');
-    assert.strictEqual(prompt.isSpinnerActive(), false);
-
+    for (const end of ends) {
+      prompt.spin('task1', 'Task 1');
+      assert.strictEqual(prompt.isSpinnerActive(), true);
+      end(prompt);
+      assert.strictEqual(prompt.isSpinnerActive(), false);
+    }
     prompt.spinLog('Log message');
+    assert.ok(stdoutWriteMock.mock.calls.some((call) => String(call.arguments[0]).includes('Log message')));
   });
 
-  it('loading bar methods', () => {
+  it('starts and ends the loading bar through complete, fail and stop', (t) => {
+    // completeLoading lets 100% show for a moment before stopping.
+    t.mock.timers.enable({ apis: ['setTimeout'] });
     const prompt = new GOPrompt(logger);
-    prompt.startLoading('Loading');
-    assert.strictEqual(prompt.isLoadingActive(), true);
-    prompt.updateLoading(50, 'Halfway');
-    prompt.completeLoading('Finished');
-    // completeLoading uses setTimeout, but we just check internal call was made
-    prompt.failLoading('Error');
-    assert.strictEqual(prompt.isLoadingActive(), false);
+    const ends: ReadonlyArray<(prompt: GOPrompt) => void> = [
+      (p) => {
+        p.completeLoading('Finished');
+        t.mock.timers.tick(100);
+      },
+      (p) => p.failLoading('Error'),
+      (p) => p.stopLoading(),
+    ];
 
-    prompt.startLoading('Loading');
-    prompt.stopLoading();
-    assert.strictEqual(prompt.isLoadingActive(), false);
-  });
-
-  it('utility methods', () => {
-    const prompt = new GOPrompt(logger);
-    prompt.setSpinnerIndent(4);
-    prompt.setSpinnerIndent('    ');
-    assert.ok(true);
+    for (const end of ends) {
+      prompt.startLoading('Loading');
+      assert.strictEqual(prompt.isLoadingActive(), true);
+      prompt.updateLoading(50, 'Halfway');
+      end(prompt);
+      assert.strictEqual(prompt.isLoadingActive(), false);
+    }
   });
 });
 
@@ -414,11 +352,7 @@ describe('selectWithBack', () => {
    * Prompt whose select answers `answer`, after emitting `keys` on stdin the way
    * readline does while the prompt is on screen.
    */
-  function createBackPrompt(
-    answer: unknown,
-    keys: ReadonlyArray<string> = [],
-  ): { prompt: GOPrompt; signals: (AbortSignal | undefined)[] } {
-    const signals: (AbortSignal | undefined)[] = [];
+  function createBackPrompt(answer: unknown, keys: ReadonlyArray<string> = []): { prompt: GOPrompt } {
     const unused = async <T>(): Promise<T | undefined> => await Promise.resolve(undefined);
     const adapter: GOPromptAdapter = {
       text: unused,
@@ -426,7 +360,6 @@ describe('selectWithBack', () => {
       number: unused,
       confirm: unused,
       select: async <T>(_options: unknown, context?: { readonly signal?: AbortSignal }): Promise<T | undefined> => {
-        signals.push(context?.signal);
         for (const name of keys) process.stdin.emit('keypress', '', { name });
         if (context?.signal?.aborted === true) throw abortError();
         return await Promise.resolve(answer as T);
@@ -435,48 +368,24 @@ describe('selectWithBack', () => {
       search: unused,
     };
 
-    return { prompt: new GOPrompt(logger, false, adapter), signals };
+    return { prompt: new GOPrompt(logger, false, adapter) };
   }
 
-  it('returns the selected value when no shortcut is pressed', async () => {
-    const { prompt } = createBackPrompt('prod');
-
-    assert.strictEqual(await prompt.selectWithBack<string>('Ambiente', choices), 'prod');
-  });
-
-  it('returns the back sentinel when ← is pressed', async () => {
-    const { prompt } = createBackPrompt('prod', ['left']);
-
-    assert.strictEqual(await prompt.selectWithBack<string>('Ambiente', choices), GO_PROMPT_BACK);
-  });
-
-  it('ignores the keys that are not the shortcut', async () => {
-    const { prompt } = createBackPrompt('prod', ['right', 'down', 'backspace']);
-
-    assert.strictEqual(await prompt.selectWithBack<string>('Ambiente', choices), 'prod');
-  });
-
-  it('hands the prompt a signal to be aborted with', async () => {
-    const { prompt, signals } = createBackPrompt('prod');
-
-    await prompt.selectWithBack<string>('Ambiente', choices);
-
-    assert.ok(signals[0] instanceof AbortSignal);
-  });
-
-  it('returns undefined when the prompt is cancelled', async () => {
-    const { prompt } = createBackPrompt(undefined);
-
-    assert.strictEqual(await prompt.selectWithBack<string>('Ambiente', choices), undefined);
-  });
-
-  it('leaves no keypress listener behind', async () => {
+  it('returns the answer, the back sentinel on ←, or undefined when cancelled, leaving no keypress listener', async () => {
+    const cases: ReadonlyArray<readonly [ReadonlyArray<string>, unknown, unknown]> = [
+      [[], 'prod', 'prod'],
+      [['left'], 'prod', GO_PROMPT_BACK],
+      [['right', 'down', 'backspace'], 'prod', 'prod'],
+      [[], undefined, undefined],
+    ];
     const before = process.stdin.listenerCount('keypress');
-    const { prompt } = createBackPrompt('prod', ['left']);
 
-    await prompt.selectWithBack<string>('Ambiente', choices);
+    for (const [keys, answer, expected] of cases) {
+      const { prompt } = createBackPrompt(answer, keys);
 
-    assert.strictEqual(process.stdin.listenerCount('keypress'), before);
+      assert.strictEqual(await prompt.selectWithBack<string>('Ambiente', choices), expected, keys.join());
+      assert.strictEqual(process.stdin.listenerCount('keypress'), before);
+    }
   });
 });
 
@@ -515,28 +424,21 @@ describe('autocompleteWithBack', () => {
     return new GOPrompt(logger, false, adapter);
   }
 
-  it('returns the selected value when no shortcut is pressed', async () => {
-    const prompt = createSearchPrompt('prod', [''], []);
+  it('goes back on ← only while the filter is empty, leaving no keypress listener', async () => {
+    const cases: ReadonlyArray<readonly [string, ReadonlyArray<string>, ReadonlyArray<string>, unknown]> = [
+      ['no shortcut', [''], [], 'prod'],
+      ['← on an empty filter', [''], ['left'], GO_PROMPT_BACK],
+      ['← once the user has typed', ['', 'pro'], ['left'], 'prod'],
+      ['← once the filter is cleared again', ['', 'pro', ''], ['left'], GO_PROMPT_BACK],
+    ];
+    const before = process.stdin.listenerCount('keypress');
 
-    assert.strictEqual(await prompt.autocompleteWithBack<string>('Runbook', choices), 'prod');
-  });
+    for (const [name, queries, keys, expected] of cases) {
+      const prompt = createSearchPrompt('prod', queries, keys);
 
-  it('returns the back sentinel when ← is pressed on an empty filter', async () => {
-    const prompt = createSearchPrompt('prod', [''], ['left']);
-
-    assert.strictEqual(await prompt.autocompleteWithBack<string>('Runbook', choices), GO_PROMPT_BACK);
-  });
-
-  it('leaves ← to the filter once the user has typed', async () => {
-    const prompt = createSearchPrompt('prod', ['', 'pro'], ['left']);
-
-    assert.strictEqual(await prompt.autocompleteWithBack<string>('Runbook', choices), 'prod');
-  });
-
-  it('goes back again once the filter is cleared', async () => {
-    const prompt = createSearchPrompt('prod', ['', 'pro', ''], ['left']);
-
-    assert.strictEqual(await prompt.autocompleteWithBack<string>('Runbook', choices), GO_PROMPT_BACK);
+      assert.strictEqual(await prompt.autocompleteWithBack<string>('Runbook', choices), expected, name);
+      assert.strictEqual(process.stdin.listenerCount('keypress'), before, name);
+    }
   });
 
   it('still filters through the suggestions of the caller', async () => {
@@ -552,35 +454,23 @@ describe('autocompleteWithBack', () => {
 
     assert.deepStrictEqual(seen, ['pro']);
   });
-
-  it('leaves no keypress listener behind', async () => {
-    const before = process.stdin.listenerCount('keypress');
-    const prompt = createSearchPrompt('prod', [''], ['left']);
-
-    await prompt.autocompleteWithBack<string>('Runbook', choices);
-
-    assert.strictEqual(process.stdin.listenerCount('keypress'), before);
-  });
 });
 
 describe('GOPrompt.dateRangeWithBack', () => {
   /** Value carried by the "go back" entry, past the last preset. */
   const backValue = -1;
 
-  it('offers the way back after the presets', async () => {
-    const { prompt, offered } = createDatePrompt([0]);
+  it('offers the way back after the presets, named in English unless the caller says otherwise', async () => {
+    for (const [backLabel, expected] of [
+      ['← Back to the runbook', '← Back to the runbook'],
+      [undefined, '← Back'],
+    ] as const) {
+      const { prompt, offered } = createDatePrompt([0]);
 
-    await prompt.dateRangeWithBack('Period', { now: NOW, backLabel: '← Back to the runbook' });
+      await prompt.dateRangeWithBack('Period', { now: NOW, ...(backLabel !== undefined ? { backLabel } : {}) });
 
-    assert.deepStrictEqual(offered[0]?.slice(-2), ['Custom…', '← Back to the runbook']);
-  });
-
-  it('names the way back in English unless the caller says otherwise', async () => {
-    const { prompt, offered } = createDatePrompt([0]);
-
-    await prompt.dateRangeWithBack('Period', { now: NOW });
-
-    assert.deepStrictEqual(offered[0]?.slice(-1), ['← Back']);
+      assert.deepStrictEqual(offered[0]?.slice(-2), ['Custom…', expected]);
+    }
   });
 
   it('returns the sentinel when the way back is picked', async () => {
@@ -636,6 +526,16 @@ describe('Ctrl+C on a prompt', () => {
     return new GOPrompt(logger, false, adapter);
   }
 
+  /**
+   * Delivers a signal only to the listeners the prompt installed after `runnerListeners`
+   * were taken: emitting it on the process would also reach the test runner.
+   */
+  function signalPrompt(signal: NodeJS.Signals, runnerListeners: ReadonlySet<unknown>): void {
+    const added = process.listeners(signal).filter((listener) => !runnerListeners.has(listener));
+    assert.ok(added.length > 0, `the prompt must listen to ${signal}`);
+    for (const listener of added) listener(signal);
+  }
+
   const pressCtrlC: InterruptFn = () => {
     process.stdin.emit('keypress', '\u0003', { ctrl: true, name: 'c' });
   };
@@ -663,7 +563,8 @@ describe('Ctrl+C on a prompt', () => {
   });
 
   it('treats SIGINT during the prompt (stdin not in raw mode) as Ctrl+C', async () => {
-    const prompt = createInterruptedPrompt(() => process.emit('SIGINT', 'SIGINT'));
+    const runnerListeners = new Set(process.listeners('SIGINT'));
+    const prompt = createInterruptedPrompt(() => signalPrompt('SIGINT', runnerListeners));
 
     await assert.rejects(prompt.text('Name'), GOPromptInterruptedError);
   });
@@ -732,12 +633,9 @@ describe('Ctrl+C on a prompt', () => {
     };
     const prompt = new GOPrompt(logger, false, adapter);
 
+    const runnerListeners = new Set(process.listeners('SIGTERM'));
     const answer = prompt.confirm('Inviare?', false);
-    // Call the listener installed by the prompt (the last one) rather than emitting
-    // SIGTERM, which would also reach the listeners of the test runner.
-    const onSigterm = process.listeners('SIGTERM').at(-1);
-    assert.ok(onSigterm !== undefined);
-    onSigterm('SIGTERM');
+    signalPrompt('SIGTERM', runnerListeners);
 
     const error = await answer.then(
       () => assert.fail('the prompt must be interrupted'),

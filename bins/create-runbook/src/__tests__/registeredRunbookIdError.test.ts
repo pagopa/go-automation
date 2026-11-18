@@ -12,15 +12,10 @@ const REGISTRATIONS = [
 ];
 
 describe('registeredRunbookIdError', () => {
-  it('accepts an id no registration uses', () => {
+  it('accepts an unused id and rejects a registered key or an alarm name another runbook answers to', () => {
     assert.strictEqual(registeredRunbookIdError('pn-new-ApiGwAlarm', REGISTRATIONS), undefined);
-  });
-
-  it('rejects the key of a registered runbook', () => {
     assert.match(registeredRunbookIdError('interop-auth-server-apigw-5xx', REGISTRATIONS) ?? '', /già la chiave/u);
-  });
-
-  it('rejects an alarm name another runbook answers to, even when no folder has that name', () => {
+    // An alias is rejected even when no folder has that name.
     assert.match(
       registeredRunbookIdError('interop-auth-server-prod-apigw-5xx', REGISTRATIONS) ?? '',
       /nome d'allarme del runbook "interop-auth-server-apigw-5xx"/u,

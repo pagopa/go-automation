@@ -196,10 +196,9 @@ describe('QuerySpidHubDiagnosticsStep', () => {
     assert.match(result.error ?? '', /Unsupported SPID Hub production alarmName/u);
   });
 
-  it('rejects non-production, other accounts and other regions before contacting AWS', async () => {
+  it('rejects non-production occurrences, other accounts and other regions before contacting AWS', async () => {
     for (const [portOptions, code, error] of [
       [occurrenceIn(SEND_ACCOUNT_IDS.confinfoUat), 'AWS_ACCOUNT_ENVIRONMENT_NOT_ALLOWED', /only environments prod/u],
-      [{ environment: 'uat' }, 'AWS_ACCOUNT_ENVIRONMENT_NOT_ALLOWED', /only environments prod/u],
       [occurrenceIn(SEND_ACCOUNT_IDS.coreProd), 'AWS_OCCURRENCE_ACCOUNT_MISMATCH', /none of spidhub's accounts/u],
       [occurrenceIn(SPIDHUB_ACCOUNT_ID, 'eu-west-1'), 'AWS_OCCURRENCE_ACCOUNT_MISMATCH', /in region eu-west-1/u],
     ] as const) {

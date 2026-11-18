@@ -2,12 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { QueryDownstreamLogsStep } from '../QueryDownstreamLogsStep.js';
-import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
-import type { OperationalContext } from '../../../../services/OperationalContext.js';
-
-function context(vars: Map<string, string>): OperationalContext {
-  return { vars, stepResults: new Map(), services: createTestServiceRegistry() } as unknown as OperationalContext;
-}
+import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
 
 const step = new QueryDownstreamLogsStep({
   id: 'query-pn-x',
@@ -20,12 +15,7 @@ const step = new QueryDownstreamLogsStep({
 describe('QueryDownstreamLogsStep', () => {
   it('no-ops (no CloudWatch query) when this downstream is not the routed target', async () => {
     const result = await step.execute(
-      context(
-        new Map([
-          ['lambdaDownstreamTarget', 'pn-other'],
-          ['lambdaRequestId', 'req-1'],
-        ]),
-      ),
+      createTestContext({ vars: { lambdaDownstreamTarget: 'pn-other', lambdaRequestId: 'req-1' } }),
     );
     assert.strictEqual(result.success, true);
     assert.strictEqual(result.vars, undefined);

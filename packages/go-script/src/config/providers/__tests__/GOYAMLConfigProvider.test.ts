@@ -1,17 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import * as fs from 'node:fs/promises';
-import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { GOYAMLParser } from '@pagopa/go-common/parsers';
 
 import { GOSecretsSpecifierFactory } from '../../GOSecretsSpecifier.js';
 import { GOYAMLConfigProvider } from '../GOYAMLConfigProvider.js';
-
-async function makeTempDir(): Promise<string> {
-  return fs.mkdtemp(path.join(os.tmpdir(), 'go-script-yaml-provider-'));
-}
+import { makeTempDir } from './makeTempDir.js';
 
 describe('GOYAMLConfigProvider', () => {
   it('loads nested data objects and redacts configured secrets', () => {
@@ -34,8 +30,8 @@ describe('GOYAMLConfigProvider', () => {
     assert.strictEqual(provider.getDisplayValue('token'), '[REDACTED (12 chars)]');
   });
 
-  it('loads, names and reloads YAML files', async () => {
-    const dir = await makeTempDir();
+  it('loads, names and reloads YAML files', async (t) => {
+    const dir = await makeTempDir(t);
     const filePath = path.join(dir, 'config.yaml');
     await fs.writeFile(filePath, 'feature:\n  enabled: true\n', 'utf-8');
 
@@ -51,8 +47,8 @@ describe('GOYAMLConfigProvider', () => {
     assert.strictEqual(provider.getValue('name'), 'updated');
   });
 
-  it('uses a custom display name and allows optional missing configuration', async () => {
-    const dir = await makeTempDir();
+  it('uses a custom display name and allows optional missing configuration', async (t) => {
+    const dir = await makeTempDir(t);
     const provider = new GOYAMLConfigProvider({
       filePath: path.join(dir, 'missing.yaml'),
       optional: true,
@@ -64,8 +60,8 @@ describe('GOYAMLConfigProvider', () => {
     assert.deepStrictEqual(new GOYAMLConfigProvider({ optional: true }).getAllKeys(), []);
   });
 
-  it('rejects missing files, invalid YAML and a missing source', async () => {
-    const dir = await makeTempDir();
+  it('rejects missing files, invalid YAML and a missing source', async (t) => {
+    const dir = await makeTempDir(t);
     const invalidPath = path.join(dir, 'invalid.yaml');
     await fs.writeFile(invalidPath, 'feature: [unclosed\n', 'utf-8');
 

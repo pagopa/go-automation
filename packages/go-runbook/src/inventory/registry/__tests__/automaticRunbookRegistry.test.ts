@@ -1,320 +1,100 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { logAction } from '../../../engine/actions/ActionFactories.js';
+import type { Runbook } from '../../../engine/types/Runbook.js';
 import { RunbookCatalog } from '../../../toolkits/common/registration/RunbookCatalog.js';
 import { RunbookKinds } from '../../../toolkits/common/registration/RunbookKind.js';
 import { RunbookProducts } from '../../../toolkits/common/registration/RunbookProduct.js';
-import { RUNBOOK_CATALOG } from '../runbookRegistry.js';
+import type { RunbookRegistration } from '../../../toolkits/common/registration/RunbookRegistration.js';
+import { RUNBOOK_CATALOG, validateCloudRunbookRegistry } from '../runbookRegistry.js';
 import { DOWNSTREAM_CATALOGS } from '../../validation/DOWNSTREAM_CATALOGS.js';
 
 const CATALOG_OPTIONS = { downstreamCatalogs: DOWNSTREAM_CATALOGS };
 
+/** Registration of a production runbook, rebuilt from its resolved descriptor. */
+function registrationOf(key: string): RunbookRegistration {
+  const source = RUNBOOK_CATALOG.resolveByKey(key);
+  assert.ok(source, `${key} must be registered`);
+  return {
+    key,
+    product: source.product,
+    alarmNames: source.descriptor.alarmNames,
+    kind: source.descriptor.kind,
+    categories: source.descriptor.categories as readonly [string, ...string[]],
+    build: source.build,
+  };
+}
+
+/** A minimal runbook, with or without the explicit cloud policy. */
+function minimalRunbook(withPolicy: boolean): Runbook {
+  return {
+    metadata: {
+      id: 'test',
+      name: 'test',
+      description: 'test',
+      version: '1.0.0',
+      type: 'alarm-resolution',
+      team: 'GO',
+      tags: [],
+    },
+    steps: [
+      {
+        step: {
+          id: 'read-only',
+          label: 'Read only',
+          kind: 'data',
+          async execute() {
+            await Promise.resolve();
+            return { success: true };
+          },
+        },
+      },
+    ],
+    knownCases: [],
+    fallbackAction: logAction({ level: 'info', title: 'done' }),
+    ...(withPolicy ? { cloudExecutionPolicy: { sideEffects: 'NONE' as const } } : {}),
+  };
+}
+
 describe('RUNBOOK_CATALOG', () => {
-  it('registers INTEROP runbooks for their documented environments', () => {
+  it('resolves every alarm name to the descriptor of its key and nothing else', () => {
     for (const descriptor of RUNBOOK_CATALOG.listDescriptors()) {
-      if (!descriptor.categories.includes('INTEROP')) continue;
-      if (
-        descriptor.key === 'k8s-interop-be-m2m-event-dispatcher-errors-prod' ||
-        descriptor.key === 'k8s-interop-be-one-trust-notices-errors-prod' ||
-        descriptor.key === 'k8s-interop-be-signed-objects-persister-errors-prod' ||
-        descriptor.key === 'k8s-interop-be-tenant-kind-history-consumer-errors-prod' ||
-        descriptor.key === 'interop-att-eservices-att-apigw-4xx'
-      ) {
-        assert.deepStrictEqual(descriptor.alarmNames, [descriptor.key]);
-        continue;
-      }
-      const environments =
-        descriptor.key === 'k8s-interop-be-async-token-generation-readmodel-checker-errors'
-          ? ['att']
-          : ['prod', 'att', 'test'];
-      for (const environment of environments) {
-        assert.ok(
-          descriptor.alarmNames.some((alarmName) => new RegExp(`-${environment}(?:-|$)`, 'u').test(alarmName)),
-          `${descriptor.key} is missing ${environment}`,
-        );
-      }
-      if (environments.length === 1) {
-        assert.deepStrictEqual(descriptor.alarmNames, [`${descriptor.key}-att`]);
+      const byKey = RUNBOOK_CATALOG.resolveByKey(descriptor.key);
+      for (const alarmName of descriptor.alarmNames) {
+        assert.strictEqual(RUNBOOK_CATALOG.resolveByAlarmName(alarmName), byKey, alarmName);
       }
     }
-  });
-
-  it('resolves the same descriptor by alarm name and by stable key', () => {
-    const byAlarm = RUNBOOK_CATALOG.resolveByAlarmName('pn-delivery-B2B-ApiGwAlarm');
-    assert.ok(byAlarm);
-    const byKey = RUNBOOK_CATALOG.resolveByKey(byAlarm.descriptor.key);
-    assert.deepStrictEqual(byKey?.descriptor, byAlarm.descriptor);
-  });
-
-  it('registers the lollipop authorizer alarm as a SEND authorization Lambda runbook', () => {
-    const resolved = RUNBOOK_CATALOG.resolveByAlarmName('pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm');
-
-    assert.ok(resolved);
-    assert.strictEqual(resolved.product, 'SEND');
-    assert.strictEqual(resolved.descriptor.kind, 'LAMBDA');
-    assert.deepStrictEqual(resolved.descriptor.categories, ['AUTHORIZATION']);
-  });
-
-  it('registers the Sender Dashboard data indexer as a SEND delivery Lambda runbook', () => {
-    const resolved = RUNBOOK_CATALOG.resolveByAlarmName('pn-bff-SenderDashboardDataIndexer-LogInvocationErrors-Alarm');
-
-    assert.ok(resolved);
-    assert.strictEqual(resolved.product, 'SEND');
-    assert.strictEqual(resolved.descriptor.kind, 'LAMBDA');
-    assert.deepStrictEqual(resolved.descriptor.categories, ['DELIVERY']);
-  });
-
-  it('registers the downstream monitoring alarm as a SEND integration Lambda runbook', () => {
-    const resolved = RUNBOOK_CATALOG.resolveByAlarmName('pn-downstream-monitoring-lambda-LogInvocationErrors-Alarm');
-
-    assert.ok(resolved);
-    assert.strictEqual(resolved.product, 'SEND');
-    assert.strictEqual(resolved.descriptor.kind, 'LAMBDA');
-    assert.deepStrictEqual(resolved.descriptor.categories, ['INTEGRATION']);
-  });
-
-  it('registers the pn-mandate acceptance failure alarm as a SEND authorization service runbook', () => {
-    const resolved = RUNBOOK_CATALOG.resolveByAlarmName('pn-mandate-acceptance-failure-tech-Alarm');
-
-    assert.ok(resolved);
-    assert.strictEqual(resolved.product, 'SEND');
-    assert.strictEqual(resolved.descriptor.kind, 'SERVICE');
-    assert.deepStrictEqual(resolved.descriptor.categories, ['AUTHORIZATION']);
-  });
-
-  it('registers every SEND downstream alarm with the expected category', () => {
-    const alarms: ReadonlyArray<readonly [string, string]> = [
-      ['emd-downstream-detection-Alarm', 'INTEGRATION'],
-      ['pn-external-registries-OneTrust-downstream-detection-Alarm', 'INTEGRATION'],
-      ['pn-external-registries-SelfcarePA-downstream-detection-Alarm', 'INTEGRATION'],
-      ['pn-external-registries-IO-downstream-detection-Alarm', 'INTEGRATION'],
-      ['pn-national-registries-AdE-downstream-detection-Alarm', 'INTEGRATION'],
-      ['pn-national-registries-ANPR-downstream-detection-Alarm', 'INTEGRATION'],
-      ['pn-national-registries-InfoCamere-downstream-detection-Alarm', 'INTEGRATION'],
-      ['pn-national-registries-INAD-downstream-detection-Alarm', 'INTEGRATION'],
-      ['pn-national-registries-IPA-downstream-detection-Alarm', 'INTEGRATION'],
-      ['personal-data-vault-SelfcarePG-downstream-detection-Alarm', 'INTEGRATION'],
-      ['pn-address-manager-POSTEL-downstream-detection-Alarm', 'DELIVERY'],
-    ];
-
-    for (const [alarmName, category] of alarms) {
-      const resolved = RUNBOOK_CATALOG.resolveByAlarmName(alarmName);
-      assert.ok(resolved, `${alarmName} must be registered`);
-      assert.strictEqual(resolved.product, 'SEND');
-      assert.strictEqual(resolved.descriptor.kind, 'DOWNSTREAM');
-      assert.deepStrictEqual(resolved.descriptor.categories, [category]);
-    }
-  });
-
-  it('resolves INTEROP environment aliases to the same canonical descriptor', () => {
-    const prod = RUNBOOK_CATALOG.resolveByAlarmName('k8s-interop-be-backend-for-frontend-errors-prod');
-    const att = RUNBOOK_CATALOG.resolveByAlarmName('k8s-interop-be-backend-for-frontend-errors-att');
-    const test = RUNBOOK_CATALOG.resolveByAlarmName('k8s-interop-be-backend-for-frontend-errors-test');
-
-    assert.ok(prod);
-    assert.ok(att);
-    assert.ok(test);
-    assert.strictEqual(prod.descriptor.key, 'k8s-interop-be-backend-for-frontend-errors');
-    assert.deepStrictEqual(att.descriptor, prod.descriptor);
-    assert.deepStrictEqual(test.descriptor, prod.descriptor);
-    assert.deepStrictEqual(prod.descriptor.alarmNames, [
-      'k8s-interop-be-backend-for-frontend-errors-att',
-      'k8s-interop-be-backend-for-frontend-errors-prod',
-      'k8s-interop-be-backend-for-frontend-errors-test',
-    ]);
-  });
-
-  it('resolves every INTEROP attribute registry readmodel writer SQL alias', () => {
-    const alarmNames = [
-      'k8s-interop-be-attribute-registry-readmodel-writer-sql-errors-prod',
-      'k8s-interop-be-attribute-registry-readmodel-writer-sql-errors-att',
-      'k8s-interop-be-attribute-registry-readmodel-writer-sql-errors-test',
-    ];
-    const resolved = alarmNames.map((alarmName) => RUNBOOK_CATALOG.resolveByAlarmName(alarmName));
-
-    assert.ok(resolved.every((entry) => entry !== undefined));
-    const descriptor = resolved[0]?.descriptor;
-    assert.ok(descriptor !== undefined);
-    assert.strictEqual(descriptor.key, 'k8s-interop-be-attribute-registry-readmodel-writer-sql-errors');
-    assert.strictEqual(descriptor.kind, 'K8S');
-    assert.deepStrictEqual(descriptor.categories, ['INTEROP']);
-    assert.deepStrictEqual(descriptor.alarmNames, [...alarmNames].sort());
-    assert.ok(resolved.every((entry) => entry?.descriptor === descriptor));
-  });
-
-  it('resolves every INTEROP catalog readmodel writer SQL alias', () => {
-    const alarmNames = [
-      'k8s-interop-be-catalog-readmodel-writer-sql-errors-prod',
-      'k8s-interop-be-catalog-readmodel-writer-sql-errors-att',
-      'k8s-interop-be-catalog-readmodel-writer-sql-errors-test',
-    ];
-    const resolved = alarmNames.map((alarmName) => RUNBOOK_CATALOG.resolveByAlarmName(alarmName));
-
-    assert.ok(resolved.every((entry) => entry !== undefined));
-    const descriptor = resolved[0]?.descriptor;
-    assert.ok(descriptor !== undefined);
-    assert.strictEqual(descriptor.key, 'k8s-interop-be-catalog-readmodel-writer-sql-errors');
-    assert.strictEqual(descriptor.kind, 'K8S');
-    assert.deepStrictEqual(descriptor.categories, ['INTEROP']);
-    assert.deepStrictEqual(descriptor.alarmNames, [...alarmNames].sort());
-    assert.ok(resolved.every((entry) => entry?.descriptor === descriptor));
-  });
-
-  it('resolves INTEROP notification user lifecycle aliases to the same canonical descriptor', () => {
-    const prod = RUNBOOK_CATALOG.resolveByAlarmName('k8s-interop-be-notification-user-lifecycle-consumer-errors-prod');
-    const att = RUNBOOK_CATALOG.resolveByAlarmName('k8s-interop-be-notification-user-lifecycle-consumer-errors-att');
-    const test = RUNBOOK_CATALOG.resolveByAlarmName('k8s-interop-be-notification-user-lifecycle-consumer-errors-test');
-
-    assert.ok(prod);
-    assert.ok(att);
-    assert.ok(test);
-    assert.strictEqual(prod.descriptor.key, 'k8s-interop-be-notification-user-lifecycle-consumer-errors');
-    assert.deepStrictEqual(att.descriptor, prod.descriptor);
-    assert.deepStrictEqual(test.descriptor, prod.descriptor);
-    assert.deepStrictEqual(prod.descriptor.alarmNames, [
-      'k8s-interop-be-notification-user-lifecycle-consumer-errors-att',
-      'k8s-interop-be-notification-user-lifecycle-consumer-errors-prod',
-      'k8s-interop-be-notification-user-lifecycle-consumer-errors-test',
-    ]);
-    assert.deepStrictEqual(prod.descriptor.categories, ['INTEROP']);
-  });
-
-  it('resolves every INTEROP compute agreements consumer alias', () => {
-    const alarmNames = [
-      'k8s-interop-be-compute-agreements-consumer-errors-prod',
-      'k8s-interop-be-compute-agreements-consumer-errors-att',
-      'k8s-interop-be-compute-agreements-consumer-errors-test',
-    ];
-    const resolved = alarmNames.map((alarmName) => RUNBOOK_CATALOG.resolveByAlarmName(alarmName));
-
-    assert.ok(resolved.every((entry) => entry !== undefined));
-    const descriptor = resolved[0]?.descriptor;
-    assert.ok(descriptor !== undefined);
-    assert.strictEqual(descriptor.key, 'k8s-interop-be-compute-agreements-consumer-errors');
-    assert.strictEqual(descriptor.kind, 'K8S');
-    assert.deepStrictEqual(descriptor.categories, ['INTEROP']);
-    assert.deepStrictEqual(descriptor.alarmNames, [...alarmNames].sort());
-    assert.ok(resolved.every((entry) => entry?.descriptor === descriptor));
-  });
-
-  it('resolves INTEROP public catalog aliases with the environment in the middle of the alarm name', () => {
-    const prod = RUNBOOK_CATALOG.resolveByAlarmName(
-      'k8s-interop-public-catalog-astro-frontend-errors-prod-public-catalog',
-    );
-    const att = RUNBOOK_CATALOG.resolveByAlarmName(
-      'k8s-interop-public-catalog-astro-frontend-errors-att-public-catalog',
-    );
-
-    assert.ok(prod);
-    assert.ok(att);
-    assert.strictEqual(prod.descriptor.key, 'k8s-interop-public-catalog-astro-frontend-errors');
-    assert.deepStrictEqual(att.descriptor, prod.descriptor);
-    assert.strictEqual(prod.descriptor.kind, 'K8S');
-    assert.deepStrictEqual(prod.descriptor.categories, ['INTEROP']);
-  });
-
-  it('resolves INTEROP Selfcare users updater aliases to the same canonical descriptor', () => {
-    const prod = RUNBOOK_CATALOG.resolveByAlarmName('k8s-interop-be-selfcare-client-users-updater-errors-prod');
-    const att = RUNBOOK_CATALOG.resolveByAlarmName('k8s-interop-be-selfcare-client-users-updater-errors-att');
-    const test = RUNBOOK_CATALOG.resolveByAlarmName('k8s-interop-be-selfcare-client-users-updater-errors-test');
-
-    assert.ok(prod);
-    assert.ok(att);
-    assert.ok(test);
-    assert.strictEqual(prod.descriptor.key, 'k8s-interop-be-selfcare-client-users-updater-errors');
-    assert.deepStrictEqual(att.descriptor, prod.descriptor);
-    assert.deepStrictEqual(test.descriptor, prod.descriptor);
-    assert.deepStrictEqual(prod.descriptor.alarmNames, [
-      'k8s-interop-be-selfcare-client-users-updater-errors-att',
-      'k8s-interop-be-selfcare-client-users-updater-errors-prod',
-      'k8s-interop-be-selfcare-client-users-updater-errors-test',
-    ]);
-    assert.deepStrictEqual(prod.descriptor.categories, ['INTEROP']);
-  });
-
-  it('resolves INTEROP Selfcare onboarding consumer aliases to the same canonical descriptor', () => {
-    const prod = RUNBOOK_CATALOG.resolveByAlarmName('k8s-interop-be-selfcare-onboarding-consumer-errors-prod');
-    const att = RUNBOOK_CATALOG.resolveByAlarmName('k8s-interop-be-selfcare-onboarding-consumer-errors-att');
-    const test = RUNBOOK_CATALOG.resolveByAlarmName('k8s-interop-be-selfcare-onboarding-consumer-errors-test');
-
-    assert.ok(prod);
-    assert.ok(att);
-    assert.ok(test);
-    assert.strictEqual(prod.descriptor.key, 'k8s-interop-be-selfcare-onboarding-consumer-errors');
-    assert.deepStrictEqual(att.descriptor, prod.descriptor);
-    assert.deepStrictEqual(test.descriptor, prod.descriptor);
-    assert.deepStrictEqual(prod.descriptor.alarmNames, [
-      'k8s-interop-be-selfcare-onboarding-consumer-errors-att',
-      'k8s-interop-be-selfcare-onboarding-consumer-errors-prod',
-      'k8s-interop-be-selfcare-onboarding-consumer-errors-test',
-    ]);
-    assert.deepStrictEqual(prod.descriptor.categories, ['INTEROP']);
-  });
-
-  it('resolves INTEROP Selfcare API Gateway 5xx aliases to the same APIGW descriptor', () => {
-    const prod = RUNBOOK_CATALOG.resolveByAlarmName('interop-selfcare-1.0-prod-apigw-5xx');
-    const att = RUNBOOK_CATALOG.resolveByAlarmName('interop-selfcare-1.0-att-apigw-5xx');
-    const test = RUNBOOK_CATALOG.resolveByAlarmName('interop-selfcare-1.0-test-apigw-5xx');
-
-    assert.ok(prod);
-    assert.ok(att);
-    assert.ok(test);
-    assert.strictEqual(prod.descriptor.key, 'interop-selfcare-1.0-apigw-5xx');
-    assert.strictEqual(prod.descriptor.kind, 'APIGW');
-    assert.deepStrictEqual(att.descriptor, prod.descriptor);
-    assert.deepStrictEqual(test.descriptor, prod.descriptor);
-    assert.deepStrictEqual(prod.descriptor.alarmNames, [
-      'interop-selfcare-1.0-att-apigw-5xx',
-      'interop-selfcare-1.0-prod-apigw-5xx',
-      'interop-selfcare-1.0-test-apigw-5xx',
-    ]);
-    assert.deepStrictEqual(prod.descriptor.categories, ['INTEROP']);
-  });
-
-  it('resolves every INTEROP auth-server API Gateway 4xx alias, including low-request alarms', () => {
-    const alarmNames = [
-      'interop-auth-server-prod-apigw-4xx',
-      'interop-auth-server-att-apigw-4xx',
-      'interop-auth-server-test-apigw-4xx',
-      'interop-auth-server-att-apigw-4xx-low-requests',
-      'interop-auth-server-test-apigw-4xx-low-requests',
-    ];
-    const resolved = alarmNames.map((alarmName) => RUNBOOK_CATALOG.resolveByAlarmName(alarmName));
-
-    assert.ok(resolved.every((entry) => entry !== undefined));
-    const descriptor = resolved[0]?.descriptor;
-    assert.ok(descriptor !== undefined);
-    assert.strictEqual(descriptor.key, 'interop-auth-server-apigw-4xx');
-    assert.strictEqual(descriptor.kind, 'APIGW');
-    assert.deepStrictEqual(descriptor.categories, ['INTEROP']);
-    assert.deepStrictEqual(descriptor.alarmNames, [...alarmNames].sort());
-    assert.ok(resolved.every((entry) => entry?.descriptor === resolved[0]?.descriptor));
+    assert.strictEqual(RUNBOOK_CATALOG.resolveByAlarmName('spidhub-uat-ExternalELBAlarm'), undefined);
   });
 
   it('lists stable sorted descriptors and validates every cloud runbook', () => {
     const first = RUNBOOK_CATALOG.listDescriptors();
-    const second = RUNBOOK_CATALOG.listDescriptors();
-    assert.deepStrictEqual(first, second);
+    assert.deepStrictEqual(RUNBOOK_CATALOG.listDescriptors(), first);
     assert.deepStrictEqual(
       first.map(({ key }) => key),
       first.map(({ key }) => key).sort(),
     );
     assert.ok(first.every(({ definitionDigest }) => /^sha256-[a-f0-9]{64}$/.test(definitionDigest)));
-    assert.doesNotThrow(() => RUNBOOK_CATALOG.validateForCloud());
+    // The default registry delegates to RUNBOOK_CATALOG.validateForCloud().
+    assert.doesNotThrow(() => validateCloudRunbookRegistry());
+  });
+
+  it('rejects a custom registry entry without an explicit cloud policy', () => {
+    assert.throws(
+      () => validateCloudRunbookRegistry(new Map([['alarm', () => minimalRunbook(false)]])),
+      /Cloud runbook registry rejected "alarm".*does not declare cloud sideEffects=NONE/u,
+    );
+    assert.doesNotThrow(() => validateCloudRunbookRegistry(new Map([['alarm', () => minimalRunbook(true)]])));
   });
 
   it('builds lazily: nothing at construction, one build per resolved descriptor, a fresh build per execution', () => {
-    const source = RUNBOOK_CATALOG.resolveByKey('pn-delivery-B2B-ApiGwAlarm');
-    assert.ok(source);
     let buildCalls = 0;
+    const source = registrationOf('pn-delivery-B2B-ApiGwAlarm');
     const registry = new RunbookCatalog(
       [
         {
-          key: source.descriptor.key,
-          product: source.product,
-          alarmNames: source.descriptor.alarmNames,
-          kind: source.descriptor.kind,
-          categories: source.descriptor.categories as readonly [string, ...string[]],
+          ...source,
           build: () => {
             buildCalls += 1;
             return source.build();
@@ -325,10 +105,10 @@ describe('RUNBOOK_CATALOG', () => {
     );
 
     assert.strictEqual(buildCalls, 0, 'the constructor indexes registrations only');
-    const resolved = registry.resolveByKey(source.descriptor.key);
+    const resolved = registry.resolveByKey(source.key);
     assert.ok(resolved);
     assert.strictEqual(buildCalls, 1, 'resolution builds only the resolved runbook, for its descriptor');
-    assert.strictEqual(registry.resolveByAlarmName(source.descriptor.alarmNames[0]), resolved);
+    assert.strictEqual(registry.resolveByAlarmName(source.alarmNames[0]), resolved);
     assert.strictEqual(buildCalls, 1, 'the descriptor is memoized in the instance');
     assert.notStrictEqual(resolved.build(), resolved.build(), 'every execution gets a fresh runbook');
     assert.strictEqual(buildCalls, 3);
@@ -340,18 +120,7 @@ describe('RUNBOOK_CATALOG', () => {
 
   it('resolves complete descriptors on a cold catalog, identical to the listed ones', () => {
     const cold = new RunbookCatalog(
-      ['pn-delivery-B2B-ApiGwAlarm', 'k8s-interop-be-notifier-errors'].map((key) => {
-        const source = RUNBOOK_CATALOG.resolveByKey(key);
-        assert.ok(source);
-        return {
-          key,
-          product: source.product,
-          alarmNames: source.descriptor.alarmNames,
-          kind: source.descriptor.kind,
-          categories: source.descriptor.categories as readonly [string, ...string[]],
-          build: source.build,
-        };
-      }),
+      ['pn-delivery-B2B-ApiGwAlarm', 'k8s-interop-be-notifier-errors'].map(registrationOf),
       CATALOG_OPTIONS,
     );
 
@@ -363,17 +132,16 @@ describe('RUNBOOK_CATALOG', () => {
     assert.deepStrictEqual(listed, resolved.descriptor);
   });
 
-  it('still rejects duplicate keys and ambiguous alarm names at construction, without building', () => {
-    const build = (): never => {
-      throw new Error('must not build');
-    };
-    const registration = {
+  it('rejects duplicate keys and ambiguous alarm names at construction, without building', () => {
+    const registration: RunbookRegistration = {
       key: 'dup',
       product: RunbookProducts.SEND,
-      alarmNames: ['alarm-a'] as [string, ...string[]],
+      alarmNames: ['alarm-a'],
       kind: RunbookKinds.SERVICE,
-      categories: ['DELIVERY'] as readonly [string, ...string[]],
-      build,
+      categories: ['DELIVERY'],
+      build: (): never => {
+        throw new Error('must not build');
+      },
     };
     assert.throws(
       () => new RunbookCatalog([registration, registration], CATALOG_OPTIONS),

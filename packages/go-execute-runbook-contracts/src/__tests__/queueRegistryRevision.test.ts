@@ -15,29 +15,31 @@ import {
 } from '../queueRegistryRevision.js';
 
 const CONTRACT_ROOT = new URL('../../../../contracts/runbook-automation/v1/', import.meta.url);
+const PUBLISHED_AT = '2026-06-22T00:00:00.000Z';
+
+function queueEntry(name = 'go-execute-runbook'): ExecuteRunbookQueueRegistryEntryV1 {
+  return {
+    queueUrl: `https://sqs.eu-south-1.amazonaws.com/123456789012/${name}.fifo`,
+    queueArn: `arn:aws:sqs:eu-south-1:123456789012:${name}.fifo`,
+    stackName: name,
+    messageRetentionSeconds: 345600,
+  };
+}
 
 describe('ExecuteRunbookQueueRegistryV1', () => {
   it('calculates a deterministic revision regardless of object insertion order', () => {
     const first = buildQueueRegistry({
       schemaVersion: 1,
-      publishedAt: '2026-06-22T00:00:00.000Z',
-      queues: {
-        'eu-south-1': {
-          queueUrl: 'https://sqs.eu-south-1.amazonaws.com/170533023216/go-execute-runbook.fifo',
-          queueArn: 'arn:aws:sqs:eu-south-1:170533023216:go-execute-runbook.fifo',
-          stackName: 'go-execute-runbook',
-          messageRetentionSeconds: 345600,
-        },
-      },
+      publishedAt: PUBLISHED_AT,
+      queues: { 'eu-south-1': queueEntry() },
     });
-    const reordered = {
-      queues: first.queues,
-      publishedAt: first.publishedAt,
-      schemaVersion: first.schemaVersion,
-    } as const;
 
     assert.strictEqual(
-      canonicalizeQueueRegistryPayload(reordered),
+      canonicalizeQueueRegistryPayload({
+        queues: first.queues,
+        publishedAt: first.publishedAt,
+        schemaVersion: first.schemaVersion,
+      }),
       canonicalizeQueueRegistryPayload({
         schemaVersion: first.schemaVersion,
         publishedAt: first.publishedAt,
@@ -48,21 +50,12 @@ describe('ExecuteRunbookQueueRegistryV1', () => {
   });
 
   it('sorts canonical object keys by Unicode code point, not locale or UTF-16 order', () => {
-    const privateUse = '\uE000';
+    const privateUse = '';
     const supplementary = '\u{10000}';
-    const entry: ExecuteRunbookQueueRegistryEntryV1 = {
-      queueUrl: 'https://sqs.eu-south-1.amazonaws.com/170533023216/go-execute-runbook.fifo',
-      queueArn: 'arn:aws:sqs:eu-south-1:170533023216:go-execute-runbook.fifo',
-      stackName: 'go-execute-runbook',
-      messageRetentionSeconds: 345600,
-    };
     const payload = {
       schemaVersion: 1,
-      publishedAt: '2026-06-22T00:00:00.000Z',
-      queues: {
-        [supplementary]: entry,
-        [privateUse]: entry,
-      },
+      publishedAt: PUBLISHED_AT,
+      queues: { [supplementary]: queueEntry(), [privateUse]: queueEntry() },
     } as ExecuteRunbookQueueRegistryRevisionPayloadV1;
 
     const canonical = JSON.parse(canonicalizeQueueRegistryPayload(payload)) as {
@@ -72,17 +65,16 @@ describe('ExecuteRunbookQueueRegistryV1', () => {
     assert.deepStrictEqual(Object.keys(canonical.queues), [privateUse, supplementary]);
   });
 
-  it('accepts the valid handoff fixture and rejects the invalid revision fixture', async () => {
+  it('accepts the valid and missing-region fixtures and rejects the invalid revision fixture', async () => {
     const valid = await fixture('fixtures/queue-registry.valid.json');
     const invalid = await fixture('fixtures/queue-registry.invalid-revision.json');
+    const missingRegion = await fixture('fixtures/queue-registry.missing-region.json');
+
     assert.doesNotThrow(() => validateQueueRegistry(valid));
     assert.throws(() => validateQueueRegistry(invalid), /revision/);
-  });
-
-  it('keeps missing-region distinct from an invalid registry', async () => {
-    const registry = await fixture('fixtures/queue-registry.missing-region.json');
-    assert.doesNotThrow(() => validateQueueRegistry(registry));
-    assert.strictEqual(registry.queues['eu-south-1'], undefined);
+    // A missing region is a valid registry, distinct from an invalid one.
+    assert.doesNotThrow(() => validateQueueRegistry(missingRegion));
+    assert.strictEqual(missingRegion.queues['eu-south-1'], undefined);
   });
 
   it('rejects resource names that are not the fixed worker names', () => {
@@ -90,16 +82,8 @@ describe('ExecuteRunbookQueueRegistryV1', () => {
       () =>
         buildQueueRegistry({
           schemaVersion: 1,
-          publishedAt: '2026-06-22T00:00:00.000Z',
-          queues: {
-            'eu-south-1': {
-              queueUrl:
-                'https://sqs.eu-south-1.amazonaws.com/170533023216/go-execute-runbook-production-eu-south-1.fifo',
-              queueArn: 'arn:aws:sqs:eu-south-1:170533023216:go-execute-runbook-production-eu-south-1.fifo',
-              stackName: 'go-execute-runbook-production-eu-south-1',
-              messageRetentionSeconds: 345600,
-            },
-          },
+          publishedAt: PUBLISHED_AT,
+          queues: { 'eu-south-1': queueEntry('go-execute-runbook-production-eu-south-1') },
         }),
       /Queue URL/,
     );

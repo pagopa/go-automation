@@ -1,28 +1,20 @@
-import { describe, it, mock } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { AWSCloudWatchLogsQueryOptions, AWSCloudWatchLogsService } from '@pagopa/go-aws/cloudwatch-logs';
+import type { AWSCloudWatchLogsQueryOptions } from '@pagopa/go-aws/cloudwatch-logs';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import type { GOLogger } from '@pagopa/go-common/logging';
-import type { Step } from '../../../../../../engine/types/Step.js';
+import type { RunbookReporter } from '../../../../../../engine/reporting/RunbookReporter.js';
 import type { TimeRange } from '../../../../time/TimeRange.js';
 
 import { QueryApiGwExecutionLogsStep } from '../QueryApiGwExecutionLogsStep.js';
-import type { ApiGwExecutionLogAnalysisMode } from '../../types/ApiGwExecutionLogAnalysisMode.js';
-import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
-import { ConsoleRunbookReporter } from '../../../../../../engine/reporting/ConsoleRunbookReporter.js';
-import type { RunbookReporter } from '../../../../../../engine/reporting/RunbookReporter.js';
+import type { QueryApiGwExecutionLogsConfig } from '../QueryApiGwExecutionLogsStep.js';
 import { SEND_API_GW_PROFILE } from '../../../../../send/families/apigw/profiles/SEND_API_GW_PROFILE.js';
 import type { OperationalContext } from '../../../../services/OperationalContext.js';
+import { captureNarrative } from '../../../../../../__tests__/helpers/captureNarrative.js';
+import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
+import { logRow } from '../../../../../../__tests__/helpers/logRow.js';
 
-// The step has no product default: the tests use the SEND profile.
-const SEND_EXECUTION_LOG = SEND_API_GW_PROFILE.executionLog;
-if (SEND_EXECUTION_LOG === undefined) throw new Error('SEND_API_GW_PROFILE declares an execution log');
-const PROFILE_FIELDS = {
-  spec: SEND_EXECUTION_LOG,
-  accessLogSchema: SEND_API_GW_PROFILE.accessLog.schema,
-  queryProfileId: SEND_API_GW_PROFILE.id,
-};
+type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
 interface CapturedCall {
   readonly logGroups: ReadonlyArray<string>;
@@ -31,84 +23,59 @@ interface CapturedCall {
   readonly options?: AWSCloudWatchLogsQueryOptions;
 }
 
-function createFakeCwLogs(results: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = []): {
-  service: AWSCloudWatchLogsService;
-  calls: CapturedCall[];
-} {
+/** CloudWatch Logs stub recording each query and answering with `results`, or failing with `error`. */
+function createFakeCwLogs(results: Rows = [], error?: Error): { service: unknown; calls: CapturedCall[] } {
   const calls: CapturedCall[] = [];
   const service = {
-    query: mock.fn(
-      async (
-        logGroups: ReadonlyArray<string>,
-        query: string,
-        timeRange: TimeRange,
-        options?: AWSCloudWatchLogsQueryOptions,
-      ): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> => {
-        await Promise.resolve();
-        calls.push({
-          logGroups: [...logGroups],
-          query,
-          timeRange,
-          ...(options !== undefined ? { options } : {}),
-        });
-        return results;
-      },
-    ),
-  } as unknown as AWSCloudWatchLogsService;
+    async query(
+      logGroups: ReadonlyArray<string>,
+      query: string,
+      timeRange: TimeRange,
+      options?: AWSCloudWatchLogsQueryOptions,
+    ): Promise<Rows> {
+      await Promise.resolve();
+      calls.push({ logGroups: [...logGroups], query, timeRange, ...(options !== undefined ? { options } : {}) });
+      if (error !== undefined) throw error;
+      return results;
+    },
+  };
   return { service, calls };
 }
 
 function createContext(args: {
-  readonly stepOutput: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
-  readonly cloudWatchLogs: AWSCloudWatchLogsService;
+  readonly stepOutput: Rows;
+  readonly cloudWatchLogs: unknown;
   readonly reporter?: RunbookReporter;
 }): OperationalContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-01-01T00:00:00.000Z'),
-    stepResults: new Map<string, unknown>([['query-api-gw-logs', args.stepOutput]]),
-    vars: new Map(),
-    params: new Map<string, string>([
-      ['startTime', '2026-01-01T00:00:00.000Z'],
-      ['endTime', '2026-01-01T00:10:00.000Z'],
-    ]),
-    logs: [],
-    services: createTestServiceRegistry({
+  return createTestContext({
+    stepResults: { 'query-api-gw-logs': args.stepOutput },
+    params: { startTime: '2026-01-01T00:00:00.000Z', endTime: '2026-01-01T00:10:00.000Z' },
+    services: {
       cloudWatchLogs: args.cloudWatchLogs,
       ...(args.reporter !== undefined ? { reporter: args.reporter } : {}),
-    }),
-    recoveredErrors: [],
-  };
+    },
+  });
 }
 
-function buildRow(fields: Record<string, string>): GOLogsInsightsResultField[] {
-  return Object.entries(fields).map(([field, value]) => ({ field, value }));
-}
-
-function captureLogger(): { reporter: ConsoleRunbookReporter; lines: string[] } {
-  const lines: string[] = [];
-  const logger = {
-    text: (message: string) => lines.push(message),
-    newline: () => lines.push(''),
-  } as unknown as GOLogger;
-  return { reporter: new ConsoleRunbookReporter(logger), lines };
-}
-
+/** The step with the SEND profile (the step has no product default). */
 function createStep(
-  args: {
-    readonly maxRequestIdsOverride?: number;
-    readonly analysisMode?: ApiGwExecutionLogAnalysisMode;
+  overrides: Partial<Pick<QueryApiGwExecutionLogsConfig, 'maxRequestIdsOverride' | 'analysisMode'>> & {
+    readonly executionLogGroup?: string | null;
   } = {},
-): Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
+): QueryApiGwExecutionLogsStep {
+  const { executionLogGroup = 'API-Gateway-Execution-Logs_test/prod', ...rest } = overrides;
+  const executionLog = SEND_API_GW_PROFILE.executionLog;
+  if (executionLog === undefined) throw new Error('SEND_API_GW_PROFILE declares an execution log');
   return new QueryApiGwExecutionLogsStep({
-    ...PROFILE_FIELDS,
+    spec: executionLog,
+    accessLogSchema: SEND_API_GW_PROFILE.accessLog.schema,
+    queryProfileId: SEND_API_GW_PROFILE.id,
     id: 'query-execution-logs',
     label: 'Query execution logs',
     fromStep: 'query-api-gw-logs',
-    executionLogGroup: 'API-Gateway-Execution-Logs_test/prod',
     timeRangeFromParams: { start: 'startTime', end: 'endTime' },
-    ...(args.maxRequestIdsOverride !== undefined ? { maxRequestIdsOverride: args.maxRequestIdsOverride } : {}),
-    ...(args.analysisMode !== undefined ? { analysisMode: args.analysisMode } : {}),
+    ...(executionLogGroup === null ? {} : { executionLogGroup }),
+    ...rest,
   });
 }
 
@@ -120,8 +87,8 @@ describe('queryApiGwExecutionLogs', () => {
       createContext({
         cloudWatchLogs: service,
         stepOutput: [
-          buildRow({ status: '500', errorMessage: '-' }),
-          buildRow({ status: '200', errorMessage: 'Internal server error', requestId: 'req-ignored' }),
+          logRow({ status: '500', errorMessage: '-' }),
+          logRow({ status: '200', errorMessage: 'Internal server error', requestId: 'req-ignored' }),
         ],
       }),
     );
@@ -136,19 +103,13 @@ describe('queryApiGwExecutionLogs', () => {
 
   it('skips execution-log analysis as not-configured when executionLogGroup is missing', async () => {
     const { service, calls } = createFakeCwLogs();
-    const step = new QueryApiGwExecutionLogsStep({
-      ...PROFILE_FIELDS,
-      id: 'query-execution-logs',
-      label: 'Query execution logs',
-      fromStep: 'query-api-gw-logs',
-      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
-    });
+    const step = createStep({ executionLogGroup: null });
 
     const result = await step.execute(
       createContext({
         cloudWatchLogs: service,
         stepOutput: [
-          buildRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
+          logRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
         ],
       }),
     );
@@ -163,11 +124,11 @@ describe('queryApiGwExecutionLogs', () => {
   });
 
   it('extracts requestIds, renders one OR-combined query and enriches execution-log rows', async () => {
-    const { reporter, lines } = captureLogger();
+    const { reporter, lines } = captureNarrative();
     const { service, calls } = createFakeCwLogs([
-      [buildField('@message', 'Execution failed for req-1')],
-      [buildField('@message', 'Execution failed for req-2')],
-      [buildField('@message', 'Execution failed without a matched request id')],
+      logRow({ '@message': 'Execution failed for req-1' }),
+      logRow({ '@message': 'Execution failed for req-2' }),
+      logRow({ '@message': 'Execution failed without a matched request id' }),
     ]);
     const step = createStep();
 
@@ -176,8 +137,8 @@ describe('queryApiGwExecutionLogs', () => {
         cloudWatchLogs: service,
         reporter,
         stepOutput: [
-          buildRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
-          buildRow({ status: '503', errorMessage: 'Bad gateway', requestId: 'req-2', path: '/bar' }),
+          logRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
+          logRow({ status: '503', errorMessage: 'Bad gateway', requestId: 'req-2', path: '/bar' }),
         ],
       }),
     );
@@ -206,15 +167,15 @@ describe('queryApiGwExecutionLogs', () => {
 
     const output = result.output;
     assert.ok(output !== undefined);
-    assert.deepStrictEqual(output[0]?.slice(-2), [buildField('requestId', 'req-1'), buildField('path', '/foo')]);
-    assert.deepStrictEqual(output[1]?.slice(-2), [buildField('requestId', 'req-2'), buildField('path', '/bar')]);
-    assert.deepStrictEqual(output[2]?.slice(-2), [buildField('requestId', ''), buildField('path', '')]);
+    assert.deepStrictEqual(output[0]?.slice(-2), logRow({ requestId: 'req-1', path: '/foo' }));
+    assert.deepStrictEqual(output[1]?.slice(-2), logRow({ requestId: 'req-2', path: '/bar' }));
+    assert.deepStrictEqual(output[2]?.slice(-2), logRow({ requestId: '', path: '' }));
   });
 
   it('keeps distinct requestIds that share the same path', async () => {
     const { service, calls } = createFakeCwLogs([
-      [buildField('@message', 'Execution failed for req-1')],
-      [buildField('@message', 'Execution failed for req-2')],
+      logRow({ '@message': 'Execution failed for req-1' }),
+      logRow({ '@message': 'Execution failed for req-2' }),
     ]);
     const step = createStep();
 
@@ -222,9 +183,9 @@ describe('queryApiGwExecutionLogs', () => {
       createContext({
         cloudWatchLogs: service,
         stepOutput: [
-          buildRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/same' }),
-          buildRow({ status: '503', errorMessage: 'Bad gateway', requestId: 'req-2', path: '/same' }),
-          buildRow({ status: '502', errorMessage: 'Duplicate retry', requestId: 'req-1', path: '/same' }),
+          logRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/same' }),
+          logRow({ status: '503', errorMessage: 'Bad gateway', requestId: 'req-2', path: '/same' }),
+          logRow({ status: '502', errorMessage: 'Duplicate retry', requestId: 'req-1', path: '/same' }),
         ],
       }),
     );
@@ -242,12 +203,12 @@ describe('queryApiGwExecutionLogs', () => {
 
     const output = result.output;
     assert.ok(output !== undefined);
-    assert.deepStrictEqual(output[0]?.slice(-2), [buildField('requestId', 'req-1'), buildField('path', '/same')]);
-    assert.deepStrictEqual(output[1]?.slice(-2), [buildField('requestId', 'req-2'), buildField('path', '/same')]);
+    assert.deepStrictEqual(output[0]?.slice(-2), logRow({ requestId: 'req-1', path: '/same' }));
+    assert.deepStrictEqual(output[1]?.slice(-2), logRow({ requestId: 'req-2', path: '/same' }));
   });
 
   it('fails fast when the extracted requestIds exceed the configured limit', async () => {
-    const { reporter, lines } = captureLogger();
+    const { reporter, lines } = captureNarrative();
     const { service, calls } = createFakeCwLogs();
     const step = createStep({ maxRequestIdsOverride: 1 });
 
@@ -256,8 +217,8 @@ describe('queryApiGwExecutionLogs', () => {
         cloudWatchLogs: service,
         reporter,
         stepOutput: [
-          buildRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
-          buildRow({ status: '503', errorMessage: 'Bad gateway', requestId: 'req-2', path: '/bar' }),
+          logRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
+          logRow({ status: '503', errorMessage: 'Bad gateway', requestId: 'req-2', path: '/bar' }),
         ],
       }),
     );
@@ -271,19 +232,17 @@ describe('queryApiGwExecutionLogs', () => {
   });
 
   it('degrades to unavailable and continues when a best-effort execution-log query fails', async () => {
-    const service = {
-      query: mock.fn(async (): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> => {
-        await Promise.resolve();
-        throw new Error('MalformedQueryException: time range exceeds the log retention settings');
-      }),
-    } as unknown as AWSCloudWatchLogsService;
+    const { service } = createFakeCwLogs(
+      [],
+      new Error('MalformedQueryException: time range exceeds the log retention settings'),
+    );
     const step = createStep({ analysisMode: 'best-effort' });
 
     const result = await step.execute(
       createContext({
         cloudWatchLogs: service,
         stepOutput: [
-          buildRow({
+          logRow({
             status: '504',
             errorMessage: 'Endpoint request timed out',
             requestId: 'req-retained-out',
@@ -304,7 +263,7 @@ describe('queryApiGwExecutionLogs', () => {
   });
 
   it('degrades to unavailable when a best-effort query exceeds the requestId limit', async () => {
-    const { reporter, lines } = captureLogger();
+    const { reporter, lines } = captureNarrative();
     const { service, calls } = createFakeCwLogs();
     const step = createStep({ analysisMode: 'best-effort', maxRequestIdsOverride: 1 });
 
@@ -313,8 +272,8 @@ describe('queryApiGwExecutionLogs', () => {
         cloudWatchLogs: service,
         reporter,
         stepOutput: [
-          buildRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
-          buildRow({ status: '503', errorMessage: 'Bad gateway', requestId: 'req-2', path: '/bar' }),
+          logRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
+          logRow({ status: '503', errorMessage: 'Bad gateway', requestId: 'req-2', path: '/bar' }),
         ],
       }),
     );
@@ -334,7 +293,7 @@ describe('queryApiGwExecutionLogs', () => {
     const result = await step.execute(
       createContext({
         cloudWatchLogs: service,
-        stepOutput: [buildRow({ status: '500', errorMessage: 'Internal server error', requestId: '-', path: '/foo' })],
+        stepOutput: [logRow({ status: '500', errorMessage: 'Internal server error', requestId: '-', path: '/foo' })],
       }),
     );
 
@@ -352,7 +311,3 @@ describe('queryApiGwExecutionLogs', () => {
     assert.strictEqual(calls.length, 0);
   });
 });
-
-function buildField(field: string, value: string): GOLogsInsightsResultField {
-  return { field, value };
-}

@@ -36,7 +36,7 @@ const INPUT: ExecuteRunbookInput = {
     alarmId: '0192c000-0000-7000-8000-0000000000dd',
     alarmName: RUNBOOK.alarmNames[0],
     firedAt: '2026-06-22T10:00:00.000Z',
-    awsAccountId: '170533023216',
+    awsAccountId: '123456789012',
     awsRegion: 'eu-south-1',
   },
   runbook: {
@@ -70,24 +70,53 @@ interface FailCall {
   readonly errorMessage: string;
 }
 
+const ATTEMPT_ID = '0192c000-0000-7000-8000-0000000000e1';
+const MISMATCHING_DIGEST = `sha256-${'0'.repeat(64)}`;
+
+/** A Watchtower callback without arguments. */
+type CallbackFn<T> = () => Promise<T>;
+
+/** A Watchtower callback that answers `value` asynchronously. */
+function respond<T>(value: T): CallbackFn<T> {
+  return async () => await Promise.resolve(value);
+}
+
+/** Watchtower that starts the attempt and reports no cancellation, unless overridden. */
+function startedWatchtower(
+  overrides: Readonly<Record<string, unknown>> = {},
+  workerDeadlineAt: string = DELIVERY.workerDeadlineAt,
+): Readonly<Record<string, unknown>> {
+  return {
+    startExecution: respond({ disposition: 'START', attemptId: ATTEMPT_ID, workerDeadlineAt }),
+    progressExecution: respond({ cancelRequested: false }),
+    ...overrides,
+  };
+}
+
+/** Input that runs the registered runbook `runbookKey` on its first alarm. */
+function inputFor(runbookKey: string, awsAccountId: string = INPUT.alarmEvent.awsAccountId): ExecuteRunbookInput {
+  const descriptor = RUNBOOK_CATALOG.resolveByKey(runbookKey)!.descriptor; // Safe: a key of the catalog.
+  return {
+    ...INPUT,
+    alarmEvent: { ...INPUT.alarmEvent, alarmName: descriptor.alarmNames[0], awsAccountId },
+    runbook: {
+      ...INPUT.runbook,
+      key: descriptor.key,
+      version: descriptor.version,
+      definitionDigest: descriptor.definitionDigest,
+    },
+  };
+}
+
 /** Runs a multi-account runbook whose account directory cannot serve the occurrence. */
 async function executeWithAccounts(
   runbookKey: string,
   directory: ReadonlyArray<string> | AwsAccountsPort,
 ): Promise<{ readonly result: ExecuteRunbookResult; readonly fails: FailCall[]; readonly completed: boolean }> {
-  const descriptor = RUNBOOK_CATALOG.resolveByKey(runbookKey)!.descriptor;
   const fails: FailCall[] = [];
   let completed = false;
   const deps = fakeDeps(
-    {
-      startExecution: async () => {
-        await Promise.resolve();
-        return { disposition: 'START', attemptId: ATTEMPT_ID, workerDeadlineAt: DELIVERY.workerDeadlineAt };
-      },
-      progressExecution: async () => {
-        await Promise.resolve();
-        return { cancelRequested: false };
-      },
+    startedWatchtower({
       failExecution: async (_id: string, body: FailCall) => {
         await Promise.resolve();
         fails.push(body);
@@ -98,7 +127,7 @@ async function executeWithAccounts(
         completed = true;
         return { status: 'SUCCEEDED', outcome: 'KNOWN_CASE' };
       },
-    },
+    }),
     {
       awsAccounts:
         'environment' in directory
@@ -106,24 +135,9 @@ async function executeWithAccounts(
           : new InMemoryAwsAccountsPort({ directory: parseAwsAccountDirectory(directory), region: 'eu-south-1' }),
     },
   );
-  const result = await executeRunbook(
-    deps,
-    {
-      ...INPUT,
-      alarmEvent: { ...INPUT.alarmEvent, alarmName: descriptor.alarmNames[0], awsAccountId: '000000000101' },
-      runbook: {
-        ...INPUT.runbook,
-        key: descriptor.key,
-        version: descriptor.version,
-        definitionDigest: descriptor.definitionDigest,
-      },
-    },
-    DELIVERY,
-  );
+  const result = await executeRunbook(deps, inputFor(runbookKey, '000000000101'), DELIVERY);
   return { result, fails, completed };
 }
-
-const ATTEMPT_ID = '0192c000-0000-7000-8000-0000000000e1';
 
 describe('executeRunbook — logical AWS accounts', () => {
   it('fails the active attempt as a capability mismatch when the occurrence account is outside the directory', async () => {
@@ -165,11 +179,7 @@ describe('executeRunbook', () => {
 
   it('reports the pinned worker revision for local capability mismatches', () => {
     assert.throws(
-      () =>
-        assertRunbookCapability({
-          ...INPUT,
-          runbook: { ...INPUT.runbook, definitionDigest: `sha256-${'0'.repeat(64)}` },
-        }),
+      () => assertRunbookCapability({ ...INPUT, runbook: { ...INPUT.runbook, definitionDigest: MISMATCHING_DIGEST } }),
       (error: unknown) => {
         assert.ok(error instanceof Error);
         const details = (error as { readonly details?: { readonly workerRevision?: unknown } }).details;
@@ -185,10 +195,7 @@ describe('executeRunbook', () => {
   it('ACKs ALREADY_RUNNING without starting the engine or a terminal callback', async () => {
     let completeCalls = 0;
     const deps = fakeDeps({
-      startExecution: async () => {
-        await Promise.resolve();
-        return { disposition: 'ALREADY_RUNNING', workerDeadlineAt: DELIVERY.workerDeadlineAt };
-      },
+      startExecution: respond({ disposition: 'ALREADY_RUNNING', workerDeadlineAt: DELIVERY.workerDeadlineAt }),
       completeExecution: async () => {
         await Promise.resolve();
         completeCalls += 1;
@@ -202,156 +209,114 @@ describe('executeRunbook', () => {
     assert.strictEqual(completeCalls, 0);
   });
 
-  it('rejects a capability mismatch before acquiring an attempt', async () => {
-    let startCalls = 0;
-    const deps = fakeDeps({
-      startExecution: async () => {
-        await Promise.resolve();
-        startCalls += 1;
-        return { disposition: 'ALREADY_RUNNING', workerDeadlineAt: DELIVERY.workerDeadlineAt };
-      },
+  const mismatches: ReadonlyArray<readonly [string, ExecuteRunbookInput]> = [
+    ['definition digest', { ...INPUT, runbook: { ...INPUT.runbook, definitionDigest: MISMATCHING_DIGEST } }],
+    ['worker revision', { ...INPUT, runbook: { ...INPUT.runbook, workerRevision: 'different-worker-revision' } }],
+  ];
+
+  for (const [mismatch, input] of mismatches) {
+    it(`rejects a ${mismatch} mismatch before acquiring an attempt`, async () => {
+      let startCalls = 0;
+      const deps = fakeDeps({
+        startExecution: async () => {
+          await Promise.resolve();
+          startCalls += 1;
+          return { disposition: 'ALREADY_RUNNING', workerDeadlineAt: DELIVERY.workerDeadlineAt };
+        },
+      });
+
+      await assert.rejects(
+        executeRunbook(deps, input, DELIVERY),
+        (error: unknown) =>
+          typeof error === 'object' &&
+          error !== null &&
+          'workerFailureCode' in error &&
+          error.workerFailureCode === 'RUNBOOK_CAPABILITY_MISMATCH',
+      );
+      assert.strictEqual(startCalls, 0);
     });
-
-    await assert.rejects(
-      executeRunbook(
-        deps,
-        { ...INPUT, runbook: { ...INPUT.runbook, definitionDigest: `sha256-${'0'.repeat(64)}` } },
-        DELIVERY,
-      ),
-      (error: unknown) =>
-        typeof error === 'object' &&
-        error !== null &&
-        'workerFailureCode' in error &&
-        error.workerFailureCode === 'RUNBOOK_CAPABILITY_MISMATCH',
-    );
-    assert.strictEqual(startCalls, 0);
-  });
-
-  it('rejects a worker revision mismatch before acquiring an attempt', async () => {
-    let startCalls = 0;
-    const deps = fakeDeps({
-      startExecution: async () => {
-        await Promise.resolve();
-        startCalls += 1;
-        return { disposition: 'ALREADY_RUNNING', workerDeadlineAt: DELIVERY.workerDeadlineAt };
-      },
-    });
-
-    await assert.rejects(
-      executeRunbook(
-        deps,
-        { ...INPUT, runbook: { ...INPUT.runbook, workerRevision: 'different-worker-revision' } },
-        DELIVERY,
-      ),
-      (error: unknown) =>
-        typeof error === 'object' &&
-        error !== null &&
-        'workerFailureCode' in error &&
-        error.workerFailureCode === 'RUNBOOK_CAPABILITY_MISMATCH',
-    );
-    assert.strictEqual(startCalls, 0);
-  });
+  }
 
   it('uses the authoritative start response deadline for worker lifecycle callbacks', async () => {
     const requestedDeadline = new Date(Date.now() + 120_000).toISOString();
     const authoritativeDeadline = new Date(Date.now() + 60_000).toISOString();
-    const delivery = { ...DELIVERY, workerDeadlineAt: requestedDeadline };
     let progressDeadlineAtMs = 0;
     let completeDeadlineAtMs = 0;
-    const deps = fakeDeps({
-      startExecution: async () => {
-        await Promise.resolve();
-        return {
-          disposition: 'START',
-          attemptId: '0192c000-0000-7000-8000-0000000000e1',
-          workerDeadlineAt: authoritativeDeadline,
-        };
-      },
-      progressExecution: async (_id: string, _body: unknown, options: LifecycleOptions) => {
-        await Promise.resolve();
-        progressDeadlineAtMs = options.deadlineAtMs;
-        return { cancelRequested: false };
-      },
-      completeExecution: async (_id: string, _body: unknown, options: LifecycleOptions) => {
-        await Promise.resolve();
-        completeDeadlineAtMs = options.deadlineAtMs;
-        return { status: 'SKIPPED', outcome: 'NO_DATA' };
-      },
-    });
+    const deps = fakeDeps(
+      startedWatchtower(
+        {
+          progressExecution: async (_id: string, _body: unknown, options: LifecycleOptions) => {
+            await Promise.resolve();
+            progressDeadlineAtMs = options.deadlineAtMs;
+            return { cancelRequested: false };
+          },
+          completeExecution: async (_id: string, _body: unknown, options: LifecycleOptions) => {
+            await Promise.resolve();
+            completeDeadlineAtMs = options.deadlineAtMs;
+            return { status: 'SKIPPED', outcome: 'NO_DATA' };
+          },
+        },
+        authoritativeDeadline,
+      ),
+    );
 
-    const result = await executeRunbook(deps, INPUT, delivery);
+    const result = await executeRunbook(deps, INPUT, { ...DELIVERY, workerDeadlineAt: requestedDeadline });
 
     assert.strictEqual(result.status, 'SKIPPED');
     assert.strictEqual(progressDeadlineAtMs, Date.parse(authoritativeDeadline));
     assert.strictEqual(completeDeadlineAtMs, Date.parse(authoritativeDeadline));
-    assert.notStrictEqual(completeDeadlineAtMs, Date.parse(requestedDeadline));
   });
 
   it('uses the refreshed progress deadline for terminal lifecycle callbacks', async () => {
-    const startDeadline = new Date(Date.now() + 60_000).toISOString();
     const refreshedDeadline = new Date(Date.now() + 120_000).toISOString();
     let completeDeadlineAtMs = 0;
-    const deps = fakeDeps({
-      startExecution: async () => {
-        await Promise.resolve();
-        return {
-          disposition: 'START',
-          attemptId: '0192c000-0000-7000-8000-0000000000e1',
-          workerDeadlineAt: startDeadline,
-        };
-      },
-      progressExecution: async () => {
-        await Promise.resolve();
-        return { cancelRequested: false, workerDeadlineAt: refreshedDeadline };
-      },
-      completeExecution: async (_id: string, _body: unknown, options: LifecycleOptions) => {
-        await Promise.resolve();
-        completeDeadlineAtMs = options.deadlineAtMs;
-        return { status: 'SKIPPED', outcome: 'NO_DATA' };
-      },
-    });
+    const deps = fakeDeps(
+      startedWatchtower({
+        progressExecution: respond({ cancelRequested: false, workerDeadlineAt: refreshedDeadline }),
+        completeExecution: async (_id: string, _body: unknown, options: LifecycleOptions) => {
+          await Promise.resolve();
+          completeDeadlineAtMs = options.deadlineAtMs;
+          return { status: 'SKIPPED', outcome: 'NO_DATA' };
+        },
+      }),
+    );
 
     const result = await executeRunbook(deps, INPUT, DELIVERY);
 
     assert.strictEqual(result.status, 'SKIPPED');
     assert.strictEqual(completeDeadlineAtMs, Date.parse(refreshedDeadline));
-    assert.notStrictEqual(completeDeadlineAtMs, Date.parse(startDeadline));
   });
 
   it('ACKs cancellation only after the owner callback succeeds', async () => {
     const requestedDeadline = new Date(Date.now() + 120_000).toISOString();
     const authoritativeDeadline = new Date(Date.now() + 60_000).toISOString();
-    const delivery = { ...DELIVERY, workerDeadlineAt: requestedDeadline };
     let cancelAckKey = '';
     let cancelAckDeadlineAtMs = 0;
     let completeCalls = 0;
-    const deps = fakeDeps({
-      startExecution: async () => {
-        await Promise.resolve();
-        return {
-          disposition: 'START',
-          attemptId: '0192c000-0000-7000-8000-0000000000e1',
-          workerDeadlineAt: authoritativeDeadline,
-        };
-      },
-      progressExecution: async () => {
-        await Promise.resolve();
-        return { cancelRequested: true, cancelRequestId: '0192c000-0000-7000-8000-0000000000c1' };
-      },
-      completeExecution: async () => {
-        await Promise.resolve();
-        completeCalls += 1;
-        return { status: 'SUCCEEDED', outcome: 'NO_DATA' };
-      },
-      acknowledgeCancellation: async (_id: string, _body: unknown, options: LifecycleOptions) => {
-        await Promise.resolve();
-        cancelAckKey = options.idempotencyKey;
-        cancelAckDeadlineAtMs = options.deadlineAtMs;
-        return { status: 'CANCELLED' };
-      },
-    });
+    const deps = fakeDeps(
+      startedWatchtower(
+        {
+          progressExecution: respond({
+            cancelRequested: true,
+            cancelRequestId: '0192c000-0000-7000-8000-0000000000c1',
+          }),
+          completeExecution: async () => {
+            await Promise.resolve();
+            completeCalls += 1;
+            return { status: 'SUCCEEDED', outcome: 'NO_DATA' };
+          },
+          acknowledgeCancellation: async (_id: string, _body: unknown, options: LifecycleOptions) => {
+            await Promise.resolve();
+            cancelAckKey = options.idempotencyKey;
+            cancelAckDeadlineAtMs = options.deadlineAtMs;
+            return { status: 'CANCELLED' };
+          },
+        },
+        authoritativeDeadline,
+      ),
+    );
 
-    const result = await executeRunbook(deps, INPUT, delivery);
+    const result = await executeRunbook(deps, INPUT, { ...DELIVERY, workerDeadlineAt: requestedDeadline });
 
     assert.strictEqual(result.disposition, 'CANCEL_EXECUTION');
     assert.strictEqual(result.status, 'CANCELLED');
@@ -361,28 +326,14 @@ describe('executeRunbook', () => {
       'cancel-ack:0192c000-0000-7000-8000-000000000001:0192c000-0000-7000-8000-0000000000c1:0192c000-0000-7000-8000-0000000000e1',
     );
     assert.strictEqual(cancelAckDeadlineAtMs, Date.parse(authoritativeDeadline));
-    assert.notStrictEqual(cancelAckDeadlineAtMs, Date.parse(requestedDeadline));
   });
 
   it('ACKs an idempotency payload mismatch without retrying SQS', async () => {
-    const deps = fakeDeps({
-      startExecution: async () => {
-        await Promise.resolve();
-        return {
-          disposition: 'START',
-          attemptId: '0192c000-0000-7000-8000-0000000000e1',
-          workerDeadlineAt: DELIVERY.workerDeadlineAt,
-        };
-      },
-      progressExecution: async () => {
-        await Promise.resolve();
-        return { cancelRequested: false };
-      },
-      completeExecution: async () => {
-        await Promise.resolve();
-        return { conflict: 'IDEMPOTENCY_PAYLOAD_MISMATCH', status: 'SUCCEEDED' };
-      },
-    });
+    const deps = fakeDeps(
+      startedWatchtower({
+        completeExecution: respond({ conflict: 'IDEMPOTENCY_PAYLOAD_MISMATCH', status: 'SUCCEEDED' }),
+      }),
+    );
 
     const result = await executeRunbook(deps, INPUT, DELIVERY);
 
@@ -392,25 +343,16 @@ describe('executeRunbook', () => {
 
   it('ACKs a stale progress attempt without executing a terminal callback', async () => {
     let completeCalls = 0;
-    const deps = fakeDeps({
-      startExecution: async () => {
-        await Promise.resolve();
-        return {
-          disposition: 'START',
-          attemptId: '0192c000-0000-7000-8000-0000000000e1',
-          workerDeadlineAt: DELIVERY.workerDeadlineAt,
-        };
-      },
-      progressExecution: async () => {
-        await Promise.resolve();
-        return { cancelRequested: false, staleAttempt: true };
-      },
-      completeExecution: async () => {
-        await Promise.resolve();
-        completeCalls += 1;
-        return { status: 'SUCCEEDED', outcome: 'NO_DATA' };
-      },
-    });
+    const deps = fakeDeps(
+      startedWatchtower({
+        progressExecution: respond({ cancelRequested: false, staleAttempt: true }),
+        completeExecution: async () => {
+          await Promise.resolve();
+          completeCalls += 1;
+          return { status: 'SUCCEEDED', outcome: 'NO_DATA' };
+        },
+      }),
+    );
 
     const result = await executeRunbook(deps, INPUT, DELIVERY);
 
@@ -425,40 +367,22 @@ describe('executeRunbook', () => {
     let stopCalls = 0;
     let completeBody: { readonly errorMessage?: string } | undefined;
     const deps = fakeDeps(
-      {
-        startExecution: async () => {
-          await Promise.resolve();
-          return {
-            disposition: 'START',
-            attemptId: '0192c000-0000-7000-8000-0000000000e1',
-            workerDeadlineAt: DELIVERY.workerDeadlineAt,
-          };
-        },
-        progressExecution: async () => {
-          await Promise.resolve();
-          return { cancelRequested: false };
-        },
+      startedWatchtower({
         completeExecution: async (_id: string, body: { readonly errorMessage?: string }) => {
           await Promise.resolve();
           completeBody = body;
           return { status: 'FAILED', outcome: 'FAILURE' };
         },
-      },
+      }),
       {
         cloudWatchLogs: failingCloudWatchLogsService(
-          () => {
-            queryCalls += 1;
-          },
+          () => (queryCalls += 1),
           () => (stopCalls += 1),
         ),
       },
     );
 
-    const result = await executeRunbook(
-      deps,
-      { ...INPUT, alarmEvent: { ...INPUT.alarmEvent, alarmName: 'pn-tokenExchangeLambda-LogInvocationErrors-Alarm' } },
-      DELIVERY,
-    );
+    const result = await executeRunbook(deps, INPUT, DELIVERY);
 
     assert.strictEqual(result.status, 'FAILED');
     assert.match(completeBody?.errorMessage ?? '', /query failed after remote operation registration/);
@@ -467,9 +391,6 @@ describe('executeRunbook', () => {
   });
 
   it('runs DailyExport error and invocation queries in the worker single-account OAM scope', async () => {
-    const registered = RUNBOOK_CATALOG.resolveByKey('Lambda-DailyExport-DynamoDbTable-LogInvocationErrors-Alarm');
-    assert.ok(registered);
-    const descriptor = registered.descriptor;
     const requestId = 'fa3cf895-a2ae-46e6-9d44-d75bb2230d33';
     const queries: {
       readonly queryString?: string;
@@ -518,39 +439,18 @@ describe('executeRunbook', () => {
     });
     let output: RunbookOutput | undefined;
     const deps = fakeDeps(
-      {
-        startExecution: async () => {
-          await Promise.resolve();
-          return {
-            disposition: 'START',
-            attemptId: '0192c000-0000-7000-8000-0000000000e1',
-            workerDeadlineAt: DELIVERY.workerDeadlineAt,
-          };
-        },
-        progressExecution: async () => {
-          await Promise.resolve();
-          return { cancelRequested: false };
-        },
+      startedWatchtower({
         completeExecution: async (_id: string, body: { readonly analysisPayload: RunbookOutput }) => {
           await Promise.resolve();
           output = body.analysisPayload;
           return { status: 'SUCCEEDED', outcome: 'KNOWN_CASE' };
         },
-      },
+      }),
       { cloudWatchLogs },
     );
     const result = await executeRunbook(
       deps,
-      {
-        ...INPUT,
-        alarmEvent: { ...INPUT.alarmEvent, alarmName: descriptor.alarmNames[0] },
-        runbook: {
-          ...INPUT.runbook,
-          key: descriptor.key,
-          version: descriptor.version,
-          definitionDigest: descriptor.definitionDigest,
-        },
-      },
+      inputFor('Lambda-DailyExport-DynamoDbTable-LogInvocationErrors-Alarm'),
       DELIVERY,
     );
 
@@ -593,7 +493,7 @@ function fakeDeps(
 
 function successfulCloudWatchLogsService(): AWSCloudWatchLogsService {
   return {
-    // A complete scoped reader: the operational engine checks the bound services (RBREORG-18).
+    // A complete scoped reader: the operational engine checks the bound services.
     forTarget: () =>
       createTestServiceRegistry({
         cloudWatchLogs: {

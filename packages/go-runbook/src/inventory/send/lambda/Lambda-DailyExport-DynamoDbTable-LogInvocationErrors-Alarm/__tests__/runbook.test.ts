@@ -5,7 +5,7 @@ import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/i
 import { GOLogger } from '@pagopa/go-common/logging';
 
 import { RunbookEngine, type RunbookExecutionResult } from '../../../../../engine/index.js';
-import { assertCloudExecutableRunbook, createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
+import { createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
 import { buildRunbook } from '../runbook.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
@@ -60,16 +60,6 @@ async function execute(
 }
 
 describe('DailyExport DynamoDB runbook', () => {
-  it('builds a read-only Lambda runbook with the correct operational reference', () => {
-    const runbook = buildRunbook();
-    assert.doesNotThrow(() => assertCloudExecutableRunbook(runbook));
-    assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
-    assert.deepStrictEqual(runbook.analysisDefaults?.resources, [
-      { name: 'Lambda-DailyExport-DynamoDbTable', role: 'PRIMARY' },
-    ]);
-    assert.match(runbook.analysisDefaults?.links?.[0]?.url ?? '', /3411443959/);
-  });
-
   it('finds a timeout REPORT in the configured source', async () => {
     const { result, calls } = await execute([row(REPORT)], [row(REPORT)]);
     assert.strictEqual(result.status, 'completed');
@@ -84,9 +74,6 @@ describe('DailyExport DynamoDB runbook', () => {
     );
     assert.ok(calls.slice(0, 2).every(({ query }) => query.includes('Status:\\s*timeout')));
     assert.ok(calls[2]?.query.includes(REQUEST_ID));
-    assert.strictEqual(result.matchedCases[0]?.analysis?.proposedStatus, 'IN_PROGRESS');
-    assert.strictEqual(result.matchedCases[0]?.analysis?.resolution, 'Risoluzione non documentata.');
-    assert.deepStrictEqual(result.matchedCases[0]?.analysis?.finalActions ?? [], []);
   });
 
   it('does not turn a retry and a later REPORT into automatic closure', async () => {

@@ -128,7 +128,13 @@ export class GOChildProcess {
     if (child === undefined || !this.running) return;
     const exited = new Promise<void>((resolve) => child.once('exit', () => resolve()));
     this.signal('SIGTERM');
-    const stopped = await Promise.race([exited.then(() => true), sleep(timeoutMs).then(() => false)]);
+    // The grace timer is cancelled as soon as the process exits, so it never keeps the caller alive.
+    const grace = new AbortController();
+    const stopped = await Promise.race([
+      exited.then(() => true),
+      sleep(timeoutMs, false, { signal: grace.signal }).catch(() => true),
+    ]);
+    grace.abort();
     if (!stopped) {
       this.signal('SIGKILL');
       await exited;

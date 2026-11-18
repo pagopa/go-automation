@@ -5,35 +5,28 @@ import type { KnownCase } from '../../../../../engine/types/KnownCase.js';
 import type { KnownCaseAnalysis } from '../../KnownCaseAnalysis.js';
 import type { Runbook } from '../../../../../engine/types/Runbook.js';
 import type { RunbookAnalysisDefaults } from '../../RunbookAnalysisDefaults.js';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
-import type { RunbookExecutionResult } from '../../../../../engine/types/RunbookExecutionResult.js';
 import type { RunbookExecutionStatus } from '../../../../../engine/types/RunbookExecutionStatus.js';
-import type { RunbookExecutionTrace } from '../../../../../engine/tracing/RunbookExecutionTrace.js';
 import { SEND_DOWNSTREAMS } from '../../../../send/analysis/SEND_DOWNSTREAMS.js';
 import { buildAnalysisDraft, buildPotentialAnalysisDrafts } from '../buildAnalysisDraft.js';
+import { createTestExecutionResult } from '../../../../../__tests__/helpers/createTestExecutionResult.js';
+import { createTestRunbook } from '../../../../../__tests__/helpers/createTestRunbook.js';
 
 describe('buildAnalysisDraft', () => {
-  it('emits a KNOWN_CASE draft taking scalars from the primary case', () => {
-    const cases = [analysedCase('primary', { proposedStatus: 'COMPLETED' })];
-
-    const draft = buildAnalysisDraft(runbook({ defaults: {}, cases }), result({ matchedCases: cases }));
-
-    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(draft.schemaVersion, 1);
-    assert.strictEqual(draft.proposedStatus, 'COMPLETED');
-    assert.strictEqual(draft.analysisType, 'ANALYZABLE');
-  });
-
-  it('takes scalars from the primary case even when other cases matched', () => {
+  it('emits a KNOWN_CASE draft taking scalars from the primary case even when other cases matched', () => {
     const cases = [
       analysedCase('primary', { proposedStatus: 'IN_PROGRESS' }),
       analysedCase('secondary', { proposedStatus: 'COMPLETED' }),
     ];
 
-    const draft = buildAnalysisDraft(runbook({ defaults: {}, cases }), result({ matchedCases: cases }));
+    const draft = buildAnalysisDraft(
+      runbook({ defaults: {}, cases }),
+      createTestExecutionResult({ matchedCases: cases }),
+    );
 
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
+    assert.strictEqual(draft.schemaVersion, 1);
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
+    assert.strictEqual(draft.analysisType, 'ANALYZABLE');
   });
 
   it('unions the lists of defaults and every matched case, de-duplicated', () => {
@@ -46,7 +39,7 @@ describe('buildAnalysisDraft', () => {
       finalActions: ['Nessuna azione'],
     };
 
-    const draft = buildAnalysisDraft(runbook({ defaults, cases }), result({ matchedCases: cases }));
+    const draft = buildAnalysisDraft(runbook({ defaults, cases }), createTestExecutionResult({ matchedCases: cases }));
 
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.deepStrictEqual(draft.downstreams, ['Nessuno', 'AppIO', 'AdE']);
@@ -65,7 +58,7 @@ describe('buildAnalysisDraft', () => {
       }),
     ];
 
-    const draft = buildAnalysisDraft(runbook({ defaults, cases }), result({ matchedCases: cases }));
+    const draft = buildAnalysisDraft(runbook({ defaults, cases }), createTestExecutionResult({ matchedCases: cases }));
 
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.deepStrictEqual(draft.resources, [{ name: 'pn-delivery', type: 'Service', role: 'PRIMARY' }]);
@@ -77,7 +70,7 @@ describe('buildAnalysisDraft', () => {
 
     const draft = buildAnalysisDraft(
       runbook({ defaults: {}, cases }),
-      result({ matchedCases: cases, vars: new Map([['fileKey', 'abc-123']]) }),
+      createTestExecutionResult({ matchedCases: cases, vars: { fileKey: 'abc-123' } }),
     );
 
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
@@ -108,9 +101,9 @@ describe('buildAnalysisDraft', () => {
 
     const candidates = buildPotentialAnalysisDrafts(definition);
     const runtimeDrafts = cases.map((_primary, index) =>
-      buildAnalysisDraft(definition, result({ matchedCases: cases.slice(index) })),
+      buildAnalysisDraft(definition, createTestExecutionResult({ matchedCases: cases.slice(index) })),
     );
-    runtimeDrafts.push(buildAnalysisDraft(definition, result({ matchedCases: [] })));
+    runtimeDrafts.push(buildAnalysisDraft(definition, createTestExecutionResult({ matchedCases: [] })));
 
     assert.deepStrictEqual(candidates, runtimeDrafts);
   });
@@ -121,7 +114,7 @@ describe('buildAnalysisDraft', () => {
       downstreams: [SEND_DOWNSTREAMS.NESSUNO],
     };
 
-    const draft = buildAnalysisDraft(runbook({ defaults, cases: [] }), result({ matchedCases: [] }));
+    const draft = buildAnalysisDraft(runbook({ defaults, cases: [] }), createTestExecutionResult({ matchedCases: [] }));
 
     assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
     assert.strictEqual(draft.runbookName, 'Runbook documentale');
@@ -132,7 +125,10 @@ describe('buildAnalysisDraft', () => {
     const cases = [analysedCase('primary', {})];
 
     for (const status of ['failed', 'aborted'] satisfies ReadonlyArray<RunbookExecutionStatus>) {
-      const draft = buildAnalysisDraft(runbook({ defaults: {}, cases }), result({ matchedCases: cases, status }));
+      const draft = buildAnalysisDraft(
+        runbook({ defaults: {}, cases }),
+        createTestExecutionResult({ matchedCases: cases, status }),
+      );
       assert.strictEqual(draft, undefined, `status ${status} must not produce a draft`);
     }
   });
@@ -140,7 +136,10 @@ describe('buildAnalysisDraft', () => {
   it('emits no draft when the matched case carries no annotation', () => {
     const { analysis: _ignored, ...bare } = analysedCase('primary', {});
 
-    const draft = buildAnalysisDraft(runbook({ defaults: undefined, cases: [bare] }), result({ matchedCases: [bare] }));
+    const draft = buildAnalysisDraft(
+      runbook({ defaults: undefined, cases: [bare] }),
+      createTestExecutionResult({ matchedCases: [bare] }),
+    );
 
     assert.strictEqual(draft, undefined);
   });
@@ -152,21 +151,10 @@ interface RunbookFixture {
 }
 
 function runbook(fixture: RunbookFixture): Runbook {
-  return {
-    metadata: {
-      id: 'test-runbook',
-      name: 'Test runbook',
-      description: 'fixture',
-      version: '1.0.0',
-      type: 'alarm-resolution',
-      team: 'GO',
-      tags: [],
-    },
-    steps: [],
+  return createTestRunbook({
     knownCases: fixture.cases,
-    fallbackAction: { type: 'log', level: 'info', title: 'fallback' },
     ...(fixture.defaults === undefined ? {} : { analysisDefaults: fixture.defaults }),
-  };
+  });
 }
 
 function analysedCase(id: string, analysis: Partial<KnownCaseAnalysis>): KnownCase {
@@ -182,29 +170,5 @@ function analysedCase(id: string, analysis: Partial<KnownCaseAnalysis>): KnownCa
       analysisType: 'ANALYZABLE',
       ...analysis,
     },
-  };
-}
-
-interface ResultFixture {
-  /** The matched cases, in priority order: the draft reads its annotations from here. */
-  readonly matchedCases: ReadonlyArray<KnownCase>;
-  readonly status?: RunbookExecutionStatus;
-  readonly vars?: ReadonlyMap<string, string>;
-}
-
-function result(fixture: ResultFixture): RunbookExecutionResult {
-  const matchedCases = fixture.matchedCases;
-  return {
-    runbookId: 'test-runbook',
-    status: fixture.status ?? 'completed',
-    matchedCases,
-    durationMs: 1,
-    stepsExecuted: 1,
-    finalContext: {
-      params: new Map<string, string>(),
-      vars: new Map(fixture.vars ?? []),
-    } as unknown as RunbookContext,
-    recoveredErrors: [],
-    trace: {} as unknown as RunbookExecutionTrace,
   };
 }

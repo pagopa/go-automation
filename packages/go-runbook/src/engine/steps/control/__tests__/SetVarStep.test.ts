@@ -1,68 +1,24 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { RunbookContext } from '../../../types/RunbookContext.js';
-import { createTestServiceRegistry } from '../../../../toolkits/common/testing/createTestServiceRegistry.js';
+import { createTestContext } from '../../../../__tests__/helpers/createTestContext.js';
 import { SetVarStep } from '../SetVarStep.js';
 
-function createContext(args: {
-  readonly vars?: Record<string, string>;
-  readonly params?: Record<string, string>;
-}): RunbookContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-01-01T00:00:00.000Z'),
-    stepResults: new Map<string, unknown>(),
-    vars: new Map(Object.entries(args.vars ?? {})),
-    params: new Map(Object.entries(args.params ?? {})),
-    logs: [],
-    services: createTestServiceRegistry(),
-    recoveredErrors: [],
-  };
-}
-
 describe('SetVarStep', () => {
-  it('writes the literal value', async () => {
-    const step = new SetVarStep({ id: 'set-env', label: 'Set env', varName: 'environment', value: 'prod' });
+  const context = createTestContext({ vars: { service: 'pn-delivery' }, params: { alarmName: 'B2B' } });
+  const cases: ReadonlyArray<readonly [string, { readonly value?: string; readonly expression?: string }, string]> = [
+    ['writes the literal value', { value: 'prod' }, 'prod'],
+    ['interpolates an expression', { expression: '{{params.alarmName}}/{{vars.service}}' }, 'B2B/pn-delivery'],
+    ['prefers the literal value over the expression', { value: 'prod', expression: '{{vars.service}}' }, 'prod'],
+    ['writes an empty string when neither is configured', {}, ''],
+  ];
 
-    const result = await step.execute(createContext({}));
+  for (const [name, source, expected] of cases) {
+    it(name, async () => {
+      const result = await new SetVarStep({ id: 'set', label: 'Set', varName: 'out', ...source }).execute(context);
 
-    assert.strictEqual(result.success, true);
-    assert.deepStrictEqual(result.vars, { environment: 'prod' });
-  });
-
-  it('interpolates an expression against vars and params', async () => {
-    const step = new SetVarStep({
-      id: 'set-label',
-      label: 'Set label',
-      varName: 'label',
-      expression: '{{params.alarmName}}/{{vars.service}}',
+      assert.strictEqual(result.success, true);
+      assert.deepStrictEqual(result.vars, { out: expected });
     });
-
-    const result = await step.execute(
-      createContext({ vars: { service: 'pn-delivery' }, params: { alarmName: 'B2B' } }),
-    );
-
-    assert.deepStrictEqual(result.vars, { label: 'B2B/pn-delivery' });
-  });
-
-  it('prefers the literal value when both value and expression are configured', async () => {
-    const step = new SetVarStep({
-      id: 'set-env',
-      label: 'Set env',
-      varName: 'environment',
-      value: 'prod',
-      expression: '{{vars.ignored}}',
-    });
-
-    assert.deepStrictEqual((await step.execute(createContext({ vars: { ignored: 'dev' } }))).vars, {
-      environment: 'prod',
-    });
-  });
-
-  it('writes an empty string when neither value nor expression is configured', async () => {
-    const step = new SetVarStep({ id: 'set-env', label: 'Set env', varName: 'environment' });
-
-    assert.deepStrictEqual((await step.execute(createContext({}))).vars, { environment: '' });
-  });
+  }
 });

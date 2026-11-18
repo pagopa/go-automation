@@ -1,195 +1,103 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type {
-  AWSCloudWatchLogsQueryOptions,
-  AWSCloudWatchLogsQueryResult,
-  AWSCloudWatchLogsTimeRange,
-} from '@pagopa/go-aws/cloudwatch-logs';
+import type { AWSCloudWatchLogsQueryOptions } from '@pagopa/go-aws/cloudwatch-logs';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { InteropK8sApplicationLogAnalysis } from '../AnalyzeInteropApplicationLogsStep.js';
 import { QueryInteropCidTrackerStep } from '../QueryInteropCidTrackerStep.js';
-import { createTestServiceRegistry } from '../../../../common/testing/createTestServiceRegistry.js';
 import { INTEROP_K8S_QUERY_PROFILE } from '../../../families/k8s/profiles/INTEROP_K8S_QUERY_PROFILE.js';
+import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
+import { logRow } from '../../../../../__tests__/helpers/logRow.js';
+import { TEST_TIME_RANGE_PARAMS } from '../../../../../__tests__/helpers/TEST_TIME_RANGE_PARAMS.js';
 import type { OperationalContext } from '../../../../common/services/OperationalContext.js';
 
-const PROFILE_FIELDS = {
-  queryProfileId: INTEROP_K8S_QUERY_PROFILE.cidTrackerQueryProfileId,
-  buildQuery: INTEROP_K8S_QUERY_PROFILE.buildCidTrackerQuery,
-};
-
-interface SeenQuery {
-  readonly logGroups: ReadonlyArray<string>;
-  readonly query: string;
-  readonly timeRange: AWSCloudWatchLogsTimeRange;
-  readonly options: AWSCloudWatchLogsQueryOptions;
-}
-
-function context(analysis: InteropK8sApplicationLogAnalysis, cloudWatchLogs: unknown = {}): OperationalContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-07-09T10:00:00.000Z'),
-    stepResults: new Map<string, unknown>([['analyze', analysis]]),
-    vars: new Map([['interopLogGroup', '/aws/eks/interop-eks-cluster-prod/application']]),
-    params: new Map([
-      ['startTime', '2026-07-09T09:55:00.000Z'],
-      ['endTime', '2026-07-09T10:05:00.000Z'],
-    ]),
-    logs: [],
-    services: createTestServiceRegistry({ cloudWatchLogs }),
-    recoveredErrors: [],
-  };
-}
+const LOG_GROUP = '/aws/eks/interop-eks-cluster-prod/application';
 
 function analysisWithCids(count: number): InteropK8sApplicationLogAnalysis {
   const cids = Array.from({ length: count }, (_, index) => `cid-${String(index)}`);
   return { logCount: count, cidCount: count, cids, logsWithoutCidCount: 0, representativeMessages: [] };
 }
 
-function step(): QueryInteropCidTrackerStep {
+function step(maxCids?: number): QueryInteropCidTrackerStep {
   return new QueryInteropCidTrackerStep({
-    ...PROFILE_FIELDS,
     id: 'query-cid',
     label: 'Query CID',
     fromStep: 'analyze',
+    queryProfileId: INTEROP_K8S_QUERY_PROFILE.cidTrackerQueryProfileId,
+    buildQuery: INTEROP_K8S_QUERY_PROFILE.buildCidTrackerQuery,
     timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+    ...(maxCids === undefined ? {} : { maxCids }),
   });
+}
+
+/** A context over `cidCount` CIDs whose logs service records every query and returns one row. */
+function recording(cidCount: number): { readonly context: OperationalContext; readonly queries: string[] } {
+  const queries: string[] = [];
+  const query = async (
+    logGroups: ReadonlyArray<string>,
+    text: string,
+    _timeRange: unknown,
+    options: AWSCloudWatchLogsQueryOptions,
+  ): Promise<ReadonlyArray<GOLogsInsightsResultField[]>> => {
+    await Promise.resolve();
+    assert.deepStrictEqual(logGroups, [LOG_GROUP]);
+    assert.strictEqual(options.logGroupResolutionMode, 'search-configured-profiles');
+    queries.push(text);
+    return [logRow({ '@message': 'ok' })];
+  };
+  const context = createTestContext({
+    stepResults: { analyze: analysisWithCids(cidCount) },
+    vars: { interopLogGroup: LOG_GROUP },
+    params: TEST_TIME_RANGE_PARAMS,
+    services: { cloudWatchLogs: { query } },
+  });
+  return { context, queries };
 }
 
 describe('QueryInteropCidTrackerStep', () => {
   it('skips CloudWatch when no CID is available', async () => {
-    let calls = 0;
-    const result = await step().execute(
-      context(
-        { logCount: 1, cidCount: 0, cids: [], logsWithoutCidCount: 1, representativeMessages: [] },
-        {
-          async queryWithStatistics(): Promise<AWSCloudWatchLogsQueryResult> {
-            calls += 1;
-            await Promise.resolve();
-            throw new Error('should not query');
-          },
-        },
-      ),
-    );
+    const { context, queries } = recording(0);
+
+    const result = await step().execute(context);
 
     assert.strictEqual(result.success, true);
     assert.deepStrictEqual(result.output, []);
     assert.strictEqual(result.vars?.['interopCidTrackerExecuted'], 'false');
-    assert.strictEqual(calls, 0);
+    assert.deepStrictEqual(queries, []);
   });
 
-  it('queries CloudWatch once per CID using the resolved log group', async () => {
-    const seen: SeenQuery[] = [];
-    const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [
-      [{ field: '@message', value: '[CID=cid-1] ok' }],
-    ];
-    const result = await step().execute(
-      context(
-        { logCount: 2, cidCount: 2, cids: ['cid-1', 'cid-2'], logsWithoutCidCount: 0, representativeMessages: [] },
-        {
-          async queryWithStatistics(
-            logGroups: ReadonlyArray<string>,
-            query: string,
-            timeRange: AWSCloudWatchLogsTimeRange,
-            options: AWSCloudWatchLogsQueryOptions,
-          ): Promise<AWSCloudWatchLogsQueryResult> {
-            seen.push({ logGroups, query, timeRange, options });
-            await Promise.resolve();
-            return {
-              rows,
-              statistics: { bytesScanned: 1, recordsScanned: 1, recordsMatched: 1 },
-              queryExecutions: [],
-            };
-          },
-        },
-      ),
-    );
+  it('queries the resolved log group once per CID', async () => {
+    const { context, queries } = recording(2);
 
-    assert.strictEqual(result.success, true);
+    const result = await step().execute(context);
+
     assert.strictEqual(result.output?.length, 2);
-    assert.strictEqual(result.vars?.['interopCidTrackerExecuted'], 'true');
-    assert.strictEqual(result.vars?.['interopCidTrackerCidCount'], '2');
-    assert.strictEqual(result.vars?.['interopCidTrackerLogCount'], '2');
     assert.deepStrictEqual(
-      seen.map((entry) => entry.logGroups),
-      [['/aws/eks/interop-eks-cluster-prod/application'], ['/aws/eks/interop-eks-cluster-prod/application']],
+      ['Executed', 'CidCount', 'LogCount'].map((k) => result.vars?.[`interopCidTracker${k}`]),
+      ['true', '2', '2'],
     );
-    assert.ok(seen.every((entry) => entry.options.logGroupResolutionMode === 'search-configured-profiles'));
-    assert.match(seen[0]?.query ?? '', /filter cid = "cid-1"/);
+    assert.match(queries[0] ?? '', /filter cid = "cid-0"/);
+    assert.match(queries[1] ?? '', /filter cid = "cid-1"/);
   });
 
-  it('caps the CID fan-out: one alarm cannot issue thousands of sequential queries', async () => {
-    // The upstream scan returns one row per log line — up to 10.000 on the API
-    // Gateway 5xx profile — and each CID costs one sequential CloudWatch query.
-    let calls = 0;
-    const cloudWatchLogs = {
-      queryWithStatistics: async (): Promise<AWSCloudWatchLogsQueryResult> => {
-        calls += 1;
-        await Promise.resolve();
-        return {
-          rows: [],
-          statistics: { recordsMatched: 0, recordsScanned: 0, bytesScanned: 0 },
-          queryExecutions: [],
-        };
-      },
-    };
-
-    const result = await step().execute(context(analysisWithCids(10_000), cloudWatchLogs));
-
-    assert.strictEqual(calls, 100);
-    assert.strictEqual(result.vars?.['interopCidTrackerCidCount'], '100');
-    assert.strictEqual(result.vars?.['interopCidTrackerSkippedCidCount'], '9900');
-  });
-
-  it('queries every CID when the set is within the cap', async () => {
-    let calls = 0;
-    const cloudWatchLogs = {
-      queryWithStatistics: async (): Promise<AWSCloudWatchLogsQueryResult> => {
-        calls += 1;
-        await Promise.resolve();
-        return {
-          rows: [],
-          statistics: { recordsMatched: 0, recordsScanned: 0, bytesScanned: 0 },
-          queryExecutions: [],
-        };
-      },
-    };
-
-    const result = await step().execute(context(analysisWithCids(7), cloudWatchLogs));
-
-    assert.strictEqual(calls, 7);
-    assert.strictEqual(result.vars?.['interopCidTrackerSkippedCidCount'], '0');
-  });
-
-  it('honours an explicit cap', async () => {
-    let calls = 0;
-    const cloudWatchLogs = {
-      queryWithStatistics: async (): Promise<AWSCloudWatchLogsQueryResult> => {
-        calls += 1;
-        await Promise.resolve();
-        return {
-          rows: [],
-          statistics: { recordsMatched: 0, recordsScanned: 0, bytesScanned: 0 },
-          queryExecutions: [],
-        };
-      },
-    };
-    const capped = new QueryInteropCidTrackerStep({
-      ...PROFILE_FIELDS,
-      id: 'query-cid',
-      label: 'Query CID',
-      fromStep: 'analyze',
-      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
-      maxCids: 3,
-    });
-
-    await capped.execute(context(analysisWithCids(50), cloudWatchLogs));
-
-    assert.strictEqual(calls, 3);
+  it('caps the CID fan-out, so one alarm cannot issue thousands of sequential queries', async () => {
+    // The upstream scan returns one row per log line, and each CID costs one sequential query.
+    const cases: ReadonlyArray<readonly [number, number | undefined, number]> = [
+      [7, undefined, 7],
+      [150, undefined, 100],
+      [50, 3, 3],
+    ];
+    for (const [cids, maxCids, queried] of cases) {
+      const { context, queries } = recording(cids);
+      const result = await step(maxCids).execute(context);
+      assert.strictEqual(queries.length, queried);
+      assert.strictEqual(result.vars?.['interopCidTrackerCidCount'], String(queried));
+      assert.strictEqual(result.vars?.['interopCidTrackerSkippedCidCount'], String(cids - queried));
+    }
   });
 
   it('traces only the queries it will actually run', () => {
-    const traced = step().getTraceInfo(context(analysisWithCids(500))) as {
+    const traced = step().getTraceInfo(recording(500).context) as {
       readonly queries: ReadonlyArray<unknown>;
       readonly identifiers: { readonly cids: ReadonlyArray<string> };
     };

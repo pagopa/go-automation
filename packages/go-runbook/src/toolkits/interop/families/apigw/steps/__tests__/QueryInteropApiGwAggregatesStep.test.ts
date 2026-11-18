@@ -8,8 +8,9 @@ import type {
 } from '@pagopa/go-aws/cloudwatch-logs';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { QueryInteropApiGwAggregatesStep } from '../QueryInteropApiGwAggregatesStep.js';
-import { createTestServiceRegistry } from '../../../../../common/testing/createTestServiceRegistry.js';
-import type { OperationalContext } from '../../../../../common/services/OperationalContext.js';
+import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
+
+const PARAMS = { startTime: '2026-08-24T09:58:00.000Z', endTime: '2026-08-24T10:01:00.000Z' };
 
 describe('QueryInteropApiGwAggregatesStep', () => {
   it('queries the resolved group and enriches aggregate rows as output evidence', async () => {
@@ -49,22 +50,11 @@ describe('QueryInteropApiGwAggregatesStep', () => {
         };
       },
     };
-    const context: OperationalContext = {
-      executionId: 'test',
-      startedAt: new Date('2026-08-24T10:00:00.000Z'),
-      stepResults: new Map(),
-      vars: new Map([
-        ['interopApiGwId', 'api-id'],
-        ['interopApiGwLogGroup', 'access-logs'],
-      ]),
-      params: new Map([
-        ['startTime', '2026-08-24T09:58:00.000Z'],
-        ['endTime', '2026-08-24T10:01:00.000Z'],
-      ]),
-      logs: [],
-      services: createTestServiceRegistry({ cloudWatchLogs }),
-      recoveredErrors: [],
-    };
+    const context = createTestContext({
+      vars: { interopApiGwId: 'api-id', interopApiGwLogGroup: 'access-logs' },
+      params: PARAMS,
+      services: { cloudWatchLogs },
+    });
     const step = new QueryInteropApiGwAggregatesStep({
       id: 'query',
       label: 'Query',
@@ -108,22 +98,9 @@ describe('QueryInteropApiGwAggregatesStep', () => {
     config.logGroupVar = 'mutatedLogGroup';
     timeRangeFromParams.start = 'mutatedStartTime';
 
-    const trace = step.getTraceInfo({
-      executionId: 'test',
-      startedAt: new Date('2026-08-24T10:00:00.000Z'),
-      stepResults: new Map(),
-      vars: new Map([
-        ['apiGwId', 'api-id'],
-        ['logGroup', 'access-logs'],
-      ]),
-      params: new Map([
-        ['startTime', '2026-08-24T09:58:00.000Z'],
-        ['endTime', '2026-08-24T10:01:00.000Z'],
-      ]),
-      logs: [],
-      services: createTestServiceRegistry(),
-      recoveredErrors: [],
-    });
+    const trace = step.getTraceInfo(
+      createTestContext({ vars: { apiGwId: 'api-id', logGroup: 'access-logs' }, params: PARAMS }),
+    );
 
     assert.strictEqual(trace['queryProfileId'], 'profile');
     assert.strictEqual(trace['queryKind'], 'kind');

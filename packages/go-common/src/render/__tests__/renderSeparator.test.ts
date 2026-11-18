@@ -1,5 +1,5 @@
 import { describe, it } from 'node:test';
-import assert from 'node:assert';
+import assert from 'node:assert/strict';
 
 import type { ResolvedColumn } from '../tableRenderer/ResolvedColumn.js';
 import { TABLE_CHARS_BY_STYLE } from '../tableRenderer/TableChars.js';
@@ -13,41 +13,22 @@ const cols: ReadonlyArray<ResolvedColumn> = [
 ];
 
 describe('renderSeparator', () => {
+  it('renders each position for each table style', () => {
+    const expected: Readonly<Record<keyof typeof TABLE_CHARS_BY_STYLE, readonly [string, string, string]>> = {
+      full: ['┌────┬─────┐', '├────┼─────┤', '└────┴─────┘'],
+      // No outer edges: only the mid separator, joined by the cross.
+      'border-less': ['', '────┼─────', ''],
+      compact: ['', '', ''],
+    };
+    for (const [style, [top, mid, bottom]] of Object.entries(expected)) {
+      const chars = TABLE_CHARS_BY_STYLE[style as keyof typeof TABLE_CHARS_BY_STYLE];
+      assert.strictEqual(renderSeparator(cols, chars, 'top'), top, `${style} top`);
+      assert.strictEqual(renderSeparator(cols, chars, 'mid'), mid, `${style} mid`);
+      assert.strictEqual(renderSeparator(cols, chars, 'bottom'), bottom, `${style} bottom`);
+    }
+  });
+
   it('returns empty string for columns: []', () => {
     assert.strictEqual(renderSeparator([], TABLE_CHARS_BY_STYLE.full, 'top'), '');
-  });
-
-  describe('full style', () => {
-    it('renders top separator with corners and tee', () => {
-      assert.strictEqual(renderSeparator(cols, TABLE_CHARS_BY_STYLE.full, 'top'), '┌────┬─────┐');
-    });
-
-    it('renders mid separator with cross', () => {
-      assert.strictEqual(renderSeparator(cols, TABLE_CHARS_BY_STYLE.full, 'mid'), '├────┼─────┤');
-    });
-
-    it('renders bottom separator with corners and tee', () => {
-      assert.strictEqual(renderSeparator(cols, TABLE_CHARS_BY_STYLE.full, 'bottom'), '└────┴─────┘');
-    });
-  });
-
-  describe('border-less style', () => {
-    it('returns empty for top and bottom', () => {
-      assert.strictEqual(renderSeparator(cols, TABLE_CHARS_BY_STYLE['border-less'], 'top'), '');
-      assert.strictEqual(renderSeparator(cols, TABLE_CHARS_BY_STYLE['border-less'], 'bottom'), '');
-    });
-
-    it('renders mid with cross but no outer corners', () => {
-      // No left/right edges; mid character (┼) joins horizontal segments.
-      assert.strictEqual(renderSeparator(cols, TABLE_CHARS_BY_STYLE['border-less'], 'mid'), '────┼─────');
-    });
-  });
-
-  describe('compact style', () => {
-    it('returns empty string for every position', () => {
-      assert.strictEqual(renderSeparator(cols, TABLE_CHARS_BY_STYLE.compact, 'top'), '');
-      assert.strictEqual(renderSeparator(cols, TABLE_CHARS_BY_STYLE.compact, 'mid'), '');
-      assert.strictEqual(renderSeparator(cols, TABLE_CHARS_BY_STYLE.compact, 'bottom'), '');
-    });
   });
 });

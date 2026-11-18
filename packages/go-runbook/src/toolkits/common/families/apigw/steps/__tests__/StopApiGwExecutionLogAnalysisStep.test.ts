@@ -1,32 +1,17 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { RunbookContext } from '../../../../../../engine/types/RunbookContext.js';
-
 import { StopApiGwExecutionLogAnalysisStep } from '../StopApiGwExecutionLogAnalysisStep.js';
-import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
-
-function createContext(vars: Record<string, string> = {}): RunbookContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-01-01T00:00:00.000Z'),
-    stepResults: new Map(),
-    vars: new Map(Object.entries(vars)),
-    params: new Map(),
-    logs: [],
-    services: createTestServiceRegistry(),
-    recoveredErrors: [],
-  };
-}
+import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
 
 describe('stopApiGwExecutionLogAnalysis', () => {
-  it('does not stop the runbook when execution logs were not queried', async () => {
-    const step = new StopApiGwExecutionLogAnalysisStep({
-      id: 'stop-execution-log-analysis',
-      label: 'Stop execution log analysis',
-    });
+  const step = new StopApiGwExecutionLogAnalysisStep({
+    id: 'stop-execution-log-analysis',
+    label: 'Stop execution log analysis',
+  });
 
-    const result = await step.execute(createContext({ apiGwExecutionLogMode: 'no-request-id' }));
+  it('does not stop the runbook when execution logs were not queried', async () => {
+    const result = await step.execute(createTestContext({ vars: { apiGwExecutionLogMode: 'no-request-id' } }));
 
     assert.strictEqual(result.success, true);
     assert.strictEqual(result.next, undefined);
@@ -34,15 +19,9 @@ describe('stopApiGwExecutionLogAnalysis', () => {
   });
 
   it('stops with execution-log termination vars when execution logs were queried', async () => {
-    const step = new StopApiGwExecutionLogAnalysisStep({
-      id: 'stop-execution-log-analysis',
-      label: 'Stop execution log analysis',
-    });
-
     const result = await step.execute(
-      createContext({
-        apiGwExecutionLogMode: 'queried',
-        lastErrorMsg: 'Execution log analysis unresolved',
+      createTestContext({
+        vars: { apiGwExecutionLogMode: 'queried', lastErrorMsg: 'Execution log analysis unresolved' },
       }),
     );
 

@@ -48,6 +48,9 @@ describe('API report', () => {
       module: ts.ModuleKind.NodeNext,
       moduleResolution: ts.ModuleResolutionKind.NodeNext,
       noEmit: true,
+      // The fixture uses only primitive types: skipping the default libraries keeps the program small.
+      noLib: true,
+      types: [],
     };
     const program = ts.createProgram([typesFile], options);
     const entrypoint = { packageName: '@pagopa/demo', packageDirectory: directory, subpath: '.', typesFile };

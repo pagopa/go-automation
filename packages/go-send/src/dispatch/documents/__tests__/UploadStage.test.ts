@@ -12,16 +12,18 @@ import { httpError } from '../../__tests__/helpers/FakeB2BApi.js';
 import { MemorySink } from '../../__tests__/helpers/MemorySink.js';
 import { tempDir, writeFixture } from '../../__tests__/helpers/testFiles.js';
 import { VirtualClock } from '../../__tests__/helpers/VirtualClock.js';
+import type { RecordedUpload } from '../../journal/RecordedUpload.js';
 import { RowLedger } from '../../journal/RowLedger.js';
 import { DispatchError } from '../../DispatchError.js';
 import { DocumentResolver } from '../DocumentResolver.js';
 import { toDocumentFailure } from '../toDocumentFailure.js';
 import type { InspectedDocument } from '../InspectedDocument.js';
 import { isInspectionFailure } from '../isInspectionFailure.js';
-import { LocalDocumentInspector, MAX_DOCUMENT_BYTES } from '../LocalDocumentInspector.js';
+import { LocalDocumentInspector } from '../LocalDocumentInspector.js';
 import type { SafeStorageGateway } from '../SafeStorageGateway.js';
 import { UploadError } from '../UploadError.js';
 import { UploadStage } from '../UploadStage.js';
+import type { UploadStageOptions } from '../UploadStageOptions.js';
 
 class FakeGateway implements SafeStorageGateway {
   public readonly preloads: ReadonlyArray<SENDPreloadRequest>[] = [];
@@ -70,13 +72,25 @@ function inspected(index: number): InspectedDocument {
   return { path: `/docs/file-${index}.pdf`, size: 10, sha256, contentType: 'application/pdf' };
 }
 
-function setup(batchSize = 15): { clock: VirtualClock; gateway: FakeGateway; stage: UploadStage; sink: MemorySink } {
+interface UploadHarness {
+  readonly clock: VirtualClock;
+  readonly gateway: FakeGateway;
+  readonly stage: UploadStage;
+  readonly sink: MemorySink;
+}
+
+function setup(overrides: Partial<UploadStageOptions> = {}): UploadHarness {
   const clock = new VirtualClock();
   const gateway = new FakeGateway(clock);
   const sink = new MemorySink();
-  const limiter = new GORateLimiter({ ratePerSecond: 20, priorities: 2, sleeper: clock, now: () => clock.now() });
-  const stage = new UploadStage({ gateway, limiter, ledger: new RowLedger(sink), clock, batchSize });
+  const limiter = new GORateLimiter({ ratePerSecond: 20, sleeper: clock, now: () => clock.monotonic() });
+  const stage = new UploadStage({ gateway, limiter, ledger: new RowLedger(sink), clock, ...overrides });
   return { clock, gateway, stage, sink };
+}
+
+/** A previous-session upload of `doc` journaled at `ts`. */
+function previousUpload(doc: InspectedDocument, key: string, ts: string): RecordedUpload {
+  return { sha256: doc.sha256, key, versionToken: 'v', contentType: 'application/pdf', ts };
 }
 
 describe('UploadStage', () => {
@@ -98,9 +112,10 @@ describe('UploadStage', () => {
     const results = await clock.run(
       Promise.allSettled([stage.upload(inspected(0)), stage.upload(inspected(1)), stage.upload(inspected(1))]),
     );
-    assert.equal(results[0]?.status, 'fulfilled');
-    assert.equal(results[1]?.status, 'rejected');
-    assert.equal(results[2]?.status, 'rejected');
+    assert.deepEqual(
+      results.map((result) => result.status),
+      ['fulfilled', 'rejected', 'rejected'],
+    );
     const reason = results[1]?.status === 'rejected' ? (results[1].reason as UploadError) : undefined;
     assert.equal(reason?.code, 'UPLOAD_FAILED');
     assert.equal(gateway.puts.filter((p) => p === '/docs/file-1.pdf').length, 3, 'PUT retried 3 times');
@@ -126,88 +141,37 @@ describe('UploadStage', () => {
   });
 
   it('preloads again a file whose PUT starts after the presigned URL expiry', async () => {
-    const clock = new VirtualClock();
-    const gateway = new FakeGateway(clock);
+    const { clock, gateway, stage } = setup({ uploadConcurrency: 1, batchSize: 2 });
     gateway.putDelayMs = 20 * 60_000; // each PUT holds its slot for 20 minutes
-    const limiter = new GORateLimiter({ ratePerSecond: 20, sleeper: clock, now: () => clock.now() });
-    const stage = new UploadStage({
-      gateway,
-      limiter,
-      ledger: new RowLedger(undefined),
-      clock,
-      uploadConcurrency: 1,
-      batchSize: 2,
-    });
     await clock.run(Promise.all([stage.upload(inspected(0)), stage.upload(inspected(1))]));
     assert.equal(gateway.preloads.length, 2, 'second file preloaded again');
     assert.equal(gateway.puts.length, 2);
   });
 
-  it('reuses recent uploads of a previous session', async () => {
-    const clock = new VirtualClock();
-    const gateway = new FakeGateway(clock);
-    const limiter = new GORateLimiter({ ratePerSecond: 20, sleeper: clock, now: () => clock.now() });
-    const doc = inspected(5);
-    const stage = new UploadStage({
-      gateway,
-      limiter,
-      ledger: new RowLedger(undefined),
-      clock,
+  it('reuses recent uploads of a previous session, never stale or undated ones', async () => {
+    const [recent, stale, garbled] = [inspected(5), inspected(6), inspected(7)];
+    const { clock, gateway, stage } = setup({
       previousUploads: [
-        {
-          sha256: doc.sha256,
-          key: 'OLD',
-          versionToken: 'v',
-          contentType: 'application/pdf',
-          ts: new Date(clock.now() - 3_600_000).toISOString(),
-        },
-        {
-          sha256: inspected(6).sha256,
-          key: 'STALE',
-          versionToken: 'v',
-          contentType: 'application/pdf',
-          ts: '2026-10-01T00:00:00.000Z',
-        },
+        previousUpload(recent, 'OLD', new Date(new VirtualClock().now() - 3_600_000).toISOString()),
+        previousUpload(stale, 'STALE', '2026-10-01T00:00:00.000Z'),
+        previousUpload(garbled, 'GARBLED', 'not-a-date'),
       ],
     });
-    const [recent, stale] = await clock.run(Promise.all([stage.upload(doc), stage.upload(inspected(6))]));
-    assert.equal(recent?.key, 'OLD');
-    assert.notEqual(stale?.key, 'STALE');
-    assert.equal(gateway.puts.length, 1);
-  });
-});
-
-describe('UploadStage (resume, journal, stop)', () => {
-  it('never reuses a previous upload whose timestamp cannot be parsed', async () => {
-    const clock = new VirtualClock();
-    const gateway = new FakeGateway(clock);
-    const limiter = new GORateLimiter({ ratePerSecond: 20, sleeper: clock, now: () => clock.monotonic() });
-    const doc = inspected(7);
-    const stage = new UploadStage({
-      gateway,
-      limiter,
-      ledger: new RowLedger(undefined),
-      clock,
-      previousUploads: [
-        { sha256: doc.sha256, key: 'GARBLED', versionToken: 'v', contentType: 'application/pdf', ts: 'not-a-date' },
-      ],
-    });
-    const file = await clock.run(stage.upload(doc));
-    assert.notEqual(file.key, 'GARBLED');
-    assert.equal(gateway.puts.length, 1);
+    const files = await clock.run(Promise.all([stage.upload(recent), stage.upload(stale), stage.upload(garbled)]));
+    assert.equal(files[0]?.key, 'OLD');
+    assert.notEqual(files[1]?.key, 'STALE');
+    assert.notEqual(files[2]?.key, 'GARBLED');
+    assert.equal(gateway.puts.length, 2);
   });
 
   it('rejects with the journal error, not UPLOAD_FAILED, when the upload cannot be journaled', async () => {
-    const clock = new VirtualClock();
-    const gateway = new FakeGateway(clock);
-    const limiter = new GORateLimiter({ ratePerSecond: 20, sleeper: clock, now: () => clock.monotonic() });
     const brokenJournal = {
       append: async (): Promise<void> => {
         await Promise.resolve();
         throw new Error('journal write failed');
       },
     };
-    const stage = new UploadStage({ gateway, limiter, ledger: new RowLedger(brokenJournal), clock });
+    const { clock, gateway, stage } = setup({ ledger: new RowLedger(brokenJournal) });
     await assert.rejects(clock.run(stage.upload(inspected(0))), (error: unknown) => {
       return !(error instanceof UploadError) && error instanceof Error && /journal write failed/.test(error.message);
     });
@@ -215,17 +179,8 @@ describe('UploadStage (resume, journal, stop)', () => {
   });
 
   it('passes the stop signal to preload and PUT', async () => {
-    const clock = new VirtualClock();
-    const gateway = new FakeGateway(clock);
-    const limiter = new GORateLimiter({ ratePerSecond: 20, sleeper: clock, now: () => clock.monotonic() });
     const controller = new AbortController();
-    const stage = new UploadStage({
-      gateway,
-      limiter,
-      ledger: new RowLedger(undefined),
-      clock,
-      signal: controller.signal,
-    });
+    const { clock, gateway, stage } = setup({ signal: controller.signal });
     await clock.run(stage.upload(inspected(0)));
     assert.deepEqual(gateway.signals, [controller.signal, controller.signal]);
   });
@@ -253,7 +208,6 @@ describe('LocalDocumentInspector', () => {
       failures.map((failure) => (isInspectionFailure(failure) ? failure.failure : 'ok')),
       ['NOT_A_PDF', 'UNSUPPORTED_EXTENSION', 'FILE_NOT_FOUND'],
     );
-    assert.equal(MAX_DOCUMENT_BYTES, 209_715_200);
   });
 
   it('streams a PDF larger than one read chunk: same size and hash as the whole content', async () => {

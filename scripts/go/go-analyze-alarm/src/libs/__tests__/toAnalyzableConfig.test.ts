@@ -28,20 +28,17 @@ describe('toAnalyzableConfig', () => {
     assert.equal(config.analysisMode, 'single');
   });
 
-  it('rejects a missing or blank alarm name', () => {
+  it('rejects a missing or blank alarm name, a missing datetime and an empty profile list', () => {
     const { alarmName: _alarmName, ...withoutName } = BASE;
-    assert.throws(() => toAnalyzableConfig(withoutName), /alarm\.name is required/);
-    assert.throws(() => toAnalyzableConfig({ ...BASE, alarmName: '   ' }), /alarm\.name is required/);
-  });
-
-  it('rejects a missing alarm datetime', () => {
     const { alarmDatetime: _alarmDatetime, ...withoutDatetime } = BASE;
-    assert.throws(() => toAnalyzableConfig(withoutDatetime), /alarm\.datetime is required/);
-  });
-
-  it('rejects an empty AWS profile list', () => {
     const { awsProfiles: _awsProfiles, ...withoutProfiles } = BASE;
-    assert.throws(() => toAnalyzableConfig(withoutProfiles), /aws\.profiles is required/);
-    assert.throws(() => toAnalyzableConfig({ ...BASE, awsProfiles: ['  '] }), /aws\.profiles is required/);
+    const cases: ReadonlyArray<readonly [GoAnalyzeAlarmConfig, RegExp]> = [
+      [withoutName, /alarm\.name is required/],
+      [{ ...BASE, alarmName: '   ' }, /alarm\.name is required/],
+      [withoutDatetime, /alarm\.datetime is required/],
+      [withoutProfiles, /aws\.profiles is required/],
+      [{ ...BASE, awsProfiles: ['  '] }, /aws\.profiles is required/],
+    ];
+    for (const [config, message] of cases) assert.throws(() => toAnalyzableConfig(config), message);
   });
 });

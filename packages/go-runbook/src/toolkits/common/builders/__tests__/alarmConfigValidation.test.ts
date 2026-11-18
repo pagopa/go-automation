@@ -44,12 +44,9 @@ describe('failAlarmConfig', () => {
 });
 
 describe('assertPreStepIds', () => {
-  it('returns the declared ids when there is no collision', () => {
+  it('returns the declared ids when there is no collision, none for an absent list', () => {
     const ids = assertPreStepIds(CTX, [step('a'), step('b')], new Set(['reserved']));
     assert.deepStrictEqual([...ids], ['a', 'b']);
-  });
-
-  it('accepts an absent preSteps list', () => {
     assert.strictEqual(assertPreStepIds(CTX, undefined, new Set()).size, 0);
   });
 
@@ -66,12 +63,15 @@ describe('assertPreStepIds', () => {
 });
 
 describe('assertKnownCaseStepRefs', () => {
-  it('accepts cases that only reference wired steps', () => {
-    assertKnownCaseStepRefs(CTX, [knownCase('c1', 'steps.query-foo')], new Set(['query-foo']), '.');
-  });
-
-  it('accepts cases that reference no step at all', () => {
-    assertKnownCaseStepRefs(CTX, [knownCase('c1', 'vars.traceId')], new Set(), '.');
+  it('accepts cases that reference only wired steps, or no step at all', () => {
+    assert.doesNotThrow(() =>
+      assertKnownCaseStepRefs(
+        CTX,
+        [knownCase('c1', 'steps.query-foo'), knownCase('c2', 'vars.traceId')],
+        new Set(['query-foo']),
+        '.',
+      ),
+    );
   });
 
   it('rejects a reference to a step the pipeline never wires, appending the family hint', () => {

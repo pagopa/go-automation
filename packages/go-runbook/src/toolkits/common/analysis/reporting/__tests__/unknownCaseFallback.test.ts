@@ -6,25 +6,12 @@ import { ActionExecutor } from '../../../../../engine/actions/ActionExecutor.js'
 import { ANALYSIS_LOG_ACTION_RENDERER } from '../ANALYSIS_LOG_ACTION_RENDERER.js';
 import { renderLogActionText } from '../renderLogAction.js';
 import { unknownCaseFallback } from '../unknownCaseFallback.js';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
-
-function contextWith(vars: ReadonlyMap<string, string>): RunbookContext {
-  return {
-    executionId: 'x',
-    startedAt: new Date(),
-    stepResults: new Map(),
-    vars,
-    params: new Map(),
-    logs: [],
-    services: {} as never,
-    recoveredErrors: [],
-  };
-}
+import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
 
 /** Captures the rows the executor renders, which is what the operator reads. */
 async function renderedRows(
   action: ReturnType<typeof unknownCaseFallback>,
-  vars: ReadonlyMap<string, string>,
+  vars: Readonly<Record<string, string>>,
 ): Promise<ReadonlyArray<{ field: string; value: string }>> {
   const logger = new GOLogger();
   const rows: { field: string; value: string }[] = [];
@@ -33,7 +20,7 @@ async function renderedRows(
   }): void => {
     rows.push(...arg.data);
   };
-  await new ActionExecutor(logger, ANALYSIS_LOG_ACTION_RENDERER).execute(action, contextWith(vars));
+  await new ActionExecutor(logger, ANALYSIS_LOG_ACTION_RENDERER).execute(action, createTestContext({ vars }));
   return rows;
 }
 
@@ -53,22 +40,19 @@ describe('unknownCaseFallback', () => {
   it('renders the title once, as a single Esito row', async () => {
     // Regression: a message whose first line held only the prefix used to
     // produce two Esito rows, the first one a placeholder invented by the parser.
-    const rows = await renderedRows(unknownCaseFallback('Causa non determinata.', []), new Map());
+    const rows = await renderedRows(unknownCaseFallback('Causa non determinata.', []), {});
     assert.deepStrictEqual(rows, [{ field: 'Esito', value: 'Causa non determinata.' }]);
   });
 
   it('resolves placeholders against the context', async () => {
-    const rows = await renderedRows(
-      unknownCaseFallback('Titolo.', [['Ambiente', '{{vars.env}}']]),
-      new Map([['env', 'prod']]),
-    );
+    const rows = await renderedRows(unknownCaseFallback('Titolo.', [['Ambiente', '{{vars.env}}']]), { env: 'prod' });
     assert.deepStrictEqual(rows[1], { field: 'Ambiente', value: 'prod' });
   });
 
   it('drops rows whose value the run never produced, instead of leaking the placeholder', async () => {
     // Regression: a fallback spelling the prefix differently got no
     // `missingValue`, so raw {{vars.x}} reached the operator and the trace.
-    const rows = await renderedRows(unknownCaseFallback('Titolo.', [['Ambiente', '{{vars.env}}']]), new Map());
+    const rows = await renderedRows(unknownCaseFallback('Titolo.', [['Ambiente', '{{vars.env}}']]), {});
     assert.strictEqual(rows.length, 1);
     assert.ok(!JSON.stringify(rows).includes('{{vars.'));
   });

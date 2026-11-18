@@ -1,15 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import * as fs from 'node:fs/promises';
-import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { GOSecretsSpecifierFactory } from '../../GOSecretsSpecifier.js';
 import { GOEnvironmentConfigProvider } from '../GOEnvironmentConfigProvider.js';
-
-async function makeTempDir(): Promise<string> {
-  return fs.mkdtemp(path.join(os.tmpdir(), 'go-common-env-provider-'));
-}
+import { makeTempDir } from './makeTempDir.js';
 
 describe('GOEnvironmentConfigProvider', () => {
   it('loads values from a provided environment source and resolves transformed keys', () => {
@@ -34,8 +30,8 @@ describe('GOEnvironmentConfigProvider', () => {
     assert.strictEqual(provider.hasKey('missing'), false);
   });
 
-  it('loads and reloads an environment file with custom display name, encoding and separator', async () => {
-    const dir = await makeTempDir();
+  it('loads and reloads an environment file with custom display name, encoding and separator', async (t) => {
+    const dir = await makeTempDir(t);
     const envPath = path.join(dir, 'config.env');
     await fs.writeFile(envPath, 'NAME=demo\nITEMS=one|two|three\n', 'utf-8');
 
@@ -57,8 +53,8 @@ describe('GOEnvironmentConfigProvider', () => {
     assert.strictEqual(provider.getValue('ITEMS'), 'single|');
   });
 
-  it('falls back to the provided source when the configured file does not exist', async () => {
-    const dir = await makeTempDir();
+  it('falls back to the provided source when the configured file does not exist', async (t) => {
+    const dir = await makeTempDir(t);
     const missingPath = path.join(dir, 'missing.env');
     const provider = new GOEnvironmentConfigProvider({
       environmentFilePath: missingPath,
@@ -71,8 +67,8 @@ describe('GOEnvironmentConfigProvider', () => {
     assert.strictEqual(provider.getValue('fallback.value'), 'loaded');
   });
 
-  it('wraps malformed env files and rejects reload without a file path', async () => {
-    const dir = await makeTempDir();
+  it('wraps malformed env files and rejects reload without a file path', async (t) => {
+    const dir = await makeTempDir(t);
     const envPath = path.join(dir, 'bad.env');
     await fs.writeFile(envPath, '1INVALID=value\n', 'utf-8');
 

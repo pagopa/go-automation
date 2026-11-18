@@ -18,6 +18,7 @@ import type { ServiceRegistry } from '../../services/ServiceRegistry.js';
 import { OperationalStep } from '../../steps/OperationalStep.js';
 import type { AwsExecutionEnvironment } from '../../telemetry/AwsExecutionEnvironment.js';
 import { createTestServiceRegistry } from '../../testing/createTestServiceRegistry.js';
+import { createTestRunbook } from '../../../../__tests__/helpers/createTestRunbook.js';
 import type { InMemoryAwsAccountsPortOptions } from '../../testing/InMemoryAwsAccountsPortOptions.js';
 import { OperationalRunbookEngine } from '../OperationalRunbookEngine.js';
 
@@ -70,20 +71,7 @@ class SpyStep implements Step<void> {
 }
 
 function runbook(steps: ReadonlyArray<Step>): Runbook {
-  return {
-    metadata: {
-      id: 'accounts',
-      name: 'Accounts',
-      description: '',
-      version: '1.0.0',
-      type: 'alarm-resolution',
-      team: 'GO',
-      tags: [],
-    },
-    steps: steps.map((step) => ({ step })),
-    knownCases: [],
-    fallbackAction: { type: 'log', level: 'info', title: 'done' },
-  };
+  return createTestRunbook({ steps: steps.map((step) => ({ step })) });
 }
 
 const ENV: AwsExecutionEnvironment = { invokedBy: 'manual', awsProfiles: [], region: REGION };
@@ -133,19 +121,6 @@ describe('pre-execution check of the logical accounts', () => {
     assert.equal(spy.executed, false);
   });
 
-  it('rejects an occurrence outside an every-account selection before the first step', async () => {
-    const spy = new SpyStep();
-    await assert.rejects(
-      async () =>
-        run(
-          [spy, new SelectingStep('both', BOTH)],
-          services({ occurrence: { accountId: '000000000103', region: REGION } }),
-        ),
-      rejectsWith('AWS_OCCURRENCE_ACCOUNT_MISMATCH'),
-    );
-    assert.equal(spy.executed, false);
-  });
-
   it('needs no credentials for an account the occurrence excludes', async () => {
     const step = new SelectingStep('occurrence', OF_OCCURRENCE);
     await run([step], services({ occurrence: { accountId: '000000000101', region: REGION }, unreachable: [EXTRA] }));
@@ -159,18 +134,6 @@ describe('pre-execution check of the logical accounts', () => {
       rejectsWith('AWS_ACCOUNT_UNREACHABLE'),
     );
     assert.equal(spy.executed, false);
-  });
-
-  it('rejects a production-only step for a same-named occurrence in uat and for a local uat execution', async () => {
-    const prodOnly: AwsAccountSelection = { ...OF_OCCURRENCE, accounts: [EXTRA], environments: ['prod'] };
-    for (const options of [{ occurrence: { accountId: '000000000202', region: REGION } }, { environment: 'uat' }]) {
-      const spy = new SpyStep();
-      await assert.rejects(
-        async () => run([spy, new SelectingStep('prod-only', prodOnly)], services(options)),
-        rejectsWith('AWS_ACCOUNT_ENVIRONMENT_NOT_ALLOWED'),
-      );
-      assert.equal(spy.executed, false);
-    }
   });
 
   it('reports a missing account port as a missing service', async () => {

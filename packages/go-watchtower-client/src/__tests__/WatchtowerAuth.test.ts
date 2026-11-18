@@ -4,14 +4,9 @@ import { afterEach, describe, it, mock } from 'node:test';
 import { GOHttpClient } from '@pagopa/go-common/http';
 
 import { WatchtowerAuth } from '../WatchtowerAuth.js';
+import { requestUrl, serviceLoginResponse, WATCHTOWER_BASE_URL } from './watchtowerTestDoubles.js';
 
 afterEach(() => mock.restoreAll());
-
-function requestUrl(input: string | URL | Request): string {
-  if (typeof input === 'string') return input;
-  if (input instanceof URL) return input.href;
-  return input.url;
-}
 
 function requestBodyText(body: unknown): string {
   if (body === undefined || body === null) return '';
@@ -25,17 +20,9 @@ describe('WatchtowerAuth', () => {
     let calls = 0;
     mock.method(globalThis, 'fetch', async (): Promise<Response> => {
       calls += 1;
-      return await Promise.resolve(
-        Response.json({
-          accessToken: 'access-token',
-          refreshToken: 'refresh-token',
-          expiresIn: 300,
-          serviceId: 'runbook-automation-worker',
-          principalType: 'SERVICE',
-        }),
-      );
+      return await Promise.resolve(serviceLoginResponse());
     });
-    const auth = new WatchtowerAuth(new GOHttpClient({ baseUrl: 'https://watchtower.internal' }), {
+    const auth = new WatchtowerAuth(new GOHttpClient({ baseUrl: WATCHTOWER_BASE_URL }), {
       kind: 'SERVICE',
       serviceId: 'runbook-automation-worker',
       password: 'secret',
@@ -64,7 +51,7 @@ describe('WatchtowerAuth', () => {
         }),
       );
     });
-    const auth = new WatchtowerAuth(new GOHttpClient({ baseUrl: 'https://watchtower.internal' }), {
+    const auth = new WatchtowerAuth(new GOHttpClient({ baseUrl: WATCHTOWER_BASE_URL }), {
       kind: 'CLI_PAT',
       token: 'wtcli_token',
     });

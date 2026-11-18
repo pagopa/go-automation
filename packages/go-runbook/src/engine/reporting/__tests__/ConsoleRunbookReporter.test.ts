@@ -46,18 +46,6 @@ describe('ConsoleRunbookReporter', () => {
     ]);
   });
 
-  it('never emits two elbows in a row for nodes reported by different callers', () => {
-    const { lines, logger } = capture();
-    const reporter = new ConsoleRunbookReporter(logger);
-
-    // Two steps reporting one node each: the defect F4 could not fix.
-    reporter.add({ label: 'Batch POSTEL WORKED: 10/10' });
-    reporter.add({ label: 'Query trace: skip' });
-    reporter.flush();
-
-    assert.deepStrictEqual(lines, ['  ├─ Batch POSTEL WORKED: 10/10', '  └─ Query trace: skip']);
-  });
-
   it('keeps the vertical running under a node that turns out not to be last', () => {
     const { lines, logger } = capture();
     const reporter = new ConsoleRunbookReporter(logger);

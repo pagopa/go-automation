@@ -37,26 +37,20 @@ describe('knownCase', () => {
     assert.strictEqual(lines[2], 'Servizio: pn-foo');
   });
 
-  it('emits the prefix the executor keys off, with the description as title', () => {
+  it('emits the prefix the executor keys off, with the description or an explicit shorter title', () => {
     assert.ok(messageOf(BASE).startsWith(`[CASO NOTO] ${BASE.description}`));
-  });
-
-  it('uses an explicit title when the console needs a shorter wording', () => {
     const message = messageOf({ ...BASE, title: '[DOWNSTREAM FOO] HTTP 500' });
     assert.ok(message.startsWith('[CASO NOTO] [DOWNSTREAM FOO] HTTP 500\n'));
     // The full wording still reaches the trace through the description.
     assert.strictEqual(knownCase({ ...BASE, title: 'x' }).description, BASE.description);
   });
 
-  it('marks the action as a known case at info level by default', () => {
+  it('marks the action as a known case at info level unless a level is given', () => {
     const action = knownCase(BASE).action;
     assert.ok(action.type === 'log' && action.renderAs === 'known-case');
     assert.ok(action.type === 'log' && action.level === 'info');
-  });
-
-  it('honours an explicit level', () => {
-    const action = knownCase({ ...BASE, level: 'warn' }).action;
-    assert.ok(action.type === 'log' && action.level === 'warn');
+    const warn = knownCase({ ...BASE, level: 'warn' }).action;
+    assert.ok(warn.type === 'log' && warn.level === 'warn');
   });
 
   it('stores the placeholder as a template, leaving the executor to resolve it per row', () => {

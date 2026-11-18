@@ -77,44 +77,49 @@ describe('displaySummary helpers', () => {
   });
 });
 
+/**
+ * Renders the summary of a run and returns the logged lines.
+ *
+ * @param runProgress - Final progress of the session
+ * @param totalRows - Rows of the input
+ * @returns The logger double
+ */
+function summarize(runProgress: Dispatch.DispatchProgress, totalRows: number): FakeLogger {
+  const logger = new FakeLogger();
+  displaySummary(logger as unknown as GOLogger, {
+    progress: runProgress,
+    totalRows,
+    failures: [],
+    statistics: { averageRate: undefined } as unknown as Dispatch.SendStatistics,
+    validationMs: 1_000,
+    executionMs: 2_000,
+    output: { format: 'csv', outputPath: '/o.csv', reportPath: '/r.csv', includeStatus: false, onlySuccess: false },
+    runDir: '/run',
+  });
+  return logger;
+}
+
 describe('displaySummary', () => {
   it('separates the rows in flight at the interruption from the rows not sent', () => {
-    const logger = new FakeLogger();
-    displaySummary(logger as unknown as GOLogger, {
-      progress: progress([
+    const logger = summarize(
+      progress([
         ['ACCEPTED', 2],
         ['SENDING', 1],
         ['RECONCILING', 1],
         ['PENDING', 1],
       ]),
-      totalRows: 7,
-      failures: [],
-      statistics: { averageRate: undefined } as unknown as Dispatch.SendStatistics,
-      validationMs: 1_000,
-      executionMs: 2_000,
-      output: { format: 'csv', outputPath: '/o.csv', reportPath: '/r.csv', includeStatus: false, onlySuccess: false },
-      runDir: '/run',
-    });
+      7,
+    );
     const table = logger.of('kv');
     assert.ok(table.includes('Inviate=2'));
     assert.ok(table.includes('In corso all interruzione (da riconciliare)=2'));
     assert.ok(table.includes('Non inviate=3'), 'two rows never journaled plus one PENDING');
     assert.ok(logger.of('warning').some((line) => line.startsWith('Righe in corso all interruzione')));
   });
+
   it('does not report as accepted a REQUEST_ID_NOT_FOUND row whose timeline ended with REQUEST_REFUSED', () => {
     // --phases request-id: no verification, the refusal comes from the timeline.
-    const logger = new FakeLogger();
-    displaySummary(logger as unknown as GOLogger, {
-      progress: progress([['REQUEST_ID_NOT_FOUND', 1]], [['REFUSED', 1]]),
-      totalRows: 1,
-      failures: [],
-      statistics: { averageRate: undefined } as unknown as Dispatch.SendStatistics,
-      validationMs: 1_000,
-      executionMs: 2_000,
-      output: { format: 'csv', outputPath: '/o.csv', reportPath: '/r.csv', includeStatus: false, onlySuccess: false },
-      runDir: '/run',
-    });
-    const table = logger.of('kv');
+    const table = summarize(progress([['REQUEST_ID_NOT_FOUND', 1]], [['REFUSED', 1]]), 1).of('kv');
     assert.ok(table.includes('Accettate=0'));
     assert.ok(table.includes('Rifiutate=1'));
   });

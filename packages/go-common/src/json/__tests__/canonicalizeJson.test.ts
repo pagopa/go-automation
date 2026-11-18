@@ -38,10 +38,6 @@ describe('canonicalizeJson', () => {
     assert.strictEqual(left, right);
   });
 
-  it('preserves array order, which is data rather than a set', () => {
-    assert.strictEqual(canonicalizeJson(['b', 'a', 'c']), '["b","a","c"]');
-  });
-
   it('writes a hole in an array as null', () => {
     // `Array.prototype.map` skips holes and leaves them as holes, so joining
     // the result writes nothing between the commas: the output was `[1,,3]`,

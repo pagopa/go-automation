@@ -9,15 +9,14 @@ import { createServiceRegistry } from '../createServiceRegistry.js';
 import { NOOP_RUNBOOK_REPORTER } from '../../../engine/reporting/NOOP_RUNBOOK_REPORTER.js';
 
 describe('createServiceRegistry', () => {
-  it('uses the generic Athena service from the AWS service provider', () => {
-    const cloudWatchLogs = {};
-    const cloudWatchMetrics = {};
-    const athena = {};
-    const dynamoDB = {};
+  const cloudWatchLogs = {};
+  const cloudWatchMetrics = {};
+  const athena = {};
+  const dynamoDB = {};
+  const services = { cloudWatchLogs, cloudWatchMetrics, athena, dynamoDB } as unknown as AWSServiceProvider;
+  const http = {} as GOHttpClient;
 
-    const services = { cloudWatchLogs, cloudWatchMetrics, athena, dynamoDB } as unknown as AWSServiceProvider;
-    const http = {} as GOHttpClient;
-
+  it('takes the AWS services from the provider and the reporter from the caller', () => {
     const registry = createServiceRegistry({ services, http }, NOOP_RUNBOOK_REPORTER);
 
     assert.strictEqual(registry.cloudWatchLogs, cloudWatchLogs);
@@ -25,35 +24,12 @@ describe('createServiceRegistry', () => {
     assert.strictEqual(registry.athena, athena);
     assert.strictEqual(registry.dynamodb, dynamoDB);
     assert.strictEqual(registry.http, http);
-  });
-
-  it('takes the narrative reporter from the caller and never defaults to a console reporter', () => {
-    const services = {
-      cloudWatchLogs: {},
-      cloudWatchMetrics: {},
-      athena: {},
-      dynamoDB: {},
-    } as unknown as AWSServiceProvider;
-
-    const registry = createServiceRegistry({ services, http: {} as GOHttpClient }, NOOP_RUNBOOK_REPORTER);
-
     // go-rta-check renders its own table: a console default here would print the
     // per-step runbook narrative over it.
     assert.strictEqual(registry.reporter, NOOP_RUNBOOK_REPORTER);
-    registry.reporter.section('nothing should reach the script logger');
-    registry.reporter.add({ label: 'nor this' });
-    registry.reporter.flush();
   });
 
   it('adds the account port only when the account configuration is given', () => {
-    const services = {
-      cloudWatchLogs: {},
-      cloudWatchMetrics: {},
-      athena: {},
-      dynamoDB: {},
-    } as unknown as AWSServiceProvider;
-    const http = {} as GOHttpClient;
-
     assert.strictEqual(createServiceRegistry({ services, http }, NOOP_RUNBOOK_REPORTER).awsAccounts, undefined);
     const registry = createServiceRegistry(
       {

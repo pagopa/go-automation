@@ -20,7 +20,7 @@ describe('validateConfig', () => {
     validateConfig({ ...RAW_CONFIG, inputFile: undefined, resume: 'send-dispatch-notifications_x' });
   });
 
-  it('accepts direct mode with only the send phase and a tunnel URL with scheme', () => {
+  it('accepts direct mode with only the send phase and a tunnel URL with scheme, or a direct --env', () => {
     const config = validateConfig(DIRECT);
     assert.equal(config.mode, 'direct');
     if (config.mode !== 'direct') return;
@@ -28,13 +28,10 @@ describe('validateConfig', () => {
     assert.equal(config.requestIdTemplate.template, 'PNMAN.GO-{runId}.{rowKey}.PCRETRY_0');
     assert.equal(config.ecProduction, false);
     assert.equal(validateConfig({ ...DIRECT, ecProduction: true }).ecProduction, true);
-  });
 
-  it('accepts direct mode without --ec-base-url when --env names a direct environment', () => {
-    const config = validateConfig({ ...DIRECT, ecBaseUrl: undefined, env: 'consolidatore-test' });
-    assert.equal(config.mode, 'direct');
-    if (config.mode !== 'direct') return;
-    assert.equal(config.ecBaseUrl, undefined);
+    const fromEnv = validateConfig({ ...DIRECT, ecBaseUrl: undefined, env: 'consolidatore-test' });
+    assert.ok(fromEnv.mode === 'direct');
+    assert.equal(fromEnv.ecBaseUrl, undefined);
   });
 
   it('rejects the direct combinations that are not supported', () => {

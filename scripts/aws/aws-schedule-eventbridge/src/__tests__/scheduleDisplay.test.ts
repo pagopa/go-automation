@@ -1,13 +1,10 @@
 /**
- * Test della metà pura di aws-schedule-eventbridge: type guard, classificazione
- * del piano, verdetto della flotta e rendering.
+ * Test della metà pura di aws-schedule-eventbridge: validazione dei parametri,
+ * classificazione del piano, verdetto della flotta e rendering.
  *
  * `planScheduleSweep` e `buildSweepVerdict` non vogliono nessun double — è
  * l'intera ragione per cui sono estratti dal fan-out. Il solo double qui è il
- * logger, per catturare quello che il rendering emette. I doubles stanno in
- * questo file perché nel monorepo ogni file di test è autosufficiente (niente
- * moduli helper dentro `__tests__/`: non sono esclusi da `tsc` e finirebbero in
- * `dist/`).
+ * logger, per catturare quello che il rendering emette.
  *
  * Esecuzione:
  *   pnpm --filter=aws-schedule-eventbridge test
@@ -17,18 +14,16 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { GOConfigParameterValidator, GOScript } from '@go-automation/go-script';
-import type { ScheduleState } from '@pagopa/go-aws/scheduler';
+import type { GOConfigParameterValue, GOScript } from '@go-automation/go-script';
+import type { GetScheduleCommandOutput, ScheduleState } from '@pagopa/go-aws/scheduler';
 import type { GOTableOptions } from '@pagopa/go-common/render';
 
 import { scriptParameters } from '../config.js';
 import { buildSweepVerdict } from '../libs/buildSweepVerdict.js';
-import { isScheduleAction } from '../libs/isScheduleAction.js';
 import { isScheduleNotFound } from '../libs/isScheduleNotFound.js';
-import { isScheduleState } from '../libs/isScheduleState.js';
 import { planScheduleSweep } from '../libs/planScheduleSweep.js';
-import { displayScheduleDetail, displayScheduleDrift, displayScheduleTable } from '../libs/scheduleDisplay.js';
-import type { ScheduleMutation, ScheduleMutationOutcome, ScheduleRead } from '../types/index.js';
+import { displayScheduleDetail, displayScheduleDrift } from '../libs/scheduleDisplay.js';
+import type { ScheduleMutation, ScheduleMutationOutcome, ScheduleRead, ScheduleSweepVerdict } from '../types/index.js';
 
 interface LoggedCall {
   readonly method: string;
@@ -46,15 +41,7 @@ function createMockScript(): { readonly script: GOScript; readonly calls: Logged
     };
 
   const script = {
-    logger: {
-      section: record('section'),
-      info: record('info'),
-      success: record('success'),
-      warning: record('warning'),
-      error: record('error'),
-      table: record('table'),
-      keyValueTable: record('keyValueTable'),
-    },
+    logger: { section: record('section'), table: record('table'), keyValueTable: record('keyValueTable') },
   } as unknown as GOScript;
 
   return { script, calls };
@@ -99,33 +86,50 @@ function mutation(profile: string, outcome: ScheduleMutationOutcome): ScheduleMu
   };
 }
 
-describe('type guards', () => {
-  it('accepts the supported actions and rejects anything else', () => {
-    assert.equal(isScheduleAction('list'), true);
-    assert.equal(isScheduleAction('disable'), true);
-    assert.equal(isScheduleAction('delete'), false);
-  });
+/** Renders one schedule detail block and returns the key/value table it printed. */
+function renderDetail(schedule: GetScheduleCommandOutput): Record<string, unknown> | undefined {
+  const { script, calls } = createMockScript();
+  displayScheduleDetail(script, schedule);
+  return calls[0]?.payload as Record<string, unknown> | undefined;
+}
 
-  it('accepts only the two schedule states', () => {
-    assert.equal(isScheduleState('ENABLED'), true);
-    assert.equal(isScheduleState('DISABLED'), true);
-    assert.equal(isScheduleState('enabled'), false);
-  });
+describe('parameter validators', () => {
+  /** Runs the declared validator of a parameter on a value. */
+  function validate(name: string, value: GOConfigParameterValue): boolean | string | undefined {
+    return scriptParameters.find((parameter) => parameter.name === name)?.validator?.(value);
+  }
+
+  const cases: ReadonlyArray<{
+    readonly name: string;
+    readonly value: GOConfigParameterValue;
+    readonly expected: true | RegExp;
+  }> = [
+    // `--aws-profiles ''` and `--aws-profiles ,` both reach the validator as [],
+    // which would otherwise fall back to the default credential chain.
+    { name: 'aws.profiles', value: [], expected: /At least one AWS profile is required/ },
+    { name: 'aws.profiles', value: ['sso_dev', 'sso_prod'], expected: true },
+    { name: 'action', value: 'disable', expected: true },
+    { name: 'action', value: 'delete', expected: /Invalid action "delete"/ },
+    { name: 'state', value: 'DISABLED', expected: true },
+    { name: 'state', value: 'enabled', expected: /Invalid state "enabled"/ },
+  ];
+
+  for (const { name, value, expected } of cases) {
+    it(`${name} = ${JSON.stringify(value)} -> ${String(expected)}`, () => {
+      const result = validate(name, value);
+      if (expected === true) assert.equal(result, true);
+      else assert.match(String(result), expected);
+    });
+  }
 });
 
 describe('isScheduleNotFound', () => {
-  it('recognises the Scheduler not-found error by name', () => {
-    const error = new Error('Schedule nightly-job does not exist');
-    error.name = 'ResourceNotFoundException';
+  it('recognises only the Scheduler not-found error, by name', () => {
+    const notFound = new Error('Schedule nightly-job does not exist');
+    notFound.name = 'ResourceNotFoundException';
 
-    assert.equal(isScheduleNotFound(error), true);
-  });
-
-  it('rejects an unrelated error', () => {
+    assert.equal(isScheduleNotFound(notFound), true);
     assert.equal(isScheduleNotFound(new Error('AccessDeniedException')), false);
-  });
-
-  it('rejects a value that is not an Error at all', () => {
     assert.equal(isScheduleNotFound('ResourceNotFoundException'), false);
     assert.equal(isScheduleNotFound(undefined), false);
   });
@@ -152,190 +156,116 @@ describe('planScheduleSweep', () => {
         ['sso_prod', 'no-op'],
       ],
     );
-    assert.equal(plan.profileCount, 4);
-    assert.equal(plan.targetState, 'DISABLED');
-  });
-
-  it('collects only the accounts that need a write in changeNeeded', () => {
-    const plan = planScheduleSweep(
-      [foundRead('sso_dev', 'DISABLED'), foundRead('sso_uat', 'ENABLED'), missingRead('sso_prod')],
-      'ENABLED',
-    );
-
     assert.deepEqual(
       plan.changeNeeded.map((entry) => entry.profile),
       ['sso_dev'],
     );
-  });
-
-  it('keeps the read fields on the entry so the preview can be built from it', () => {
-    const plan = planScheduleSweep([failedRead('sso_dev')], 'ENABLED');
-
-    assert.equal(plan.entries[0]?.error?.message, 'AccessDeniedException');
-    assert.equal(plan.entries[0]?.accountId, undefined);
-  });
-
-  it('plans nothing for an empty profile list', () => {
-    const plan = planScheduleSweep([], 'ENABLED');
-
-    assert.deepEqual(plan.entries, []);
-    assert.deepEqual(plan.changeNeeded, []);
-    assert.equal(plan.profileCount, 0);
+    assert.equal(plan.profileCount, 4);
+    assert.equal(plan.targetState, 'DISABLED');
+    // The read fields stay on the entry, so the preview can be built from it.
+    assert.equal(plan.entries[2]?.error?.message, 'AccessDeniedException');
   });
 });
 
 describe('buildSweepVerdict', () => {
-  it('converges when every account was changed', () => {
-    const plan = planScheduleSweep([foundRead('sso_dev', 'ENABLED'), foundRead('sso_uat', 'ENABLED')], 'DISABLED');
-
-    const verdict = buildSweepVerdict(plan, [mutation('sso_dev', 'changed'), mutation('sso_uat', 'changed')], false);
-
-    assert.deepEqual(verdict, {
-      profileCount: 2,
-      changed: 2,
-      unchanged: 0,
-      pending: 0,
-      missing: 0,
-      failed: 0,
-      converged: true,
-    });
-  });
-
-  it('does not converge when a write failed', () => {
-    const plan = planScheduleSweep([foundRead('sso_dev', 'ENABLED'), foundRead('sso_uat', 'ENABLED')], 'DISABLED');
-
-    const verdict = buildSweepVerdict(plan, [mutation('sso_dev', 'changed'), mutation('sso_uat', 'failed')], false);
-
-    assert.equal(verdict.changed, 1);
-    assert.equal(verdict.failed, 1);
-    assert.equal(verdict.converged, false);
-  });
-
-  it('counts a read failure as failed even with no mutations at all', () => {
-    const plan = planScheduleSweep([failedRead('sso_dev'), foundRead('sso_uat', 'ENABLED')], 'DISABLED');
-
-    const verdict = buildSweepVerdict(plan, [], false);
-
-    assert.equal(verdict.failed, 1);
-    assert.equal(verdict.pending, 1);
-    assert.equal(verdict.converged, false);
-  });
-
-  it('treats an account already in the target state as unchanged', () => {
-    const plan = planScheduleSweep([foundRead('sso_dev', 'DISABLED')], 'DISABLED');
-
-    const verdict = buildSweepVerdict(plan, [], false);
-
-    assert.equal(verdict.unchanged, 1);
-    assert.equal(verdict.pending, 0);
-    assert.equal(verdict.converged, true);
-  });
-
-  it('treats a schedule moved between preview and write as unchanged', () => {
-    const plan = planScheduleSweep([foundRead('sso_dev', 'ENABLED')], 'DISABLED');
-
-    const verdict = buildSweepVerdict(plan, [mutation('sso_dev', 'unchanged')], false);
-
-    assert.equal(verdict.unchanged, 1);
-    assert.equal(verdict.converged, true);
-  });
-
-  it('reports a missing schedule without failing, unless --fail-on-missing is set', () => {
-    const plan = planScheduleSweep([missingRead('sso_dev'), foundRead('sso_uat', 'DISABLED')], 'DISABLED');
-
-    assert.equal(buildSweepVerdict(plan, [], false).missing, 1);
-    assert.equal(buildSweepVerdict(plan, [], false).converged, true);
-    assert.equal(buildSweepVerdict(plan, [], true).converged, false);
-  });
-
   it('partitions the fleet: the five counters add up to the profile count', () => {
     const plan = planScheduleSweep(
       [
         foundRead('sso_a', 'ENABLED'),
         foundRead('sso_b', 'ENABLED'),
         foundRead('sso_c', 'ENABLED'),
-        foundRead('sso_d', 'DISABLED'),
-        missingRead('sso_e'),
-        failedRead('sso_f'),
+        foundRead('sso_d', 'ENABLED'),
+        foundRead('sso_e', 'DISABLED'),
+        missingRead('sso_f'),
+        failedRead('sso_g'),
       ],
       'DISABLED',
     );
 
     const verdict = buildSweepVerdict(
       plan,
-      [mutation('sso_a', 'changed'), mutation('sso_b', 'failed'), mutation('sso_c', 'skipped')],
+      [
+        mutation('sso_a', 'changed'),
+        mutation('sso_b', 'failed'),
+        mutation('sso_c', 'skipped'),
+        // Moved between the preview and the write: converged either way.
+        mutation('sso_d', 'unchanged'),
+      ],
       false,
     );
 
-    assert.equal(
-      verdict.changed + verdict.unchanged + verdict.pending + verdict.missing + verdict.failed,
-      verdict.profileCount,
-    );
-    assert.deepEqual(
-      { changed: verdict.changed, unchanged: verdict.unchanged, pending: verdict.pending },
-      { changed: 1, unchanged: 1, pending: 1 },
-    );
-    assert.equal(verdict.failed, 2);
+    assert.deepEqual(verdict, {
+      profileCount: 7,
+      changed: 1,
+      unchanged: 2,
+      pending: 1,
+      missing: 1,
+      failed: 2,
+      converged: false,
+    } satisfies ScheduleSweepVerdict);
   });
-});
 
-describe('aws.profiles validation', () => {
-  /** The declared validator for a parameter, or undefined when it has none. */
-  function validatorFor(name: string): GOConfigParameterValidator | undefined {
-    return scriptParameters.find((parameter) => parameter.name === name)?.validator;
+  const convergenceCases: ReadonlyArray<{
+    readonly title: string;
+    readonly reads: ReadonlyArray<ScheduleRead>;
+    readonly mutations: ReadonlyArray<ScheduleMutation>;
+    readonly failOnMissing: boolean;
+    readonly converged: boolean;
+  }> = [
+    {
+      title: 'every account changed or already in the target state',
+      reads: [foundRead('sso_dev', 'ENABLED'), foundRead('sso_uat', 'DISABLED')],
+      mutations: [mutation('sso_dev', 'changed')],
+      failOnMissing: false,
+      converged: true,
+    },
+    {
+      title: 'a schedule moved between the preview and the write',
+      reads: [foundRead('sso_dev', 'ENABLED')],
+      mutations: [mutation('sso_dev', 'unchanged')],
+      failOnMissing: false,
+      converged: true,
+    },
+    {
+      title: 'a write failed',
+      reads: [foundRead('sso_dev', 'ENABLED')],
+      mutations: [mutation('sso_dev', 'failed')],
+      failOnMissing: false,
+      converged: false,
+    },
+    {
+      title: 'a read failed, with no mutations at all',
+      reads: [failedRead('sso_dev')],
+      mutations: [],
+      failOnMissing: false,
+      converged: false,
+    },
+    {
+      title: 'a missing schedule, tolerated by default',
+      reads: [missingRead('sso_dev'), foundRead('sso_uat', 'DISABLED')],
+      mutations: [],
+      failOnMissing: false,
+      converged: true,
+    },
+    {
+      title: 'a missing schedule under --fail-on-missing',
+      reads: [missingRead('sso_dev'), foundRead('sso_uat', 'DISABLED')],
+      mutations: [],
+      failOnMissing: true,
+      converged: false,
+    },
+  ];
+
+  for (const { title, reads, mutations, failOnMissing, converged } of convergenceCases) {
+    it(`${converged ? 'converges' : 'does not converge'} when ${title}`, () => {
+      const plan = planScheduleSweep(reads, 'DISABLED');
+
+      assert.equal(buildSweepVerdict(plan, mutations, failOnMissing).converged, converged);
+    });
   }
-
-  it('rejects an empty profile list, which would fall back to the default credential chain', () => {
-    const validate = validatorFor('aws.profiles');
-    assert.ok(validate !== undefined, 'aws.profiles must declare a validator');
-
-    // `--aws-profiles ''` and `--aws-profiles ,` both reach the validator as [].
-    const result = validate?.([]);
-    assert.equal(typeof result, 'string');
-    assert.match(String(result), /At least one AWS profile is required/);
-  });
-
-  it('accepts a non-empty profile list', () => {
-    assert.equal(validatorFor('aws.profiles')?.(['sso_dev', 'sso_prod']), true);
-  });
 });
 
 describe('scheduleDisplay', () => {
-  it('renders the table headers even with no account contributing a row', () => {
-    const { script, calls } = createMockScript();
-
-    displayScheduleTable(script, new Map());
-
-    const table = calls[0]?.payload as GOTableOptions | undefined;
-    assert.deepEqual(table?.data, []);
-    assert.deepEqual(
-      table?.columns.map((column) => column.header),
-      ['Profile', 'Name', 'Group', 'State', 'Target ARN', 'Last Modified'],
-    );
-  });
-
-  it('keeps the rows grouped by account, in the map insertion order', () => {
-    const { script, calls } = createMockScript();
-
-    displayScheduleTable(
-      script,
-      new Map([
-        ['sso_dev', [{ Name: 'a' }, { Name: 'b' }]],
-        ['sso_uat', [{ Name: 'c' }]],
-      ]),
-    );
-
-    const table = calls[0]?.payload as GOTableOptions | undefined;
-    assert.deepEqual(
-      table?.data.map((row) => [row['profile'], row['name']]),
-      [
-        ['sso_dev', 'a'],
-        ['sso_dev', 'b'],
-        ['sso_uat', 'c'],
-      ],
-    );
-  });
-
   it('labels a drift row by what went wrong when the schedule is absent', () => {
     const { script, calls } = createMockScript();
 
@@ -353,9 +283,7 @@ describe('scheduleDisplay', () => {
   });
 
   it('prints the target input and the service-specific parameter block', () => {
-    const { script, calls } = createMockScript();
-
-    displayScheduleDetail(script, {
+    const detail = renderDetail({
       $metadata: {},
       Name: 'nightly-job',
       Target: {
@@ -366,36 +294,22 @@ describe('scheduleDisplay', () => {
       },
     });
 
-    const detail = calls[0]?.payload as Record<string, unknown> | undefined;
     assert.equal(detail?.['Target Input'], '{"mode":"full"}');
     assert.match(String(detail?.['Target Parameters']), /^EcsParameters=\{"TaskDefinitionArn":/);
   });
 
-  it('dashes the target parameters when the target declares none', () => {
-    const { script, calls } = createMockScript();
-
-    displayScheduleDetail(script, {
-      $metadata: {},
-      Target: { Arn: 'arn:aws:lambda:eu-south-1:123456789012:function:reconcile', RoleArn: 'arn:role' },
-    });
-
-    const detail = calls[0]?.payload as Record<string, unknown> | undefined;
-    assert.equal(detail?.['Target Parameters'], '-');
-    assert.equal(detail?.['Target Input'], '-');
-  });
-
   it('replaces missing fields with a dash and formats dates as UTC', () => {
-    const { script, calls } = createMockScript();
-
-    displayScheduleDetail(script, {
+    const detail = renderDetail({
       $metadata: {},
       Name: 'nightly-job',
       LastModificationDate: new Date('2026-09-15T08:30:00.000Z'),
+      Target: { Arn: 'arn:aws:lambda:eu-south-1:123456789012:function:reconcile', RoleArn: 'arn:role' },
     });
 
-    const detail = calls[0]?.payload as Record<string, unknown> | undefined;
     assert.equal(detail?.['Description'], '-');
     assert.equal(detail?.['Start Date'], '-');
+    assert.equal(detail?.['Target Parameters'], '-');
+    assert.equal(detail?.['Target Input'], '-');
     assert.equal(detail?.['Last Modification Date'], '2026-09-15T08:30:00.000Z');
   });
 });

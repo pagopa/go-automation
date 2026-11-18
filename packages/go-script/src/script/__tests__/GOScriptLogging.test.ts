@@ -95,7 +95,7 @@ describe('GOScript logging in AWS-managed runtime', () => {
     defaultValue: 'v',
   };
 
-  it('emits only single-line JSON records (no raw ANSI/table)', async () => {
+  it('emits single-line JSON records only, including the structured summary and per-parameter events', async () => {
     const stdout = await captureLoadConfig([probeParam]);
 
     const lines = stdout.split('\n').filter((line) => line.length > 0);
@@ -104,84 +104,62 @@ describe('GOScript logging in AWS-managed runtime', () => {
       assert.doesNotThrow(() => JSON.parse(line), `each line must be valid JSON: ${line}`);
       assert.ok(!line.includes('\x1b['), 'no ANSI escapes in JSON output');
     }
-  });
 
-  it('emits the configuration summary as a single structured event', async () => {
-    const summary = findSummary(await captureLoadConfig([probeParam]));
-
-    assert.strictEqual(summary.message, 'Configuration summary');
+    const summary = findSummary(stdout);
     assert.strictEqual(summary.eventType, 'configuration_summary');
     assert.strictEqual(summary.configurationCount, 1);
-    const configuration = summary.data?.configuration;
-    assert.ok(configuration !== undefined, 'summary carries structured configuration data');
-    const entry = configuration['probe.value'];
+    const entry = summary.data?.configuration?.['probe.value'];
     assert.ok(entry !== undefined, 'probe.value present in summary');
     assert.strictEqual(entry.value, 'v');
     assert.strictEqual(typeof entry.source, 'string');
-  });
 
-  it('emits queryable configuration parameter events with top-level fields', async () => {
-    const parameterRecord = findConfigurationParameter(await captureLoadConfig([probeParam]), 'probe.value');
-
+    const parameterRecord = findConfigurationParameter(stdout, 'probe.value');
     assert.strictEqual(parameterRecord.message, 'Configuration parameter');
-    assert.strictEqual(parameterRecord.eventType, 'configuration_parameter');
-    assert.strictEqual(parameterRecord.parameter, 'probe.value');
     assert.strictEqual(parameterRecord.value, 'v');
     assert.strictEqual(typeof parameterRecord.source, 'string');
     assert.strictEqual(parameterRecord.data?.parameter, 'probe.value');
   });
 
-  it('keeps {value,source} shape for sensitive-named params and redacts their values', async () => {
-    const stdout = await captureLoadConfig([
-      probeParam,
-      {
-        name: 'slack.token',
-        type: GOConfigParameterType.STRING,
-        description: 'slack token',
-        required: false,
-        sensitive: true,
-        defaultValue: 'xoxb-raw-secret-value',
-      },
-    ]);
+  it('redacts sensitive and sensitive-looking parameters, keeping their {value,source} shape', async () => {
+    const cases: ReadonlyArray<readonly [string, GOConfigParameterOptions]> = [
+      [
+        'slack.token',
+        {
+          name: 'slack.token',
+          type: GOConfigParameterType.STRING,
+          description: 'slack token',
+          required: false,
+          sensitive: true,
+          defaultValue: 'xoxb-raw-secret-value',
+        },
+      ],
+      // No sensitive flag: the name alone marks it.
+      [
+        'api.token',
+        {
+          name: 'api.token',
+          type: GOConfigParameterType.STRING,
+          description: 'api token',
+          required: false,
+          defaultValue: 'raw-token-value',
+        },
+      ],
+    ];
 
-    const summary = findSummary(stdout);
-    const configuration = summary.data?.configuration;
-    assert.ok(configuration !== undefined);
+    for (const [name, parameter] of cases) {
+      const stdout = await captureLoadConfig([probeParam, parameter]);
 
-    const tokenEntry = configuration['slack.token'];
-    // The entry must remain a structured object (not collapsed to the '[REDACTED]' string),
-    // so the source stays queryable even though the parameter name looks sensitive.
-    assert.ok(tokenEntry !== undefined, 'slack.token present as a structured entry');
-    assert.strictEqual(tokenEntry.value, '[REDACTED]');
-    assert.strictEqual(typeof tokenEntry.source, 'string');
-    assert.ok(tokenEntry.source.length > 0, 'source is preserved');
+      // The entry must remain a structured object (not collapsed to the '[REDACTED]' string),
+      // so the source stays queryable even though the parameter name looks sensitive.
+      const entry = findSummary(stdout).data?.configuration?.[name];
+      assert.ok(entry !== undefined, `${name} present as a structured entry`);
+      assert.strictEqual(entry.value, '[REDACTED]');
+      assert.ok(entry.source.length > 0, 'source is preserved');
 
-    const parameterRecord = findConfigurationParameter(stdout, 'slack.token');
-    assert.strictEqual(parameterRecord.value, '[REDACTED]');
-    assert.strictEqual(typeof parameterRecord.source, 'string');
-    // The secret value itself must not leak.
-    assert.ok(!stdout.includes('xoxb-raw-secret-value'), 'raw secret value must not appear in logs');
-  });
-
-  it('redacts values for sensitive-looking parameter names even without sensitive flag', async () => {
-    const stdout = await captureLoadConfig([
-      {
-        name: 'api.token',
-        type: GOConfigParameterType.STRING,
-        description: 'api token',
-        required: false,
-        defaultValue: 'raw-token-value',
-      },
-    ]);
-
-    const summary = findSummary(stdout);
-    const tokenEntry = summary.data?.configuration?.['api.token'];
-
-    assert.ok(tokenEntry !== undefined, 'api.token present as a structured entry');
-    assert.strictEqual(tokenEntry.value, '[REDACTED]');
-
-    const parameterRecord = findConfigurationParameter(stdout, 'api.token');
-    assert.strictEqual(parameterRecord.value, '[REDACTED]');
-    assert.ok(!stdout.includes('raw-token-value'), 'raw token value must not appear in logs');
+      const parameterRecord = findConfigurationParameter(stdout, name);
+      assert.strictEqual(parameterRecord.value, '[REDACTED]');
+      assert.strictEqual(typeof parameterRecord.source, 'string');
+      assert.ok(!stdout.includes(String(parameter.defaultValue)), `the raw value of ${name} must not leak`);
+    }
   });
 });

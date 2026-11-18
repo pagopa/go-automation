@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import * as fs from 'node:fs/promises';
-import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { GOLogEvent } from '../../GOLogEvent.js';
@@ -9,23 +8,20 @@ import { GOLogEventCategory } from '../../GOLogEventCategory.js';
 import type { GOExecutionLogPathProvider } from '../GOExecutionLogPathProvider.js';
 import { GOFileLoggerHandler } from '../GOFileLoggerHandler.js';
 import { GOFileLoggerStyle } from '../GOFileLoggerStyle.js';
+import { useTempDir } from '../../../__tests__/helpers/createTempDir.js';
 
 function logPathProvider(paths: GOExecutionLogPathProvider): GOExecutionLogPathProvider {
   return paths;
 }
 
-async function makeTempDir(): Promise<string> {
-  return fs.mkdtemp(path.join(os.tmpdir(), 'go-common-file-logger-'));
-}
-
 async function waitForFile(filePath: string): Promise<void> {
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 200; i++) {
     try {
       await fs.stat(filePath);
       return;
     } catch {
       await new Promise((resolve) => {
-        setTimeout(resolve, 5);
+        setImmediate(resolve);
       });
     }
   }
@@ -41,8 +37,10 @@ function createPlainFileStyle(): GOFileLoggerStyle {
 }
 
 describe('GOFileLoggerHandler', () => {
-  it('uses the default file style and GOPaths log path when optional arguments are omitted', async () => {
-    const dir = await makeTempDir();
+  const tmp = useTempDir('go-common-file-logger-');
+
+  it('uses the default file style and GOPaths log path when optional arguments are omitted, then setStyle', async () => {
+    const dir = tmp.path;
     const logPath = path.join(dir, 'default.log');
     const handler = new GOFileLoggerHandler(
       logPathProvider({
@@ -54,13 +52,19 @@ describe('GOFileLoggerHandler', () => {
 
     handler.handle(GOLogEvent.info('default message'));
     await waitForFile(logPath);
+    const replacement = createPlainFileStyle();
+    handler.setStyle(replacement);
+    assert.strictEqual(handler.getStyle(), replacement);
+    handler.handle(GOLogEvent.info('replaced style'));
     await handler.close();
 
-    assert.match(await fs.readFile(logPath, 'utf-8'), /\[INFO\] default message/);
+    const [first, second] = (await fs.readFile(logPath, 'utf-8')).trim().split('\n');
+    assert.match(first ?? '', /\[INFO\] default message/);
+    assert.strictEqual(second, 'INFO:replaced style');
   });
 
   it('queues initial events, writes them to the configured log file and closes cleanly', async () => {
-    const dir = await makeTempDir();
+    const dir = tmp.path;
     const logPath = path.join(dir, 'nested', 'execution.log');
     const handler = new GOFileLoggerHandler(
       logPathProvider({
@@ -80,7 +84,7 @@ describe('GOFileLoggerHandler', () => {
   });
 
   it('keeps the stream open across reset and ignores events after close', async () => {
-    const dir = await makeTempDir();
+    const dir = tmp.path;
     const logPath = path.join(dir, 'execution.log');
     const handler = new GOFileLoggerHandler(
       logPathProvider({
@@ -100,22 +104,5 @@ describe('GOFileLoggerHandler', () => {
       'INFO:before reset',
       'WARN:after reset',
     ]);
-  });
-
-  it('exposes and replaces its style instance', () => {
-    const initialStyle = createPlainFileStyle();
-    const replacementStyle = createPlainFileStyle();
-    const handler = new GOFileLoggerHandler(
-      logPathProvider({
-        getExecutionLogFilePath: () => '/tmp/unused.log',
-      }),
-      initialStyle,
-    );
-
-    assert.strictEqual(handler.getStyle(), initialStyle);
-
-    handler.setStyle(replacementStyle);
-
-    assert.strictEqual(handler.getStyle(), replacementStyle);
   });
 });

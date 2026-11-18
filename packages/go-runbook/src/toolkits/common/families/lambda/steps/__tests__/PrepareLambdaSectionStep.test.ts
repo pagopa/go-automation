@@ -1,41 +1,21 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { RunbookContext } from '../../../../../../engine/types/RunbookContext.js';
 import { PrepareLambdaSectionStep } from '../PrepareLambdaSectionStep.js';
-import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
-
-function emptyContext(): RunbookContext {
-  return {
-    vars: new Map(),
-    stepResults: new Map(),
-    services: createTestServiceRegistry(),
-  } as unknown as RunbookContext;
-}
+import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
 
 describe('PrepareLambdaSectionStep', () => {
-  it('seeds the canonical lambda vars without a configured timeout', async () => {
-    const result = await new PrepareLambdaSectionStep({
-      id: 'prepare-lambda-section',
-      label: 'l',
-      lambdaName: 'pn-x',
-      logGroup: '/aws/lambda/pn-x',
-    }).execute(emptyContext());
+  it('seeds the canonical lambda vars, with lambdaConfiguredTimeoutMs only when configured', async () => {
+    const config = { id: 'prepare-lambda-section', label: 'l', lambdaName: 'pn-x', logGroup: '/aws/lambda/pn-x' };
 
-    assert.strictEqual(result.vars?.['lambdaFunctionName'], 'pn-x');
-    assert.strictEqual(result.vars?.['lambdaLogGroup'], '/aws/lambda/pn-x');
-    assert.strictEqual(result.vars?.['lambdaConfiguredTimeoutMs'], undefined);
-  });
+    const plain = await new PrepareLambdaSectionStep(config).execute(createTestContext());
+    const withTimeout = await new PrepareLambdaSectionStep({ ...config, configuredTimeoutMs: 15000 }).execute(
+      createTestContext(),
+    );
 
-  it('emits lambdaConfiguredTimeoutMs when configured', async () => {
-    const result = await new PrepareLambdaSectionStep({
-      id: 'prepare-lambda-section',
-      label: 'l',
-      lambdaName: 'pn-x',
-      logGroup: '/aws/lambda/pn-x',
-      configuredTimeoutMs: 15000,
-    }).execute(emptyContext());
-
-    assert.strictEqual(result.vars?.['lambdaConfiguredTimeoutMs'], '15000');
+    assert.strictEqual(plain.vars?.['lambdaFunctionName'], 'pn-x');
+    assert.strictEqual(plain.vars?.['lambdaLogGroup'], '/aws/lambda/pn-x');
+    assert.strictEqual(plain.vars?.['lambdaConfiguredTimeoutMs'], undefined);
+    assert.strictEqual(withTimeout.vars?.['lambdaConfiguredTimeoutMs'], '15000');
   });
 });

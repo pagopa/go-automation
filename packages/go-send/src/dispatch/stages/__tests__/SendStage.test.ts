@@ -46,6 +46,9 @@ function record(rowIndex: number): DispatchRecord {
   };
 }
 
+/** Builds the B2B API double of a harness on its clock. */
+type ApiFactoryFn = (clock: VirtualClock) => FakeB2BApi;
+
 interface Harness {
   readonly clock: VirtualClock;
   readonly api: FakeB2BApi;
@@ -65,9 +68,10 @@ function harness(
     shared: SHARED,
     placeholders: false,
   }),
+  createApi: ApiFactoryFn = (clock) => new FakeB2BApi(clock),
 ): Harness {
   const clock = new VirtualClock();
-  const api = new FakeB2BApi(clock);
+  const api = createApi(clock);
   const sink = new MemorySink();
   const ledger = new RowLedger(sink, () => new Date(clock.now()));
   const limiter = new GORateLimiter({ ratePerSecond: 20, priorities: 2, sleeper: clock, now: () => clock.monotonic() });
@@ -334,29 +338,11 @@ describe('SendStage', () => {
   });
 
   it('passes the stop signal to the lookup and leaves the row RECONCILING when it is abandoned', async () => {
-    const h = harness();
-    const api = new SignalRecordingApi(h.clock);
-    const stage = new SendStage({
-      api,
-      limiter: h.limiter,
-      rateAdapter: new RateAdapter(h.limiter, 20, h.clock, true),
-      ledger: h.ledger,
-      clock: h.clock,
-      resolver: new DocumentResolver({
-        inspector: new LocalDocumentInspector(os.tmpdir()),
-        shared: SHARED,
-        placeholders: false,
-      }),
-      runId: 'run',
-      apiVersion: 'v2.6',
-      retryAmbiguous: true,
-      sendTimeoutMs: 600_000,
-      onSent: () => undefined,
-      onGlobalError: () => undefined,
-      signal: h.controller.signal,
-    });
+    const h = harness(true, undefined, (clock) => new SignalRecordingApi(clock));
+    // Safe: the harness was built with a SignalRecordingApi.
+    const api = h.api as SignalRecordingApi;
     api.sendScript.push(httpError(503));
-    await h.clock.run(stage.send(record(0)));
+    await h.clock.run(h.stage.send(record(0)));
     assert.equal(api.signals[0], h.controller.signal);
 
     api.sendScript.push(httpError(503));
@@ -370,7 +356,7 @@ describe('SendStage', () => {
       await abortingLookup(paProtocolNumber, idempotenceToken, apiVersion);
       throw transportError();
     };
-    await h.clock.run(stage.send(record(1)));
+    await h.clock.run(h.stage.send(record(1)));
     assert.equal(h.ledger.get(1)?.status, 'RECONCILING', 'no SEND_UNCERTAIN for an abandoned lookup');
   });
 

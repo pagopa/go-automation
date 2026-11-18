@@ -1,91 +1,40 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { DescribeTableCommand, QueryCommand, type DynamoDBClient, type AttributeValue } from '@aws-sdk/client-dynamodb';
+import { DescribeTableCommand, QueryCommand, type AttributeValue, type DynamoDBClient } from '@aws-sdk/client-dynamodb';
 
+import { FakeAwsClient } from '../../__tests__/helpers/FakeAwsClient.js';
 import { DynamoDBQueryService } from '../DynamoDBQueryService.js';
 
-type DynamoCommand = DescribeTableCommand | QueryCommand;
-
-interface DynamoResponse {
-  readonly Table?: {
-    readonly TableName?: string;
-    readonly TableStatus?: 'ACTIVE' | 'CREATING';
-  };
-  readonly Items?: ReadonlyArray<Record<string, AttributeValue>>;
-  readonly LastEvaluatedKey?: Record<string, AttributeValue>;
-}
-
-interface FakeDynamoDBClient {
-  readonly commands: DynamoCommand[];
-  send(command: DynamoCommand): Promise<DynamoResponse>;
-}
-
-function asDynamoDBClient(client: FakeDynamoDBClient): DynamoDBClient {
-  return client as unknown as DynamoDBClient;
+function serviceOf(client: FakeAwsClient): DynamoDBQueryService {
+  return new DynamoDBQueryService(client.as<DynamoDBClient>());
 }
 
 describe('DynamoDBQueryService', () => {
   it('describes tables and returns table status', async () => {
-    const responses: DynamoResponse[] = [
+    const client = new FakeAwsClient([
       { Table: { TableName: 'table-a', TableStatus: 'ACTIVE' } },
       { Table: { TableName: 'table-a', TableStatus: 'CREATING' } },
       {},
-    ];
-    const fakeClient: FakeDynamoDBClient = {
-      commands: [],
-      async send(command) {
-        this.commands.push(command);
-        await Promise.resolve();
-        return responses.shift() ?? {};
-      },
-    };
-    const service = new DynamoDBQueryService(asDynamoDBClient(fakeClient));
+    ]);
+    const service = serviceOf(client);
 
-    assert.deepStrictEqual(await service.describeTable('table-a'), {
-      TableName: 'table-a',
-      TableStatus: 'ACTIVE',
-    });
+    assert.deepStrictEqual(await service.describeTable('table-a'), { TableName: 'table-a', TableStatus: 'ACTIVE' });
     assert.strictEqual(await service.getTableStatus('table-a'), 'CREATING');
     assert.strictEqual(await service.describeTable('missing'), undefined);
-    assert.ok(fakeClient.commands.every((command) => command instanceof DescribeTableCommand));
+    assert.strictEqual(client.sent(DescribeTableCommand).length, 3);
   });
 
   it('queries partition keys with pagination, sort keys, projection and unmarshalling', async () => {
-    const fakeClient: FakeDynamoDBClient = {
-      commands: [],
-      async send(command) {
-        this.commands.push(command);
-        await Promise.resolve();
-        if (!(command instanceof QueryCommand)) {
-          return {};
-        }
-        if (this.commands.filter((recorded) => recorded instanceof QueryCommand).length === 1) {
-          return {
-            Items: [
-              {
-                pk: { S: 'P#abc#S' },
-                sk: { N: '7' },
-                status: { S: 'OPEN' },
-              },
-            ],
-            LastEvaluatedKey: { pk: { S: 'cursor' } },
-          };
-        }
-        return {
-          Items: [
-            {
-              pk: { S: 'P#abc#S' },
-              sk: { N: '7' },
-              amount: { N: '12' },
-            },
-          ],
-        };
+    const client = new FakeAwsClient([
+      {
+        Items: [{ pk: { S: 'P#abc#S' }, sk: { N: '7' }, status: { S: 'OPEN' } }],
+        LastEvaluatedKey: { pk: { S: 'cursor' } },
       },
-    };
-    const service = new DynamoDBQueryService(asDynamoDBClient(fakeClient));
+      { Items: [{ pk: { S: 'P#abc#S' }, sk: { N: '7' }, amount: { N: '12' } }] },
+    ]);
 
-    const result = await service.queryByPartitionKey<{
+    const result = await serviceOf(client).queryByPartitionKey<{
       readonly pk: string;
       readonly sk: number;
       readonly status?: string;
@@ -111,44 +60,23 @@ describe('DynamoDBQueryService', () => {
       ],
       count: 2,
     });
-
-    const firstCommand = fakeClient.commands[0];
-    const secondCommand = fakeClient.commands[1];
-    assert.ok(firstCommand instanceof QueryCommand);
-    assert.ok(secondCommand instanceof QueryCommand);
-    assert.strictEqual(firstCommand.input.TableName, 'table-a');
-    assert.strictEqual(firstCommand.input.IndexName, 'by-sk');
-    assert.strictEqual(firstCommand.input.KeyConditionExpression, '#pk = :pkVal AND #sk = :skVal');
-    assert.deepStrictEqual(firstCommand.input.ExpressionAttributeNames, {
-      '#pk': 'pk',
-      '#sk': 'sk',
-      '#attr0': 'status',
-      '#attr1': 'amount',
+    const [first, second] = client.inputs(QueryCommand);
+    assert.deepStrictEqual(first, {
+      TableName: 'table-a',
+      IndexName: 'by-sk',
+      KeyConditionExpression: '#pk = :pkVal AND #sk = :skVal',
+      ExpressionAttributeNames: { '#pk': 'pk', '#sk': 'sk', '#attr0': 'status', '#attr1': 'amount' },
+      ExpressionAttributeValues: { ':pkVal': { S: 'P#abc#S' }, ':skVal': { N: '7' } },
+      ProjectionExpression: '#attr0, #attr1',
     });
-    assert.deepStrictEqual(firstCommand.input.ExpressionAttributeValues, {
-      ':pkVal': { S: 'P#abc#S' },
-      ':skVal': { N: '7' },
-    });
-    assert.strictEqual(firstCommand.input.ProjectionExpression, '#attr0, #attr1');
-    assert.deepStrictEqual(secondCommand.input.ExclusiveStartKey, { pk: { S: 'cursor' } });
+    assert.deepStrictEqual(second?.['ExclusiveStartKey'], { pk: { S: 'cursor' } });
   });
 
   it('can return raw DynamoDB items and numeric partition key values', async () => {
-    const rawItem: Record<string, AttributeValue> = {
-      id: { N: '42' },
-      payload: { S: 'raw' },
-    };
-    const fakeClient: FakeDynamoDBClient = {
-      commands: [],
-      async send(command) {
-        this.commands.push(command);
-        await Promise.resolve();
-        return { Items: [rawItem] };
-      },
-    };
-    const service = new DynamoDBQueryService(asDynamoDBClient(fakeClient));
+    const rawItem: Record<string, AttributeValue> = { id: { N: '42' }, payload: { S: 'raw' } };
+    const client = new FakeAwsClient([{ Items: [rawItem] }]);
 
-    const result = await service.queryByPartitionKey('42', {
+    const result = await serviceOf(client).queryByPartitionKey('42', {
       tableName: 'table-a',
       keyName: 'id',
       keyType: 'N',
@@ -157,50 +85,19 @@ describe('DynamoDBQueryService', () => {
 
     assert.strictEqual(result.items[0], rawItem);
     assert.strictEqual(result.fullKey, '42');
-
-    const command = fakeClient.commands[0];
-    assert.ok(command instanceof QueryCommand);
-    assert.deepStrictEqual(command.input.ExpressionAttributeValues, {
-      ':pkVal': { N: '42' },
-    });
+    assert.deepStrictEqual(client.inputs(QueryCommand)[0]?.['ExpressionAttributeValues'], { ':pkVal': { N: '42' } });
   });
 
   it('queries multiple keys, captures per-key failures and reports progress in input order', async () => {
-    const fakeClient: FakeDynamoDBClient = {
-      commands: [],
-      async send(command) {
-        this.commands.push(command);
-        await Promise.resolve();
-        if (!(command instanceof QueryCommand)) {
-          return {};
-        }
-
-        const keyValue = command.input.ExpressionAttributeValues?.[':pkVal'];
-        const fullKey = keyValue?.S ?? '';
-        if (fullKey === 'P#bad#S') {
-          throw new Error('boom');
-        }
-
-        return {
-          Items: [
-            {
-              pk: { S: fullKey },
-            },
-          ],
-        };
-      },
-    };
-    const service = new DynamoDBQueryService(asDynamoDBClient(fakeClient));
+    const client = new FakeAwsClient((command) => {
+      const fullKey = (command as QueryCommand).input.ExpressionAttributeValues?.[':pkVal']?.S ?? '';
+      return fullKey === 'P#bad#S' ? new Error('boom') : { Items: [{ pk: { S: fullKey } }] };
+    });
     const progress: (readonly [number, number])[] = [];
 
-    const results = await service.queryMultipleByPartitionKey(
+    const results = await serviceOf(client).queryMultipleByPartitionKey(
       ['one', 'bad', 'two'],
-      {
-        tableName: 'table-a',
-        keyName: 'pk',
-        prefix: 'P#',
-        suffix: '#S',
-      },
+      { tableName: 'table-a', keyName: 'pk', prefix: 'P#', suffix: '#S' },
       (current, total) => {
         progress.push([current, total]);
       },
@@ -219,49 +116,19 @@ describe('DynamoDBQueryService', () => {
   });
 
   it('handles empty batches, fail-fast errors and invalid query options', async () => {
-    const fakeClient: FakeDynamoDBClient = {
-      commands: [],
-      async send(command) {
-        this.commands.push(command);
-        await Promise.resolve();
-        throw new Error('boom');
-      },
-    };
-    const service = new DynamoDBQueryService(asDynamoDBClient(fakeClient));
+    const service = serviceOf(new FakeAwsClient(() => new Error('boom')));
 
-    assert.deepStrictEqual(
-      await service.queryMultipleByPartitionKey([], {
-        tableName: 'table-a',
-        keyName: 'pk',
-      }),
-      [],
-    );
-
+    assert.deepStrictEqual(await service.queryMultipleByPartitionKey([], { tableName: 'table-a', keyName: 'pk' }), []);
     await assert.rejects(
-      service.queryMultipleByPartitionKey(['bad'], {
-        tableName: 'table-a',
-        keyName: 'pk',
-        failFast: true,
-      }),
+      service.queryMultipleByPartitionKey(['bad'], { tableName: 'table-a', keyName: 'pk', failFast: true }),
       /Query failed for "bad": boom/,
     );
-
     await assert.rejects(
-      service.queryByPartitionKey('value', {
-        tableName: 'table-a',
-        keyName: 'pk',
-        sortKeyName: 'sk',
-      }),
+      service.queryByPartitionKey('value', { tableName: 'table-a', keyName: 'pk', sortKeyName: 'sk' }),
       /sortKeyName and sortKeyValue must be provided together/,
     );
-
     await assert.rejects(
-      service.queryByPartitionKey('value', {
-        tableName: 'table-a',
-        keyName: 'pk',
-        keyType: 'N',
-        prefix: 'P#',
-      }),
+      service.queryByPartitionKey('value', { tableName: 'table-a', keyName: 'pk', keyType: 'N', prefix: 'P#' }),
       /prefix\/suffix are only supported when keyType is 'S'/,
     );
   });

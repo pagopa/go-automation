@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { SQS_MAX_BATCH_SIZE, SQS_MAX_PAYLOAD_BYTES, SQSUtils } from '../SQSUtils.js';
+import { SQS_MAX_PAYLOAD_BYTES, SQSUtils } from '../SQSUtils.js';
 
 describe('SQSUtils', () => {
-  it('chunks arrays using SQS-compatible batch sizes', () => {
+  it('chunks arrays, capping the batch size at the SQS maximum of 10', () => {
     assert.deepStrictEqual(SQSUtils.chunkForSQS([1, 2, 3], 2), [[1, 2], [3]]);
     assert.strictEqual(
       SQSUtils.chunkForSQS(
@@ -13,7 +13,6 @@ describe('SQSUtils', () => {
       ).length,
       3,
     );
-    assert.strictEqual(SQS_MAX_BATCH_SIZE, 10);
   });
 
   it('validates message payload sizes', () => {

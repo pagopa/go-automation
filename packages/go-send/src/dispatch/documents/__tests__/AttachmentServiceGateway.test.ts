@@ -43,28 +43,19 @@ class FakeAttachmentService {
 }
 
 describe('AttachmentServiceGateway', () => {
-  it('delegates preload and uploads the file content read from disk', async () => {
-    const service = new FakeAttachmentService();
-    const gateway = new AttachmentServiceGateway(service as unknown as SENDAttachmentService);
-    const file = path.join(await tempDir('dispatch-gateway'), 'atto.pdf');
-    await writeFixture(file, '%PDF-1.4 content');
-
-    assert.deepEqual(await gateway.preload([{ preloadIdx: '0', contentType: 'application/pdf', sha256: 'S' }]), [
-      PRELOAD,
-    ]);
-    assert.equal(await gateway.upload(PRELOAD, file, 'S', 'application/pdf'), 'v42');
-    assert.equal(service.uploaded?.toString('utf8'), '%PDF-1.4 content');
-  });
-
-  it('passes the stop signal to preload and PUT', async () => {
+  it('delegates preload and uploads the file content read from disk, passing the stop signal if any', async () => {
     const service = new FakeAttachmentService();
     const gateway = new AttachmentServiceGateway(service as unknown as SENDAttachmentService);
     const file = path.join(await tempDir('dispatch-gateway'), 'atto.pdf');
     await writeFixture(file, '%PDF-1.4 content');
     const controller = new AbortController();
-    await gateway.preload([{ preloadIdx: '0', contentType: 'application/pdf', sha256: 'S' }], controller.signal);
-    await gateway.upload(PRELOAD, file, 'S', 'application/pdf', controller.signal);
-    assert.deepEqual(service.options, [{ signal: controller.signal }, { signal: controller.signal }]);
+
+    assert.deepEqual(await gateway.preload([{ preloadIdx: '0', contentType: 'application/pdf', sha256: 'S' }]), [
+      PRELOAD,
+    ]);
+    assert.equal(await gateway.upload(PRELOAD, file, 'S', 'application/pdf', controller.signal), 'v42');
+    assert.equal(service.uploaded?.toString('utf8'), '%PDF-1.4 content');
+    assert.deepEqual(service.options, [undefined, { signal: controller.signal }]);
   });
 
   it('fails clearly when the file does not exist', async () => {

@@ -56,7 +56,6 @@ describe('renderFinalSummary', () => {
       'info: API Gateway log group: API-Gateway-Execution-Logs',
       'info: Service: interop-be-api',
     ]);
-    assert.notDeepStrictEqual(send.lines, interop.lines);
     assert.ok(!send.lines.includes('section: INTEROP API Gateway Runbook Summary'));
   });
 

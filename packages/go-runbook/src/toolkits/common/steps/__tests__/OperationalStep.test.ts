@@ -9,7 +9,7 @@ import type { StepKind } from '../../../../engine/types/StepKind.js';
 import type { StepResult } from '../../../../engine/types/StepResult.js';
 import type { OperationalContext } from '../../services/OperationalContext.js';
 import type { OperationalServiceName } from '../../services/OperationalServiceName.js';
-import { createTestServiceRegistry } from '../../testing/createTestServiceRegistry.js';
+import { createTestContext } from '../../../../__tests__/helpers/createTestContext.js';
 import { canonicalizeJson } from '@pagopa/go-common/json';
 import { OperationalStep } from '../OperationalStep.js';
 
@@ -40,8 +40,7 @@ describe('OperationalStep', () => {
   });
 
   it('executes with the operational context', async () => {
-    const services = createTestServiceRegistry({ athena: { query: async () => Promise.resolve([{ a: '1' }]) } });
-    const context = { services } as unknown as OperationalContext;
+    const context = createTestContext({ services: { athena: { query: async () => Promise.resolve([{ a: '1' }]) } } });
 
     assert.deepStrictEqual(await new AthenaProbeStep().execute(context), { success: true, output: 1 });
   });

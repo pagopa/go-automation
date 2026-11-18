@@ -8,20 +8,15 @@ function file(content: string): { readonly path: string; readonly content: strin
 }
 
 describe('awsAccountDataError', () => {
-  it('accepts a runbook without account data, and the synthetic example ids', () => {
-    assert.strictEqual(awsAccountDataError([file("const x = 'pn-foo'; // 000000000000 123456789012")]), undefined);
+  it('accepts a runbook without account data, the synthetic example ids and 13-digit timestamps', () => {
+    for (const content of ["const x = 'pn-foo'; // 000000000000 123456789012", 'const firedAt = 1731499200000;']) {
+      assert.strictEqual(awsAccountDataError([file(content)]), undefined, content);
+    }
   });
 
-  it('rejects an account id from the answers, naming the file and the logical accounts', () => {
+  it('rejects an account id, naming the file and the logical accounts, and an SSO profile name', () => {
     const error = awsAccountDataError([file("logGroup: 'arn:aws:logs:eu-south-1:987654321098:log-group:/x'")]);
     assert.match(error ?? '', /runbook\.ts: .*account id.*account logici/u);
-  });
-
-  it('rejects an SSO profile name', () => {
     assert.notStrictEqual(awsAccountDataError([file("profile: 'sso_pn-foo-prod'")]), undefined);
-  });
-
-  it('ignores 13-digit timestamps', () => {
-    assert.strictEqual(awsAccountDataError([file('const firedAt = 1731499200000;')]), undefined);
   });
 });

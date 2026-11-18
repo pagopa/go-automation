@@ -55,6 +55,32 @@ function createSendingSdk(sent: SENDNotificationRequest[]): SENDNotifications {
   return { notifications: { sendNotification } } as unknown as SENDNotifications;
 }
 
+/** Number of calls a mock received so far. */
+type CallCountFn = () => number;
+
+/**
+ * Creates an SDK mock whose send succeeds and whose IUN polling fails with `pollError`
+ */
+function createPollingSdk(pollError: Error): {
+  readonly sdk: SENDNotifications;
+  readonly sendCalls: CallCountFn;
+  readonly pollCalls: CallCountFn;
+} {
+  const sendNotification = mock.fn(async (): Promise<{ notificationRequestId: string }> => {
+    await Promise.resolve();
+    return { notificationRequestId: 'request-1' };
+  });
+  const pollForIun = mock.fn(async (): Promise<string> => {
+    await Promise.resolve();
+    throw pollError;
+  });
+  return {
+    sdk: { notifications: { sendNotification, pollForIun } } as unknown as SENDNotifications,
+    sendCalls: () => sendNotification.mock.callCount(),
+    pollCalls: () => pollForIun.mock.callCount(),
+  };
+}
+
 function createTerminalError(statusResponse: SENDNotificationStatusResponse): Error {
   const error = new Error(`Notification request-1 reached terminal status ${statusResponse.notificationRequestStatus}`);
   Object.defineProperties(error, {
@@ -73,18 +99,8 @@ describe('SENDNotificationImportRowProcessor', () => {
       notificationRequestStatus: SENDNotificationStatus.REFUSED,
       errors: [{ code: 'NOT_VALID_ADDRESS', detail: 'Address declared non-mailable by normalizer' }],
     };
-    const sendNotification = mock.fn(async (): Promise<{ notificationRequestId: string }> => {
-      await Promise.resolve();
-      return { notificationRequestId: 'request-1' };
-    });
-    const pollForIun = mock.fn(async (): Promise<string> => {
-      await Promise.resolve();
-      throw createTerminalError(refusedStatus);
-    });
-    const sdk = {
-      notifications: { sendNotification, pollForIun },
-    } as unknown as SENDNotifications;
-    const processor = new SENDNotificationImportRowProcessor(sdk);
+    const polling = createPollingSdk(createTerminalError(refusedStatus));
+    const processor = new SENDNotificationImportRowProcessor(polling.sdk);
     const discardedEvents: SENDNotificationImportWorkerNotificationDiscardedEvent[] = [];
     processor.on('worker:notification:discarded', (event) => {
       discardedEvents.push(event);
@@ -97,8 +113,8 @@ describe('SENDNotificationImportRowProcessor', () => {
       pollDelayMs: 30000,
     });
 
-    assert.strictEqual(sendNotification.mock.callCount(), 1);
-    assert.strictEqual(pollForIun.mock.callCount(), 1);
+    assert.strictEqual(polling.sendCalls(), 1);
+    assert.strictEqual(polling.pollCalls(), 1);
     assert.strictEqual(result.notificationResult?.notificationRequestId, 'request-1');
     assert.strictEqual(result.notificationResult?.iun, undefined);
     assert.strictEqual(result.notificationResult?.discarded?.status, SENDNotificationStatus.REFUSED);
@@ -161,18 +177,7 @@ describe('SENDNotificationImportRowProcessor', () => {
   });
 
   it('keeps non-terminal polling errors as failures', async () => {
-    const sendNotification = mock.fn(async (): Promise<{ notificationRequestId: string }> => {
-      await Promise.resolve();
-      return { notificationRequestId: 'request-1' };
-    });
-    const pollForIun = mock.fn(async (): Promise<string> => {
-      await Promise.resolve();
-      throw new Error('network timeout');
-    });
-    const sdk = {
-      notifications: { sendNotification, pollForIun },
-    } as unknown as SENDNotifications;
-    const processor = new SENDNotificationImportRowProcessor(sdk);
+    const processor = new SENDNotificationImportRowProcessor(createPollingSdk(new Error('network timeout')).sdk);
 
     await assert.rejects(
       processor.processRow(createRow(), {

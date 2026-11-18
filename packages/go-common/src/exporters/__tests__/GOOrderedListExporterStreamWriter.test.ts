@@ -5,7 +5,8 @@ import { GOOrderedListExporterStreamWriter } from '../GOOrderedListExporterStrea
 import type { GOListExporterStreamWriter } from '../GOListExporterStreamWriter.js';
 
 interface FakeWriterOptions {
-  readonly appendDelayMs?: number;
+  /** Yields to the event loop inside append, so concurrent appends could interleave. */
+  readonly yieldOnAppend?: boolean;
   readonly failOn?: string;
 }
 
@@ -23,8 +24,8 @@ class FakeStreamWriter implements GOListExporterStreamWriter<string> {
       this.interleaved = true;
     }
     try {
-      if (this.options.appendDelayMs !== undefined) {
-        await new Promise((resolve) => setTimeout(resolve, this.options.appendDelayMs));
+      if (this.options.yieldOnAppend === true) {
+        await new Promise((resolve) => setImmediate(resolve));
       }
       if (this.options.failOn === item) {
         throw new Error(`write failed for ${item}`);
@@ -42,20 +43,7 @@ class FakeStreamWriter implements GOListExporterStreamWriter<string> {
 }
 
 describe('GOOrderedListExporterStreamWriter', () => {
-  it('passes through in-order appends immediately', async () => {
-    const fake = new FakeStreamWriter();
-    const ordered = new GOOrderedListExporterStreamWriter(fake);
-
-    await ordered.append(0, 'a');
-    assert.deepStrictEqual(fake.written, ['a']);
-    await ordered.append(1, 'b');
-    assert.deepStrictEqual(fake.written, ['a', 'b']);
-
-    await ordered.close();
-    assert.strictEqual(fake.closeCalls, 1);
-  });
-
-  it('reorders out-of-order appends to ascending index order', async () => {
+  it('writes in-order appends immediately and reorders out-of-order ones', async () => {
     const fake = new FakeStreamWriter();
     const ordered = new GOOrderedListExporterStreamWriter(fake);
 
@@ -69,7 +57,7 @@ describe('GOOrderedListExporterStreamWriter', () => {
   });
 
   it('serializes underlying writes from concurrent appends', async () => {
-    const fake = new FakeStreamWriter({ appendDelayMs: 2 });
+    const fake = new FakeStreamWriter({ yieldOnAppend: true });
     const ordered = new GOOrderedListExporterStreamWriter(fake);
 
     await Promise.all([ordered.append(1, 'b'), ordered.append(0, 'a'), ordered.append(2, 'c')]);

@@ -2,123 +2,76 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
 import { AnalyzeInteropApplicationLogsStep } from '../AnalyzeInteropApplicationLogsStep.js';
-import { createTestServiceRegistry } from '../../../../common/testing/createTestServiceRegistry.js';
+import type { InteropK8sApplicationLogAnalysis } from '../AnalyzeInteropApplicationLogsStep.js';
+import type { StepResult } from '../../../../../engine/types/StepResult.js';
+import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
+import { logRow } from '../../../../../__tests__/helpers/logRow.js';
 
-function context(stepResults: ReadonlyArray<readonly [string, unknown]>): RunbookContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-07-09T10:00:00.000Z'),
-    stepResults: new Map<string, unknown>(stepResults),
-    vars: new Map(),
-    params: new Map(),
-    logs: [],
-    services: createTestServiceRegistry(),
-    recoveredErrors: [],
-  };
-}
-
-function row(fields: ReadonlyArray<readonly [string, string]>): ReadonlyArray<GOLogsInsightsResultField> {
-  return fields.map(([field, value]) => ({ field, value }));
+async function analyze(
+  rows: ReadonlyArray<GOLogsInsightsResultField[]>,
+  countField?: string,
+): Promise<StepResult<InteropK8sApplicationLogAnalysis>> {
+  const step = new AnalyzeInteropApplicationLogsStep({
+    id: 'analyze',
+    label: 'Analyze',
+    fromStep: 'query',
+    varPrefix: 'interop',
+    ...(countField === undefined ? {} : { countField }),
+  });
+  return step.execute(createTestContext({ stepResults: { query: rows } }));
 }
 
 describe('AnalyzeInteropApplicationLogsStep', () => {
   it('extracts CID values from cid, @message and log fields and deduplicates them', async () => {
-    const step = new AnalyzeInteropApplicationLogsStep({
-      id: 'analyze',
-      label: 'Analyze',
-      fromStep: 'query',
-      varPrefix: 'interopBff',
-    });
-
-    const result = await step.execute(
-      context([
-        [
-          'query',
-          [
-            row([
-              ['cid', 'cid-1'],
-              ['@message', 'first'],
-            ]),
-            row([['@message', '[CID=cid-2] second']]),
-            row([['log', 'log with CID=cid-1] duplicate']]),
-            row([['@message', 'without cid']]),
-          ],
-        ],
-      ]),
-    );
+    const result = await analyze([
+      logRow({ cid: 'cid-1', '@message': 'first' }),
+      logRow({ '@message': '[CID=cid-2] second' }),
+      logRow({ log: 'log with CID=cid-1] duplicate' }),
+      logRow({ '@message': 'without cid' }),
+    ]);
 
     assert.strictEqual(result.success, true);
     assert.deepStrictEqual(result.output?.cids, ['cid-1', 'cid-2']);
     assert.strictEqual(result.output?.logsWithoutCidCount, 1);
-    assert.strictEqual(result.vars?.['interopBffCidCount'], '2');
-    assert.strictEqual(result.vars?.['interopBffLogsWithoutCidCount'], '1');
-    assert.strictEqual(result.vars?.['interopBffRowsWithoutCidCount'], undefined);
-    assert.strictEqual(result.vars?.['interopBffAnalysisCompleted'], 'true');
+    assert.deepStrictEqual(
+      ['CidCount', 'LogsWithoutCidCount', 'RowsWithoutCidCount', 'AnalysisCompleted'].map(
+        (k) => result.vars?.[`interop${k}`],
+      ),
+      ['2', '1', undefined, 'true'],
+    );
   });
 
   it('uses aggregate counts and errorMessage when a query groups application logs', async () => {
-    const step = new AnalyzeInteropApplicationLogsStep({
-      id: 'analyze',
-      label: 'Analyze',
-      fromStep: 'query',
-      varPrefix: 'interopAuth',
-      countField: 'count',
-    });
-
-    const result = await step.execute(
-      context([
-        [
-          'query',
-          [
-            row([
-              ['count', '7'],
-              ['cid', 'cid-1'],
-              ['errorMessage', 'aggregated warning'],
-            ]),
-            row([
-              ['count', '3'],
-              ['errorMessage', 'warning without cid'],
-            ]),
-          ],
-        ],
-      ]),
+    const result = await analyze(
+      [
+        logRow({ count: '7', cid: 'cid-1', errorMessage: 'aggregated warning' }),
+        logRow({ count: '3', errorMessage: 'warning without cid' }),
+      ],
+      'count',
     );
 
     assert.strictEqual(result.output?.logCount, 10);
     assert.strictEqual(result.output?.logsWithoutCidCount, 3);
     assert.deepStrictEqual(result.output?.representativeMessages, ['aggregated warning', 'warning without cid']);
-    assert.strictEqual(result.vars?.['interopAuthLogCount'], '10');
-    assert.strictEqual(result.vars?.['interopAuthLogsWithoutCidCount'], '3');
+    assert.deepStrictEqual(
+      ['LogCount', 'LogsWithoutCidCount'].map((k) => result.vars?.[`interop${k}`]),
+      ['10', '3'],
+    );
   });
 
   it('uses errorMessage only as a fallback after the existing message fields', async () => {
-    const step = new AnalyzeInteropApplicationLogsStep({
-      id: 'analyze',
-      label: 'Analyze',
-      fromStep: 'query',
-      varPrefix: 'interopAuth',
-    });
-
-    const result = await step.execute(
-      context([
-        [
-          'query',
-          [
-            row([
-              ['errorMessage', 'aggregated warning'],
-              ['log', 'log warning'],
-              ['message', 'message warning'],
-              ['@message', 'cloudwatch warning'],
-            ]),
-            row([['errorMessage', 'fallback warning']]),
-          ],
-        ],
-      ]),
-    );
+    const result = await analyze([
+      logRow({
+        errorMessage: 'aggregated',
+        log: 'log warning',
+        message: 'message warning',
+        '@message': 'cloudwatch warning',
+      }),
+      logRow({ errorMessage: 'fallback warning' }),
+    ]);
 
     assert.deepStrictEqual(result.output?.representativeMessages, ['cloudwatch warning', 'fallback warning']);
-    assert.strictEqual(result.vars?.['interopAuthErrorMsg'], 'cloudwatch warning');
+    assert.strictEqual(result.vars?.['interopErrorMsg'], 'cloudwatch warning');
   });
 });

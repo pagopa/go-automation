@@ -35,11 +35,8 @@ describe('GOStringUtils', () => {
 });
 
 describe('trimToUndefined', () => {
-  it('trims a value that carries content', () => {
+  it('trims a value with content and reports missing, empty and whitespace-only values as absent', () => {
     assert.strictEqual(trimToUndefined('  eu-south-1 '), 'eu-south-1');
-  });
-
-  it('reports missing, empty and whitespace-only values as absent', () => {
     assert.strictEqual(trimToUndefined(undefined), undefined);
     assert.strictEqual(trimToUndefined(''), undefined);
     assert.strictEqual(trimToUndefined('   '), undefined);

@@ -4,6 +4,11 @@ import { describe, it } from 'node:test';
 import type { DownstreamDetectionQueryOptions } from '../buildDownstreamDetectionQuery.js';
 import { buildDownstreamDetectionQuery } from '../buildDownstreamDetectionQuery.js';
 
+/** Options assembled at runtime, outside the type: the guards must still reject them. */
+function untyped(options: Readonly<Record<string, unknown>>): string {
+  return buildDownstreamDetectionQuery(options as unknown as DownstreamDetectionQueryOptions);
+}
+
 describe('buildDownstreamDetectionQuery', () => {
   it('builds the optimized IPA query with the 404 exclusion', () => {
     assert.strictEqual(
@@ -80,9 +85,6 @@ describe('buildDownstreamDetectionQuery', () => {
     // purpose, because the runtime guard is what protects options assembled
     // dynamically, and because an option that silently does nothing — or worse,
     // silently widens the query — is the bug being tested.
-    const untyped = (options: Record<string, unknown>): string =>
-      buildDownstreamDetectionQuery(options as unknown as DownstreamDetectionQueryOptions);
-
     // Neither variant selected: the name is mandatory in the exact arm, so a
     // typed caller cannot get here, and the message has to say what is missing
     // rather than let `.trim()` throw on undefined.
@@ -101,10 +103,6 @@ describe('buildDownstreamDetectionQuery', () => {
 });
 
 describe('buildDownstreamDetectionQuery — declarative scan options', () => {
-  // Options assembled at runtime, outside the type: the guards must still reject them.
-  const untyped = (options: Record<string, unknown>): string =>
-    buildDownstreamDetectionQuery(options as unknown as DownstreamDetectionQueryOptions);
-
   it('searches the marker only in the structured message, with no raw @message anywhere', () => {
     const query = buildDownstreamDetectionQuery({
       downstreamName: 'SelfcarePA',

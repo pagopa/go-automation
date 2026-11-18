@@ -2,9 +2,10 @@ import { AUTH_SERVER_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import type { RunbookContext } from '../../../../../engine/index.js';
+import { conditionContext } from '../../../__tests__/helpers/knownCaseTesting.js';
+import { caseMatches, knownCaseById, matchingCaseIds } from '../../../../../__tests__/helpers/knownCaseMatching.js';
 import { KNOWN_CASES } from '../knownCases.js';
-import { createTestServiceRegistry } from '../../../../../toolkits/interop/index.js';
-import { ConditionEvaluator, type KnownCase, type RunbookContext } from '../../../../../engine/index.js';
 
 interface Fixture {
   readonly message: string;
@@ -89,48 +90,23 @@ const FIXTURES: ReadonlyMap<string, Fixture> = new Map([
 ]);
 
 describe('INTEROP auth-server API Gateway known cases', () => {
-  const evaluator = new ConditionEvaluator();
-
-  it('has a unique fixture, id and priority for every documented causal case', () => {
-    assert.strictEqual(FIXTURES.size, KNOWN_CASES.length);
-    assert.strictEqual(new Set(KNOWN_CASES.map(({ id }) => id)).size, KNOWN_CASES.length);
-    assert.strictEqual(new Set(KNOWN_CASES.map(({ priority }) => priority)).size, KNOWN_CASES.length);
-  });
-
-  it('keeps every case open until correlation, impact and subsequent requests have been checked', () => {
-    assert.ok(KNOWN_CASES.every(({ analysis }) => analysis?.proposedStatus === 'IN_PROGRESS'));
-    const forbidden = knownCaseById('auth-server-api-gateway-forbidden-403');
-    assert.ok(
-      KNOWN_CASES.filter(({ id }) => id !== forbidden.id).every(({ priority }) => priority > forbidden.priority),
-    );
-  });
-
   it('distinguishes not-before validation from an invalid cryptographic signature', () => {
     const message = FIXTURES.get('auth-server-client-assertion-not-before')?.message ?? '';
+    assert.strictEqual(caseMatches(byId('auth-server-client-assertion-not-before'), context({ message })), true);
     assert.strictEqual(
-      evaluator.evaluate(knownCaseById('auth-server-client-assertion-not-before').condition, context({ message })),
-      true,
-    );
-    assert.strictEqual(
-      evaluator.evaluate(
-        knownCaseById('auth-server-client-assertion-signature-validation-failed').condition,
-        context({ message }),
-      ),
+      caseMatches(byId('auth-server-client-assertion-signature-validation-failed'), context({ message })),
       false,
     );
   });
 
   it('distinguishes expired assertions from invalid signatures and not-before failures', () => {
     const message = FIXTURES.get('auth-server-client-assertion-expired')?.message ?? '';
-    assert.strictEqual(
-      evaluator.evaluate(knownCaseById('auth-server-client-assertion-expired').condition, context({ message })),
-      true,
-    );
+    assert.strictEqual(caseMatches(byId('auth-server-client-assertion-expired'), context({ message })), true);
     for (const id of [
       'auth-server-client-assertion-not-before',
       'auth-server-client-assertion-signature-validation-failed',
     ]) {
-      assert.strictEqual(evaluator.evaluate(knownCaseById(id).condition, context({ message })), false);
+      assert.strictEqual(caseMatches(byId(id), context({ message })), false);
     }
   });
 
@@ -140,14 +116,11 @@ describe('INTEROP auth-server API Gateway known cases', () => {
       ['auth-server-required-client-assertion-type', 'client_assertion_type', 'Required'],
     ]) {
       assert.ok(id && field && detail);
-      const knownCase = knownCaseById(id);
+      const knownCase = byId(id);
       for (const encode of [false, true]) {
         const message: string = `Validation error: ${detail} at "${field}"`;
         assert.strictEqual(
-          evaluator.evaluate(
-            knownCase.condition,
-            context({ message: encode ? JSON.stringify({ log: message }) : message }),
-          ),
+          caseMatches(knownCase, context({ message: encode ? JSON.stringify({ log: message }) : message })),
           true,
         );
       }
@@ -155,26 +128,20 @@ describe('INTEROP auth-server API Gateway known cases', () => {
         `Validation error: ${detail} at "${field}_backup"`,
         `Validation error: ${detail} at "other_field", ${field} is present`,
       ]) {
-        assert.strictEqual(evaluator.evaluate(knownCase.condition, context({ message })), false);
+        assert.strictEqual(caseMatches(knownCase, context({ message })), false);
       }
     }
   });
 
   it('recognizes either inactive state without requiring both to be inactive', () => {
-    const knownCase = knownCaseById('auth-server-platform-state-agreement-or-purpose-inactive');
+    const knownCase = byId('auth-server-platform-state-agreement-or-purpose-inactive');
     for (const entity of ['Agreement', 'Purpose']) {
       assert.strictEqual(
-        evaluator.evaluate(
-          knownCase.condition,
-          context({ message: `Platform state validation failed - ${entity} state is: INACTIVE` }),
-        ),
+        caseMatches(knownCase, context({ message: `Platform state validation failed - ${entity} state is: INACTIVE` })),
         true,
       );
       assert.strictEqual(
-        evaluator.evaluate(
-          knownCase.condition,
-          context({ message: `Platform state validation failed - ${entity} state is: ACTIVE` }),
-        ),
+        caseMatches(knownCase, context({ message: `Platform state validation failed - ${entity} state is: ACTIVE` })),
         false,
       );
     }
@@ -184,22 +151,37 @@ describe('INTEROP auth-server API Gateway known cases', () => {
     for (const knownCase of KNOWN_CASES) {
       const fixture = FIXTURES.get(knownCase.id);
       assert.ok(fixture !== undefined, `missing fixture for ${knownCase.id}`);
-      assert.strictEqual(evaluator.evaluate(knownCase.condition, context(fixture)), true, knownCase.id);
+      assert.strictEqual(caseMatches(knownCase, context(fixture)), true, knownCase.id);
     }
   });
 
   it('restricts the organization-specific rate-limit case to test', () => {
-    const knownCase = knownCaseById('auth-server-test-rate-limit-known-organization');
+    const knownCase = byId('auth-server-test-rate-limit-known-organization');
     const fixture = FIXTURES.get(knownCase.id);
     assert.ok(fixture !== undefined);
-    assert.strictEqual(evaluator.evaluate(knownCase.condition, context({ ...fixture, environment: 'prod' })), false);
+    assert.strictEqual(caseMatches(knownCase, context({ ...fixture, environment: 'prod' })), false);
   });
 
   it('matches API Gateway 403 only in access-log evidence', () => {
-    const knownCase = knownCaseById('auth-server-api-gateway-forbidden-403');
+    const knownCase = byId('auth-server-api-gateway-forbidden-403');
     const message = FIXTURES.get(knownCase.id)?.message ?? '';
-    assert.strictEqual(evaluator.evaluate(knownCase.condition, context({ message, source: 'API_GATEWAY' })), true);
-    assert.strictEqual(evaluator.evaluate(knownCase.condition, context({ message, source: 'APPLICATION' })), false);
+    assert.strictEqual(caseMatches(knownCase, context({ message, source: 'API_GATEWAY' })), true);
+    assert.strictEqual(caseMatches(knownCase, context({ message, source: 'APPLICATION' })), false);
+  });
+
+  it('ranks the API Gateway 403 catch-all below any application diagnosis', () => {
+    const forbidden = FIXTURES.get('auth-server-api-gateway-forbidden-403')?.message ?? '';
+    const ctx = conditionContext([
+      [AUTH_SERVER_ALARM.stepIds.queryApiGwAggregates, [[{ field: 'message', value: forbidden }]]],
+      [
+        AUTH_SERVER_ALARM.stepIds.queryApplicationLogs,
+        [[{ field: 'message', value: 'Validation error: Invalid uuid at "client_id"' }]],
+      ],
+    ]);
+    assert.deepStrictEqual(matchingCaseIds(KNOWN_CASES, ctx), [
+      'auth-server-invalid-client-id-uuid',
+      'auth-server-api-gateway-forbidden-403',
+    ]);
   });
 
   it('does not classify the explicitly excluded invalid-claims warning', () => {
@@ -208,7 +190,7 @@ describe('INTEROP auth-server API Gateway known cases', () => {
         '[CLIENTID=client] Invalid claims in client assertion payload: ' +
         '[{"code":"unrecognized_keys","keys":["nbf"]}]',
     });
-    assert.ok(KNOWN_CASES.every(({ condition }) => !evaluator.evaluate(condition, invalidClaims)));
+    assert.ok(matchingCaseIds(KNOWN_CASES, invalidClaims).length === 0);
   });
 });
 
@@ -217,20 +199,9 @@ function context(fixture: Fixture): RunbookContext {
     fixture.source === 'API_GATEWAY'
       ? AUTH_SERVER_ALARM.stepIds.queryApiGwAggregates
       : AUTH_SERVER_ALARM.stepIds.queryApplicationLogs;
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-08-24T10:00:00.000Z'),
-    stepResults: new Map([[sourceStep, [[{ field: 'message', value: fixture.message }]]]]),
-    vars: new Map([['interopEnvironment', fixture.environment ?? 'prod']]),
-    params: new Map(),
-    logs: [],
-    services: createTestServiceRegistry(),
-    recoveredErrors: [],
-  };
+  return conditionContext([[sourceStep, [[{ field: 'message', value: fixture.message }]]]], fixture.environment);
 }
 
-function knownCaseById(id: string): KnownCase {
-  const knownCase = KNOWN_CASES.find((candidate) => candidate.id === id);
-  assert.ok(knownCase !== undefined);
-  return knownCase;
+function byId(id: string): ReturnType<typeof knownCaseById> {
+  return knownCaseById(KNOWN_CASES, id);
 }

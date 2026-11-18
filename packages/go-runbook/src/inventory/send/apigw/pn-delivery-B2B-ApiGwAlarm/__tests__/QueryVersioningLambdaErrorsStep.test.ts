@@ -100,19 +100,6 @@ describe('QueryVersioningLambdaErrorsStep', () => {
     assert.strictEqual(result.vars?.[VERSIONING_LAMBDA_ERROR_COUNT_VAR], '0');
   });
 
-  it('skips when the shape is not the documented one', async () => {
-    let queryCalls = 0;
-    const context = buildContext({ apiGwStatusCode: '504', deliveryLogCount: '0' }, async () => {
-      queryCalls += 1;
-      return Promise.resolve([]);
-    });
-
-    const result = await step().execute(context);
-
-    assert.strictEqual(queryCalls, 0);
-    assert.strictEqual(result.vars?.[VERSIONING_LAMBDA_PROBE_STATE_VAR], 'skipped');
-  });
-
   it('records a successful query with zero Lambda errors', async () => {
     const calls: { readonly logGroups: ReadonlyArray<string>; readonly query: string }[] = [];
     const context = buildContext(

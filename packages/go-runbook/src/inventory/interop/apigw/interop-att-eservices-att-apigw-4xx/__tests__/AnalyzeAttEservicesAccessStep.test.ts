@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import type { RunbookContext, StepResult } from '../../../../../engine/index.js';
-import { createTestServiceRegistry } from '../../../../../toolkits/interop/index.js';
+import type { StepResult } from '../../../../../engine/index.js';
+import { conditionContext } from '../../../__tests__/helpers/knownCaseTesting.js';
+import type { LogRows } from '../../../../../__tests__/helpers/LogRows.js';
 import { AnalyzeAttEservicesAccessStep, type AttEservicesAccessAnalysis } from '../AnalyzeAttEservicesAccessStep.js';
 import { API_GW_ID, QUERY_STEP_ID } from '../alarmDefinition.js';
 
-function row(overrides: Readonly<Record<string, string>> = {}): ReadonlyArray<GOLogsInsightsResultField> {
+function row(overrides: Readonly<Record<string, string>> = {}): LogRows[number] {
   return Object.entries({
     apigwId: API_GW_ID,
     status: '403',
@@ -18,29 +18,15 @@ function row(overrides: Readonly<Record<string, string>> = {}): ReadonlyArray<GO
   }).map(([field, value]) => ({ field, value }));
 }
 
-interface TestAnalysis {
-  readonly result: StepResult<AttEservicesAccessAnalysis>;
-  readonly context: RunbookContext;
-}
-
-async function analyze(rows?: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>): Promise<TestAnalysis> {
-  const context: RunbookContext = {
-    executionId: 'test',
-    startedAt: new Date('2026-10-29T04:41:26.000Z'),
-    vars: new Map(),
-    params: new Map(),
-    stepResults: rows === undefined ? new Map() : new Map([[QUERY_STEP_ID, rows]]),
-    logs: [],
-    recoveredErrors: [],
-    services: createTestServiceRegistry(),
-  };
-  const result = await new AnalyzeAttEservicesAccessStep().execute(context);
-  return { result, context };
+async function analyze(rows?: LogRows): Promise<StepResult<AttEservicesAccessAnalysis>> {
+  return new AnalyzeAttEservicesAccessStep().execute(
+    conditionContext(rows === undefined ? [] : [[QUERY_STEP_ID, rows]]),
+  );
 }
 
 describe('AnalyzeAttEservicesAccessStep', () => {
   it('recognizes the observed API-rejected requests and reports counts and paths', async () => {
-    const { result } = await analyze([
+    const result = await analyze([
       row(),
       row({ requestPath: '/favicon.ico' }),
       row({ requestPath: '/h/printcontacts' }),
@@ -59,7 +45,7 @@ describe('AnalyzeAttEservicesAccessStep', () => {
   });
 
   it('does not infer a case from an empty result', async () => {
-    const { result } = await analyze([]);
+    const result = await analyze([]);
     assert.equal(result.output?.requestCount, 0);
     assert.equal(result.output?.allDocumentedProbes, false);
   });
@@ -79,7 +65,7 @@ describe('AnalyzeAttEservicesAccessStep', () => {
       { integrationStatus: '200' },
       { integrationError: 'Integration failure' },
     ]) {
-      const { result } = await analyze([row(override)]);
+      const result = await analyze([row(override)]);
       assert.equal(result.output?.allDocumentedProbes, false, JSON.stringify(override));
       assert.equal(result.output?.documentedProbeCount, 0);
     }
@@ -87,20 +73,20 @@ describe('AnalyzeAttEservicesAccessStep', () => {
 
   it('requires explicit fields rather than treating absent integration data as proof', async () => {
     for (const field of ['apigwId', 'status', 'httpMethod', 'requestPath', 'integrationStatus', 'integrationError']) {
-      const { result } = await analyze([row().filter((entry) => entry.field !== field)]);
+      const result = await analyze([row().filter((entry) => entry.field !== field)]);
       assert.equal(result.output?.allDocumentedProbes, false, field);
     }
   });
 
   it('keeps mixed windows open when one request differs from the documented case', async () => {
-    const { result } = await analyze([row(), row({ status: '401', requestPath: '/residence-verification/status' })]);
+    const result = await analyze([row(), row({ status: '401', requestPath: '/residence-verification/status' })]);
     assert.equal(result.output?.documentedProbeCount, 1);
     assert.equal(result.output?.allDocumentedProbes, false);
     assert.deepEqual(result.output?.statusCounts, { '403': 1, '401': 1 });
   });
 
   it('does not combine status and path evidence from different requests', async () => {
-    const { result } = await analyze([
+    const result = await analyze([
       row({ requestPath: '/residence-submission/status' }),
       row({ status: '404', requestPath: '/favicon.ico' }),
     ]);
@@ -109,20 +95,20 @@ describe('AnalyzeAttEservicesAccessStep', () => {
   });
 
   it('does not classify a potentially saturated window', async () => {
-    const { result } = await analyze(Array.from({ length: 1000 }, () => row()));
+    const result = await analyze(Array.from({ length: 1000 }, () => row()));
     assert.equal(result.output?.coverageLimited, true);
     assert.equal(result.output?.allDocumentedProbes, false);
   });
 
   it('keeps source IPs and opaque event pointers out of derived diagnostics', async () => {
-    const { result } = await analyze([row({ sourceIp: '203.0.113.123', '@ptr': 'opaque-event-pointer' })]);
+    const result = await analyze([row({ sourceIp: '203.0.113.123', '@ptr': 'opaque-event-pointer' })]);
     const diagnostics = JSON.stringify({ output: result.output, vars: result.vars });
     assert.ok(!diagnostics.includes('203.0.113.123'));
     assert.ok(!diagnostics.includes('opaque-event-pointer'));
   });
 
   it('reports missing upstream evidence as a failure', async () => {
-    const { result } = await analyze();
+    const result = await analyze();
     assert.equal(result.success, false);
   });
 });

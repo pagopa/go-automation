@@ -77,11 +77,33 @@ describe('AWSServiceProvider — account scoping', () => {
     assert.deepStrictEqual(new AWSServiceProvider(configured).profileNames, ['sso_prod', 'sso_uat']);
   });
 
-  it('caches each service, so repeated access reuses one instance', () => {
-    const configured = new FakeProfileSet(['sso_uat']);
-    const services = new AWSServiceProvider(configured);
+  it('caches each service until close, so repeated access reuses one instance', () => {
+    const services = new AWSServiceProvider(new FakeProfileSet(['sso_uat']));
+    const getters = [
+      'cloudWatchLogs',
+      'cloudWatchAlarms',
+      'cloudWatchMetrics',
+      'dynamoDB',
+      's3',
+      'sqs',
+      'ecs',
+      'athena',
+      'secretsManager',
+      'scheduler',
+      'ssm',
+    ] as const;
 
-    assert.strictEqual(services.dynamoDB, services.dynamoDB);
-    assert.strictEqual(services.cloudWatchLogs, services.cloudWatchLogs);
+    const before = getters.map((getter) => services[getter]);
+    assert.deepStrictEqual(
+      getters.map((getter, index) => services[getter] === before[index]),
+      getters.map(() => true),
+    );
+    assert.strictEqual(services.getAthena(), services.athena);
+
+    services.close();
+    assert.deepStrictEqual(
+      getters.map((getter, index) => services[getter] === before[index]),
+      getters.map(() => false),
+    );
   });
 });

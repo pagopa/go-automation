@@ -1,168 +1,99 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import { GOLogger } from '@pagopa/go-common/logging';
-import {
-  ConditionEvaluator,
-  type RunbookContext,
-  RunbookEngine,
-  type RunbookExecutionResult,
-} from '../../../../../engine/index.js';
-import {
-  assertCloudExecutableRunbook,
-  buildAnalysisDraft,
-  createTestServiceRegistry,
-} from '../../../../../toolkits/send/index.js';
-import { RUNBOOK_CATALOG } from '../../../../index.js';
+import type { RunbookContext, RunbookExecutionResult } from '../../../../../engine/index.js';
 import { buildRunbook } from '../runbook.js';
 import { KNOWN_CASES } from '../knownCases.js';
-import { API_GW_LOG_GROUP, ENTRY_SERVICE, REACHABLE_SERVICES } from '../knownServices.js';
+import { API_GW_LOG_GROUP } from '../knownServices.js';
 import { NOTIFICATION_RECEIVED_QUERY_PROFILE as PROFILE } from '../queryProfile.js';
+import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
+import { executeWithLogs } from '../../../../../__tests__/helpers/executeWithLogs.js';
+import { caseMatches, knownCaseById } from '../../../../../__tests__/helpers/knownCaseMatching.js';
 
 const ROOT = '1-6ac5cc09-67ca536f1c9e14130fb3b03e';
 const BFF_FALLBACK = '11111111-1111-1111-1111-111111111111';
-const ALARM = 'pn-bff-WEB-noextension-NotificationReceived-comp-5xx-ApiGwAlarm';
 const PAYMENTS_TIMEOUT =
   'Ending process _getPaymentsInfoV1 with errors=nested exception is io.netty.handler.timeout.ReadTimeoutException';
 const CHECKOUT_TIMEOUT =
   '[DOWNSTREAM] Service Checkout returned errors=connection timed out after 3000 ms: api.platform.pagopa.it/192.0.2.1:443';
+const PAYMENTS_TIME_RANGE = { startTime: '2026-10-07T04:31:55Z', endTime: '2026-10-07T04:41:56Z' };
 const row = (values: Record<string, string>): ReadonlyArray<GOLogsInsightsResultField> =>
   Object.entries(values).map(([field, value]) => ({ field, value }));
 
 function context(stepId: string, message: string, vars: Record<string, string> = {}): RunbookContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date(),
-    params: new Map(),
-    vars: new Map(Object.entries(vars)),
-    stepResults: new Map([[stepId, [row({ '@message': JSON.stringify({ stack_trace: message }) })]]]),
-    services: createTestServiceRegistry(),
-    logs: [],
-    recoveredErrors: [],
-  };
+  return createTestContext({
+    vars,
+    stepResults: { [stepId]: [row({ '@message': JSON.stringify({ stack_trace: message }) })] },
+  });
 }
 
 function matches(id: string, ctx: RunbookContext): boolean {
-  const candidate = KNOWN_CASES.find((entry) => entry.id === id);
-  assert.ok(candidate);
-  return new ConditionEvaluator().evaluate(candidate.condition, ctx);
+  return caseMatches(knownCaseById(KNOWN_CASES, id), ctx);
 }
 
 async function executePaymentsTrace(
   checkoutMessage: string | undefined,
   { followCheckout = true, checkoutFails = false, earlierDeliverySuccess = false } = {},
 ): Promise<{ result: RunbookExecutionResult; calls: ReadonlyArray<string> }> {
-  const calls: string[] = [];
-  const cloudWatchLogs = {
-    // eslint-disable-next-line @typescript-eslint/require-await
-    async queryWithStatistics(groups: ReadonlyArray<string>, query: string): Promise<AWSCloudWatchLogsQueryResult> {
-      const group = groups[0] ?? '';
-      calls.push(group);
-      let rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [];
-      if (group === API_GW_LOG_GROUP) {
-        rows = [
-          row({
-            status: '500',
-            xrayTraceId: `Root=${ROOT}`,
-            requestId: 'payments-request',
-            authorizerStatus: '200',
-            httpMethod: 'GET',
-            resourcePath: '/v1/notifications/received/{iun}/payments/{attachmentName}',
-          }),
-        ];
-      } else if (group === '/aws/ecs/pn-bff') {
-        rows = [
-          ...(earlierDeliverySuccess
-            ? [
-                row({
-                  level: 'INFO',
-                  '@message': 'Invoking external service http://internal.example:8080/delivery/notifications/received',
-                  trace_id: ROOT,
-                }),
-                row({
-                  level: 'INFO',
-                  '@message': 'Delivery call completed with status 200',
-                  trace_id: ROOT,
-                }),
-              ]
-            : []),
-          row({
-            level: 'ERROR',
-            '@message':
-              `${PAYMENTS_TIMEOUT}; The connection observed an error; ` +
-              'Request to GET http://internal.example:8080/ext-registry-private/payments',
-            trace_id: ROOT,
-          }),
-        ];
-      } else if (group === '/aws/ecs/pn-external-registries') {
-        assert.ok(query.includes(ROOT));
-        rows = followCheckout
+  const { result, queries } = await executeWithLogs(buildRunbook(), PAYMENTS_TIME_RANGE, (query, [group = '']) => {
+    if (group === API_GW_LOG_GROUP) {
+      return [
+        row({
+          status: '500',
+          xrayTraceId: `Root=${ROOT}`,
+          requestId: 'payments-request',
+          authorizerStatus: '200',
+          httpMethod: 'GET',
+          resourcePath: '/v1/notifications/received/{iun}/payments/{attachmentName}',
+        }),
+      ];
+    }
+    if (group === '/aws/ecs/pn-bff') {
+      return [
+        ...(earlierDeliverySuccess
           ? [
               row({
                 level: 'INFO',
-                '@message': 'Invoking external service http://pn-external-registries-checkout:8080/checkout/payments',
+                '@message': 'Invoking external service http://internal.example:8080/delivery/notifications/received',
                 trace_id: ROOT,
               }),
+              row({ level: 'INFO', '@message': 'Delivery call completed with status 200', trace_id: ROOT }),
             ]
-          : [];
-      } else if (group === '/aws/ecs/pn-external-registries-checkout') {
-        assert.ok(query.includes(ROOT));
-        if (checkoutFails) throw new Error('Checkout logs unavailable');
-        rows = checkoutMessage === undefined ? [] : [row({ level: 'ERROR', '@message': checkoutMessage })];
-      }
-      return {
-        rows,
-        statistics: { recordsMatched: rows.length, recordsScanned: rows.length, bytesScanned: 1 },
-        queryExecutions: [],
-      };
-    },
-  };
-  const result = await new RunbookEngine(new GOLogger()).execute(
-    buildRunbook(),
-    new Map([
-      ['startTime', '2026-10-07T04:31:55Z'],
-      ['endTime', '2026-10-07T04:41:56Z'],
-    ]),
-    createTestServiceRegistry({ cloudWatchLogs }),
-  );
-  return { result, calls };
+          : []),
+        row({
+          level: 'ERROR',
+          '@message':
+            `${PAYMENTS_TIMEOUT}; The connection observed an error; ` +
+            'Request to GET http://internal.example:8080/ext-registry-private/payments',
+          trace_id: ROOT,
+        }),
+      ];
+    }
+    if (group === '/aws/ecs/pn-external-registries') {
+      assert.ok(query.includes(ROOT));
+      return followCheckout
+        ? [
+            row({
+              level: 'INFO',
+              '@message': 'Invoking external service http://pn-external-registries-checkout:8080/checkout/payments',
+              trace_id: ROOT,
+            }),
+          ]
+        : [];
+    }
+    if (group === '/aws/ecs/pn-external-registries-checkout') {
+      assert.ok(query.includes(ROOT));
+      if (checkoutFails) throw new Error('Checkout logs unavailable');
+      return checkoutMessage === undefined ? [] : [row({ level: 'ERROR', '@message': checkoutMessage })];
+    }
+    return [];
+  });
+  return { result, calls: queries.map(({ groups }) => groups[0] ?? '') };
 }
 
 describe('NotificationReceived WEB diagnosis', () => {
-  it('registers a read-only SEND runbook with its Confluence reference and warning evidence', () => {
-    const entry = RUNBOOK_CATALOG.resolveByAlarmName(ALARM);
-    assert.ok(entry);
-    assert.strictEqual(entry.product, 'SEND');
-    assert.strictEqual(entry.descriptor.kind, 'APIGW');
-    assert.doesNotThrow(() => assertCloudExecutableRunbook(entry.build()));
-    assert.ok(KNOWN_CASES.every(({ analysis }) => analysis?.proposedStatus === 'IN_PROGRESS'));
-    assert.ok(buildRunbook().analysisDefaults?.links?.some(({ url }) => url.includes('/2112749584/')));
-    for (const service of [ENTRY_SERVICE, ...REACHABLE_SERVICES]) {
-      assert.ok(service.queryOverride?.includes("level = 'WARN'"));
-      assert.ok(service.queryOverride?.includes('Invoking external service'));
-    }
-  });
-
-  it('limits the access scan to the eight monitored method/resource combinations', () => {
+  it('falls back on the request path only for the monitored received-notification routes', () => {
     const query = PROFILE.accessLog.query;
-    for (const route of [
-      '/v1/notifications/received',
-      '/v1/notifications/received/delegated',
-      '/v1/notifications/received/{iun}',
-      '/v1/notifications/received/{iun}/timeline',
-      '/v1/notifications/received/{iun}/documents/{documentType}',
-      '/v1/notifications/received/{iun}/payments/{attachmentName}',
-      '/v1/notifications/received/check-tpp',
-      '/v1/notifications/received/check-aar-qr-code',
-    ]) {
-      assert.ok(query.includes(`'${route}'`), route);
-    }
-    assert.ok(query.includes("httpMethod = 'GET'"));
-    assert.ok(query.includes("httpMethod = 'POST'"));
-    assert.ok(query.indexOf('resourcePath in') < query.indexOf('| limit'));
-    assert.ok(query.includes('not ispresent(resourcePath)'));
-    assert.ok(query.includes('path not like /\\/check-aar-qr-code$/'));
     const start = query.indexOf('path like /') + 'path like /'.length;
     const end = query.indexOf('$/', start) + 1;
     const fallback = new RegExp(query.slice(start, end), 'u');
@@ -283,15 +214,12 @@ describe('NotificationReceived WEB diagnosis', () => {
   });
 
   it('traverses BFF to delivery using X-Ray instead of a BFF-only fallback UUID', async () => {
-    const calls: string[] = [];
-    const cloudWatchLogs = {
-      async queryWithStatistics(groups: ReadonlyArray<string>, query: string): Promise<AWSCloudWatchLogsQueryResult> {
-        await Promise.resolve();
-        const group = groups[0] ?? '';
-        calls.push(group);
-        let rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [];
-        if (group === API_GW_LOG_GROUP)
-          rows = [
+    const { result, draft, queries } = await executeWithLogs(
+      buildRunbook(),
+      PAYMENTS_TIME_RANGE,
+      (query, [group = '']) => {
+        if (group === API_GW_LOG_GROUP) {
+          return [
             row({
               status: '500',
               xrayTraceId: `Root=${ROOT}`,
@@ -301,52 +229,37 @@ describe('NotificationReceived WEB diagnosis', () => {
               path: '/bff/v1/notifications/received',
             }),
           ];
-        else if (group === '/aws/ecs/pn-bff')
-          rows = [
+        }
+        if (group === '/aws/ecs/pn-bff') {
+          return [
             row({
               level: 'ERROR',
               '@message': `pn-exception 500 FALLBACK-UUID:${BFF_FALLBACK} Request to GET http://internal.example:8080/delivery/notifications/received`,
               trace_id: ROOT,
             }),
           ];
-        else if (group === '/aws/ecs/pn-delivery') {
-          assert.ok(query.includes(ROOT));
-          assert.ok(!query.includes(BFF_FALLBACK));
-          rows = [
-            row({
-              level: 'ERROR',
-              '@message': JSON.stringify({
-                message: 'pn-exception 500',
-                stack_trace:
-                  'PnInternalException: java.lang.IndexOutOfBoundsException: Index -1 out of bounds for length 54',
-                trace_id: ROOT,
-              }),
-            }),
-          ];
         }
-        return {
-          rows,
-          statistics: { recordsMatched: rows.length, recordsScanned: rows.length, bytesScanned: 1 },
-          queryExecutions: [],
-        };
+        if (group !== '/aws/ecs/pn-delivery') return [];
+        assert.ok(query.includes(ROOT));
+        assert.ok(!query.includes(BFF_FALLBACK));
+        return [
+          row({
+            level: 'ERROR',
+            '@message': JSON.stringify({
+              message: 'pn-exception 500',
+              stack_trace:
+                'PnInternalException: java.lang.IndexOutOfBoundsException: Index -1 out of bounds for length 54',
+              trace_id: ROOT,
+            }),
+          }),
+        ];
       },
-    };
-    const runbook = buildRunbook();
-    const result = await new RunbookEngine(new GOLogger()).execute(
-      runbook,
-      new Map([
-        ['startTime', '2026-10-07T04:31:55Z'],
-        ['endTime', '2026-10-07T04:41:56Z'],
-      ]),
-      createTestServiceRegistry({ cloudWatchLogs }),
     );
     assert.strictEqual(result.status, 'completed');
     assert.strictEqual(result.matchedCases[0]?.id, 'delivery-index-out-of-bounds');
-    assert.ok(calls.includes('/aws/ecs/pn-delivery'));
-    const draft = buildAnalysisDraft(runbook, result);
+    assert.ok(queries.some(({ groups }) => groups[0] === '/aws/ecs/pn-delivery'));
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-    assert.ok(draft.links.some(({ url }) => url.endsWith('/PN-21515')));
     assert.strictEqual(result.finalContext.vars.get('bffFallbackUuid'), BFF_FALLBACK);
   });
 

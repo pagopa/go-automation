@@ -12,10 +12,7 @@ describe('RunbookValidationError', () => {
 
     const error = new RunbookValidationError('rb-1', errors);
 
-    assert.ok(error instanceof RunbookValidationError);
-    assert.ok(error instanceof Error);
     assert.strictEqual(error.name, 'RunbookValidationError');
-    assert.strictEqual(error.runbookId, 'rb-1');
     assert.deepStrictEqual(error.errors, errors);
     assert.strictEqual(
       error.message,

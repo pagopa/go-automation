@@ -18,6 +18,7 @@ import { DynamoDBGetStep } from '../../steps/aws/dynamodb/DynamoDBGetStep.js';
 import { DynamoDBPutStep } from '../../steps/aws/dynamodb/DynamoDBPutStep.js';
 import { createTestServiceRegistry } from '../../testing/createTestServiceRegistry.js';
 import { OperationalRunbookEngine } from '../OperationalRunbookEngine.js';
+import { createTestRunbook } from '../../../../__tests__/helpers/createTestRunbook.js';
 import type { AwsExecutionEnvironment } from '../../telemetry/AwsExecutionEnvironment.js';
 
 /** Records whether the pipeline started: the service check must reject the execution before it. */
@@ -38,16 +39,7 @@ const dynamoGet = (): DynamoDBGetStep => new DynamoDBGetStep({ id: 'get', label:
 const dynamoPut = (): DynamoDBPutStep => new DynamoDBPutStep({ id: 'put', label: 'Put', tableName: 't', item: {} });
 
 function runbook(steps: ReadonlyArray<Step>, fallbackAction: CaseAction, knownCaseAction?: CaseAction): Runbook {
-  return {
-    metadata: {
-      id: 'service-check',
-      name: 'Service check',
-      description: '',
-      version: '1.0.0',
-      type: 'alarm-resolution',
-      team: 'GO',
-      tags: [],
-    },
+  return createTestRunbook({
     steps: steps.map((step) => ({ step })),
     knownCases:
       knownCaseAction === undefined
@@ -62,7 +54,7 @@ function runbook(steps: ReadonlyArray<Step>, fallbackAction: CaseAction, knownCa
             },
           ],
     fallbackAction,
-  };
+  });
 }
 
 const LOG: CaseAction = { type: 'log', level: 'info', title: 'done' };
@@ -80,50 +72,28 @@ async function assertRejectedBeforeFirstStep(execute: ExecutionFn, spy: SpyStep)
 }
 
 describe('service check of the engine', () => {
-  const engine = (): RunbookEngine => new RunbookEngine(new GOLogger());
-
-  it('rejects a DynamoDB step run with WorkflowServices only, before the first step', async () => {
-    const spy = new SpyStep();
-    await assertRejectedBeforeFirstStep(
-      async () => engine().execute(runbook([spy, dynamoGet()], LOG), new Map(), createTestWorkflowServices()),
-      spy,
-    );
-  });
-
-  it('rejects a DynamoDB step nested in an IfBranchStep', async () => {
-    const spy = new SpyStep();
-    const branch = new IfBranchStep({
-      id: 'branch',
-      label: 'Branch',
-      condition: { type: 'exists', ref: 'vars.x' },
-      thenSteps: [dynamoGet()],
-    });
-    await assertRejectedBeforeFirstStep(
-      async () => engine().execute(runbook([spy, branch], LOG), new Map(), createTestWorkflowServices()),
-      spy,
-    );
-  });
-
-  it('rejects a DynamoDB step in an update action of the fallback', async () => {
-    const spy = new SpyStep();
-    await assertRejectedBeforeFirstStep(
-      async () =>
-        engine().execute(
-          runbook([spy], { type: 'update', step: dynamoPut() }),
-          new Map(),
-          createTestWorkflowServices(),
-        ),
-      spy,
-    );
-  });
-
-  it('rejects a DynamoDB step inside a composite action of a known case', async () => {
-    const spy = new SpyStep();
+  it('rejects a DynamoDB step run with WorkflowServices only, wherever it is, before the first step', async () => {
+    const branch = (): IfBranchStep =>
+      new IfBranchStep({
+        id: 'branch',
+        label: 'Branch',
+        condition: { type: 'exists', ref: 'vars.x' },
+        thenSteps: [dynamoGet()],
+      });
     const composite: CaseAction = { type: 'composite', actions: [LOG, { type: 'update', step: dynamoPut() }] };
-    await assertRejectedBeforeFirstStep(
-      async () => engine().execute(runbook([spy], LOG, composite), new Map(), createTestWorkflowServices()),
-      spy,
-    );
+    const placements: ReadonlyArray<(spy: SpyStep) => Runbook> = [
+      (spy) => runbook([spy, dynamoGet()], LOG),
+      (spy) => runbook([spy, branch()], LOG),
+      (spy) => runbook([spy], { type: 'update', step: dynamoPut() }),
+      (spy) => runbook([spy], LOG, composite),
+    ];
+    for (const placement of placements) {
+      const spy = new SpyStep();
+      await assertRejectedBeforeFirstStep(
+        async () => new RunbookEngine(new GOLogger()).execute(placement(spy), new Map(), createTestWorkflowServices()),
+        spy,
+      );
+    }
   });
 });
 
@@ -133,33 +103,18 @@ describe('OperationalRunbookEngine', () => {
   const withDynamo = (dynamodb: unknown): ServiceRegistry =>
     ({ ...createTestServiceRegistry(), dynamodb }) as unknown as ServiceRegistry;
 
-  for (const [label, dynamodb] of [
-    ['undefined', undefined],
-    ['an object without the port methods', {}],
-  ] as const) {
-    it(`rejects dynamodb set to ${label}, for a pipeline step`, async () => {
+  it('rejects dynamodb set to undefined or to an object without the port methods', async () => {
+    for (const [dynamodb, placement] of [
+      [undefined, (spy: SpyStep) => runbook([spy, dynamoGet()], LOG)],
+      [{}, (spy: SpyStep) => runbook([spy], { type: 'update', step: dynamoPut() })],
+    ] as const) {
       const spy = new SpyStep();
       await assertRejectedBeforeFirstStep(
-        async () => operational().execute(runbook([spy, dynamoGet()], LOG), new Map(), withDynamo(dynamodb), ENV),
+        async () => operational().execute(placement(spy), new Map(), withDynamo(dynamodb), ENV),
         spy,
       );
-    });
-
-    it(`rejects dynamodb set to ${label}, for a step in an action`, async () => {
-      const spy = new SpyStep();
-      await assertRejectedBeforeFirstStep(
-        async () =>
-          operational().execute(
-            runbook([spy], { type: 'update', step: dynamoPut() }),
-            new Map(),
-            withDynamo(dynamodb),
-            ENV,
-          ),
-        spy,
-      );
-    });
-  }
-
+    }
+  });
   it('runs a runbook whose required services are complete', async () => {
     const result = await operational().execute(
       runbook([new SpyStep()], LOG),

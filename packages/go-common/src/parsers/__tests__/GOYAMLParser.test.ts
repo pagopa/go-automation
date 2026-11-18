@@ -1,29 +1,12 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { afterEach } from 'node:test';
 import { describe, it } from 'node:test';
 
 import { GOYAMLParser, isYAMLObject } from '../GOYAMLParser.js';
-
-const tempRoots: string[] = [];
-
-afterEach(() => {
-  for (const root of tempRoots.splice(0)) {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-function writeTempYamlFile(fileName: string, content: string): string {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'go-yaml-parser-'));
-  tempRoots.push(root);
-  const filePath = path.join(root, fileName);
-  fs.writeFileSync(filePath, content);
-  return filePath;
-}
+import { useTempDir } from '../../__tests__/helpers/createTempDir.js';
 
 describe('GOYAMLParser', () => {
+  const tmp = useTempDir('go-yaml-parser-');
+
   it('does not materialize unsafe JavaScript YAML tags', () => {
     const parsed = GOYAMLParser.parseContent(
       ['fn: !!js/function >', '  function () { return 1; }', 're: !!js/regexp /abc/g'].join('\n'),
@@ -40,8 +23,8 @@ describe('GOYAMLParser', () => {
     assert.throws(() => GOYAMLParser.parseContent(['a: 1', 'a: 2'].join('\n')), /Map keys must be unique/);
   });
 
-  it('skips dangerous keys while merging YAML files', () => {
-    const baseFile = writeTempYamlFile(
+  it('skips dangerous keys while merging YAML files', async () => {
+    const baseFile = await tmp.write(
       'base.yaml',
       [
         'safe:',
@@ -55,7 +38,7 @@ describe('GOYAMLParser', () => {
         '__proto__: blocked',
       ].join('\n'),
     );
-    const overrideFile = writeTempYamlFile(
+    const overrideFile = await tmp.write(
       'override.yaml',
       [
         'safe:',

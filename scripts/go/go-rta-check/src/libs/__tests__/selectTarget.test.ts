@@ -14,6 +14,9 @@ const TESTABLE_ALARM = 'pn-delivery-B2B-ApiGwAlarm';
 const OTHER_TESTABLE_ALARM = 'pn-ioAuthorizerLambda-LogInvocationErrors-Alarm';
 const NOT_TESTABLE_ALARM = 'pn-some-alarm-without-runbook';
 
+const PRODUCT_MESSAGE = 'Seleziona il prodotto';
+const SEND_ENVIRONMENT_MESSAGE = "Seleziona l'ambiente (SEND)";
+
 type Choices = ReadonlyArray<GOPromptSelectOption>;
 type AnswerFn = (choices: Choices) => unknown;
 
@@ -34,16 +37,28 @@ function byTitle(needle: string): AnswerFn {
   return (choices) => choices.find((choice) => choice.title.includes(needle))?.value;
 }
 
-/** Picks the "go back" entry. */
-const goBack: AnswerFn = () => BACK_CHOICE;
-
-/** Leaves the prompt with ← instead of picking the "go back" entry. */
-const pressBackKey: AnswerFn = () => GO_PROMPT_BACK;
+/** The two ways of going back: the "go back" entry and the ← key. */
+const BACK_ANSWERS: ReadonlyArray<readonly [string, AnswerFn]> = [
+  ['the back entry', () => BACK_CHOICE],
+  ['the ← key', () => GO_PROMPT_BACK],
+];
 
 /** Fails the test unless the wizard completed, and narrows the outcome. */
 function selected(outcome: TargetSelection): Extract<TargetSelection, { kind: 'VALUE' }> {
   assert.strictEqual(outcome.kind, 'VALUE');
   return outcome;
+}
+
+/** Message of the runbook step for a product and an environment. */
+function runbookMessage(product: string, environment: string): string {
+  return `Seleziona il runbook da testare (${product} · ${environment})`;
+}
+
+/** Fails the test unless the prompt at `index` was asked, and returns it. */
+function promptAt(asked: ReadonlyArray<AskedPrompt>, index: number): AskedPrompt {
+  const prompt = asked[index];
+  assert.ok(prompt !== undefined);
+  return prompt;
 }
 
 function harness(answers: ReadonlyArray<AnswerFn>): Harness {
@@ -95,8 +110,10 @@ interface ClientOptions {
   readonly productReads?: { count: number };
 }
 
+const DEFAULT_COUNTS: Readonly<Record<string, number>> = { a1: 12, a2: 3 };
+
 function fakeClient(options: ClientOptions = {}): never {
-  const counts = options.counts ?? {};
+  const counts = options.counts ?? DEFAULT_COUNTS;
   const failing = new Set(options.failing ?? []);
   return {
     listProducts: async () => {
@@ -131,22 +148,34 @@ function fakeClient(options: ClientOptions = {}): never {
   } as never;
 }
 
-const DEFAULT_COUNTS = { a1: 12, a2: 3 };
+/** Runs the wizard once through SEND · UAT, returning the selection to resume from. */
+async function selectSendUat(): Promise<Extract<TargetSelection, { kind: 'VALUE' }>> {
+  const { script } = harness([byTitle('SEND'), byTitle('UAT'), byTitle(TESTABLE_ALARM)]);
+  return selected(await selectTarget(script, fakeClient(), {}, true));
+}
 
 describe('selectTarget', () => {
-  it('walks product → environment → runbook and returns the selection', async () => {
+  it('walks product → environment → runbook and returns the selection with the state to resume from', async () => {
     const { script, asked } = harness([byTitle('SEND'), byTitle('UAT'), byTitle(TESTABLE_ALARM)]);
 
-    const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
-    const selection = selected(outcome);
+    const selection = selected(await selectTarget(script, fakeClient(), {}, true));
 
     assert.deepStrictEqual(selection.environment, { environmentIds: ['e-send-uat'], environmentName: 'UAT' });
     assert.strictEqual(selection.target.productName, 'SEND');
     assert.strictEqual(selection.target.alarmName, TESTABLE_ALARM);
+    assert.deepStrictEqual(selection.resume, {
+      product: { productId: SEND, productName: 'SEND' },
+      productInteractive: true,
+      environment: { environmentIds: ['e-send-uat'], environmentName: 'UAT' },
+      environmentInteractive: true,
+    });
     assert.deepStrictEqual(
       asked.map((prompt) => prompt.message),
-      ['Seleziona il prodotto', "Seleziona l'ambiente (SEND)", 'Seleziona il runbook da testare (SEND · UAT)'],
+      [PRODUCT_MESSAGE, SEND_ENVIRONMENT_MESSAGE, runbookMessage('SEND', 'UAT')],
     );
+    // The ← shortcut is announced on the entry it stands for, and only where there is a way back.
+    assert.ok(!promptAt(asked, 0).titles.some((title) => title.includes('premi ←')));
+    assert.ok(promptAt(asked, 1).titles.includes('← Indietro: cambia prodotto · premi ←'));
   });
 
   it('offers only the alarms with a local runbook, ranked by occurrences', async () => {
@@ -154,9 +183,7 @@ describe('selectTarget', () => {
 
     await selectTarget(script, fakeClient({ counts: { a1: 2, a2: 40 } }), {}, true);
 
-    const runbookPrompt = asked[2];
-    assert.ok(runbookPrompt !== undefined);
-    assert.deepStrictEqual(runbookPrompt.titles, [
+    assert.deepStrictEqual(promptAt(asked, 2).titles, [
       `${OTHER_TESTABLE_ALARM} · 40 occorrenze`,
       `${TESTABLE_ALARM} · 2 occorrenze`,
       '← Indietro: cambia ambiente o prodotto · premi ←',
@@ -171,94 +198,73 @@ describe('selectTarget', () => {
       byTitle(OTHER_TESTABLE_ALARM),
     ]);
 
-    const outcome = await selectTarget(script, fakeClient({ counts: { a1: 5, a2: 0 } }), {}, true);
-    const selection = selected(outcome);
+    const selection = selected(await selectTarget(script, fakeClient({ counts: { a1: 5, a2: 0 } }), {}, true));
 
     assert.strictEqual(selection.target.alarmName, OTHER_TESTABLE_ALARM);
-    const beforeExpanding = asked[2];
-    const afterExpanding = asked[3];
-    assert.ok(beforeExpanding !== undefined && afterExpanding !== undefined);
-    assert.ok(!beforeExpanding.titles.some((title) => title.startsWith(OTHER_TESTABLE_ALARM)));
-    assert.ok(afterExpanding.titles.includes(`${OTHER_TESTABLE_ALARM} · nessuna occorrenza`));
+    assert.ok(!promptAt(asked, 2).titles.some((title) => title.startsWith(OTHER_TESTABLE_ALARM)));
+    assert.ok(promptAt(asked, 3).titles.includes(`${OTHER_TESTABLE_ALARM} · nessuna occorrenza`));
   });
 
-  it('goes back from the runbook step to the environment step', async () => {
-    const { script, asked } = harness([
-      byTitle('SEND'),
-      byTitle('UAT'),
-      goBack,
-      byTitle('Produzione'),
-      byTitle(TESTABLE_ALARM),
-    ]);
+  for (const [way, back] of BACK_ANSWERS) {
+    it(`goes back from the runbook step to the environment step with ${way}`, async () => {
+      const { script, asked } = harness([
+        byTitle('SEND'),
+        byTitle('UAT'),
+        back,
+        byTitle('Produzione'),
+        byTitle(TESTABLE_ALARM),
+      ]);
 
-    const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
-    const selection = selected(outcome);
+      const selection = selected(await selectTarget(script, fakeClient(), {}, true));
 
-    assert.strictEqual(selection.environment.environmentName, 'Produzione');
-    assert.deepStrictEqual(
-      asked.map((prompt) => prompt.message),
-      [
-        'Seleziona il prodotto',
-        "Seleziona l'ambiente (SEND)",
-        'Seleziona il runbook da testare (SEND · UAT)',
-        "Seleziona l'ambiente (SEND)",
-        'Seleziona il runbook da testare (SEND · Produzione)',
-      ],
-    );
-  });
+      assert.strictEqual(selection.environment.environmentName, 'Produzione');
+      assert.deepStrictEqual(
+        asked.map((prompt) => prompt.message),
+        [
+          PRODUCT_MESSAGE,
+          SEND_ENVIRONMENT_MESSAGE,
+          runbookMessage('SEND', 'UAT'),
+          SEND_ENVIRONMENT_MESSAGE,
+          runbookMessage('SEND', 'Produzione'),
+        ],
+      );
+    });
 
-  it('goes back from the environment step to the product step', async () => {
-    const { script, asked } = harness([byTitle('SEND'), goBack, byTitle('INTEROP'), byTitle(TESTABLE_ALARM)]);
+    it(`goes back from the environment step to the product step with ${way}`, async () => {
+      const { script, asked } = harness([byTitle('SEND'), back, byTitle('INTEROP'), byTitle(TESTABLE_ALARM)]);
 
-    const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
-    const selection = selected(outcome);
+      const selection = selected(await selectTarget(script, fakeClient(), {}, true));
 
-    assert.strictEqual(selection.target.productName, 'INTEROP');
-    // INTEROP has a single environment: it is resolved without asking.
-    assert.strictEqual(selection.environment.environmentName, 'Produzione');
-    assert.deepStrictEqual(
-      asked.map((prompt) => prompt.message),
-      [
-        'Seleziona il prodotto',
-        "Seleziona l'ambiente (SEND)",
-        'Seleziona il prodotto',
-        'Seleziona il runbook da testare (INTEROP · Produzione)',
-      ],
-    );
-  });
+      assert.strictEqual(selection.target.productName, 'INTEROP');
+      // INTEROP has a single environment: it is resolved without asking.
+      assert.strictEqual(selection.environment.environmentName, 'Produzione');
+      assert.deepStrictEqual(
+        asked.map((prompt) => prompt.message),
+        [PRODUCT_MESSAGE, SEND_ENVIRONMENT_MESSAGE, PRODUCT_MESSAGE, runbookMessage('INTEROP', 'Produzione')],
+      );
+    });
+  }
 
-  it('skips the implied steps and drops the back entry when there is nowhere to go', async () => {
+  it('skips the implied steps, drops the back entry and does not offer them again', async () => {
     const config: GoRtaCheckConfig = { targets: [`${INTEROP}:e-interop-prod`] };
     const { script, asked } = harness([byTitle(TESTABLE_ALARM)]);
 
-    const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
-    const selection = selected(outcome);
+    const selection = selected(await selectTarget(script, fakeClient(), config, true));
 
     assert.strictEqual(selection.target.productId, INTEROP);
     assert.strictEqual(asked.length, 1);
-    const runbookPrompt = asked[0];
-    assert.ok(runbookPrompt !== undefined);
-    assert.ok(!runbookPrompt.titles.some((title) => title.startsWith('← Indietro')));
+    assert.ok(!promptAt(asked, 0).titles.some((title) => title.startsWith('← Indietro')));
+    assert.strictEqual(selection.resume.productInteractive, false);
+    assert.strictEqual(selection.resume.environmentInteractive, false);
   });
 
-  it('restricts products and environments to the configured scope', async () => {
+  it('restricts the environments to the configured scope and filters on all of them when picked', async () => {
     const config: GoRtaCheckConfig = { targets: [`${SEND}:e-send-prod|e-send-uat`] };
-    const { script, asked } = harness([byTitle('Produzione'), byTitle(TESTABLE_ALARM)]);
+    const { script, asked } = harness([byTitle('Tutti gli ambienti'), byTitle(TESTABLE_ALARM)]);
 
-    await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+    const selection = selected(await selectTarget(script, fakeClient(), config, true));
 
-    const environmentPrompt = asked[0];
-    assert.ok(environmentPrompt !== undefined);
-    assert.deepStrictEqual(environmentPrompt.titles, ['Produzione', 'UAT', 'Tutti gli ambienti (2)']);
-  });
-
-  it('filters the occurrences on the scoped environments when the user picks them all', async () => {
-    const config: GoRtaCheckConfig = { targets: [`${SEND}:e-send-prod|e-send-uat`] };
-    const { script } = harness([byTitle('Tutti gli ambienti'), byTitle(TESTABLE_ALARM)]);
-
-    const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
-    const selection = selected(outcome);
-
+    assert.deepStrictEqual(promptAt(asked, 0).titles, ['Produzione', 'UAT', 'Tutti gli ambienti (2)']);
     assert.deepStrictEqual(selection.environment.environmentIds, ['e-send-prod', 'e-send-uat']);
     assert.match(selection.environment.environmentName, /Produzione, UAT/u);
   });
@@ -266,38 +272,41 @@ describe('selectTarget', () => {
   it('applies no environment filter when every environment is picked out of scope', async () => {
     const { script } = harness([byTitle('SEND'), byTitle('Tutti gli ambienti'), byTitle(TESTABLE_ALARM)]);
 
-    const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
-    const selection = selected(outcome);
+    const selection = selected(await selectTarget(script, fakeClient(), {}, true));
 
-    assert.strictEqual(selection.environment.environmentIds, undefined);
-    assert.strictEqual(selection.environment.environmentName, 'tutti gli ambienti');
+    assert.deepStrictEqual(selection.environment, { environmentName: 'tutti gli ambienti' });
   });
 
   it('asks nothing when product, environment and alarm are pinned by configuration', async () => {
+    const config: GoRtaCheckConfig = { productId: SEND, environmentId: 'e-send-prod', alarmName: TESTABLE_ALARM };
+    const { script } = harness([]);
+
+    const selection = selected(await selectTarget(script, fakeClient(), config, true));
+
+    assert.strictEqual(selection.target.alarmName, TESTABLE_ALARM);
+    assert.deepStrictEqual(selection.environment, { environmentIds: ['e-send-prod'], environmentName: 'Produzione' });
+  });
+
+  it('accepts a pinned product and environment that stay inside the scope', async () => {
     const config: GoRtaCheckConfig = {
+      targets: [`${SEND}:e-send-prod|e-send-uat`],
       productId: SEND,
-      environmentId: 'e-send-prod',
+      environmentId: 'e-send-uat',
       alarmName: TESTABLE_ALARM,
     };
-    const { script, asked } = harness([]);
+    const { script, errors } = harness([]);
 
-    const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
-    const selection = selected(outcome);
+    const selection = selected(await selectTarget(script, fakeClient(), config, true));
 
-    assert.strictEqual(asked.length, 0);
-    assert.strictEqual(selection.target.alarmName, TESTABLE_ALARM);
-    assert.deepStrictEqual(selection.environment, {
-      environmentIds: ['e-send-prod'],
-      environmentName: 'Produzione',
-    });
+    assert.deepStrictEqual(errors, []);
+    assert.deepStrictEqual(selection.environment, { environmentIds: ['e-send-uat'], environmentName: 'UAT' });
   });
 
   it('warns about scope entries that do not exist in Watchtower, without dropping the valid ones', async () => {
     const config: GoRtaCheckConfig = { targets: [`${SEND}:e-send-uat|e-ghost`, 'd-ghost'] };
     const { script, warnings, errors } = harness([byTitle(TESTABLE_ALARM)]);
 
-    const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
-    const selection = selected(outcome);
+    const selection = selected(await selectTarget(script, fakeClient(), config, true));
 
     assert.ok(warnings.some((message) => message.includes('d-ghost')));
     assert.ok(warnings.some((message) => message.includes('e-ghost')));
@@ -305,26 +314,12 @@ describe('selectTarget', () => {
     assert.deepStrictEqual(selection.environment.environmentIds, ['e-send-uat']);
   });
 
-  it('aborts instead of widening the run when every scoped environment is unknown', async () => {
-    const config: GoRtaCheckConfig = { targets: [`${SEND}:e-ghost`] };
-    const { script, asked, errors } = harness([]);
-
-    const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
-
-    assert.strictEqual(outcome.kind, 'FAILED');
-    assert.strictEqual(asked.length, 0);
-    assert.ok(errors.some((message) => message.includes('Nessun ambiente valido')));
-  });
-
   describe('without prompts', () => {
-    it('resolves the omitted environment to all of them, without asking', async () => {
+    it('resolves the omitted environment to all of them', async () => {
       const config: GoRtaCheckConfig = { productId: SEND, alarmName: TESTABLE_ALARM };
-      const { script, asked } = harness([]);
 
-      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, false);
-      const selection = selected(outcome);
+      const selection = selected(await selectTarget(harness([]).script, fakeClient(), config, false));
 
-      assert.strictEqual(asked.length, 0);
       assert.strictEqual(selection.target.alarmName, TESTABLE_ALARM);
       assert.deepStrictEqual(selection.environment, { environmentName: 'tutti gli ambienti' });
     });
@@ -335,241 +330,115 @@ describe('selectTarget', () => {
         alarmName: TESTABLE_ALARM,
         targets: [`${SEND}:e-send-prod|e-send-uat`],
       };
-      const { script, asked } = harness([]);
 
-      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, false);
-      const selection = selected(outcome);
+      const selection = selected(await selectTarget(harness([]).script, fakeClient(), config, false));
 
-      assert.strictEqual(asked.length, 0);
       assert.deepStrictEqual(selection.environment.environmentIds, ['e-send-prod', 'e-send-uat']);
     });
-
-    it('aborts on an ambiguous product instead of hanging on a prompt', async () => {
-      const { script, asked, errors } = harness([]);
-
-      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, false);
-
-      assert.strictEqual(outcome.kind, 'FAILED');
-      assert.strictEqual(asked.length, 0);
-      assert.ok(errors.some((message) => message.includes('--product-id')));
-    });
-
-    it('aborts on a missing alarm name instead of hanging on a prompt', async () => {
-      const { script, asked, errors } = harness([]);
-
-      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), { productId: SEND }, false);
-
-      assert.strictEqual(outcome.kind, 'FAILED');
-      assert.strictEqual(asked.length, 0);
-      assert.ok(errors.some((message) => message.includes('--alarm-name')));
-    });
   });
 
-  describe('pinned values obey the scope', () => {
-    it('accepts a pinned product and environment that stay inside the scope', async () => {
-      const config: GoRtaCheckConfig = {
-        targets: [`${SEND}:e-send-prod|e-send-uat`],
-        productId: SEND,
-        environmentId: 'e-send-uat',
-        alarmName: TESTABLE_ALARM,
-      };
-      const { script, errors } = harness([]);
+  describe('failing instead of asking, widening or escaping the scope', () => {
+    const outsideScope = 'fuori dallo scope configurato (targets)';
+    const notOfSend = 'non appartiene al prodotto SEND';
+    const cases: ReadonlyArray<{
+      readonly name: string;
+      readonly config: GoRtaCheckConfig;
+      readonly allowPrompt: boolean;
+      readonly error: string;
+    }> = [
+      {
+        name: 'every scoped environment is unknown',
+        config: { targets: [`${SEND}:e-ghost`] },
+        allowPrompt: true,
+        error: 'Nessun ambiente valido',
+      },
+      { name: 'the product is ambiguous without prompts', config: {}, allowPrompt: false, error: '--product-id' },
+      {
+        name: 'the alarm name is missing without prompts',
+        config: { productId: SEND },
+        allowPrompt: false,
+        error: '--alarm-name',
+      },
+      {
+        name: 'a pinned product is outside the scope',
+        config: { targets: [INTEROP], productId: SEND, alarmName: TESTABLE_ALARM },
+        allowPrompt: true,
+        error: outsideScope,
+      },
+      {
+        name: 'a pinned environment is outside the scope',
+        config: {
+          targets: [`${SEND}:e-send-prod`],
+          productId: SEND,
+          environmentId: 'e-send-uat',
+          alarmName: TESTABLE_ALARM,
+        },
+        allowPrompt: true,
+        error: outsideScope,
+      },
+      {
+        name: 'a pinned environment does not exist',
+        config: { productId: SEND, environmentId: 'ghost', alarmName: TESTABLE_ALARM },
+        allowPrompt: true,
+        error: notOfSend,
+      },
+      {
+        name: 'a pinned environment belongs to another product',
+        config: { productId: SEND, environmentId: 'e-interop-prod', alarmName: TESTABLE_ALARM },
+        allowPrompt: true,
+        error: notOfSend,
+      },
+      {
+        name: 'a pinned product is unknown to Watchtower',
+        config: { productId: 'd-ghost', alarmName: TESTABLE_ALARM },
+        allowPrompt: true,
+        error: 'non trovato in Watchtower',
+      },
+    ];
 
-      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
-      const selection = selected(outcome);
+    for (const { name, config, allowPrompt, error } of cases) {
+      it(`fails, without calling it a cancellation, when ${name}`, async () => {
+        const { script, warnings, errors } = harness([]);
 
-      assert.deepStrictEqual(errors, []);
-      assert.deepStrictEqual(selection.environment, { environmentIds: ['e-send-uat'], environmentName: 'UAT' });
-    });
+        const outcome = await selectTarget(script, fakeClient(), config, allowPrompt);
 
-    it('rejects a pinned product outside the scope instead of escaping it', async () => {
-      const config: GoRtaCheckConfig = { targets: [INTEROP], productId: SEND, alarmName: TESTABLE_ALARM };
-      const { script, errors } = harness([]);
-
-      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
-
-      assert.strictEqual(outcome.kind, 'FAILED');
-      assert.ok(errors.some((message) => message.includes('fuori dallo scope configurato (targets)')));
-    });
-
-    it('rejects a pinned environment outside the scope', async () => {
-      const config: GoRtaCheckConfig = {
-        targets: [`${SEND}:e-send-prod`],
-        productId: SEND,
-        environmentId: 'e-send-uat',
-        alarmName: TESTABLE_ALARM,
-      };
-      const { script, errors } = harness([]);
-
-      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
-
-      assert.strictEqual(outcome.kind, 'FAILED');
-      assert.ok(errors.some((message) => message.includes('fuori dallo scope configurato (targets)')));
-    });
-
-    it('rejects a pinned environment that does not exist', async () => {
-      const config: GoRtaCheckConfig = { productId: SEND, environmentId: 'ghost', alarmName: TESTABLE_ALARM };
-      const { script, errors } = harness([]);
-
-      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
-
-      assert.strictEqual(outcome.kind, 'FAILED');
-      assert.ok(errors.some((message) => message.includes('non appartiene al prodotto SEND')));
-    });
-
-    it('rejects a pinned environment that belongs to another product', async () => {
-      const config: GoRtaCheckConfig = { productId: SEND, environmentId: 'e-interop-prod', alarmName: TESTABLE_ALARM };
-      const { script, errors } = harness([]);
-
-      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
-
-      assert.strictEqual(outcome.kind, 'FAILED');
-      assert.ok(errors.some((message) => message.includes('non appartiene al prodotto SEND')));
-    });
-
-    it('still rejects a pinned product unknown to Watchtower', async () => {
-      const config: GoRtaCheckConfig = { productId: 'd-ghost', alarmName: TESTABLE_ALARM };
-      const { script, errors } = harness([]);
-
-      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
-
-      assert.strictEqual(outcome.kind, 'FAILED');
-      assert.ok(errors.some((message) => message.includes('non trovato in Watchtower')));
-    });
+        assert.strictEqual(outcome.kind, 'FAILED');
+        assert.ok(errors.some((message) => message.includes(error)));
+        assert.ok(!warnings.some((message) => message.toLowerCase().includes('annullat')));
+      });
+    }
   });
 
-  describe('reporting an incomplete selection', () => {
-    it('does not call a failure a cancellation', async () => {
-      const config: GoRtaCheckConfig = { productId: 'd-ghost', alarmName: TESTABLE_ALARM };
-      const { script, warnings, errors } = harness([]);
+  it('tells a user abort apart from a failure, so it does not fail the run', async () => {
+    const { script, warnings, errors } = harness([() => undefined]);
 
-      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+    const outcome = await selectTarget(script, fakeClient(), {}, true);
 
-      assert.strictEqual(outcome.kind, 'FAILED');
-      assert.ok(errors.some((message) => message.includes('non trovato in Watchtower')));
-      assert.ok(!warnings.some((message) => message.toLowerCase().includes('annullat')));
-    });
-
-    it('tells a user abort apart from a failure, so it does not fail the run', async () => {
-      const { script, warnings, errors } = harness([() => undefined]);
-
-      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
-
-      assert.strictEqual(outcome.kind, 'CANCELLED');
-      assert.deepStrictEqual(errors, []);
-      assert.ok(warnings.some((message) => message.includes('Selezione annullata')));
-    });
-  });
-
-  describe('going back with the keyboard', () => {
-    it('goes back from the runbook step when ← is pressed', async () => {
-      const { script, asked } = harness([
-        byTitle('SEND'),
-        byTitle('UAT'),
-        pressBackKey,
-        byTitle('Produzione'),
-        byTitle(TESTABLE_ALARM),
-      ]);
-
-      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
-      const selection = selected(outcome);
-
-      assert.strictEqual(selection.environment.environmentName, 'Produzione');
-      assert.deepStrictEqual(
-        asked.map((prompt) => prompt.message),
-        [
-          'Seleziona il prodotto',
-          "Seleziona l'ambiente (SEND)",
-          'Seleziona il runbook da testare (SEND · UAT)',
-          "Seleziona l'ambiente (SEND)",
-          'Seleziona il runbook da testare (SEND · Produzione)',
-        ],
-      );
-    });
-
-    it('goes back from the environment step when ← is pressed', async () => {
-      const { script } = harness([byTitle('SEND'), pressBackKey, byTitle('INTEROP'), byTitle(TESTABLE_ALARM)]);
-
-      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
-      const selection = selected(outcome);
-
-      assert.strictEqual(selection.target.productName, 'INTEROP');
-    });
-
-    it('announces the shortcut on the entry it stands for', async () => {
-      const { script, asked } = harness([byTitle('SEND'), byTitle('UAT'), byTitle(TESTABLE_ALARM)]);
-
-      await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
-
-      const environmentPrompt = asked[1];
-      assert.ok(environmentPrompt !== undefined);
-      assert.ok(environmentPrompt.titles.includes('← Indietro: cambia prodotto · premi ←'));
-    });
-
-    it('does not announce a shortcut on a step with nowhere to go back to', async () => {
-      const { script, asked } = harness([byTitle('SEND'), byTitle('UAT'), byTitle(TESTABLE_ALARM)]);
-
-      await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
-
-      const productPrompt = asked[0];
-      assert.ok(productPrompt !== undefined);
-      assert.ok(!productPrompt.titles.some((title) => title.includes('premi ←')));
-    });
+    assert.strictEqual(outcome.kind, 'CANCELLED');
+    assert.deepStrictEqual(errors, []);
+    assert.ok(warnings.some((message) => message.includes('Selezione annullata')));
   });
 
   describe('running the wizard again', () => {
-    it('reports the state to resume from, with the interactivity of each step', async () => {
-      const { script } = harness([byTitle('SEND'), byTitle('UAT'), byTitle(TESTABLE_ALARM)]);
-
-      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
-      const selection = selected(outcome);
-
-      assert.deepStrictEqual(selection.resume, {
-        product: { productId: SEND, productName: 'SEND' },
-        productInteractive: true,
-        environment: { environmentIds: ['e-send-uat'], environmentName: 'UAT' },
-        environmentInteractive: true,
-      });
-    });
-
-    it('marks the implied steps as non interactive, so they are not offered again', async () => {
-      const config: GoRtaCheckConfig = { targets: [`${INTEROP}:e-interop-prod`] };
-      const { script } = harness([byTitle(TESTABLE_ALARM)]);
-
-      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
-      const selection = selected(outcome);
-
-      assert.strictEqual(selection.resume.productInteractive, false);
-      assert.strictEqual(selection.resume.environmentInteractive, false);
-    });
-
     it('resumes on the runbook step, keeping the product and the environment', async () => {
-      const first = harness([byTitle('SEND'), byTitle('UAT'), byTitle(TESTABLE_ALARM)]);
-      const previous = selected(await selectTarget(first.script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true));
+      const previous = await selectSendUat();
+      const { script, asked } = harness([byTitle(OTHER_TESTABLE_ALARM)]);
 
-      const second = harness([byTitle(OTHER_TESTABLE_ALARM)]);
-      const outcome = await selectTarget(second.script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true, {
-        resume: previous.resume,
-      });
-      const selection = selected(outcome);
+      const selection = selected(await selectTarget(script, fakeClient(), {}, true, { resume: previous.resume }));
 
       assert.strictEqual(selection.target.alarmName, OTHER_TESTABLE_ALARM);
       assert.strictEqual(selection.environment.environmentName, 'UAT');
       assert.deepStrictEqual(
-        second.asked.map((prompt) => prompt.message),
-        ['Seleziona il runbook da testare (SEND · UAT)'],
+        asked.map((prompt) => prompt.message),
+        [runbookMessage('SEND', 'UAT')],
       );
     });
 
     it('still goes back to the earlier steps of a resumed wizard', async () => {
-      const first = harness([byTitle('SEND'), byTitle('UAT'), byTitle(TESTABLE_ALARM)]);
-      const previous = selected(await selectTarget(first.script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true));
+      const previous = await selectSendUat();
+      const { script } = harness([() => BACK_CHOICE, byTitle('Produzione'), byTitle(TESTABLE_ALARM)]);
 
-      const second = harness([goBack, byTitle('Produzione'), byTitle(TESTABLE_ALARM)]);
-      const outcome = await selectTarget(second.script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true, {
-        resume: previous.resume,
-      });
-      const selection = selected(outcome);
+      const selection = selected(await selectTarget(script, fakeClient(), {}, true, { resume: previous.resume }));
 
       assert.strictEqual(selection.environment.environmentName, 'Produzione');
     });
@@ -577,13 +446,13 @@ describe('selectTarget', () => {
     it('shares the memoized reads across two runs, without re-querying Watchtower', async () => {
       const productReads = { count: 0 };
       const issued: string[] = [];
-      const client = fakeClient({ counts: DEFAULT_COUNTS, issued, productReads });
+      const client = fakeClient({ issued, productReads });
       const session = createTargetWizardSession(client);
 
-      const first = harness([byTitle('SEND'), byTitle('Produzione'), byTitle(TESTABLE_ALARM)]);
-      await selectTarget(first.script, client, {}, true, { session });
-      const second = harness([byTitle('SEND'), byTitle('Produzione'), byTitle(OTHER_TESTABLE_ALARM)]);
-      await selectTarget(second.script, client, {}, true, { session });
+      for (const alarm of [TESTABLE_ALARM, OTHER_TESTABLE_ALARM]) {
+        const { script } = harness([byTitle('SEND'), byTitle('Produzione'), byTitle(alarm)]);
+        await selectTarget(script, client, {}, true, { session });
+      }
 
       assert.strictEqual(productReads.count, 1);
       assert.deepStrictEqual(issued.toSorted(), ['a1', 'a2']);
@@ -591,27 +460,21 @@ describe('selectTarget', () => {
   });
 
   describe('failing counts', () => {
-    it('reports how many counts failed, and why, instead of staying silent', async () => {
-      const { script, warnings } = harness([byTitle('SEND'), byTitle('Produzione'), byTitle(TESTABLE_ALARM)]);
+    it('reports how many counts failed and why, keeping the runbook selectable', async () => {
+      const { script, asked, warnings } = harness([
+        byTitle('SEND'),
+        byTitle('Produzione'),
+        byTitle(OTHER_TESTABLE_ALARM),
+      ]);
 
-      await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS, failing: ['a2'] }), {}, true);
+      const outcome = await selectTarget(script, fakeClient({ counts: { a1: 4 }, failing: ['a2'] }), {}, true);
 
+      assert.strictEqual(selected(outcome).target.alarmName, OTHER_TESTABLE_ALARM);
+      assert.ok(promptAt(asked, 2).titles.some((title) => title.includes('conteggio non disponibile')));
       const reported = warnings.find((message) => message.includes('Conteggio non disponibile'));
       assert.ok(reported !== undefined);
       assert.match(reported, /1 runbook su 2/u);
       assert.match(reported, /Watchtower non raggiungibile/u);
-    });
-
-    it('keeps the runbook selectable when its count is unknown', async () => {
-      const { script, asked } = harness([byTitle('SEND'), byTitle('Produzione'), byTitle(OTHER_TESTABLE_ALARM)]);
-
-      const outcome = await selectTarget(script, fakeClient({ counts: { a1: 4 }, failing: ['a2'] }), {}, true);
-      const selection = selected(outcome);
-
-      assert.strictEqual(selection.target.alarmName, OTHER_TESTABLE_ALARM);
-      const runbookPrompt = asked[2];
-      assert.ok(runbookPrompt !== undefined);
-      assert.ok(runbookPrompt.titles.some((title) => title.includes('conteggio non disponibile')));
     });
 
     it('does not re-issue a failed count when the user goes back', async () => {
@@ -619,12 +482,12 @@ describe('selectTarget', () => {
       const { script } = harness([
         byTitle('SEND'),
         byTitle('Produzione'),
-        goBack,
+        () => BACK_CHOICE,
         byTitle('Produzione'),
         byTitle(TESTABLE_ALARM),
       ]);
 
-      await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS, failing: ['a2'], issued }), {}, true);
+      await selectTarget(script, fakeClient({ failing: ['a2'], issued }), {}, true);
 
       assert.deepStrictEqual(issued.toSorted(), ['a1', 'a2']);
     });

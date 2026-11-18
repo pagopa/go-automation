@@ -55,21 +55,22 @@ describe('toHtmlRow', () => {
 });
 
 describe('reportSubdirectory', () => {
-  it('prefixes the folder with the position of the run in the session', () => {
-    assert.strictEqual(reportSubdirectory(1, 'pn-delivery-B2B-ApiGwAlarm'), '01-pn-delivery-B2B-ApiGwAlarm');
-    assert.strictEqual(reportSubdirectory(12, 'pn-delivery-B2B-ApiGwAlarm'), '12-pn-delivery-B2B-ApiGwAlarm');
-  });
+  const cases: ReadonlyArray<readonly [string, number, string, string]> = [
+    [
+      'prefixes the folder with the position of the run in the session',
+      1,
+      'pn-delivery-B2B-ApiGwAlarm',
+      '01-pn-delivery-B2B-ApiGwAlarm',
+    ],
+    ['keeps a two-digit position as it is', 12, 'same-alarm', '12-same-alarm'],
+    ['drops the separators a folder name must not carry', 3, 'pn-delivery/B2B Alarm', '03-pn-delivery-B2B-Alarm'],
+    ['drops a path traversal', 4, '../escape', '04-escape'],
+    ['falls back to the bare ordinal when nothing usable is left', 5, '///', '05'],
+  ];
 
-  it('keeps two runs of the same runbook apart', () => {
-    assert.notStrictEqual(reportSubdirectory(1, 'same-alarm'), reportSubdirectory(2, 'same-alarm'));
-  });
-
-  it('drops the characters a folder name must not carry', () => {
-    assert.strictEqual(reportSubdirectory(3, 'pn-delivery/B2B Alarm'), '03-pn-delivery-B2B-Alarm');
-    assert.strictEqual(reportSubdirectory(4, '../escape'), '04-escape');
-  });
-
-  it('falls back to the bare ordinal when nothing usable is left', () => {
-    assert.strictEqual(reportSubdirectory(5, '///'), '05');
-  });
+  for (const [name, index, alarmName, expected] of cases) {
+    it(name, () => {
+      assert.strictEqual(reportSubdirectory(index, alarmName), expected);
+    });
+  }
 });

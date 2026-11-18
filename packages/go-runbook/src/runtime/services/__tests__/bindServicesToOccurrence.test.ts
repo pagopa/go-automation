@@ -3,11 +3,10 @@ import { describe, it } from 'node:test';
 
 import { AWSActiveOperationRegistry } from '@pagopa/go-aws';
 import type { AWSExecutionTarget } from '@pagopa/go-aws';
-import type { AWSCloudWatchLogsQueryService, AWSCloudWatchLogsTarget } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import type { AWSCloudWatchLogsTarget } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { parseAwsAccountDirectory } from '@pagopa/go-aws/profiles';
 
 import { createTestServiceRegistry } from '../../../toolkits/common/testing/createTestServiceRegistry.js';
-import { RuntimeAwsAccountsPort } from '../../accounts/RuntimeAwsAccountsPort.js';
 import { InMemoryAwsAccountsPort } from '../../../toolkits/common/testing/InMemoryAwsAccountsPort.js';
 import { bindServicesToOccurrence } from '../bindServicesToOccurrence.js';
 
@@ -122,24 +121,7 @@ describe('bindServicesToOccurrence', () => {
     assert.strictEqual(services.http, registry.http);
   });
 
-  it('binds the account port to the occurrence, so its environment follows the occurrence account', () => {
-    const awsAccounts = new RuntimeAwsAccountsPort({
-      directory: parseAwsAccountDirectory(['shop/core/uat=111111111111']),
-      region: 'eu-south-1',
-      binding: 'oam',
-      // Safe: never queried in this test.
-      monitoring: {} as AWSCloudWatchLogsQueryService,
-    });
-    const services = bindServicesToOccurrence(
-      { ...baseRegistry(), awsAccounts },
-      { target: occurrence, activeOperations: new AWSActiveOperationRegistry(), mode: 'oam-target' },
-    );
-    assert.ok(services.awsAccounts instanceof RuntimeAwsAccountsPort);
-    assert.notStrictEqual(services.awsAccounts, awsAccounts);
-    assert.equal(services.awsAccounts.environment(), 'uat');
-  });
-
-  it('binds any account port of the contract, here the in-memory one, with fresh state per occurrence', () => {
+  it('binds the account port to each occurrence, with fresh state and the environment of its account', () => {
     const awsAccounts = new InMemoryAwsAccountsPort({
       directory: parseAwsAccountDirectory(['shop/core/prod=222222222222', 'shop/core/uat=111111111111']),
       region: 'eu-south-1',

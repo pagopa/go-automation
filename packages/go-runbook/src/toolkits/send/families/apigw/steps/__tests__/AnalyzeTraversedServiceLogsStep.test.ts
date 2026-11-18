@@ -2,390 +2,138 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import type { RunbookContext } from '../../../../../../engine/types/RunbookContext.js';
 
 import { AnalyzeTraversedServiceLogsStep } from '../AnalyzeTraversedServiceLogsStep.js';
 import { KnownUrlsRegistry } from '../../../../../common/parsing/knownUrls/KnownUrlsRegistry.js';
-import { createTestServiceRegistry } from '../../../../../common/testing/createTestServiceRegistry.js';
+import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
+import { logRow } from '../../../../../../__tests__/helpers/logRow.js';
 
-function row(message: string, level: string = 'ERROR'): GOLogsInsightsResultField[] {
-  const fields: GOLogsInsightsResultField[] = [{ field: '@message', value: message }];
-  if (level !== '') fields.push({ field: 'level', value: level });
-  return fields;
+const UUID = '11111111-2222-3333-4444-555555555555';
+const APP_IO = 'https://api.io.pagopa.it/api/v1/activations/foo';
+const REGISTRIES = 'http://internal-EcsA-123:8080/ext-registry-private/io/v1/activations';
+const XRAY = '1-69b158e8-28c211881e5339480367ede0';
+const REGISTRY = new KnownUrlsRegistry([
+  { url: 'https://api.io.pagopa.it/api/v1/activations/', target: 'AppIO' },
+  { url: 'http://internal-EcsA-123:8080/ext-registry-private/', target: 'pn-external-registries' },
+  { url: 'https://api.pdv.pagopa.it/user-registry/', target: 'pn-user-attributes' },
+]);
+
+function error(message: string, level: string = 'ERROR'): GOLogsInsightsResultField[] {
+  return logRow({ '@message': message, level });
 }
 
-function createContext(args: {
-  readonly stepOutput: ReadonlyArray<GOLogsInsightsResultField[]>;
-  readonly vars?: Record<string, string>;
-}): RunbookContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-01-01T00:00:00.000Z'),
-    stepResults: new Map<string, unknown>([['query', args.stepOutput]]),
-    vars: new Map(Object.entries(args.vars ?? {})),
-    params: new Map(),
-    logs: [],
-    services: createTestServiceRegistry(),
-    recoveredErrors: [],
-  };
+function traced(traceId: string): GOLogsInsightsResultField[] {
+  return logRow({ '@message': 'application log line', level: 'ERROR', trace_id: traceId });
 }
+
+/** An analysis case: the rows and vars in, the vars (`undefined` = not written) out. */
+interface AnalysisCase {
+  readonly name: string;
+  readonly rows: ReadonlyArray<GOLogsInsightsResultField[]>;
+  readonly vars?: Readonly<Record<string, string>>;
+  readonly writes: Readonly<Record<string, string | undefined>>;
+}
+
+const CASES: ReadonlyArray<AnalysisCase> = [
+  {
+    name: 'writes NextUrl and NextUrlTarget when a known URL is found',
+    rows: [error(`ERROR calling ${APP_IO}`)],
+    writes: { svcNextUrl: APP_IO, svcNextUrlTarget: 'AppIO' },
+  },
+  {
+    name: 'records an internal or self target without deciding the traversal',
+    rows: [error(`error upserting ${REGISTRIES}`)],
+    vars: { xRayTraceId: '1-abc', apiGwVisitedKeys: 'pn-external-registries|1-abc|' },
+    writes: { svcNextUrlTarget: 'pn-external-registries', apiGwVisitedKeys: undefined },
+  },
+  {
+    name: 'records a target equal to the analyzed service, leaving the loop decision to the decide step',
+    rows: [error('failed call https://api.pdv.pagopa.it/user-registry/v1/users/abc')],
+    vars: { xRayTraceId: '1-abc', fallbackUuid: 'fb-1' },
+    writes: { svcNextUrlTarget: 'pn-user-attributes', apiGwVisitedKeys: undefined },
+  },
+  {
+    name: 'marks a new fallback UUID found with a known URL as fresh',
+    rows: [error(`error calling ${APP_IO} FALLBACK-UUID:${UUID}`)],
+    writes: { svcFallbackUuidFresh: 'true', fallbackUuid: UUID },
+  },
+  {
+    name: 'does not mark a fallback UUID equal to the current one as fresh',
+    rows: [error(`retrying ${APP_IO} FALLBACK-UUID:${UUID}`)],
+    vars: { fallbackUuid: UUID },
+    writes: { svcFallbackUuidFresh: 'false', fallbackUuid: undefined },
+  },
+  {
+    name: 'ignores a fallback UUID without a known destination URL',
+    rows: [error(`FALLBACK-UUID:${UUID} without downstream URL`)],
+    writes: { svcFallbackUuidFresh: 'false', fallbackUuid: undefined },
+  },
+  {
+    name: 'clears an inherited fallback when the selected downstream row has no UUID',
+    rows: [error(`FALLBACK-UUID:${UUID} unrelated operation`, 'INFO'), error(`Error calling ${APP_IO}`)],
+    vars: { fallbackUuid: UUID, xRayTraceId: '1-original' },
+    writes: { fallbackUuid: '', svcFallbackUuidFresh: 'false', xRayTraceId: undefined },
+  },
+  {
+    name: 'keeps the query fallback when no downstream URL is selected',
+    rows: [error('Error without a downstream invocation')],
+    vars: { fallbackUuid: UUID },
+    writes: { fallbackUuid: undefined },
+  },
+  {
+    name: 'records the trace_id of a fallback query without swapping it',
+    rows: [traced('3d472be72977635208a92722b97b5e24')],
+    vars: { xRayTraceId: XRAY, fallbackUuid: 'fb-1', apiGwTraceIdSwapCount: '5' },
+    writes: {
+      svcFreshTraceId: '1-3d472be7-2977635208a92722b97b5e24',
+      svcFreshTraceIdRaw: '3d472be72977635208a92722b97b5e24',
+      xRayTraceId: undefined,
+    },
+  },
+  {
+    name: 'records the trace_id even when it matches the current one',
+    rows: [traced('69b158e828c211881e5339480367ede0')],
+    vars: { xRayTraceId: XRAY, fallbackUuid: 'fb-1' },
+    writes: { svcFreshTraceId: XRAY, svcFreshTraceIdRaw: '69b158e828c211881e5339480367ede0' },
+  },
+  {
+    name: 'records no trace_id when no fallback UUID was used',
+    rows: [traced('3d472be72977635208a92722b97b5e24')],
+    vars: { xRayTraceId: XRAY },
+    writes: { svcFreshTraceId: '', xRayTraceId: undefined },
+  },
+  {
+    name: 'resolves on rows without errors too',
+    rows: [error('healthy ping', 'INFO')],
+    writes: {},
+  },
+  {
+    name: 'writes empty vars on an empty result, still resolving for absence-matching cases',
+    rows: [],
+    writes: { svcLogCount: '0', svcNextUrl: '', svcNextUrlTarget: '' },
+  },
+];
 
 describe('AnalyzeTraversedServiceLogsStep', () => {
-  const registry = new KnownUrlsRegistry([{ url: 'https://api.io.pagopa.it/api/v1/activations/', target: 'AppIO' }]);
-
-  it('writes NextUrl + NextUrlTarget when a known URL is found in the logs', async () => {
-    const step = new AnalyzeTraversedServiceLogsStep({
-      id: 'analyze',
-      label: 'Analyze',
-      fromStep: 'query',
-      varPrefix: 'svc',
-      registry,
-    });
-
-    const result = await step.execute(
-      createContext({
-        stepOutput: [row('ERROR calling https://api.io.pagopa.it/api/v1/activations/foo')],
-      }),
-    );
-
-    assert.strictEqual(result.success, true);
-    assert.strictEqual(result.vars?.['svcNextUrl'], 'https://api.io.pagopa.it/api/v1/activations/foo');
-    assert.strictEqual(result.vars?.['svcNextUrlTarget'], 'AppIO');
+  const step = new AnalyzeTraversedServiceLogsStep({
+    id: 'analyze',
+    label: 'Analyze',
+    fromStep: 'query',
+    varPrefix: 'svc',
+    registry: REGISTRY,
+    serviceName: 'pn-user-attributes',
   });
 
-  it('marks FallbackUuidFresh=true when a known URL and a new UUID appear', async () => {
-    const step = new AnalyzeTraversedServiceLogsStep({
-      id: 'analyze',
-      label: 'Analyze',
-      fromStep: 'query',
-      varPrefix: 'svc',
-      registry,
+  for (const { name, rows, vars, writes } of CASES) {
+    it(name, async () => {
+      const result = await step.execute(createTestContext({ stepResults: { query: rows }, vars: vars ?? {} }));
+
+      assert.strictEqual(result.success, true);
+      // Always resolve, so known cases get a chance before the decide step.
+      assert.strictEqual(result.next, 'resolve');
+      for (const [key, value] of Object.entries(writes)) assert.strictEqual(result.vars?.[key], value, key);
+      if (writes['svcFallbackUuidFresh'] === 'false')
+        assert.strictEqual(result.output?.fallbackUuidExtracted, undefined);
     });
-
-    const result = await step.execute(
-      createContext({
-        stepOutput: [
-          row(
-            'error calling https://api.io.pagopa.it/api/v1/activations/foo ' +
-              'FALLBACK-UUID:11111111-2222-3333-4444-555555555555',
-          ),
-        ],
-      }),
-    );
-
-    assert.strictEqual(result.vars?.['svcFallbackUuidFresh'], 'true');
-    assert.strictEqual(result.vars?.['fallbackUuid'], '11111111-2222-3333-4444-555555555555');
-  });
-
-  it('does not extract a fallback UUID when no known destination URL is found', async () => {
-    const step = new AnalyzeTraversedServiceLogsStep({
-      id: 'analyze',
-      label: 'Analyze',
-      fromStep: 'query',
-      varPrefix: 'svc',
-      registry,
-    });
-
-    const result = await step.execute(
-      createContext({
-        stepOutput: [row('FALLBACK-UUID:11111111-2222-3333-4444-555555555555 without downstream URL')],
-      }),
-    );
-
-    assert.strictEqual(result.vars?.['svcFallbackUuidFresh'], 'false');
-    assert.strictEqual(result.vars?.['fallbackUuid'], undefined);
-    assert.strictEqual(result.output?.fallbackUuidExtracted, undefined);
-  });
-
-  it('clears an inherited fallback when the selected downstream row has no associated UUID', async () => {
-    const step = new AnalyzeTraversedServiceLogsStep({
-      id: 'analyze',
-      label: 'Analyze',
-      fromStep: 'query',
-      varPrefix: 'svc',
-      registry,
-    });
-    const result = await step.execute(
-      createContext({
-        vars: { fallbackUuid: '11111111-2222-3333-4444-555555555555', xRayTraceId: '1-original' },
-        stepOutput: [
-          row('FALLBACK-UUID:11111111-2222-3333-4444-555555555555 unrelated operation', 'INFO'),
-          row('Error calling https://api.io.pagopa.it/api/v1/activations/foo'),
-        ],
-      }),
-    );
-    assert.equal(result.vars?.['fallbackUuid'], '');
-    assert.equal(result.vars?.['svcFallbackUuidFresh'], 'false');
-    assert.equal(result.output?.fallbackUuidExtracted, undefined);
-    assert.equal(result.vars?.['xRayTraceId'], undefined);
-  });
-
-  it('preserves an existing query fallback when no downstream URL is selected', async () => {
-    const step = new AnalyzeTraversedServiceLogsStep({
-      id: 'analyze',
-      label: 'Analyze',
-      fromStep: 'query',
-      varPrefix: 'svc',
-      registry,
-    });
-    const result = await step.execute(
-      createContext({
-        vars: { fallbackUuid: '11111111-2222-3333-4444-555555555555' },
-        stepOutput: [row('Error without a downstream invocation')],
-      }),
-    );
-    assert.equal(result.vars?.['fallbackUuid'], undefined);
-  });
-
-  it('marks FallbackUuidFresh=false when the UUID matches the existing one', async () => {
-    const step = new AnalyzeTraversedServiceLogsStep({
-      id: 'analyze',
-      label: 'Analyze',
-      fromStep: 'query',
-      varPrefix: 'svc',
-      registry,
-    });
-
-    const result = await step.execute(
-      createContext({
-        stepOutput: [
-          row(
-            'retrying https://api.io.pagopa.it/api/v1/activations/foo ' +
-              'FALLBACK-UUID:11111111-2222-3333-4444-555555555555',
-          ),
-        ],
-        vars: { fallbackUuid: '11111111-2222-3333-4444-555555555555' },
-      }),
-    );
-
-    assert.strictEqual(result.vars?.['svcFallbackUuidFresh'], 'false');
-    assert.strictEqual(result.vars?.['fallbackUuid'], undefined);
-  });
-
-  it('always signals next=resolve so absence-matching known cases get a chance to fire', async () => {
-    const step = new AnalyzeTraversedServiceLogsStep({
-      id: 'analyze',
-      label: 'Analyze',
-      fromStep: 'query',
-      varPrefix: 'svc',
-      registry,
-    });
-
-    const errorRow = await step.execute(createContext({ stepOutput: [row('FAILURE - something exploded')] }));
-    assert.strictEqual(errorRow.next, 'resolve');
-
-    const infoRow = await step.execute(createContext({ stepOutput: [row('healthy ping', 'INFO')] }));
-    assert.strictEqual(infoRow.next, 'resolve');
-
-    const emptyRows = await step.execute(createContext({ stepOutput: [] }));
-    // Empty result set also resolves: absence-matching cases (e.g.
-    // `LogCount == '0'`) need their chance.
-    assert.strictEqual(emptyRows.next, 'resolve');
-  });
-
-  it('records an internal KnownUrl but still resolves first so known cases can run', async () => {
-    const internalRegistry = new KnownUrlsRegistry([
-      { url: 'http://internal-EcsA-123:8080/ext-registry-private/', target: 'pn-external-registries' },
-    ]);
-    const step = new AnalyzeTraversedServiceLogsStep({
-      id: 'analyze',
-      label: 'Analyze',
-      fromStep: 'query',
-      varPrefix: 'svc',
-      registry: internalRegistry,
-      serviceName: 'pn-user-attributes',
-    });
-
-    const result = await step.execute(
-      createContext({
-        stepOutput: [row('error upserting http://internal-EcsA-123:8080/ext-registry-private/io/v1/activations')],
-        vars: { xRayTraceId: '1-abc' },
-      }),
-    );
-
-    assert.strictEqual(result.next, 'resolve');
-    assert.strictEqual(result.vars?.['svcNextUrlTarget'], 'pn-external-registries');
-    assert.strictEqual(result.vars?.['apiGwVisitedKeys'], undefined);
-  });
-
-  it('does not perform loop decisions during analysis', async () => {
-    const internalRegistry = new KnownUrlsRegistry([
-      { url: 'http://internal-EcsA-123:8080/ext-registry-private/', target: 'pn-external-registries' },
-    ]);
-    const step = new AnalyzeTraversedServiceLogsStep({
-      id: 'analyze',
-      label: 'Analyze',
-      fromStep: 'query',
-      varPrefix: 'svc',
-      registry: internalRegistry,
-      serviceName: 'pn-user-attributes',
-    });
-
-    const result = await step.execute(
-      createContext({
-        stepOutput: [row('error upserting http://internal-EcsA-123:8080/ext-registry-private/io/v1/activations')],
-        vars: { xRayTraceId: '1-abc', apiGwVisitedKeys: 'pn-external-registries|1-abc|' },
-      }),
-    );
-
-    assert.strictEqual(result.next, 'resolve');
-    assert.strictEqual(result.vars?.['svcNextUrlTarget'], 'pn-external-registries');
-  });
-
-  it('does not drill down when a KnownUrl points to the current service', async () => {
-    const selfRegistry = new KnownUrlsRegistry([
-      { url: 'https://api.pdv.pagopa.it/user-registry/', target: 'pn-data-vault' },
-    ]);
-    const step = new AnalyzeTraversedServiceLogsStep({
-      id: 'analyze',
-      label: 'Analyze',
-      fromStep: 'query',
-      varPrefix: 'dataVault',
-      registry: selfRegistry,
-      serviceName: 'pn-data-vault',
-    });
-
-    const result = await step.execute(
-      createContext({
-        stepOutput: [row('failed call https://api.pdv.pagopa.it/user-registry/v1/users/abc')],
-        vars: { xRayTraceId: '1-abc', fallbackUuid: 'fb-1' },
-      }),
-    );
-
-    assert.strictEqual(result.next, 'resolve');
-    assert.strictEqual(result.vars?.['dataVaultNextUrlTarget'], 'pn-data-vault');
-    assert.strictEqual(result.vars?.['apiGwVisitedKeys'], undefined);
-  });
-
-  it('records a trace_id when fallback-uuid was used', async () => {
-    const step = new AnalyzeTraversedServiceLogsStep({
-      id: 'analyze',
-      label: 'Analyze',
-      fromStep: 'query',
-      varPrefix: 'svc',
-      registry: new KnownUrlsRegistry([]),
-      serviceName: 'pn-user-attributes',
-    });
-
-    const traceIdRow: GOLogsInsightsResultField[] = [
-      { field: '@message', value: 'application log line' },
-      { field: 'level', value: 'ERROR' },
-      { field: 'trace_id', value: '3d472be72977635208a92722b97b5e24' },
-    ];
-
-    const result = await step.execute(
-      createContext({
-        stepOutput: [traceIdRow],
-        vars: { xRayTraceId: '1-69b158e8-28c211881e5339480367ede0', fallbackUuid: 'fb-uuid-1' },
-      }),
-    );
-
-    assert.strictEqual(result.next, 'resolve');
-    assert.strictEqual(result.vars?.['svcFreshTraceId'], '1-3d472be7-2977635208a92722b97b5e24');
-    assert.strictEqual(result.vars?.['svcFreshTraceIdRaw'], '3d472be72977635208a92722b97b5e24');
-    assert.strictEqual(result.vars?.['xRayTraceId'], undefined);
-  });
-
-  it('does NOT swap when no fallback-uuid is in context yet', async () => {
-    const step = new AnalyzeTraversedServiceLogsStep({
-      id: 'analyze',
-      label: 'Analyze',
-      fromStep: 'query',
-      varPrefix: 'svc',
-      registry: new KnownUrlsRegistry([]),
-      serviceName: 'pn-user-attributes',
-    });
-
-    const traceIdRow: GOLogsInsightsResultField[] = [
-      { field: '@message', value: 'application log line' },
-      { field: 'level', value: 'ERROR' },
-      { field: 'trace_id', value: '3d472be72977635208a92722b97b5e24' },
-    ];
-
-    const result = await step.execute(
-      createContext({
-        stepOutput: [traceIdRow],
-        vars: { xRayTraceId: '1-69b158e8-28c211881e5339480367ede0' },
-      }),
-    );
-
-    assert.strictEqual(result.next, 'resolve');
-    assert.strictEqual(result.vars?.['xRayTraceId'], undefined);
-    assert.strictEqual(result.vars?.['svcFreshTraceId'], '');
-  });
-
-  it('records the trace_id even when it matches the current xRayTraceId', async () => {
-    const step = new AnalyzeTraversedServiceLogsStep({
-      id: 'analyze',
-      label: 'Analyze',
-      fromStep: 'query',
-      varPrefix: 'svc',
-      registry: new KnownUrlsRegistry([]),
-      serviceName: 'pn-user-attributes',
-    });
-
-    const traceIdRow: GOLogsInsightsResultField[] = [
-      { field: '@message', value: 'application log line' },
-      { field: 'level', value: 'ERROR' },
-      { field: 'trace_id', value: '69b158e828c211881e5339480367ede0' },
-    ];
-
-    const result = await step.execute(
-      createContext({
-        stepOutput: [traceIdRow],
-        vars: { xRayTraceId: '1-69b158e8-28c211881e5339480367ede0', fallbackUuid: 'fb-1' },
-      }),
-    );
-
-    assert.strictEqual(result.next, 'resolve');
-    assert.strictEqual(result.vars?.['xRayTraceId'], undefined);
-    assert.strictEqual(result.vars?.['svcFreshTraceId'], '1-69b158e8-28c211881e5339480367ede0');
-    assert.strictEqual(result.vars?.['svcFreshTraceIdRaw'], '69b158e828c211881e5339480367ede0');
-  });
-
-  it('does not apply trace swap limits during analysis', async () => {
-    const step = new AnalyzeTraversedServiceLogsStep({
-      id: 'analyze',
-      label: 'Analyze',
-      fromStep: 'query',
-      varPrefix: 'svc',
-      registry: new KnownUrlsRegistry([]),
-      serviceName: 'pn-user-attributes',
-    });
-
-    const traceIdRow: GOLogsInsightsResultField[] = [
-      { field: '@message', value: 'application log line' },
-      { field: 'level', value: 'ERROR' },
-      { field: 'trace_id', value: '3d472be72977635208a92722b97b5e24' },
-    ];
-
-    const result = await step.execute(
-      createContext({
-        stepOutput: [traceIdRow],
-        vars: {
-          xRayTraceId: '1-69b158e8-28c211881e5339480367ede0',
-          fallbackUuid: 'fb-1',
-          apiGwTraceIdSwapCount: '5',
-        },
-      }),
-    );
-
-    assert.strictEqual(result.next, 'resolve');
-    assert.strictEqual(result.vars?.['svcFreshTraceId'], '1-3d472be7-2977635208a92722b97b5e24');
-  });
-
-  it('returns empty vars when the upstream query produced no rows', async () => {
-    const step = new AnalyzeTraversedServiceLogsStep({
-      id: 'analyze',
-      label: 'Analyze',
-      fromStep: 'query',
-      varPrefix: 'svc',
-      registry,
-    });
-
-    const result = await step.execute(createContext({ stepOutput: [] }));
-    assert.strictEqual(result.vars?.['svcLogCount'], '0');
-    assert.strictEqual(result.vars?.['svcNextUrl'], '');
-    assert.strictEqual(result.vars?.['svcNextUrlTarget'], '');
-  });
+  }
 });

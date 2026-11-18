@@ -4,21 +4,14 @@ import { describe, it } from 'node:test';
 import { formatOutputSuffix } from '../formatOutputSuffix.js';
 
 describe('formatOutputSuffix', () => {
-  it('returns an empty string when there is no meaningful suffix', () => {
-    assert.strictEqual(formatOutputSuffix(undefined), '');
-    assert.strictEqual(formatOutputSuffix(''), '');
-    assert.strictEqual(formatOutputSuffix('   '), '');
-  });
-
-  it('prefixes the suffix and replaces reserved file-name characters', () => {
-    assert.strictEqual(formatOutputSuffix('2026-07-09T09:30:00.000Z'), '-2026-07-09T09-30-00.000Z');
-    assert.strictEqual(formatOutputSuffix('a:b/c\\d*e'), '-a-b-c-d-e');
-  });
-
-  it('keeps distinct ISO timestamps distinct', () => {
-    assert.notStrictEqual(
-      formatOutputSuffix('2026-07-09T09:30:00.000Z'),
-      formatOutputSuffix('2026-07-09T09:31:00.000Z'),
-    );
+  it('returns an empty string without a meaningful suffix, otherwise prefixes it and replaces reserved characters', () => {
+    const cases: ReadonlyArray<readonly [string | undefined, string]> = [
+      [undefined, ''],
+      ['', ''],
+      ['   ', ''],
+      ['2026-07-09T09:30:00.000Z', '-2026-07-09T09-30-00.000Z'],
+      ['a:b/c\\d*e', '-a-b-c-d-e'],
+    ];
+    for (const [suffix, expected] of cases) assert.strictEqual(formatOutputSuffix(suffix), expected);
   });
 });

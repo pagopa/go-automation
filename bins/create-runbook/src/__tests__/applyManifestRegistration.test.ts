@@ -24,22 +24,23 @@ const REGISTRATION: RunbookRegistration = {
 };
 
 describe('applyManifestRegistration', () => {
-  it('adds the import after the last import of its family', () => {
+  it('wires the import and the array entry into its family block, keeping every existing line', () => {
     const { content, changed } = applyManifestRegistration(MANIFEST, REGISTRATION);
 
     assert.strictEqual(changed, true);
+    // The import follows the last import of its family.
     assert.match(
       content,
       /\.\/apigw\/[^']+\/registration\.js';\nimport \{ FOO_BAR_API_GW_ALARM_REGISTRATION \} from '\.\/apigw\/pn-foo-BAR-ApiGwAlarm\/registration\.js';\n\/\/ Lambda/u,
     );
-  });
-
-  it('adds the entry at the end of the block of its family, not at the end of the array', () => {
-    const { content } = applyManifestRegistration(MANIFEST, REGISTRATION);
-
-    const entryIndex = content.indexOf('  FOO_BAR_API_GW_ALARM_REGISTRATION,\n');
-    const nextBlock = content.indexOf('  // Lambda\n');
-    assert.ok(entryIndex !== -1 && entryIndex < nextBlock, 'entry should close the API Gateway block');
+    // The entry closes the API Gateway block inside the array, not the end of the array.
+    const arrayStart = content.indexOf('export const SEND_MANIFEST');
+    const entryIndex = content.indexOf('  FOO_BAR_API_GW_ALARM_REGISTRATION,\n', arrayStart);
+    assert.ok(arrayStart !== -1 && entryIndex > arrayStart, 'entry should be inside the array');
+    assert.ok(entryIndex < content.indexOf('  // Lambda\n', arrayStart), 'entry should close the API Gateway block');
+    for (const line of MANIFEST.split('\n')) {
+      assert.ok(content.includes(line), `missing line after patch: ${line}`);
+    }
   });
 
   it('opens the block of a family that has no runbook yet', () => {
@@ -57,31 +58,12 @@ describe('applyManifestRegistration', () => {
     assert.ok(k8sOnly.content.includes('  // newfamily\n  FOO_NEW_FAMILY_REGISTRATION,\n];'));
   });
 
-  it('adds the entry inside the manifest array', () => {
-    const { content } = applyManifestRegistration(MANIFEST, REGISTRATION);
-
-    const arrayStart = content.indexOf('export const SEND_MANIFEST');
-    const entryIndex = content.indexOf('  FOO_BAR_API_GW_ALARM_REGISTRATION,\n', arrayStart);
-    const closeIndex = content.indexOf('];', arrayStart);
-
-    assert.ok(entryIndex > arrayStart, 'entry should follow the array declaration');
-    assert.ok(entryIndex < closeIndex, 'entry should be inside the array');
-  });
-
   it('is idempotent when the runbook is already registered', () => {
     const once = applyManifestRegistration(MANIFEST, REGISTRATION);
     const twice = applyManifestRegistration(once.content, REGISTRATION);
 
     assert.strictEqual(twice.changed, false);
     assert.strictEqual(twice.content, once.content);
-  });
-
-  it('leaves every existing registration in place', () => {
-    const { content } = applyManifestRegistration(MANIFEST, REGISTRATION);
-
-    for (const line of MANIFEST.split('\n')) {
-      assert.ok(content.includes(line), `missing line after patch: ${line}`);
-    }
   });
 
   it('registers a runbook whose constant is a suffix of an existing one', () => {

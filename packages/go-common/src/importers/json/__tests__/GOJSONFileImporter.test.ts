@@ -1,11 +1,3 @@
-/**
- * Tests for GOJSONFileImporter
- *
- * Verifies single-object JSON file reading with typed output,
- * optional file handling, encoding, and error cases.
- * All test inputs are static fixtures in __fixtures__/.
- */
-
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import * as path from 'path';
@@ -19,75 +11,28 @@ function fixture(name: string): string {
 }
 
 describe('GOJSONFileImporter', () => {
-  it('reads a simple object', async () => {
-    const importer = new GOJSONFileImporter<{ name: string; value: number }>({
-      inputPath: fixture('simple-object.json'),
-    });
-    const result = await importer.import();
-
-    assert.deepStrictEqual(result, { name: 'test', value: 42 });
+  it('parses any top-level JSON value', async () => {
+    const cases: ReadonlyArray<readonly [file: string, expected: unknown]> = [
+      ['simple-object.json', { name: 'test', value: 42 }],
+      ['array.json', [1, 2, 3]],
+      ['string.json', 'hello'],
+      ['null.json', null],
+    ];
+    for (const [file, expected] of cases) {
+      assert.deepStrictEqual(await new GOJSONFileImporter({ inputPath: fixture(file) }).import(), expected, file);
+    }
   });
 
-  it('reads a nested object preserving structure', async () => {
-    const importer = new GOJSONFileImporter({ inputPath: fixture('nested-object.json') });
-    const result = await importer.import();
+  it('returns undefined for a missing optional file and throws ENOENT otherwise', async () => {
+    const inputPath = fixture('non-existent.json');
 
-    assert.deepStrictEqual(result, {
-      metadata: { version: '1.0.0' },
-      items: [{ id: 1 }, { id: 2 }],
-    });
-  });
-
-  it('reads an array as top-level value', async () => {
-    const importer = new GOJSONFileImporter<number[]>({ inputPath: fixture('array.json') });
-    const result = await importer.import();
-
-    assert.deepStrictEqual(result, [1, 2, 3]);
-  });
-
-  it('reads a string as top-level value', async () => {
-    const importer = new GOJSONFileImporter<string>({ inputPath: fixture('string.json') });
-    const result = await importer.import();
-
-    assert.strictEqual(result, 'hello');
-  });
-
-  it('reads null as top-level value', async () => {
-    const importer = new GOJSONFileImporter({ inputPath: fixture('null.json') });
-    const result = await importer.import();
-
-    assert.strictEqual(result, null);
-  });
-
-  it('throws when file does not exist and optional is false', async () => {
-    const importer = new GOJSONFileImporter({ inputPath: fixture('non-existent.json') });
-
-    await assert.rejects(
-      async () => importer.import(),
-      (error: NodeJS.ErrnoException) => {
-        assert.strictEqual(error.code, 'ENOENT');
-        return true;
-      },
-    );
-  });
-
-  it('returns undefined when file does not exist and optional is true', async () => {
-    const importer = new GOJSONFileImporter({ inputPath: fixture('non-existent.json'), optional: true });
-    const result = await importer.import();
-
-    assert.strictEqual(result, undefined);
+    assert.strictEqual(await new GOJSONFileImporter({ inputPath, optional: true }).import(), undefined);
+    await assert.rejects(new GOJSONFileImporter({ inputPath }).import(), { code: 'ENOENT' });
   });
 
   it('throws on invalid JSON even when optional is true', async () => {
     const importer = new GOJSONFileImporter({ inputPath: fixture('invalid.json'), optional: true });
 
-    await assert.rejects(async () => importer.import(), SyntaxError);
-  });
-
-  it('reads pretty-printed JSON', async () => {
-    const importer = new GOJSONFileImporter({ inputPath: fixture('pretty-printed.json') });
-    const result = await importer.import();
-
-    assert.deepStrictEqual(result, { key: 'value', nested: { a: 1 } });
+    await assert.rejects(importer.import(), SyntaxError);
   });
 });

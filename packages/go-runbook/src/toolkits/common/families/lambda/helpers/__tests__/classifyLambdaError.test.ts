@@ -6,68 +6,38 @@ import type { LambdaReportInfo } from '../parseLambdaReportLine.js';
 
 /** A product downstream signature (SEND's, in SEND_LAMBDA_PROFILE). */
 const DOWNSTREAM_SIGNATURES = [/External service\s+\S+\s+returned errors/i];
-
-function classify(message: string, report?: LambdaReportInfo): string {
-  return classifyLambdaError(message, DOWNSTREAM_SIGNATURES, report);
-}
+const DOWNSTREAM_ERROR = 'External service pn-emd-integration returned errors { status code 404 }';
+const SATURATED: LambdaReportInfo = { memorySizeMb: 128, maxMemoryUsedMb: 128 };
 
 describe('classifyLambdaError', () => {
-  it('classifies timeout from the REPORT status', () => {
-    assert.strictEqual(classify('REPORT ...', { status: 'timeout' }), 'timeout');
+  it('classifies each runtime and application signature', () => {
+    const cases: ReadonlyArray<readonly [string, LambdaReportInfo | undefined, string]> = [
+      ['REPORT ...', { status: 'timeout' }, 'timeout'],
+      ['2026-... Task timed out after 10.00 seconds', undefined, 'timeout'],
+      ['FATAL ERROR: JavaScript heap out of memory', undefined, 'out-of-memory'],
+      ['Runtime exited with error: signal: killed', undefined, 'out-of-memory'],
+      // Memory saturation is a last-resort OOM signal, never over an explicit error.
+      ['REPORT ...', SATURATED, 'out-of-memory'],
+      ['ERROR business logic failed', { memorySizeMb: 128, maxMemoryUsedMb: 130 }, 'application-error'],
+      [DOWNSTREAM_ERROR, SATURATED, 'downstream'],
+      ['Rate Exceeded', undefined, 'throttle'],
+      [
+        'ERROR Invoke Error {"errorType":"SlowDown","errorMessage":"Please reduce your request rate."}',
+        undefined,
+        'throttle',
+      ],
+      [DOWNSTREAM_ERROR, undefined, 'downstream'],
+      ['ERROR Invalid source details header QRCODE', undefined, 'application-error'],
+      ['REPORT RequestId: x Duration: 5.00 ms Status: error', undefined, 'application-error'],
+      ['just an info line', undefined, 'unknown'],
+    ];
+    for (const [message, report, expected] of cases) {
+      assert.strictEqual(classifyLambdaError(message, DOWNSTREAM_SIGNATURES, report), expected, message);
+    }
   });
 
-  it('classifies timeout from a Task timed out message', () => {
-    assert.strictEqual(classify('2026-... Task timed out after 10.00 seconds'), 'timeout');
-  });
-
-  it('classifies out-of-memory from heap and signal:killed signatures', () => {
-    assert.strictEqual(classify('FATAL ERROR: JavaScript heap out of memory'), 'out-of-memory');
-    assert.strictEqual(classify('Runtime exited with error: signal: killed'), 'out-of-memory');
-  });
-
-  it('uses memory saturation as a last-resort OOM signal when no other signal is present', () => {
-    assert.strictEqual(classify('REPORT ...', { memorySizeMb: 128, maxMemoryUsedMb: 128 }), 'out-of-memory');
-  });
-
-  it('does not let memory saturation override an explicit application or downstream error', () => {
-    assert.strictEqual(
-      classify('ERROR business logic failed', { memorySizeMb: 128, maxMemoryUsedMb: 130 }),
-      'application-error',
-    );
-    assert.strictEqual(
-      classify('External service pn-emd-integration returned errors', {
-        memorySizeMb: 128,
-        maxMemoryUsedMb: 128,
-      }),
-      'downstream',
-    );
-  });
-
-  it('classifies throttle, downstream and application errors', () => {
-    assert.strictEqual(classify('Rate Exceeded'), 'throttle');
-    assert.strictEqual(
-      classify('ERROR Invoke Error {"errorType":"SlowDown","errorMessage":"Please reduce your request rate."}'),
-      'throttle',
-    );
-    assert.strictEqual(
-      classify('External service pn-emd-integration returned errors { status code 404 }'),
-      'downstream',
-    );
-    assert.strictEqual(classify('ERROR Invalid source details header QRCODE'), 'application-error');
-  });
-
-  it('classifies application-error from a REPORT Status: error line', () => {
-    assert.strictEqual(classify('REPORT RequestId: x Duration: 5.00 ms Status: error'), 'application-error');
-  });
-
-  it('falls back to unknown', () => {
-    assert.strictEqual(classify('just an info line'), 'unknown');
-  });
   it('does not classify a downstream error without a product signature', () => {
-    assert.strictEqual(
-      classifyLambdaError('External service pn-emd-integration returned errors { status code 404 }', []),
-      'unknown',
-    );
+    assert.strictEqual(classifyLambdaError(DOWNSTREAM_ERROR, []), 'unknown');
   });
 
   it('classifies the same message the same way with a global or sticky signature, on every call', () => {

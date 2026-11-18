@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { after } from 'node:test';
 
 import type { GOScript } from '@go-automation/go-script';
 import { GOBinaryFileExporter } from '@pagopa/go-common/exporters';
@@ -178,17 +179,29 @@ export interface TestScript {
   readonly dir: string;
 }
 
+/** Temp directories created by {@link createTestScript}, removed after the run. */
+const TEMP_DIRS: string[] = [];
+
+// Registered once per process (this module is loaded once, also with
+// --experimental-test-isolation=none): removes every temp directory at the end.
+after(async () => {
+  const dirs = TEMP_DIRS.splice(0);
+  await Promise.all(dirs.map(async (dir) => fs.rm(dir, { recursive: true, force: true })));
+});
+
 /**
  * Creates a GOScript double: paths under a fresh, private temp directory
  * (`mkdtemp`: unique name, mode 0700; the execution directory already
  * created, as GOPaths does), logger and prompt doubles, AWS clients whose
- * DynamoDB returns empty timelines.
+ * DynamoDB returns empty timelines. The directory is removed at the end of
+ * the test run.
  *
  * @param answer - Answer of the confirmation prompt
  * @returns The double and its parts
  */
 export async function createTestScript(answer: boolean | undefined = true): Promise<TestScript> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'send-dispatch-notifications-'));
+  TEMP_DIRS.push(dir);
   const paths = new TestPaths(dir);
   await writeFixture(paths.getExecutionOutputFilePath('.keep'), '');
   const logger = new FakeLogger();

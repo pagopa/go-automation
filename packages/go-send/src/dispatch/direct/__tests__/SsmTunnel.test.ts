@@ -188,7 +188,7 @@ describe('SsmTunnel', () => {
   it('gives up when a started bastion does not come online in time', async () => {
     const { tunnel } = await setup(['stopped', 'running'], {
       ssm: fakeSsm('ConnectionLost'),
-      bastionReadyTimeoutMs: 20,
+      bastionReadyTimeoutMs: 5,
     });
     await assert.rejects(tunnel.open(), code('TUNNEL_TIMEOUT'));
   });

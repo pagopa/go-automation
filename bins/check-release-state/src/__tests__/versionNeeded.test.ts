@@ -4,35 +4,39 @@ import { describe, it } from 'node:test';
 import { versionNeeded } from '../versionNeeded.js';
 import { FakeGit } from './fakes.js';
 
-function at(files: Readonly<Record<string, string>>): FakeGit {
-  return new FakeGit().commit(
-    'c',
-    new Map(Object.entries({ '.changeset/config.json': '{}', '.changeset/README.md': 'r', ...files })),
-  );
-}
+const PRE = '{"mode":"pre","tag":"next"}';
+const EXIT = '{"mode":"exit","tag":"next"}';
 
 describe('version-needed', () => {
-  it('is false with no changeset, and ignores README, hidden and reserved files', () => {
-    assert.strictEqual(versionNeeded(at({}), 'c'), false);
-    assert.strictEqual(versionNeeded(at({ '.changeset/.hidden.md': 'x', '.changeset/CLAUDE.md': 'x' }), 'c'), false);
-  });
+  const cases: ReadonlyArray<readonly [string, Readonly<Record<string, string>>, boolean]> = [
+    ['is false with no changeset', {}, false],
+    ['ignores hidden and reserved files', { '.changeset/.hidden.md': 'x', '.changeset/CLAUDE.md': 'x' }, false],
+    ['is true with a pending changeset', { '.changeset/brave-fox.md': 'x' }, true],
+    [
+      'in pre mode ignores the consumed changesets',
+      { '.changeset/pre.json': PRE, '.changeset/pre/old.md': 'x' },
+      false,
+    ],
+    [
+      'in pre mode counts the changesets not yet consumed',
+      { '.changeset/pre.json': PRE, '.changeset/pre/old.md': 'x', '.changeset/new.md': 'x' },
+      true,
+    ],
+    [
+      'when leaving the prerelease counts the consumed changesets too',
+      { '.changeset/pre.json': EXIT, '.changeset/pre/old.md': 'x' },
+      true,
+    ],
+    ['is always true when leaving the prerelease, even with nothing to apply', { '.changeset/pre.json': EXIT }, true],
+  ];
 
-  it('is true with a pending changeset', () => {
-    assert.strictEqual(versionNeeded(at({ '.changeset/brave-fox.md': 'x' }), 'c'), true);
-  });
-
-  it('in pre mode counts only the changesets not yet consumed', () => {
-    const pre = { '.changeset/pre.json': '{"mode":"pre","tag":"next"}', '.changeset/pre/old.md': 'x' };
-    assert.strictEqual(versionNeeded(at(pre), 'c'), false);
-    assert.strictEqual(versionNeeded(at({ ...pre, '.changeset/new.md': 'x' }), 'c'), true);
-  });
-
-  it('when leaving the prerelease counts the consumed changesets too', () => {
-    const exit = { '.changeset/pre.json': '{"mode":"exit","tag":"next"}', '.changeset/pre/old.md': 'x' };
-    assert.strictEqual(versionNeeded(at(exit), 'c'), true);
-  });
-
-  it('is always true when leaving the prerelease, even with nothing to apply', () => {
-    assert.strictEqual(versionNeeded(at({ '.changeset/pre.json': '{"mode":"exit","tag":"next"}' }), 'c'), true);
-  });
+  for (const [name, files, expected] of cases) {
+    it(name, () => {
+      const git = new FakeGit().commit(
+        'c',
+        new Map(Object.entries({ '.changeset/config.json': '{}', '.changeset/README.md': 'r', ...files })),
+      );
+      assert.strictEqual(versionNeeded(git, 'c'), expected);
+    });
+  }
 });

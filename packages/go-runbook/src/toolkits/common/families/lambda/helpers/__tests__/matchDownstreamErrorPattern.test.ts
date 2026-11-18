@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { messageRow } from '../../../../../../__tests__/helpers/logRow.js';
 
 import { matchDownstreamErrorPattern, findDownstreamInRows } from '../matchDownstreamErrorPattern.js';
 import type { DownstreamErrorPattern } from '../../types/DownstreamErrorPattern.js';
@@ -8,13 +8,6 @@ import type { DownstreamErrorPattern } from '../../types/DownstreamErrorPattern.
 const PATTERNS: ReadonlyArray<DownstreamErrorPattern> = [
   { pattern: 'External service pn-emd-integration returned errors', target: 'pn-emd-integration' },
 ];
-
-function row(message: string): ReadonlyArray<GOLogsInsightsResultField> {
-  return [
-    { field: '@timestamp', value: '2026-01-01T00:00:00.000Z' },
-    { field: '@message', value: message },
-  ];
-}
 
 describe('matchDownstreamErrorPattern', () => {
   it('returns the target when a pattern matches', () => {
@@ -36,9 +29,9 @@ describe('findDownstreamInRows', () => {
   it('matches a downstream pattern on a non-first row', () => {
     const match = findDownstreamInRows(
       [
-        row('START RequestId: 11111111-2222-3333-4444-555555555555'),
-        row('some unrelated info line'),
-        row('External service pn-emd-integration returned errors { status code 404 }'),
+        messageRow('START RequestId: 11111111-2222-3333-4444-555555555555'),
+        messageRow('some unrelated info line'),
+        messageRow('External service pn-emd-integration returned errors { status code 404 }'),
       ],
       PATTERNS,
     );
@@ -49,6 +42,6 @@ describe('findDownstreamInRows', () => {
   });
 
   it('returns undefined when no row matches', () => {
-    assert.strictEqual(findDownstreamInRows([row('nothing here')], PATTERNS), undefined);
+    assert.strictEqual(findDownstreamInRows([messageRow('nothing here')], PATTERNS), undefined);
   });
 });

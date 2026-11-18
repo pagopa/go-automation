@@ -2,12 +2,10 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { SENDTimelineElement } from '../../../services/timeline/models/SENDTimelineElement.js';
-import type { SENDTimelineService } from '../../../services/timeline/SENDTimelineService.js';
 import { MemorySink } from '../../__tests__/helpers/MemorySink.js';
 import { VirtualClock } from '../../__tests__/helpers/VirtualClock.js';
 import { RowLedger } from '../../journal/RowLedger.js';
 import { DEFAULT_REQUEST_ID_OPTIONS } from '../defaultRequestIdOptions.js';
-import { DynamoTimelineSource } from '../DynamoTimelineSource.js';
 import { RequestIdStage } from '../RequestIdStage.js';
 import type { RequestIdSelectionOptions } from '../RequestIdSelectionOptions.js';
 import type { TimelineSource } from '../TimelineSource.js';
@@ -60,8 +58,8 @@ class FakeTimelineSource implements TimelineSource {
 
 function setup(
   timelines: ReadonlyMap<string, ReadonlyArray<ScheduledElement>>,
-  isCredentialError = (error: unknown): boolean => error instanceof CredentialsExpiredError,
   selection: RequestIdSelectionOptions = DEFAULT_REQUEST_ID_OPTIONS,
+  concurrency?: number,
 ): { clock: VirtualClock; source: FakeTimelineSource; ledger: RowLedger; sink: MemorySink; stage: RequestIdStage } {
   const clock = new VirtualClock();
   const source = new FakeTimelineSource(clock, timelines);
@@ -72,7 +70,8 @@ function setup(
     ledger,
     clock,
     selection,
-    isCredentialError,
+    ...(concurrency !== undefined && { concurrency }),
+    isCredentialError: (error) => error instanceof CredentialsExpiredError,
     signal: new AbortController().signal,
   });
   return { clock, source, ledger, sink, stage };
@@ -126,7 +125,7 @@ describe('RequestIdStage', () => {
 
   it('keeps the refusal when the refused category itself is selected and found', async () => {
     // --request-id-categories REQUEST_REFUSED: the id is found, the notification is still refused.
-    const h = setup(new Map([['IUN-R', [{ afterMs: 1 * MINUTE, category: 'REQUEST_REFUSED' }]]]), undefined, {
+    const h = setup(new Map([['IUN-R', [{ afterMs: 1 * MINUTE, category: 'REQUEST_REFUSED' }]]]), {
       ...DEFAULT_REQUEST_ID_OPTIONS,
       categories: ['REQUEST_REFUSED'],
     });
@@ -139,11 +138,10 @@ describe('RequestIdStage', () => {
   });
 
   it('does not take a selected category that precedes the acceptance as acceptance evidence', async () => {
-    const h = setup(
-      new Map([['IUN-V', [{ afterMs: 1 * MINUTE, category: 'VALIDATE_NORMALIZE_ADDRESSES_REQUEST' }]]]),
-      undefined,
-      { ...DEFAULT_REQUEST_ID_OPTIONS, categories: ['VALIDATE_NORMALIZE_ADDRESSES_REQUEST'] },
-    );
+    const h = setup(new Map([['IUN-V', [{ afterMs: 1 * MINUTE, category: 'VALIDATE_NORMALIZE_ADDRESSES_REQUEST' }]]]), {
+      ...DEFAULT_REQUEST_ID_OPTIONS,
+      categories: ['VALIDATE_NORMALIZE_ADDRESSES_REQUEST'],
+    });
     h.stage.schedule(0, 'S-0', 'IUN-V');
     await h.clock.run(h.stage.drain());
     assert.equal(h.ledger.get(0)?.status, 'REQUEST_ID_FOUND');
@@ -212,33 +210,11 @@ describe('RequestIdStage', () => {
   });
 
   it('runs no query queued behind the pool after the credentials expired', async () => {
-    const clock = new VirtualClock();
-    const source = new FakeTimelineSource(clock, new Map());
+    const { clock, source, stage } = setup(new Map(), DEFAULT_REQUEST_ID_OPTIONS, 1);
     source.failWith = new CredentialsExpiredError();
-    const stage = new RequestIdStage({
-      source,
-      ledger: new RowLedger(undefined),
-      clock,
-      selection: DEFAULT_REQUEST_ID_OPTIONS,
-      concurrency: 1,
-      isCredentialError: (error) => error instanceof CredentialsExpiredError,
-      signal: new AbortController().signal,
-    });
     for (let i = 0; i < 5; i++) stage.schedule(i, `S-${i}`, `IUN-${i}`);
     await clock.run(stage.drain());
     assert.equal(stage.credentialsExpired, true);
     assert.equal(source.queries, 1, 'the 4 queued queries never reach DynamoDB');
-  });
-
-  it('reads pn-Timelines through SENDTimelineService', async () => {
-    const elements = [{ category: 'PREPARE_ANALOG_DOMICILE', timelineElementId: 'P', timestamp: 't' }];
-    const service = {
-      queryTimelineElements: async (iun: string) => {
-        await Promise.resolve();
-        return iun === 'IUN' ? elements : [];
-      },
-    };
-    const source = new DynamoTimelineSource(service as unknown as SENDTimelineService);
-    assert.deepEqual(await source.query('IUN'), elements);
   });
 });

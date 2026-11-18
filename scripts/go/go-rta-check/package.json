@@ -15,7 +15,7 @@
     "dev": "pnpm --filter=@pagopa/go-runbook build && tsx src/index.ts",
     "watch": "tsc --watch",
     "clean": "rm -rf dist *.tsbuildinfo",
-    "test": "pnpm --filter=@pagopa/go-runbook build && node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'"
+    "test": "pnpm --filter=@pagopa/go-runbook build && node --import tsx/esm --test --experimental-test-isolation=none 'src/**/__tests__/**/*.test.ts'"
   },
   "keywords": [
     "go",

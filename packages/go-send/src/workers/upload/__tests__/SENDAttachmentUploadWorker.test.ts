@@ -92,7 +92,8 @@ class FakeExporter
 
 interface FakeSdkOptions {
   readonly failUploadForPath?: string;
-  readonly uploadDelayMsForPath?: Record<string, number>;
+  /** Uploads of these files complete in this order, each waiting for the previous one. */
+  readonly completionOrder?: ReadonlyArray<string>;
 }
 
 function createFakeSdk(options: FakeSdkOptions = {}): SENDNotifications {
@@ -104,20 +105,28 @@ function createFakeSdk(options: FakeSdkOptions = {}): SENDNotifications {
     return Buffer.from(`content-of-${filePath}`);
   });
 
+  const order = options.completionOrder ?? [];
+  const completions = new Map<string, () => void>();
+  const completed = new Map(
+    order.map((filePath) => [filePath, new Promise<void>((resolve) => completions.set(filePath, resolve))]),
+  );
+
   const upload = mock.fn(async (buffer: Buffer, _contentType: string): Promise<SENDAttachmentResult> => {
     const filePath = buffer.toString().replace('content-of-', '');
-    const delay = options.uploadDelayMsForPath?.[filePath];
-    if (delay !== undefined) {
-      await new Promise((resolve) => setTimeout(resolve, delay));
+    const previous = order[order.indexOf(filePath) - 1];
+    await (previous === undefined ? Promise.resolve() : completed.get(previous));
+    try {
+      if (options.failUploadForPath === filePath) {
+        throw new Error(`upload rejected for ${filePath}`);
+      }
+      return {
+        ref: { key: `key-${filePath}`, versionToken: 'v1' },
+        digests: { sha256: `sha-${filePath}` },
+        buffer,
+      };
+    } finally {
+      completions.get(filePath)?.();
     }
-    if (options.failUploadForPath === filePath) {
-      throw new Error(`upload rejected for ${filePath}`);
-    }
-    return {
-      ref: { key: `key-${filePath}`, versionToken: 'v1' },
-      digests: { sha256: `sha-${filePath}` },
-      buffer,
-    };
   });
 
   return { attachment: { readFileFromDisk, upload } } as unknown as SENDNotifications;
@@ -267,12 +276,13 @@ describe('SENDAttachmentUploadWorker', () => {
     assert.strictEqual(exporter.closeCalls, 1);
   });
 
-  it('preserves input order in the export even when uploads complete out of order', async () => {
+  // Sequential uploads would deadlock on the completion order: the timeout turns that into a failure.
+  it('preserves input order in the export even when uploads complete out of order', { timeout: 5_000 }, async () => {
     const importer = new FakeImporter([validRow('slow.pdf'), validRow('fast.pdf'), validRow('mid.pdf')], false);
     const exporter = new FakeExporter();
     const worker = new SENDAttachmentUploadWorker(
       importer,
-      createFakeSdk({ uploadDelayMsForPath: { 'slow.pdf': 30, 'fast.pdf': 1, 'mid.pdf': 10 } }),
+      createFakeSdk({ completionOrder: ['fast.pdf', 'mid.pdf', 'slow.pdf'] }),
     );
 
     const result = await worker.process('input.csv', { exporter, concurrency: 3 });

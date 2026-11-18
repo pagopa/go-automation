@@ -32,21 +32,17 @@ describe('GOHttpClient', () => {
     mock.restoreAll();
   });
 
-  it('parses application/json responses', async () => {
-    stubFetch(new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } }));
-
-    const result = await createClient().get<{ ok: boolean }>('/path');
-    assert.deepStrictEqual(result, { ok: true });
-  });
-
-  it('parses JSON responses with content type parameters', async () => {
-    stubFetch(
-      new Response('[{"key":"k1"}]', { status: 200, headers: { 'content-type': 'application/json; charset=utf-8' } }),
-    );
-
-    const result = await createClient().get<{ key: string }[]>('/path');
-    assert.deepStrictEqual(result, [{ key: 'k1' }]);
-  });
+  const bodyCases = [
+    { contentType: 'application/json', body: '{"ok":true}', expected: { ok: true } },
+    { contentType: 'application/json; charset=utf-8', body: '[{"key":"k1"}]', expected: [{ key: 'k1' }] },
+    { contentType: 'text/html', body: '<html></html>', expected: '<html></html>' },
+  ] as const;
+  for (const { contentType, body, expected } of bodyCases) {
+    it(`parses a ${contentType} response body`, async () => {
+      stubFetch(new Response(body, { status: 200, headers: { 'content-type': contentType } }));
+      assert.deepStrictEqual(await createClient().get('/path'), expected);
+    });
+  }
 
   it('parses +json media types (e.g. application/problem+json)', async () => {
     stubFetch(
@@ -61,13 +57,6 @@ describe('GOHttpClient', () => {
       assert.deepStrictEqual(error.response, { status: 400, title: 'Bad Request' });
       return true;
     });
-  });
-
-  it('returns non-JSON responses as text', async () => {
-    stubFetch(new Response('<html></html>', { status: 200, headers: { 'content-type': 'text/html' } }));
-
-    const result = await createClient().get<string>('/path');
-    assert.strictEqual(result, '<html></html>');
   });
 
   it('put resolves with the response headers (lowercase names)', async () => {

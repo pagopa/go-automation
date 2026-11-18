@@ -3,10 +3,8 @@ import { describe, it } from 'node:test';
 
 import type { GOHttpRequestOptions, GOHttpResponse } from '@pagopa/go-common/http';
 
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import { HttpRequestStep } from '../HttpRequestStep.js';
-import { createTestServiceRegistry } from '../../../testing/createTestServiceRegistry.js';
-import type { OperationalContext } from '../../../services/OperationalContext.js';
+import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
 
 interface HttpCall {
   readonly method: string;
@@ -31,10 +29,7 @@ describe('HttpRequestStep', () => {
     });
 
     const info = step.getTraceInfo(
-      makeContext({
-        params: [['serviceId', 'svc-1']],
-        vars: [['token', 'secret-token']],
-      }),
+      createTestContext({ params: { serviceId: 'svc-1' }, vars: { token: 'secret-token' } }),
     );
 
     assert.deepStrictEqual(info, {
@@ -68,13 +63,10 @@ describe('HttpRequestStep', () => {
     });
 
     const result = await step.execute(
-      makeContext({
-        params: [['serviceId', 'svc 1']],
-        vars: [
-          ['query', 'a/b'],
-          ['token', 'secret-token'],
-        ],
-        services: createTestServiceRegistry({
+      createTestContext({
+        params: { serviceId: 'svc 1' },
+        vars: { query: 'a/b', token: 'secret-token' },
+        services: {
           http: {
             async request(
               method: string,
@@ -88,7 +80,7 @@ describe('HttpRequestStep', () => {
               return response;
             },
           },
-        }),
+        },
         signal,
       }),
     );
@@ -105,22 +97,3 @@ describe('HttpRequestStep', () => {
     ]);
   });
 });
-
-function makeContext(options: {
-  readonly params?: ReadonlyArray<readonly [string, string]>;
-  readonly vars?: ReadonlyArray<readonly [string, string]>;
-  readonly services?: ServiceRegistry;
-  readonly signal?: AbortSignal;
-}): OperationalContext {
-  return {
-    executionId: 'test',
-    startedAt: new Date('2026-01-01T00:00:00.000Z'),
-    stepResults: new Map(),
-    vars: new Map(options.vars ?? []),
-    params: new Map(options.params ?? []),
-    logs: [],
-    services: options.services ?? createTestServiceRegistry(),
-    recoveredErrors: [],
-    ...(options.signal === undefined ? {} : { signal: options.signal }),
-  };
-}

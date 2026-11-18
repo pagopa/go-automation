@@ -1,166 +1,101 @@
-import { describe, it } from 'node:test';
+import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import * as http from 'node:http';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 
 import { GOFileDownloader } from '../GOFileDownloader.js';
 import { GOFileDownloaderError } from '../GOFileDownloaderError.js';
+import { createTempDir } from '../../__tests__/helpers/createTempDir.js';
+import type { TempDir } from '../../__tests__/helpers/TempDir.js';
 
-interface ServerHandle {
-  readonly server: http.Server;
-  readonly url: string;
-}
-
-async function startServer(handler: http.RequestListener): Promise<ServerHandle> {
-  const server = http.createServer(handler);
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
-  const address = server.address();
-  if (address === null || typeof address === 'string') {
-    throw new Error('failed to start test server');
-  }
-  return { server, url: `http://127.0.0.1:${address.port}` };
-}
-
-async function makeTempFile(): Promise<string> {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'downloader-'));
-  return path.join(dir, 'out.bin');
+/** Number of requests the test server received. */
+interface CallCounter {
+  calls: number;
 }
 
 describe('GOFileDownloader', () => {
-  it('downloads and computes sha256', async () => {
-    const payload = Buffer.from('hello world');
-    const handle = await startServer((_req, res) => {
-      res.statusCode = 200;
-      res.setHeader('content-type', 'application/octet-stream');
-      res.end(payload);
-    });
+  let server: http.Server;
+  let baseUrl = '';
+  let tmp: TempDir;
+  /** Per-test request handler, swapped by each test. */
+  let handler: http.RequestListener = (_req, res) => res.end();
 
-    try {
-      const dest = await makeTempFile();
-      const downloader = new GOFileDownloader({ maxRetries: 0 });
-      const result = await downloader.downloadToFile(`${handle.url}/file.bin`, dest);
-      const written = await fs.readFile(dest);
-      assert.deepStrictEqual(written, payload);
-      assert.strictEqual(result.bytesWritten, payload.byteLength);
-      assert.strictEqual(result.sha256, createHash('sha256').update(payload).digest('hex'));
-      assert.strictEqual(result.attempts, 1);
-    } finally {
-      handle.server.close();
-    }
+  before(async () => {
+    tmp = await createTempDir('downloader-');
+    server = http.createServer((req, res) => handler(req, res));
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    assert.ok(address !== null && typeof address !== 'string');
+    baseUrl = `http://127.0.0.1:${String(address.port)}`;
   });
 
-  it('retries on 503 and succeeds', async () => {
-    let calls = 0;
-    const handle = await startServer((_req, res) => {
-      calls += 1;
-      if (calls < 3) {
-        res.statusCode = 503;
-        res.end('try again');
-        return;
-      }
-      res.statusCode = 200;
-      res.end('payload');
-    });
-    try {
-      const dest = await makeTempFile();
+  after(async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await tmp.cleanup();
+  });
+
+  /** Responds with `failures` failing responses, then 200 with `body`; returns the call counter. */
+  function serve(
+    failures: ReadonlyArray<{ status: number; headers?: Record<string, string> }>,
+    body: string,
+    successHeaders: Record<string, string> = {},
+  ): CallCounter {
+    const counter: CallCounter = { calls: 0 };
+    handler = (_req, res) => {
+      const failure = failures[counter.calls];
+      counter.calls += 1;
+      res.writeHead(failure?.status ?? 200, failure?.headers ?? successHeaders);
+      res.end(failure === undefined ? body : 'failure');
+    };
+    return counter;
+  }
+
+  it('downloads atomically, overwriting the destination, and computes sha256', async () => {
+    const payload = 'NEW CONTENT';
+    serve([], payload, { 'content-type': 'application/octet-stream' });
+    const dest = tmp.file('ok/out.bin');
+    await fs.mkdir(path.dirname(dest), { recursive: true });
+    await fs.writeFile(dest, 'OLD CONTENT');
+
+    const result = await new GOFileDownloader({ maxRetries: 0 }).downloadToFile(`${baseUrl}/file.bin`, dest);
+
+    assert.strictEqual(await fs.readFile(dest, 'utf8'), payload);
+    assert.strictEqual(result.bytesWritten, Buffer.byteLength(payload));
+    assert.strictEqual(result.sha256, createHash('sha256').update(payload).digest('hex'));
+    assert.strictEqual(result.attempts, 1);
+    assert.strictEqual(result.contentType, 'application/octet-stream');
+    await assert.rejects(fs.access(`${dest}.partial`), 'no leftover partial file');
+  });
+
+  const retryCases = [
+    { name: 'retries on 503 until success', failures: [{ status: 503 }, { status: 503 }], attempts: 3 },
+    {
+      name: 'respects Retry-After on 429',
+      failures: [{ status: 429, headers: { 'retry-after': '0' } }],
+      attempts: 2,
+    },
+  ];
+  for (const { name, failures, attempts } of retryCases) {
+    it(name, async () => {
+      const counter = serve(failures, 'payload');
       const downloader = new GOFileDownloader({ maxRetries: 5, backoffBaseMs: 1, backoffJitterMs: 0 });
-      const result = await downloader.downloadToFile(`${handle.url}/x`, dest);
-      assert.strictEqual(result.attempts, 3);
-      assert.strictEqual(calls, 3);
-    } finally {
-      handle.server.close();
-    }
-  });
-
-  it('respects Retry-After on 429', async () => {
-    let calls = 0;
-    const handle = await startServer((_req, res) => {
-      calls += 1;
-      if (calls === 1) {
-        res.statusCode = 429;
-        res.setHeader('retry-after', '0');
-        res.end('rate-limited');
-        return;
-      }
-      res.statusCode = 200;
-      res.end('ok');
+      const result = await downloader.downloadToFile(`${baseUrl}/x`, tmp.file(`retry-${String(attempts)}.bin`));
+      assert.strictEqual(result.attempts, attempts);
+      assert.strictEqual(counter.calls, attempts);
     });
-    try {
-      const dest = await makeTempFile();
-      const downloader = new GOFileDownloader({ maxRetries: 2, backoffBaseMs: 1, backoffJitterMs: 0 });
-      const result = await downloader.downloadToFile(`${handle.url}/y`, dest);
-      assert.strictEqual(result.attempts, 2);
-    } finally {
-      handle.server.close();
-    }
-  });
+  }
 
-  it('throws GOFileDownloaderError on permanent 404', async () => {
-    const handle = await startServer((_req, res) => {
-      res.statusCode = 404;
-      res.end('not found');
-    });
-    try {
-      const dest = await makeTempFile();
-      const downloader = new GOFileDownloader({ maxRetries: 1 });
-      await assert.rejects(
-        downloader.downloadToFile(`${handle.url}/missing`, dest),
-        (err) => err instanceof GOFileDownloaderError && err.statusCode === 404,
-      );
-    } finally {
-      handle.server.close();
-    }
-  });
+  it('throws GOFileDownloaderError on a permanent 404 without retrying or leaving a partial file', async () => {
+    const counter = serve([{ status: 404 }], 'never');
+    const dest = tmp.file('missing.bin');
 
-  it('atomic write: no leftover partial file on success', async () => {
-    const handle = await startServer((_req, res) => {
-      res.statusCode = 200;
-      res.end('clean');
-    });
-    try {
-      const dest = await makeTempFile();
-      const downloader = new GOFileDownloader({ maxRetries: 0 });
-      await downloader.downloadToFile(`${handle.url}/x`, dest);
-      const partial = `${dest}.partial`;
-      await assert.rejects(fs.access(partial));
-    } finally {
-      handle.server.close();
-    }
-  });
-
-  it('does not leave partial file after failure', async () => {
-    const handle = await startServer((_req, res) => {
-      res.statusCode = 404;
-      res.end('nope');
-    });
-    try {
-      const dest = await makeTempFile();
-      const downloader = new GOFileDownloader({ maxRetries: 0 });
-      await assert.rejects(downloader.downloadToFile(`${handle.url}/missing`, dest));
-      await assert.rejects(fs.access(`${dest}.partial`));
-    } finally {
-      handle.server.close();
-    }
-  });
-
-  it('overwrites a pre-existing destination (force-redownload)', async () => {
-    const handle = await startServer((_req, res) => {
-      res.statusCode = 200;
-      res.end('NEW CONTENT');
-    });
-    try {
-      const dest = await makeTempFile();
-      // Seed the destination with old content (simulates a previous sync).
-      await fs.writeFile(dest, 'OLD CONTENT');
-      const downloader = new GOFileDownloader({ maxRetries: 0 });
-      await downloader.downloadToFile(`${handle.url}/x`, dest);
-      const written = await fs.readFile(dest, 'utf8');
-      assert.strictEqual(written, 'NEW CONTENT');
-    } finally {
-      handle.server.close();
-    }
+    await assert.rejects(
+      new GOFileDownloader({ maxRetries: 1 }).downloadToFile(`${baseUrl}/missing`, dest),
+      (err) => err instanceof GOFileDownloaderError && err.statusCode === 404,
+    );
+    assert.strictEqual(counter.calls, 1);
+    await assert.rejects(fs.access(`${dest}.partial`));
   });
 });

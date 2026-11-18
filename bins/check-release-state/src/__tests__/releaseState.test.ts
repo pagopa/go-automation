@@ -37,6 +37,15 @@ function bootstrapRepository(): FakeGit {
   return git;
 }
 
+/** Publishes, tags and aligns the channels of both packages of the bootstrap release; go-aws is tagged on `goAwsTagTarget`. */
+function releaseEverything(git: FakeGit, registry: FakeRegistry, goAwsTagTarget = RELEASE): void {
+  for (const name of ['@pagopa/go-common', '@pagopa/go-aws']) {
+    registry.published.set(name, ['1.0.0-next.0']);
+    registry.tags.set(name, { latest: '1.0.0-next.0', next: '1.0.0-next.0' });
+    git.tags.set(`${name}@1.0.0-next.0`, name === '@pagopa/go-aws' ? goAwsTagTarget : RELEASE);
+  }
+}
+
 describe('release versions', () => {
   it('are the published packages whose version changes in the release commit', () => {
     assert.deepStrictEqual(releaseVersions(bootstrapRepository(), RELEASE), [
@@ -84,11 +93,7 @@ describe('audit (§9.3)', () => {
     assert.deepStrictEqual(await auditReleases({ git, registry, github }), []);
 
     github.pulls.push(releasePull(7, RELEASE));
-    for (const name of ['@pagopa/go-common', '@pagopa/go-aws']) {
-      registry.published.set(name, ['1.0.0-next.0']);
-      registry.tags.set(name, { latest: '1.0.0-next.0', next: '1.0.0-next.0' });
-      git.tags.set(`${name}@1.0.0-next.0`, RELEASE);
-    }
+    releaseEverything(git, registry);
     assert.deepStrictEqual(await auditReleases({ git, registry, github }), []);
   });
 
@@ -115,11 +120,7 @@ describe('audit (§9.3)', () => {
     const github = new FakeGitHub();
     github.pulls.push(releasePull(7, RELEASE));
     const registry = new FakeRegistry();
-    for (const name of ['@pagopa/go-common', '@pagopa/go-aws']) {
-      registry.published.set(name, ['1.0.0-next.0']);
-      registry.tags.set(name, { next: '1.0.0-next.0' });
-      git.tags.set(`${name}@1.0.0-next.0`, name === '@pagopa/go-aws' ? OTHER : RELEASE);
-    }
+    releaseEverything(git, registry, OTHER);
     const problems = await auditReleases({ git, registry, github });
     assert.strictEqual(problems.length, 1);
     assert.match(problems[0] ?? '', /tag @pagopa\/go-aws@1\.0\.0-next\.0 points to c{40}, not to the release b{40}/u);
