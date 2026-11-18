@@ -1,5 +1,12 @@
 # @pagopa/go-aws
 
+## 1.0.0-next.1
+
+### Patch Changes
+
+- Updated dependencies [[`879bba9`](https://github.com/pagopa/go-automation/commit/879bba9bd33cbf10e513d4cc37ba04d5f34b8543), [`95d3639`](https://github.com/pagopa/go-automation/commit/95d3639b92e919dbc0b7729f5d4668c1f46fcf43)]:
+  - @pagopa/go-common@1.0.0-next.1
+
 ## 1.0.0-next.0
 
 ### Major Changes

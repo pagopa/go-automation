@@ -1,6 +1,6 @@
 {
   "name": "@pagopa/go-common",
-  "version": "1.0.0-next.0",
+  "version": "1.0.0-next.1",
   "description": "GO automation kernel: errors, utilities, dates, concurrency, polling, JSON, processes, files, importers/exporters, parsers, logging, rendering and HTTP. One subpath per area.",
   "type": "module",
   "sideEffects": false,
