@@ -81,6 +81,8 @@ describe('GOJSONFormatDetector', () => {
       { input: 'data.ndjson', format: 'jsonl', method: 'extension', confidence: 0.9 },
       { input: 'data.txt', format: 'unknown', confidence: 0 },
       { input: 'noext', format: 'unknown', details: '(none)' },
+      // Only the file name counts: a dot in a directory is not an extension (the file is not read).
+      { input: 'exports.v2/data', format: 'unknown', details: 'Unrecognized extension: (none)' },
     ]);
   });
 

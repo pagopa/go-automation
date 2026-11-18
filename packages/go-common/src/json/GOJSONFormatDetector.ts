@@ -11,6 +11,7 @@
 
 import * as fs from 'fs/promises';
 import { createReadStream } from 'fs';
+import * as path from 'path';
 import * as readline from 'readline';
 import type {
   GOJSONDetectionDepth,
@@ -393,10 +394,14 @@ export class GOJSONFormatDetector {
     return lines;
   }
 
-  /** Extracts lowercase file extension including the dot */
+  /**
+   * Extracts the lowercase extension of the file name, dot included. Only the last path segment
+   * counts: a dot in a directory name (`.cache/data`, `exports.v2/data`) is not an extension.
+   */
   private getExtension(filePath: string): string {
-    const lastDot = filePath.lastIndexOf('.');
-    if (lastDot === -1 || lastDot === filePath.length - 1) return '';
-    return filePath.slice(lastDot).toLowerCase();
+    const fileName = path.basename(filePath);
+    const lastDot = fileName.lastIndexOf('.');
+    if (lastDot === -1 || lastDot === fileName.length - 1) return '';
+    return fileName.slice(lastDot).toLowerCase();
   }
 }

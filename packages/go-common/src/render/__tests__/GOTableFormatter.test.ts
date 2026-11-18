@@ -50,11 +50,18 @@ describe('GOTableFormatter', () => {
     );
   });
 
-  it('renders border-less mode with column separators but no outer frame', () => {
-    const out = format({ columns, data: [{ name: 'Alice', age: 30 }], border: false });
-    assert.ok(out.includes('Alice'));
-    assert.ok(out.includes('│'));
-    assert.ok(!out.includes('┌') && !out.includes('└'));
+  it('renders border-less mode with column separators aligned to the row separators, without outer frame (snapshot)', () => {
+    assert.strictEqual(
+      format({
+        columns,
+        data: [
+          { name: 'Alice', age: 30 },
+          { name: 'Bob', age: 25 },
+        ],
+        border: false,
+      }),
+      [' Name  │ Age ', '───────┼─────', ' Alice │  30 ', '───────┼─────', ' Bob   │  25 '].join('\n'),
+    );
   });
 
   it('applies custom formatters, explicit widths and maxColumnWidth truncation', () => {

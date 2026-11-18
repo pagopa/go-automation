@@ -128,7 +128,7 @@ export class GOTableFormatter {
     if (top !== '') lines.push(top);
 
     const headerCells = this.resolvedColumns.map((c) => colorize(c.header, this.headerColor));
-    lines.push(renderRow(headerCells, this.resolvedColumns, this.chars.vertical));
+    lines.push(renderRow(headerCells, this.resolvedColumns, this.chars.vertical, this.chars.edge));
 
     const midSeparator = renderSeparator(this.resolvedColumns, this.chars, 'mid');
 
@@ -144,7 +144,7 @@ export class GOTableFormatter {
         lines.push(midSeparator);
       }
       const cells = this.resolvedColumns.map((c) => c.formatter(row[c.key]));
-      lines.push(renderRow(cells, this.resolvedColumns, this.chars.vertical));
+      lines.push(renderRow(cells, this.resolvedColumns, this.chars.vertical, this.chars.edge));
     }
 
     const bottom = renderSeparator(this.resolvedColumns, this.chars, 'bottom');
