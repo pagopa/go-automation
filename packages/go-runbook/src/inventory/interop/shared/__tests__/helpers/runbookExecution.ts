@@ -2,11 +2,11 @@
  * Helpers to execute an INTEROP runbook end to end against a scripted fake
  * of CloudWatch Logs.
  */
-import type { Runbook } from '../../../../engine/types/Runbook.js';
-import { executeWithLogs } from '../../../../__tests__/helpers/executeWithLogs.js';
-import type { LogRows } from '../../../../__tests__/helpers/LogRows.js';
-import type { LogsResponderFn } from '../../../../__tests__/helpers/LogsResponderFn.js';
-import type { RunbookLogsExecution } from '../../../../__tests__/helpers/RunbookLogsExecution.js';
+import type { Runbook } from '../../../../../engine/types/Runbook.js';
+import { executeWithLogs } from '../../../../../__tests__/helpers/executeWithLogs.js';
+import type { LogRows } from '../../../../../__tests__/helpers/LogRows.js';
+import type { LogsResponderFn } from '../../../../../__tests__/helpers/LogsResponderFn.js';
+import type { RunbookLogsExecution } from '../../../../../__tests__/helpers/RunbookLogsExecution.js';
 import type { InteropPodLogScenario } from './InteropPodLogScenario.js';
 
 /** Default occurrence window of the executions. */

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { INTEROP_API_GW_APPLICATION_QUERY_LIMIT } from '../../../../../toolkits/interop/index.js';
-import { cidTrackerOutput, conditionContext, podLogRows } from '../../../__tests__/helpers/knownCaseTesting.js';
+import { cidTrackerOutput, conditionContext, podLogRows } from '../../../shared/__tests__/helpers/knownCaseTesting.js';
 import type { LogRows } from '../../../../../__tests__/helpers/LogRows.js';
 import {
   AnalyzeAuditFallbackStep,

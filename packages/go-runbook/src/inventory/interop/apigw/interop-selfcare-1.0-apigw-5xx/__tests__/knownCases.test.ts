@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import type { RunbookContext } from '../../../../../engine/index.js';
-import { conditionContext } from '../../../__tests__/helpers/knownCaseTesting.js';
+import { conditionContext } from '../../../shared/__tests__/helpers/knownCaseTesting.js';
 import { caseMatches, knownCaseById, matchingCaseIds } from '../../../../../__tests__/helpers/knownCaseMatching.js';
 import { KNOWN_CASES } from '../knownCases.js';
 

@@ -4,7 +4,7 @@ import { GOLogger } from '@pagopa/go-common/logging';
 
 import { executeRunbookForOccurrence } from '../../../../../runtime/index.js';
 import { createTestServiceRegistry } from '../../../../../toolkits/interop/index.js';
-import { executeAlarmWithLogs } from '../../../__tests__/helpers/runbookExecution.js';
+import { executeAlarmWithLogs } from '../../../shared/__tests__/helpers/runbookExecution.js';
 import { fakeCloudWatchLogs } from '../../../../../__tests__/helpers/fakeCloudWatchLogs.js';
 import type { LogRows } from '../../../../../__tests__/helpers/LogRows.js';
 import { ALARM_NAME, API_GW_ID, API_GW_LOG_GROUP, QUERY_STEP_ID } from '../alarmDefinition.js';

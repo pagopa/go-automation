@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { InteropPodLogScenario } from '../../../__tests__/helpers/InteropPodLogScenario.js';
-import { executeAlarmWithLogs, interopPodResponder } from '../../../__tests__/helpers/runbookExecution.js';
+import type { InteropPodLogScenario } from '../../../shared/__tests__/helpers/InteropPodLogScenario.js';
+import { executeAlarmWithLogs, interopPodResponder } from '../../../shared/__tests__/helpers/runbookExecution.js';
 import type { RunbookLogsExecution } from '../../../../../__tests__/helpers/RunbookLogsExecution.js';
 import { ONE_TRUST_NOTICES_ALARM as ALARM } from '../alarmDefinition.js';
 import { buildRunbook } from '../runbook.js';

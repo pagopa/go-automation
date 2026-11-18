@@ -4,7 +4,7 @@ import { BFF_ALARM } from '../alarmDefinition.js';
 import { AnalyzeBffEvidenceStep, BFF_EVIDENCE_STEP_ID } from '../AnalyzeBffEvidenceStep.js';
 import { KNOWN_CASES } from '../knownCases.js';
 import type { RunbookContext } from '../../../../../engine/index.js';
-import { cidTrackerOutput, conditionContext } from '../../../__tests__/helpers/knownCaseTesting.js';
+import { cidTrackerOutput, conditionContext } from '../../../shared/__tests__/helpers/knownCaseTesting.js';
 import { matchingCaseIds } from '../../../../../__tests__/helpers/knownCaseMatching.js';
 import type { LogRows } from '../../../../../__tests__/helpers/LogRows.js';
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { cidTrackerOutput, conditionContext, podLogRows } from '../../../__tests__/helpers/knownCaseTesting.js';
+import { cidTrackerOutput, conditionContext, podLogRows } from '../../../shared/__tests__/helpers/knownCaseTesting.js';
 import { matchingCaseIds } from '../../../../../__tests__/helpers/knownCaseMatching.js';
 import { COMPUTE_AGREEMENTS_CONSUMER_ALARM as alarm } from '../alarmDefinition.js';
 import { KNOWN_CASES } from '../knownCases.js';

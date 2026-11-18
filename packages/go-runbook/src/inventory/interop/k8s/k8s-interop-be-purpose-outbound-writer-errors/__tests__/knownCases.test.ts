@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { cidTrackerOutput, conditionContext, podLogRows } from '../../../__tests__/helpers/knownCaseTesting.js';
-import { executeAlarmWithLogs, interopPodResponder } from '../../../__tests__/helpers/runbookExecution.js';
+import { cidTrackerOutput, conditionContext, podLogRows } from '../../../shared/__tests__/helpers/knownCaseTesting.js';
+import { executeAlarmWithLogs, interopPodResponder } from '../../../shared/__tests__/helpers/runbookExecution.js';
 import { matchingCaseIds } from '../../../../../__tests__/helpers/knownCaseMatching.js';
 import { PURPOSE_OUTBOUND_WRITER_ALARM as alarm } from '../alarmDefinition.js';
 import { KNOWN_CASES } from '../knownCases.js';

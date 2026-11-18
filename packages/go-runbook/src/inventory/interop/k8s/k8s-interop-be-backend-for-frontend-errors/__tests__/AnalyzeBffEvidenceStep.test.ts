@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { conditionContext } from '../../../__tests__/helpers/knownCaseTesting.js';
+import { conditionContext } from '../../../shared/__tests__/helpers/knownCaseTesting.js';
 import { AnalyzeBffEvidenceStep } from '../AnalyzeBffEvidenceStep.js';
 import { BFF_ALARM } from '../alarmDefinition.js';
 

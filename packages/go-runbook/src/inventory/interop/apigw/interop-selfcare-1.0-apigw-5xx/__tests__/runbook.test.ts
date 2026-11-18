@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { apigw } from '../../../../../toolkits/interop/index.js';
-import { executeAlarmWithLogs } from '../../../__tests__/helpers/runbookExecution.js';
+import { executeAlarmWithLogs } from '../../../shared/__tests__/helpers/runbookExecution.js';
 import type { LogRows } from '../../../../../__tests__/helpers/LogRows.js';
 import type { RunbookLogsExecution } from '../../../../../__tests__/helpers/RunbookLogsExecution.js';
 import { buildRunbook } from '../runbook.js';

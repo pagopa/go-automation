@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { executeAlarmWithLogs, isCidTrackerQuery } from '../../../__tests__/helpers/runbookExecution.js';
+import { executeAlarmWithLogs, isCidTrackerQuery } from '../../../shared/__tests__/helpers/runbookExecution.js';
 import type { LogRows } from '../../../../../__tests__/helpers/LogRows.js';
 import type { RunbookLogsExecution } from '../../../../../__tests__/helpers/RunbookLogsExecution.js';
 import { AUTH_SERVER_5XX_ALARM as alarm } from '../alarmDefinition.js';

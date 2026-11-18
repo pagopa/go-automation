@@ -4,8 +4,8 @@ import { GOLogger } from '@pagopa/go-common/logging';
 
 import { executeRunbookForOccurrence } from '../../../../../runtime/index.js';
 import { createTestServiceRegistry } from '../../../../../toolkits/interop/index.js';
-import { cidTrackerOutput, conditionContext, podLogRows } from '../../../__tests__/helpers/knownCaseTesting.js';
-import { executeAlarmWithLogs, interopPodResponder } from '../../../__tests__/helpers/runbookExecution.js';
+import { cidTrackerOutput, conditionContext, podLogRows } from '../../../shared/__tests__/helpers/knownCaseTesting.js';
+import { executeAlarmWithLogs, interopPodResponder } from '../../../shared/__tests__/helpers/runbookExecution.js';
 import { fakeCloudWatchLogs } from '../../../../../__tests__/helpers/fakeCloudWatchLogs.js';
 import { matchingCaseIds } from '../../../../../__tests__/helpers/knownCaseMatching.js';
 import { DELEGATION_OUTBOUND_WRITER_ALARM as alarm } from '../alarmDefinition.js';

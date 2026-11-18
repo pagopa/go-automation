@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { executeAlarmWithLogs, interopPodResponder } from '../../../__tests__/helpers/runbookExecution.js';
+import { executeAlarmWithLogs, interopPodResponder } from '../../../shared/__tests__/helpers/runbookExecution.js';
 import { NOTIFICATION_SCHEDULER_ALARM as alarm } from '../alarmDefinition.js';
 import { buildRunbook } from '../runbook.js';
 

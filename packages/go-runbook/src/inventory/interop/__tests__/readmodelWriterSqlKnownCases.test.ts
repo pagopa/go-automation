@@ -11,8 +11,8 @@ import { CATALOG_READMODEL_WRITER_SQL_ALARM } from '../k8s/k8s-interop-be-catalo
 import { KNOWN_CASES as CATALOG_CASES } from '../k8s/k8s-interop-be-catalog-readmodel-writer-sql-errors/knownCases.js';
 import { buildRunbook as buildCatalogRunbook } from '../k8s/k8s-interop-be-catalog-readmodel-writer-sql-errors/runbook.js';
 import { matchingCaseIds } from '../../../__tests__/helpers/knownCaseMatching.js';
-import { cidTrackerOutput, conditionContext, podLogRows } from './helpers/knownCaseTesting.js';
-import { executeAlarmWithLogs, interopPodResponder } from './helpers/runbookExecution.js';
+import { cidTrackerOutput, conditionContext, podLogRows } from '../shared/__tests__/helpers/knownCaseTesting.js';
+import { executeAlarmWithLogs, interopPodResponder } from '../shared/__tests__/helpers/runbookExecution.js';
 
 const NETWORK_MESSAGES: ReadonlyArray<string> = [
   'ERROR - Connection timeout',

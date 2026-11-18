@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import type { AWSCloudWatchLogsTimeRange } from '@pagopa/go-aws/cloudwatch-logs';
 
-import { executeAlarmWithLogs } from '../../../__tests__/helpers/runbookExecution.js';
+import { executeAlarmWithLogs } from '../../../shared/__tests__/helpers/runbookExecution.js';
 import type { LogsResponderFn } from '../../../../../__tests__/helpers/LogsResponderFn.js';
 import type { RunbookLogsExecution } from '../../../../../__tests__/helpers/RunbookLogsExecution.js';
 import { buildRunbook } from '../runbook.js';

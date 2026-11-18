@@ -14,7 +14,7 @@ import { buildRunbook as buildTemplateWriterRunbook } from '../k8s/k8s-interop-b
 import { IN_APP_NOTIFICATION_DISPATCHER_ALARM } from '../k8s/k8s-interop-be-in-app-notification-dispatcher-errors/alarmDefinition.js';
 import { buildRunbook as buildDispatcherRunbook } from '../k8s/k8s-interop-be-in-app-notification-dispatcher-errors/runbook.js';
 import type { RunbookLogsExecution } from '../../../__tests__/helpers/RunbookLogsExecution.js';
-import { executeAlarmWithLogs, interopPodResponder } from './helpers/runbookExecution.js';
+import { executeAlarmWithLogs, interopPodResponder } from '../shared/__tests__/helpers/runbookExecution.js';
 
 const REJOIN = 'The coordinator is not aware of this member, re-joining the group';
 const REJOIN_WITH_REASON = `${REJOIN} - The coordinator is not aware of this member`;
