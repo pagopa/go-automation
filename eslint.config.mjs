@@ -8,7 +8,7 @@ import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import globals from 'globals';
 import eslintPluginSecurity from 'eslint-plugin-security';
-import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
+import eslintConfigPrettier from 'eslint-config-prettier/flat';
 import sonarjs from 'eslint-plugin-sonarjs';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -230,6 +230,9 @@ const scriptRestrictedSyntaxRules = [
 ];
 
 export default tseslint.config(
+  // An eslint-disable that no longer suppresses anything is an error: directives do not pile up.
+  { linterOptions: { reportUnusedDisableDirectives: 'error' } },
+
   // Base ESLint recommended
   eslint.configs.recommended,
 
@@ -816,8 +819,9 @@ export default tseslint.config(
     },
   },
 
-  // Prettier integration - MUST be last to override other configs
-  eslintPluginPrettierRecommended,
+  // Turns off the rules that conflict with Prettier - MUST be last. Prettier itself runs on its own
+  // (bins/check.sh format), not inside ESLint.
+  eslintConfigPrettier,
 );
 
 /**

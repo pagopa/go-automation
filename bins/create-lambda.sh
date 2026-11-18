@@ -101,6 +101,8 @@ select_option() {
     done
 
     tput cnorm
+    # select_option returns the index and the value; this script reads only SELECTED_VALUE.
+    # shellcheck disable=SC2034
     SELECTED_INDEX=$selected
     SELECTED_VALUE="${options[$selected]}"
 }
@@ -212,7 +214,7 @@ to_kebab_case() {
 }
 
 to_colon_case() {
-    echo "$1" | sed 's/-/:/g'
+    echo "${1//-/:}"
 }
 
 validate_shortcut_base() {
@@ -476,11 +478,11 @@ fs.writeFileSync(destinationFile, content);
 " "$source_file" "$destination_file"
 
     if grep -q '{{' "$destination_file"; then
-        print_error "Template rendering failed for ${destination_file#$PROJECT_ROOT/}"
+        print_error "Template rendering failed for ${destination_file#"$PROJECT_ROOT"/}"
         exit 1
     fi
 
-    print_success "Created: ${destination_file#$PROJECT_ROOT/}"
+    print_success "Created: ${destination_file#"$PROJECT_ROOT"/}"
 }
 
 # ============================================================================
@@ -495,7 +497,7 @@ echo -e "    ${YELLOW}Examples: go-AILambda, go-BotQESlackHandler, go-SendMonito
 echo ""
 
 while true; do
-    read -e -p "Lambda name: " LAMBDA_NAME_INPUT
+    read -r -e -p "Lambda name: " LAMBDA_NAME_INPUT
 
     if validate_lambda_name "$LAMBDA_NAME_INPUT"; then
         break
@@ -553,7 +555,7 @@ echo ""
 
 # Step 3: Get Description
 print_step "Enter a brief description for the Lambda:"
-read -e -p "Description: " LAMBDA_DESCRIPTION
+read -r -e -p "Description: " LAMBDA_DESCRIPTION
 
 if [[ -z "$LAMBDA_DESCRIPTION" ]]; then
     if [[ "$LAMBDA_KIND" == "script-wrapper" ]]; then
@@ -568,11 +570,9 @@ echo ""
 
 # Step 4: Publish to SEND environments?
 if confirm_yes_no "${BLUE}[?]${NC} Is this Lambda meant to be packaged for SEND environments?" "no"; then
-    PUBLISH_TO_SEND="true"
     TEST_BUILD_COMMAND="pnpm build && cd ../../artifacts/$LAMBDA_NAME && zip -r ../../functions/$LAMBDA_NAME/function.zip ."
     print_success "Will create a real test-build packaging command"
 else
-    PUBLISH_TO_SEND="false"
     TEST_BUILD_COMMAND="echo 'Skipping CodeBuild packaging for this function'"
     print_step "test-build will be a no-op message"
 fi
@@ -588,7 +588,7 @@ if confirm_yes_no "${BLUE}[?]${NC} Add root shortcuts to package.json?" "yes"; t
     echo -e "    ${YELLOW}Example final commands: lambda:${DEFAULT_SHORTCUT_BASE}:build, lambda:${DEFAULT_SHORTCUT_BASE}:package${NC}"
     echo ""
     while true; do
-        read -e -p "Shortcut base [$DEFAULT_SHORTCUT_BASE]: " SHORTCUT_BASE_INPUT
+        read -r -e -p "Shortcut base [$DEFAULT_SHORTCUT_BASE]: " SHORTCUT_BASE_INPUT
         SHORTCUT_BASE="${SHORTCUT_BASE_INPUT:-$DEFAULT_SHORTCUT_BASE}"
 
         if validate_shortcut_base "$SHORTCUT_BASE"; then

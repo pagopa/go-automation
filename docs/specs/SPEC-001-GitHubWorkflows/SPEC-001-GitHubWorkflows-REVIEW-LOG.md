@@ -134,3 +134,27 @@
   - `pnpm knip`, `pnpm format:check`, actionlint e zizmor: nessun rilievo.
   - Non eseguiti da Claude: `new-classes` e il gate intero, che lo comprende, perché il controllo usa git e Claude non
     esegue comandi git.
+
+## Strumenti ripresi da go-watchtower-pro (18 novembre 2026)
+
+- Claude ha confrontato gli strumenti dei due repository e ha proposto, con le misure: (1) togliere
+  `eslint-plugin-prettier`, (2) `reportUnusedDisableDirectives`, (3) `packageManager`, (4) la motivazione obbligatoria
+  degli `eslint-disable`, (5) ShellCheck sugli script di `bins/`, (6–8) regole TypeScript più severe, unicorn e la
+  coverage su tutti i moduli, da valutare a parte. Scartati: `import-x/no-cycle` (lo copre `no-circular` di
+  dependency-cruiser), Stylelint e React Doctor (niente frontend), `fix` (c'è `pnpm quality`).
+- Il committente: «procedi con i punti 1, 2, 3, 5 subito».
+- **1.** ESLint usa `eslint-config-prettier/flat` al posto di `eslint-plugin-prettier`, tolto da `package.json`, dal
+  catalogo e da Renovate: Prettier gira solo in `format`. Lint da zero: da 82 a 62 s.
+- **2.** `linterOptions.reportUnusedDisableDirectives: 'error'`: nessuna direttiva inutilizzata oggi.
+- **3.** `packageManager: "pnpm@12.16.1"`; `setup-ci` non passa più la versione a `pnpm/action-setup`, che la legge
+  da `package.json` (con tutte e due la action si ferma).
+- **5.** Controllo `shell` in `bins/check.sh` e passo `Shell scripts (ShellCheck)` in Static Checks, con
+  `koalaman/shellcheck-alpine:v0.11.0` fissato al digest in `ci.yml`. Regole normali per gli script di `bins/`;
+  `check.sh` si tiene a tutte (`# shellcheck enable=all`, provato con un caso negativo). Corretti i 21 rilievi, senza
+  cambiare il comportamento: `read -r`, sostituzioni di bash al posto di `sed`, espansioni tra virgolette in
+  `${x#...}`, `local` separato dall'assegnazione, `trap` con apici singoli, tre variabili mai usate tolte
+  (`ARROW`, `CROSS`, `PUBLISH_TO_SEND`). Per `select_option`, copiata uguale nei tre script e che restituisce indice e
+  valore, la variabile che lo script non legge è annotata (SC2034).
+- Verifica: ShellCheck pulito su `bins/*.sh` (anche con il comando del passo CI simulato in Docker), `bash -n` con
+  bash 5 e 3.2 su tutti gli script, actionlint e zizmor puliti, lint con `CI=true` senza errori. Gli script
+  interattivi (`create-lambda.sh`, `create-script.sh`, `deploy.sh`) non sono stati eseguiti.

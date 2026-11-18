@@ -35,7 +35,6 @@
         "eslint",
         "@eslint/js",
         "eslint-config-prettier",
-        "eslint-plugin-prettier",
         "eslint-plugin-security",
         "globals",
         "knip",

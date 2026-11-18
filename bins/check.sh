@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# This script holds itself to every check of ShellCheck; the other scripts of bins/ to the default ones.
+# shellcheck enable=all
 # The quality gate of GO Automation and each of its checks, which `pnpm check` and the CI jobs run: the usage below
 # says what the script accepts. It runs on the bash 3.2 of macOS too, so it uses no associative arrays, no mapfile and
 # no inherit_errexit.
@@ -31,6 +33,7 @@ Checks:
   new-classes    a test for every new class, against a base (default: --base origin/develop)
   workflows      actionlint and zizmor on .github/, from the Docker images pinned in .github/workflows/ci.yml;
                  zizmor runs its online audits when GH_TOKEN is set
+  shell          ShellCheck on the scripts of bins/, from the Docker image pinned in .github/workflows/ci.yml
 
 Examples:
   bins/check.sh               the whole gate
@@ -91,6 +94,17 @@ check_workflows() {
     docker run --rm --env GH_TOKEN --volume "${PWD}:/repo:ro" --workdir /repo "${zizmor}" "${zizmor_options[@]}" .
 }
 
+# ShellCheck on the scripts of bins/, from the image the CI pins.
+check_shell() {
+  local image
+  image="$(workflow_image 'koalaman/shellcheck-alpine')"
+  if [[ -z "${image}" ]]; then
+    printf 'The ShellCheck step is missing from .github/workflows/ci.yml\n' >&2
+    return 1
+  fi
+  docker run --rm --network=none --volume "${PWD}:/mnt:ro" --workdir /mnt --entrypoint shellcheck "${image}" "$@" bins/*.sh
+}
+
 # Runs one check, passing the arguments to its tool.
 run_check() {
   local check="$1"
@@ -134,6 +148,7 @@ run_check() {
       no_arguments "${check}" "$@"
       check_workflows
       ;;
+    shell) check_shell "$@" ;;
     *) fail_usage "Unknown check: ${check}." ;;
   esac
 }
@@ -165,7 +180,7 @@ run_gate() {
   if ((failed == 0)); then
     local check
     for check in test coverage published lint format unused dependencies duplicates types scaffold new-classes \
-      workflows; do
+      workflows shell; do
       run_step "${check}" run_check "${check}"
     done
   fi

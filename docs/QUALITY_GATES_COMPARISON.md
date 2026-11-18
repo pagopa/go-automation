@@ -141,7 +141,7 @@ La CI locale definisce questi controlli principali, raccolti in pochi job:
 6. Type coverage.
 7. Scaffold.
 8. Test per nuove classi.
-9. Controllo dei workflow (actionlint) e della loro sicurezza (zizmor).
+9. Controllo dei workflow (actionlint) e della loro sicurezza (zizmor), ShellCheck sugli script di `bins/`.
 10. Build.
 11. Test.
 12. Test coverage.

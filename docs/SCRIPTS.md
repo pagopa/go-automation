@@ -545,14 +545,14 @@ Ogni push su `main`/`develop` e ogni Pull Request esegue questi check:
                                     └─────────────────┘
 ```
 
-| Job                           | Comandi                                                                                                                                         | Cosa verifica                                                                                                                                                  |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Static Checks**             | `format:check`, `knip`, `deps:check`, `dup:report`, `type-coverage`, `validate:scaffold`, `check:new-class-tests` (solo PR), actionlint, zizmor | Formato, codice inutilizzato, dipendenze, duplicati, copertura dei tipi, struttura degli script, test delle classi nuove, workflow GitHub (errori e sicurezza) |
-| **Lint**                      | `pnpm lint`                                                                                                                                     | Regole ESLint e dati sensibili nei sorgenti pubblicati                                                                                                         |
-| **Build and Test**            | `pnpm build`, `pnpm test`, `pnpm test:coverage`                                                                                                 | Compilazione, test, copertura >= 90% linee, 80% branch, 90% funzioni                                                                                           |
-| **Published Packages**        | `pnpm test:published:static`                                                                                                                    | publint, attw, fotografia dell'API, costo degli import, dati sensibili                                                                                         |
-| **Published Packages (pack)** | `check:published-packages --pack-to`                                                                                                            | Archivi `.tgz` e matrice dello smoke                                                                                                                           |
-| **Smoke** (Node × shard)      | `check:published-packages --from-tarballs`                                                                                                      | Installazione e uso dei package come li vede chi li installa                                                                                                   |
+| Job                           | Comandi                                                                                                                                                     | Cosa verifica                                                                                                                                                                           |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Static Checks**             | `format:check`, `knip`, `deps:check`, `dup:report`, `type-coverage`, `validate:scaffold`, `check:new-class-tests` (solo PR), actionlint, zizmor, ShellCheck | Formato, codice inutilizzato, dipendenze, duplicati, copertura dei tipi, struttura degli script, test delle classi nuove, workflow GitHub (errori e sicurezza), script shell di `bins/` |
+| **Lint**                      | `pnpm lint`                                                                                                                                                 | Regole ESLint e dati sensibili nei sorgenti pubblicati                                                                                                                                  |
+| **Build and Test**            | `pnpm build`, `pnpm test`, `pnpm test:coverage`                                                                                                             | Compilazione, test, copertura >= 90% linee, 80% branch, 90% funzioni                                                                                                                    |
+| **Published Packages**        | `pnpm test:published:static`                                                                                                                                | publint, attw, fotografia dell'API, costo degli import, dati sensibili                                                                                                                  |
+| **Published Packages (pack)** | `check:published-packages --pack-to`                                                                                                                        | Archivi `.tgz` e matrice dello smoke                                                                                                                                                    |
+| **Smoke** (Node × shard)      | `check:published-packages --from-tarballs`                                                                                                                  | Installazione e uso dei package come li vede chi li installa                                                                                                                            |
 
 **Tutti i job devono passare** perché la PR possa essere mergiata: lo controlla `CI Success`, il check obbligatorio.
 
@@ -574,7 +574,8 @@ PR. Il controllo dei workflow (`bins/check.sh workflows`) usa Docker e le stesse
 **La cache di ESLint.** Fuori dalla CI `pnpm lint` tiene una cache in `node_modules/.cache/eslint/`: dopo il primo
 giro ricontrolla solo i file cambiati (circa 5 secondi invece di 90). Le regole con le informazioni di tipo dipendono
 anche da file che la cache non guarda, quindi un risultato in cache può essere vecchio: la CI, dove `CI=true`, fa sempre
-il lint da zero e resta il controllo che fa fede. Per un lint locale da zero basta cancellare
+il lint da zero e resta il controllo che fa fede. Un `eslint-disable` che non sopprime più nulla è un errore
+(`reportUnusedDisableDirectives`). Per un lint locale da zero basta cancellare
 `node_modules/.cache/eslint/`.
 
 ### ESLint: Regole Custom
@@ -673,7 +674,7 @@ pnpm knip
 
 ### Prettier: Formattazione Automatica
 
-Prettier è configurato come ultima regola ESLint (override) per garantire formattazione uniforme. Non serve pensarci: configura il tuo editor per formattare al salvataggio.
+Prettier gira da solo (`pnpm format:check`, passo di Static Checks); in ESLint c'è solo `eslint-config-prettier`, che spegne le regole in conflitto con Prettier. Non serve pensarci: configura il tuo editor per formattare al salvataggio.
 
 ```bash
 # Verifica (non modifica i file)
@@ -1169,15 +1170,15 @@ Le opzioni strict più importanti:
 
 Struttura della configurazione:
 
-| Sezione                   | Cosa fa                                            |
-| ------------------------- | -------------------------------------------------- |
-| **TypeScript rules**      | Strict typing, no-any, naming conventions          |
-| **Import rules**          | Ordine import, no duplicati, no circular           |
-| **Security rules**        | No eval, no unsafe regex, no prototype pollution   |
-| **no-restricted-imports** | Blocca librerie con equivalente in go-common       |
-| **no-restricted-syntax**  | Blocca pattern come `new EventEmitter()`           |
-| **main.ts rules**         | Regole strutturali per i file main.ts degli script |
-| **Prettier**              | Override finale per formattazione                  |
+| Sezione                   | Cosa fa                                               |
+| ------------------------- | ----------------------------------------------------- |
+| **TypeScript rules**      | Strict typing, no-any, naming conventions             |
+| **Import rules**          | Ordine import, no duplicati, no circular              |
+| **Security rules**        | No eval, no unsafe regex, no prototype pollution      |
+| **no-restricted-imports** | Blocca librerie con equivalente in go-common          |
+| **no-restricted-syntax**  | Blocca pattern come `new EventEmitter()`              |
+| **main.ts rules**         | Regole strutturali per i file main.ts degli script    |
+| **Prettier**              | Regole in conflitto spente (`eslint-config-prettier`) |
 
 La configurazione include anche un **plugin custom inline** (`goAutomationPlugin`) che definisce la regola `no-extra-functions-in-main`.
 
@@ -1192,7 +1193,7 @@ pnpm lint:fix      # Correggi automaticamente dove possibile
 
 **Perché è stato scelto**: Elimina le discussioni sullo stile di formattazione. Tutti scrivono codice che sembra uguale.
 
-**Configurazione**: Integrato come ultima regola ESLint (`eslint-plugin-prettier`). Le impostazioni base sono in `prettier.config.*` o nel `package.json`.
+**Configurazione**: Gira da solo, non dentro ESLint: `pnpm format:check` controlla, `pnpm format` corregge. ESLint spegne le regole in conflitto con `eslint-config-prettier`. Le impostazioni sono in `.prettierrc.json`.
 
 ```bash
 pnpm format:check  # Verifica senza modificare

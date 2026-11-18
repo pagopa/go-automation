@@ -19,7 +19,6 @@ BOLD='\033[1m'
 
 # Unicode symbols
 CHECK="${GREEN}✔${NC}"
-ARROW="${CYAN}›${NC}"
 
 # Get the script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -113,6 +112,8 @@ select_option() {
 
     # Set return values
     SELECTED_INDEX=$selected
+    # select_option returns the index and the value; this script reads only SELECTED_INDEX.
+    # shellcheck disable=SC2034
     SELECTED_VALUE="${options[$selected]}"
 }
 
@@ -273,7 +274,7 @@ echo -e "    ${YELLOW}Examples: report-alarms, send-notifications, import-data${
 echo ""
 
 while true; do
-    read -e -p "Script name: " SCRIPT_NAME_INPUT
+    read -r -e -p "Script name: " SCRIPT_NAME_INPUT
 
     if validate_script_name "$SCRIPT_NAME_INPUT"; then
         break
@@ -286,14 +287,14 @@ FULL_SCRIPT_NAME="${PRODUCT}-${SCRIPT_NAME_INPUT}"
 SCRIPT_TITLE="$(to_title_case "$FULL_SCRIPT_NAME")"
 SCRIPT_CONFIG_NAME="$(to_config_name "$FULL_SCRIPT_NAME")"
 # Convert script name to shortcut format (go-report-alarms -> go:report:alarms)
-SHORTCUT_NAME=$(echo "$FULL_SCRIPT_NAME" | sed 's/-/:/g')
+SHORTCUT_NAME="${FULL_SCRIPT_NAME//-/:}"
 
 print_success "Script name: ${BOLD}$FULL_SCRIPT_NAME${NC}"
 echo ""
 
 # Step 3: Get Description
 print_step "Enter a brief description for the script:"
-read -e -p "Description: " SCRIPT_DESCRIPTION
+read -r -e -p "Description: " SCRIPT_DESCRIPTION
 
 if [[ -z "$SCRIPT_DESCRIPTION" ]]; then
     SCRIPT_DESCRIPTION="Script for $SCRIPT_TITLE"
@@ -360,7 +361,7 @@ print_success "Created: src/index.ts"
 # Process config.ts and config type from templates using temp files for multiline content
 TEMP_PARAMS=$(mktemp)
 TEMP_CONFIG=$(mktemp)
-trap "rm -f $TEMP_PARAMS $TEMP_CONFIG" EXIT
+trap 'rm -f "$TEMP_PARAMS" "$TEMP_CONFIG"' EXIT
 
 if [[ "$INCLUDE_AWS_PROFILE" == "true" ]]; then
     GO_SCRIPT_CONFIG_IMPORT="import { type GOConfigParameterOptions, GOConfigParameterType, type GOScriptMetadata } from '@go-automation/go-script';"
