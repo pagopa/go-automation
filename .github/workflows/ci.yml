@@ -1,4 +1,5 @@
-# Quality gates of every push and pull request on develop and main. "CI Success" is the required check:
+# Quality gates of every push and pull request on develop and main. Each check runs through bins/check.sh, as
+# `pnpm check` does locally. "CI Success" is the required check:
 # it fails unless every job it needs succeeded. Each job compiles what it needs: the build takes about
 # 30 seconds, less than uploading and downloading it as an artifact.
 name: CI
@@ -41,35 +42,34 @@ jobs:
 
       - name: Format
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: pnpm format:check
+        run: bins/check.sh format
 
       - name: Unused code
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: pnpm knip
+        run: bins/check.sh unused
 
       - name: Dependency graph
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: pnpm deps:check
+        run: bins/check.sh dependencies
 
-      # dup:report, not dup:check: both enforce the threshold of .jscpd.json, but only the verbose
-      # reporter names the clones in the log.
+      # The verbose reporter of jscpd, so that a failure names the clones in the log.
       - name: Code duplication
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: pnpm dup:report
+        run: bins/check.sh duplicates
 
       - name: Type coverage
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: pnpm type-coverage
+        run: bins/check.sh types
 
       - name: Scaffold validation
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: pnpm validate:scaffold
+        run: bins/check.sh scaffold
 
       - name: New class tests
         if: ${{ !cancelled() && steps.setup.outcome == 'success' && github.event_name == 'pull_request' }}
         env:
           BASE_REF: ${{ github.base_ref }}
-        run: pnpm check:new-class-tests --base "origin/${BASE_REF}"
+        run: bins/check.sh new-classes --base "origin/${BASE_REF}"
 
       - name: Workflows (actionlint)
         if: ${{ !cancelled() }}
@@ -100,8 +100,9 @@ jobs:
       - name: Setup CI environment
         uses: ./.github/actions/setup-ci
 
+      # CI=true: ESLint runs from scratch, without the local cache.
       - name: Lint
-        run: pnpm lint
+        run: bins/check.sh lint
 
   # Install scripts enabled: the tests of go-documents need the native build of better-sqlite3.
   test:
@@ -118,17 +119,17 @@ jobs:
         uses: ./.github/actions/setup-ci
 
       - name: Build
-        run: pnpm build
+        id: build
+        run: bins/check.sh build
 
+      # Tests and coverage both run on a successful build, even when the other one fails.
       - name: Test
-        run: pnpm test
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: bins/check.sh test
 
       - name: Coverage
-        env:
-          GO_COVERAGE_LINES_THRESHOLD: '90'
-          GO_COVERAGE_BRANCHES_THRESHOLD: '80'
-          GO_COVERAGE_FUNCTIONS_THRESHOLD: '90'
-        run: pnpm test:coverage
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: bins/check.sh coverage
 
   # Static gates of the published packages: publint, attw, API reports, import budgets and the
   # sensitive-data gate on the packed archives. No package is published without them.
@@ -148,14 +149,14 @@ jobs:
           install-args: --frozen-lockfile --ignore-scripts
 
       - name: Build
-        run: pnpm build
+        run: bins/check.sh build
 
       - name: Publication gates
         env:
           # GitHub runners are about twice as slow as a workstation: only the time budgets are widened,
           # the checks on the loaded libraries stay the same.
           IMPORT_COST_TIME_FACTOR: '2'
-        run: pnpm test:published:static
+        run: bins/check.sh published
 
   # The archives are packed once, on the toolchain Node, and every smoke cell installs those same
   # archives. `pnpm pack` runs each package's prepack (clean + build). The cells come from the declared

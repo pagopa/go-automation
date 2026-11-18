@@ -87,3 +87,50 @@
     nota di riattivarlo quando actionlint la accetterà.
 - Dopo le correzioni: zizmor «No findings» (3 eccezioni, 6 rilievi a bassa confidenza nascosti dalla persona
   `regular`), actionlint senza rilievi, ShellCheck sul nuovo script di `setup-ci` pulito.
+
+## Confronto con la CI di prima
+
+- Su domanda del committente («rispetto a prima viene tutto monitorato e verificato come prima?»), Claude ha
+  confrontato ogni controllo della CI precedente con quella nuova. Ogni comando, soglia, scenario, versione di Node e
+  package manager è ancora eseguito. Restano fuori solo le parti decise: lo smoke macOS (D1), l'artefatto
+  `coverage-reports`, che nessuno leggeva, e `merge_group`, che non partiva mai.
+- Differenza trovata e corretta: in `Build and Test` un test fallito saltava la coverage, mentre prima i due job
+  erano separati. Ora entrambi i passi girano dopo una build riuscita, anche se l'altro fallisce.
+- Correzione al testo della v03 (§3.2): il controllo dei sottopercorsi senza scenario non sta nel pack. Gira in ogni
+  cella dello smoke, su tutti gli scenari, come prima.
+- Da verificare dopo il merge: `Release Guards` e `Release Audit` girano con la versione del workflow sul ramo base
+  (o con la schedulazione), quindi `persist-credentials: false` si prova alla prima PR dopo il merge e al primo audit
+  giornaliero.
+
+## `bins/check.sh` e la cache di ESLint (18 novembre 2026)
+
+- Il committente ha chiesto se la cache del lint di go-watchtower-pro abbia senso anche qui. Claude ha misurato
+  `eslint .` sul Mac del committente: 88 s senza cache, 96 s alla prima esecuzione con la cache, 7 s alle successive.
+  La proposta: cache solo in locale, perché le regole con le informazioni di tipo (`projectService`) dipendono da file
+  che la cache non guarda, e perché il lint non sta sul percorso più lungo della CI.
+- Il committente: «facciamo uno script shell `check.sh` come in watchtower e aggiungi a lint la cache solo in
+  locale», poi «verifica lo script con ShellCheck».
+- `bins/check.sh`, sul modello di go-watchtower-pro: senza argomenti esegue il gate (`pnpm check`): la build, poi gli
+  altri controlli anche se uno fallisce, con il riepilogo di esiti e durate; con un argomento, un controllo solo.
+  Compatibile con il bash 3.2 di macOS.
+  - Il lint usa la cache in `node_modules/.cache/eslint/` (`--cache-strategy content`) solo quando `CI` non è
+    impostata; GitHub Actions imposta `CI=true`.
+  - `workflows` legge le immagini di actionlint e zizmor da `ci.yml`, così la CI, lo script e Renovate restano
+    allineati.
+  - Lo smoke dei package pubblicati è un controllo a sé (`smoke`), fuori dal gate: dura minuti e la CI lo esegue.
+- Gli script `lint`, `lint:fix`, `format:check`, `knip`, `dup:report`, `type-coverage`, `validate:scaffold` e
+  `check:new-class-tests` richiamano `bins/check.sh`, e così i passi della CI: ogni comando sta in un posto solo. Le
+  soglie della coverage escono dalla CI, perché erano già i valori predefiniti degli script `test:coverage`.
+- knip ricava i punti di ingresso dagli script di `package.json` e non legge `check.sh`: la sua configurazione ora
+  dichiara i punti di ingresso di `check-new-class-tests` e `validate-scaffold`, e `type-coverage` tra le dipendenze
+  usate.
+- Verifica:
+  - ShellCheck 0.11.0 con tutti i controlli attivi (`--enable=all`), installato e da `koalaman/shellcheck:v0.11.0`:
+    il primo giro ha dato SC2310 (funzioni chiamate dentro `&&` e `||`, dove `set -e` non agisce), corretto; poi
+    nessun rilievo.
+  - Con `/bin/bash` 3.2: `--help`, un controllo sconosciuto e argomenti non ammessi escono con 2; lint (4 s con la
+    cache; 82 s e senza `--cache` con `CI=true`, verificato con `bash -x`), `workflows`, `format`, `types`, `build`,
+    `test`, `coverage` (313 test, 0 falliti), `published`, `dependencies`: tutti passano.
+  - `pnpm knip`, `pnpm format:check`, actionlint e zizmor: nessun rilievo.
+  - Non eseguiti da Claude: `new-classes` e il gate intero, che lo comprende, perché il controllo usa git e Claude non
+    esegue comandi git.

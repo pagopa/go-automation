@@ -556,6 +556,27 @@ Ogni push su `main`/`develop` e ogni Pull Request esegue questi check:
 
 **Tutti i job devono passare** perché la PR possa essere mergiata: lo controlla `CI Success`, il check obbligatorio.
 
+### Lo stesso gate in locale: `pnpm check`
+
+Ogni controllo è un comando di [`bins/check.sh`](../bins/check.sh), che la CI e gli script di `package.json` richiamano:
+in locale e in CI girano gli stessi comandi.
+
+```bash
+pnpm check                          # tutto il gate: la build, poi gli altri controlli anche se uno fallisce, e il riepilogo
+bins/check.sh lint                  # un controllo solo (bins/check.sh --help per l'elenco)
+bins/check.sh new-classes --base origin/main
+```
+
+Il gate non comprende lo smoke dei package pubblicati (`bins/check.sh smoke`), che dura minuti e gira in CI su ogni
+PR. Il controllo dei workflow (`bins/check.sh workflows`) usa Docker e le stesse immagini fissate in `ci.yml`; con
+`GH_TOKEN` impostato zizmor fa anche i controlli online.
+
+**La cache di ESLint.** Fuori dalla CI `pnpm lint` tiene una cache in `node_modules/.cache/eslint/`: dopo il primo
+giro ricontrolla solo i file cambiati (circa 5 secondi invece di 90). Le regole con le informazioni di tipo dipendono
+anche da file che la cache non guarda, quindi un risultato in cache può essere vecchio: la CI, dove `CI=true`, fa sempre
+il lint da zero e resta il controllo che fa fede. Per un lint locale da zero basta cancellare
+`node_modules/.cache/eslint/`.
+
 ### ESLint: Regole Custom
 
 Oltre alle regole standard (TypeScript strict, import ordering, security), il progetto definisce regole specifiche.
@@ -1161,8 +1182,8 @@ Struttura della configurazione:
 La configurazione include anche un **plugin custom inline** (`goAutomationPlugin`) che definisce la regola `no-extra-functions-in-main`.
 
 ```bash
-pnpm lint          # Esegui ESLint
-pnpm lint --fix    # Correggi automaticamente dove possibile
+pnpm lint          # Esegui ESLint (con la cache, fuori dalla CI)
+pnpm lint:fix      # Correggi automaticamente dove possibile
 ```
 
 ### Prettier (Formatter)
