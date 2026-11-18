@@ -134,7 +134,7 @@
     "send:upload:attachments:dev": "pnpm --filter=send-upload-attachments dev",
     "send:upload:attachments:prod": "pnpm --filter=send-upload-attachments start",
     "test": "pnpm test:packages && pnpm test:scripts && pnpm test:functions && pnpm test:infra && pnpm test:bins",
-    "test:bins": "pnpm create:runbook:test && pnpm check:published:test && pnpm test:published:bins && pnpm check:release-state:test",
+    "test:bins": "pnpm create:runbook:test && pnpm check:published:test && pnpm test:published:bins && pnpm check:release-state:test && pnpm check:new-class-tests:test",
     "test:common": "pnpm --filter=@pagopa/go-common test",
     "test:common:coverage": "pnpm --filter=@pagopa/go-common test:coverage",
     "test:coverage": "pnpm test:common:coverage && pnpm test:scripts:coverage",

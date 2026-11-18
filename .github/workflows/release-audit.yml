@@ -1,5 +1,5 @@
-# daily read-only check that every merged release PR is published, tagged
-# and has aligned channels. On failure it prints the recovery (Release workflow with release_sha).
+# Daily read-only check that every merged release PR is published, tagged and has aligned channels.
+# On failure it prints the recovery of each problem (docs/RELEASING.md).
 name: Release Audit
 
 on:
@@ -25,6 +25,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup CI environment
         uses: ./.github/actions/setup-ci

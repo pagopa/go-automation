@@ -139,10 +139,14 @@ go-automation/
 │       └── configs/
 │
 ├── .github/
+│   ├── actions/
+│   │   └── setup-ci/          # pnpm, Node.js, cache e installazione
 │   └── workflows/
-│       ├── ci.yml
-│       ├── ci-job.yml
-│       └── security.yml
+│       ├── ci.yml             # quality gate di push e PR (check obbligatorio: CI Success)
+│       ├── security.yml       # pnpm audit e licenze
+│       ├── release.yml        # PR di rilascio e pubblicazione dei package @pagopa/*
+│       ├── release-guards.yml # guardia di ogni PR verso develop e main
+│       └── release-audit.yml  # controllo giornaliero dei rilasci
 │
 ├── tsconfig.base.json
 ├── eslint.config.mjs
@@ -657,7 +661,7 @@ La build non è più solo compilazione: il monorepo usa una pipeline centralizza
 | **Lint**             | `eslint.config.mjs`              | Regole TypeScript, security plugin e regole custom del progetto |
 | **Unused code**      | `knip`                           | Individua export, file e dipendenze inutilizzati                |
 | **Coverage**         | `test:coverage`                  | Applica soglie centralizzate su linee, branch e funzioni        |
-| **CI orchestration** | `.github/workflows/ci-job.yml`   | Workflow riutilizzabile per tutti i job CI                      |
+| **CI orchestration** | `.github/workflows/ci.yml`       | Job della CI e aggregatore `CI Success`; setup in `setup-ci`    |
 | **Security audit**   | `.github/workflows/security.yml` | `pnpm audit` su PR, push mirati e schedule periodica            |
 
 ---

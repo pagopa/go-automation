@@ -13,6 +13,7 @@ on:
       - '**/package.json'
       - '.github/actions/**'
       - '.github/workflows/**'
+      - 'bins/check-license-report.mjs'
   pull_request:
     branches: [main, develop]
     paths:
@@ -22,10 +23,15 @@ on:
       - '**/package.json'
       - '.github/actions/**'
       - '.github/workflows/**'
+      - 'bins/check-license-report.mjs'
   schedule:
     # Run every Monday at 9:00 UTC
     - cron: '0 9 * * 1'
   workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   audit:
@@ -36,18 +42,20 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup CI environment
         uses: ./.github/actions/setup-ci
         with:
           install-args: --frozen-lockfile --ignore-scripts
 
-      - name: Run security audit
+      # High vulnerabilities are reported without failing; critical ones fail the job.
+      - name: Run security audit (report)
         run: pnpm audit --audit-level=high
         continue-on-error: true
 
       - name: Run security audit (strict)
-        id: audit-strict
         run: pnpm audit --audit-level=critical
 
   license-check:
@@ -57,7 +65,9 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup CI environment
         uses: ./.github/actions/setup-ci

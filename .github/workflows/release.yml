@@ -83,6 +83,7 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           permission-contents: write
 
+      # The app token stays in the git configuration on purpose: the last step pushes the tags with it.
       - name: Checkout the merge commit of the release PR
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -101,6 +102,8 @@ jobs:
       # missing <name>@<version> tag, also for versions published by an earlier attempt of a re-run.
       - name: Publish
         run: |
+          # The token stays a literal ${NODE_AUTH_TOKEN} in .npmrc: npm expands it, so it never lands on disk.
+          # shellcheck disable=SC2016
           {
             echo '@pagopa:registry=https://npm.pkg.github.com'
             echo '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}'

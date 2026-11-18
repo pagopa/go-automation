@@ -7,7 +7,7 @@
     ":rebaseStalePrs",
     ":dependencyDashboard"
   ],
-  "enabledManagers": ["npm"],
+  "enabledManagers": ["npm", "github-actions"],
   "labels": ["dependencies"],
   "prConcurrentLimit": 4,
   "rangeStrategy": "replace",
@@ -44,6 +44,13 @@
       ],
       "groupName": "typescript-eslint-tooling",
       "commitMessageTopic": "typescript-eslint-tooling"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions",
+      "commitMessageTopic": "github-actions",
+      "pinDigests": true,
+      "addLabels": ["ci"]
     }
   ]
 }

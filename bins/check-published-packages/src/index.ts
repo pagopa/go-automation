@@ -48,9 +48,11 @@ async function main(): Promise<number> {
   const fromTarballs = optionValue(argv, '--from-tarballs');
 
   if (argv.includes('--print-node-matrix')) {
-    // CI: the cells of the smoke matrix, derived from the declared engines of each scenario (§10.2).
+    // CI: the cells of the smoke matrix, derived from the declared engines of each scenario and split into
+    // `--shards` parallel runners per Node version.
     const manifests = new Map((await readPublishedManifests(root)).map((entry) => [entry.name, entry]));
-    console.log(JSON.stringify(nodeMatrix(scenariosOf(manifests), manifests)));
+    const shards = Number(optionValue(argv, '--shards') ?? '1');
+    console.log(JSON.stringify(nodeMatrix(scenariosOf(manifests), manifests, shards)));
     return 0;
   }
 

@@ -10,7 +10,8 @@
 name: Release Guards
 
 on:
-  pull_request_target:
+  # Deliberate: the trust model above keeps the PR as data, never installed or executed.
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
     types: [opened, synchronize, reopened, edited]
     branches: [develop, main]
 
@@ -43,6 +44,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
+          # The repository is public: the fetch of the PR head below needs no credentials.
+          persist-credentials: false
 
       - name: Fetch the PR head as data
         run: |
@@ -58,7 +61,7 @@ jobs:
 
       - name: Guard of the PR category
         run: |
-          # Release PR: the one of the GitHub App (changeset-release/develop, §9.3.1) or a manual release/*.
+          # Release PR: the one of the GitHub App (changeset-release/develop) or a manual release/*.
           if [[ "$BASE_REF" == "develop" && ( "$HEAD_REF" == "changeset-release/develop" || "$HEAD_REF" == release/* ) && "$HEAD_REPOSITORY" == "$GITHUB_REPOSITORY" ]]; then
             guard=release-pr-guard
           elif [[ "$BASE_REF" == "main" && "$HEAD_REF" == "develop" && "$HEAD_REPOSITORY" == "$GITHUB_REPOSITORY" ]]; then

@@ -81,15 +81,14 @@ uno dei tre è la via più rapida, e `pnpm go new` + `go-cli` scaffoldano già
 
 ## CI
 
-`.github/workflows/ci.yml` ha due job rilevanti ai test, entrambi bloccanti su
-`ci-success` (il job di summary su cui punta la branch protection):
+In `.github/workflows/ci.yml` i test stanno nel job **Build and Test**, bloccante su
+`ci-success` (il job di summary su cui punta la branch protection). Dopo la build esegue:
 
-- **`test`** — esegue `pnpm test`, che aggrega
-  `test:common && test:runbooks && test:packages && test:scripts && test:functions && test:infra`.
-  Copre ogni workspace con uno script `test`, indipendentemente dal coverage.
-- **`coverage`** — esegue `pnpm test:coverage`, con le soglie 90/80/90 passate
-  come input del workflow riusabile e i report `lcov.info` caricati come
-  artifact. Copre solo i 3 workspace di cui sopra, per i motivi descritti.
+- **`pnpm test`**, che aggrega
+  `test:packages && test:scripts && test:functions && test:infra && test:bins`.
+  Copre ogni workspace con uno script `test`, indipendentemente dal coverage, e i test dei `bins`.
+- **`pnpm test:coverage`**, con le soglie 90/80/90 passate come variabili d'ambiente
+  (`GO_COVERAGE_*_THRESHOLD`). Copre solo i workspace di cui sopra, per i motivi descritti.
 
 ## Mocking e Test Doubles
 

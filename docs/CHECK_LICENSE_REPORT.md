@@ -65,7 +65,7 @@ Il workflow parte nei seguenti casi:
 | `schedule`          | Ogni lunedì alle 09:00 UTC.                          |
 | `workflow_dispatch` | Avvio manuale da GitHub Actions.                     |
 
-I percorsi monitorati per push e pull request sono `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `**/package.json`, `.github/actions/**` e `.github/workflows/**`. Una modifica al solo `bins/check-license-report.mjs` non attiva questo workflow tramite i filtri attuali: per verificarla occorre eseguire il comando localmente o avviare il workflow manualmente.
+I percorsi monitorati per push e pull request sono `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `**/package.json`, `.github/actions/**`, `.github/workflows/**` e `bins/check-license-report.mjs`, il checker stesso.
 
 Il controllo delle licenze è separato dal job `Dependency Audit`, che esegue `pnpm audit` per le vulnerabilità. Non è richiamato da `pnpm build`, `pnpm test` o `pnpm validate:all`, e il job `CI Success` del workflow [`CI`](../.github/workflows/ci.yml) non dipende da `License Compliance`.
 

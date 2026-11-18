@@ -40,6 +40,11 @@ runs:
         cache: 'pnpm'
         cache-dependency-path: pnpm-lock.yaml
 
+    # The arguments pass through the environment, never expanded into the script.
     - name: Install dependencies
       shell: bash
-      run: pnpm install ${{ inputs.install-args }}
+      env:
+        INSTALL_ARGS: ${{ inputs.install-args }}
+      run: |
+        read -ra args <<< "$INSTALL_ARGS"
+        pnpm install "${args[@]}"

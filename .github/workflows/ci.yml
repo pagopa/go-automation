@@ -1,175 +1,186 @@
+# Quality gates of every push and pull request on develop and main. "CI Success" is the required check:
+# it fails unless every job it needs succeeded. Each job compiles what it needs: the build takes about
+# 30 seconds, less than uploading and downloading it as an artifact.
 name: CI
 
 on:
   push:
     branches: [main, develop]
-
   pull_request:
     branches: [main, develop]
 
-  merge_group:
-
 permissions:
   contents: read
-  checks: write
 
+# A new push to a pull request cancels its previous run; runs on develop and main always complete, so
+# every merged commit gets a result.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  lint:
-    name: Lint
-    uses: ./.github/workflows/ci-job.yml
-    with:
-      command: lint
-
-  format:
-    name: Format Check
-    uses: ./.github/workflows/ci-job.yml
-    with:
-      command: format:check
-      install-args: --frozen-lockfile --ignore-scripts
-
-  knip:
-    name: Unused Code
-    uses: ./.github/workflows/ci-job.yml
-    with:
-      command: knip
-      install-args: --frozen-lockfile --ignore-scripts
-
-  deps-check:
-    name: Dependency Graph
-    uses: ./.github/workflows/ci-job.yml
-    with:
-      command: deps:check
-      install-args: --frozen-lockfile --ignore-scripts
-
-  # Runs dup:report, not dup:check: both enforce the same threshold from
-  # .jscpd.json, but the quiet reporter only prints the percentage, so a CI
-  # failure would name no file. The verbose one lists every clone in the log.
-  duplication:
-    name: Code Duplication
-    uses: ./.github/workflows/ci-job.yml
-    with:
-      command: dup:report
-      install-args: --frozen-lockfile --ignore-scripts
-
-  type-coverage:
-    name: Type Coverage
-    uses: ./.github/workflows/ci-job.yml
-    with:
-      command: type-coverage
-      install-args: --frozen-lockfile --ignore-scripts
-
-  scaffold:
-    name: Scaffold Validation
-    uses: ./.github/workflows/ci-job.yml
-    with:
-      command: validate:scaffold
-      install-args: --frozen-lockfile --ignore-scripts
-
-  new-class-tests:
-    name: New Class Tests
+  # Fast checks that need no build. Each step runs even when an earlier one fails, so a single run
+  # reports every broken check.
+  static:
+    name: Static Checks
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # check:new-class-tests diffs the pull request against its base branch.
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup CI environment
+        id: setup
         uses: ./.github/actions/setup-ci
         with:
           install-args: --frozen-lockfile --ignore-scripts
 
-      - name: Test new class test checker
-        run: pnpm check:new-class-tests:test
+      - name: Format
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm format:check
 
-      - name: Check new class tests
-        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
-        run: |
-          if [[ "${{ github.event_name }}" == "merge_group" ]]; then
-            base_ref="${{ github.event.merge_group.base_ref }}"
-            base_ref="${base_ref#refs/heads/}"
-          else
-            base_ref="${{ github.base_ref }}"
-          fi
+      - name: Unused code
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm knip
 
-          pnpm check:new-class-tests --base "origin/${base_ref}"
+      - name: Dependency graph
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm deps:check
 
-      - name: Skip outside pull requests
-        if: github.event_name != 'pull_request' && github.event_name != 'merge_group'
-        run: echo "New class test enforcement only runs on pull_request and merge_group events."
+      # dup:report, not dup:check: both enforce the threshold of .jscpd.json, but only the verbose
+      # reporter names the clones in the log.
+      - name: Code duplication
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm dup:report
 
-  build:
-    name: Build
-    uses: ./.github/workflows/ci-job.yml
-    with:
-      command: build
-      install-args: --frozen-lockfile --ignore-scripts
-      timeout-minutes: 25
-      upload-artifact-name: workspace-build
-      upload-artifact-path: |
-        packages/**/dist
-        packages/**/*.tsbuildinfo
-        scripts/**/dist
-        scripts/**/*.tsbuildinfo
+      - name: Type coverage
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm type-coverage
 
+      - name: Scaffold validation
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm validate:scaffold
+
+      - name: New class tests
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && github.event_name == 'pull_request' }}
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: pnpm check:new-class-tests --base "origin/${BASE_REF}"
+
+      - name: Workflows (actionlint)
+        if: ${{ !cancelled() }}
+        uses: docker://rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: -color
+
+      # Security audit of the workflows; the deliberate exceptions are in .github/zizmor.yml.
+      - name: Workflows (zizmor)
+        if: ${{ !cancelled() }}
+        uses: docker://ghcr.io/zizmorcore/zizmor:1.32.0@sha256:3014cc8f68f663935f69b3c3e0e41f5ce102b268d97db13db0f62208747f860d
+        env:
+          # Online audits (known vulnerable actions, impostor commits) read the GitHub API.
+          GH_TOKEN: ${{ github.token }}
+        with:
+          args: --no-progress .
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup CI environment
+        uses: ./.github/actions/setup-ci
+
+      - name: Lint
+        run: pnpm lint
+
+  # Install scripts enabled: the tests of go-documents need the native build of better-sqlite3.
   test:
-    name: Test
-    needs: build
-    uses: ./.github/workflows/ci-job.yml
-    with:
-      command: test
-      install-args: --frozen-lockfile
-      timeout-minutes: 25
-      download-artifact-name: workspace-build
+    name: Build and Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup CI environment
+        uses: ./.github/actions/setup-ci
+
+      - name: Build
+        run: pnpm build
+
+      - name: Test
+        run: pnpm test
+
+      - name: Coverage
+        env:
+          GO_COVERAGE_LINES_THRESHOLD: '90'
+          GO_COVERAGE_BRANCHES_THRESHOLD: '80'
+          GO_COVERAGE_FUNCTIONS_THRESHOLD: '90'
+        run: pnpm test:coverage
 
   # Static gates of the published packages: publint, attw, API reports, import budgets and the
   # sensitive-data gate on the packed archives. No package is published without them.
   published:
     name: Published Packages
-    needs: build
-    uses: ./.github/workflows/ci-job.yml
-    with:
-      command: test:published:static
-      install-args: --frozen-lockfile --ignore-scripts
-      timeout-minutes: 25
-      download-artifact-name: workspace-build
-      # GitHub runners are about twice as slow as a workstation: only the time thresholds are widened,
-      # the checks on the loaded libraries stay the same.
-      import-cost-time-factor: '2'
-
-  # §10.2: the archives are packed once on the toolchain Node (24) and reused by every cell of
-  # the smoke matrix. The cells come from the declared engines: each scenario runs on the minimum
-  # of the packages it installs and on 24 (`--print-node-matrix`).
-  published-pack:
-    name: Published Packages (pack)
-    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    outputs:
-      cells: ${{ steps.matrix.outputs.cells }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup CI environment
         uses: ./.github/actions/setup-ci
         with:
           install-args: --frozen-lockfile --ignore-scripts
 
-      - name: Download workspace build
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: workspace-build
-          path: .
+      - name: Build
+        run: pnpm build
 
-      - name: Node versions from the declared engines
+      - name: Publication gates
+        env:
+          # GitHub runners are about twice as slow as a workstation: only the time budgets are widened,
+          # the checks on the loaded libraries stay the same.
+          IMPORT_COST_TIME_FACTOR: '2'
+        run: pnpm test:published:static
+
+  # The archives are packed once, on the toolchain Node, and every smoke cell installs those same
+  # archives. `pnpm pack` runs each package's prepack (clean + build). The cells come from the declared
+  # engines: each scenario runs on the minimum Node of the packages it installs and on 24, split into
+  # three shards per Node version. See docs/PUBLISHED_PACKAGES_CHECKS.md.
+  published-pack:
+    name: Published Packages (pack)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      cells: ${{ steps.matrix.outputs.cells }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup CI environment
+        uses: ./.github/actions/setup-ci
+        with:
+          install-args: --frozen-lockfile --ignore-scripts
+
+      - name: Smoke matrix from the declared engines
         id: matrix
-        run: echo "cells=$(pnpm -s check:published-packages --print-node-matrix)" >> "$GITHUB_OUTPUT"
+        run: echo "cells=$(pnpm -s check:published-packages --print-node-matrix --shards 3)" >> "$GITHUB_OUTPUT"
 
       - name: Pack the published packages
         run: pnpm -s check:published-packages --pack-to published-tarballs
@@ -180,16 +191,16 @@ jobs:
           name: published-tarballs
           path: published-tarballs/*.tgz
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
 
-  # §10.2: scenarios S1-S8 from the tarballs, with npm and isolated pnpm and engine-strict. The
-  # monorepo toolchain is installed on Node 24; the cell's Node then runs the consumer side
-  # (install, import, type check, bundle), so the minimum versions are tested as consumers see them.
+  # Installs the archives with npm and with isolated pnpm and engine-strict. The monorepo toolchain runs
+  # on Node 24; the cell's Node then runs the consumer side (install, import, type check, bundle), so
+  # the minimum versions are tested as consumers see them.
   published-smoke:
-    name: Published Packages (Node ${{ matrix.node }})
+    name: Published Packages (Node ${{ matrix.node }}, ${{ matrix.shard }})
     needs: published-pack
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -197,6 +208,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup CI environment
         uses: ./.github/actions/setup-ci
@@ -215,68 +228,26 @@ jobs:
           node-version: ${{ matrix.node }}
 
       - name: Smoke scenarios
+        env:
+          SCENARIOS: ${{ matrix.scenarios }}
         run: >-
           node --import tsx/esm bins/check-published-packages/src/index.ts
-          --from-tarballs published-tarballs --scenario "${{ matrix.scenarios }}"
+          --from-tarballs published-tarballs --scenario "$SCENARIOS"
 
-  coverage:
-    name: Coverage
-    needs: build
-    uses: ./.github/workflows/ci-job.yml
-    with:
-      command: test:coverage
-      install-args: --frozen-lockfile
-      timeout-minutes: 25
-      download-artifact-name: workspace-build
-      upload-artifact-name: coverage-reports
-      upload-artifact-path: |
-        packages/**/coverage/lcov.info
-        scripts/**/coverage/lcov.info
-      coverage-lines-threshold: '90'
-      coverage-branches-threshold: '80'
-      coverage-functions-threshold: '90'
-
-  macos-smoke:
-    name: macOS Smoke
-    uses: ./.github/workflows/ci-job.yml
-    with:
-      runner: macos-latest
-      timeout-minutes: 25
-      command: build:common
-      install-args: --frozen-lockfile --ignore-scripts
-
-  # Summary job for branch protection
+  # The required check. A job added above must also be added to `needs`.
   ci-success:
     name: CI Success
-    needs:
-      [
-        lint,
-        format,
-        knip,
-        deps-check,
-        duplication,
-        type-coverage,
-        scaffold,
-        new-class-tests,
-        build,
-        test,
-        published,
-        published-pack,
-        published-smoke,
-        coverage,
-        macos-smoke,
-      ]
+    needs: [static, lint, test, published, published-pack, published-smoke]
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    if: always()
     steps:
       - name: Check all jobs passed
+        env:
+          FAILED: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
         run: |
-          results=("${{ needs.lint.result }}" "${{ needs.format.result }}" "${{ needs.knip.result }}" "${{ needs.deps-check.result }}" "${{ needs.duplication.result }}" "${{ needs.type-coverage.result }}" "${{ needs.scaffold.result }}" "${{ needs.new-class-tests.result }}" "${{ needs.build.result }}" "${{ needs.test.result }}" "${{ needs.published.result }}" "${{ needs.published-pack.result }}" "${{ needs.published-smoke.result }}" "${{ needs.coverage.result }}" "${{ needs.macos-smoke.result }}")
-          for result in "${results[@]}"; do
-            if [[ "$result" != "success" ]]; then
-              echo "One or more checks failed"
-              exit 1
-            fi
-          done
-          echo "All checks passed!"
+          if [[ "$FAILED" == "true" ]]; then
+            echo "One or more checks did not succeed."
+            exit 1
+          fi
+          echo "All checks passed."

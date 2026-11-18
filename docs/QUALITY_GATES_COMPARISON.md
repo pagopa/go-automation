@@ -59,7 +59,7 @@ Gli interventi senza spunta sono **proposte**; le voci completate riportano le m
 | Audit dipendenze in CI               | High informativo, critical bloccante                 | Non configurato                                             | High e critical bloccanti              |
 | Licenze                              | Checker custom                                       | Non configurate                                             | Non configurate                        |
 | Controlli infrastrutturali dedicati  | Test e analisi statiche                              | cdk-nag e test di conformità                                | Non applicabile allo stesso livello    |
-| Aggiornamenti dipendenze             | Renovate e Dependabot                                | Nessuna configurazione locale rilevata                      | Nessuna configurazione locale rilevata |
+| Aggiornamenti dipendenze             | Renovate (npm e GitHub Actions)                      | Nessuna configurazione locale rilevata                      | Nessuna configurazione locale rilevata |
 
 ## Flag del compilatore
 
@@ -126,12 +126,12 @@ La review automatica Copilot è complementare e non sostituisce build, test e li
 - **Compatibilità e drift**: test su baseline dei runbook e checksum degli artefatti di contratto generati.
 - **Audit dipendenze**: job CI con soglia high informativa e critical bloccante.
 - **Licenze**: `license-report` e checker custom, con policy ed eccezioni verificate.
-- **Manutenzione**: Renovate per le dipendenze, Dependabot per GitHub Actions, `CODEOWNERS`, template PR e documentazione di contribuzione.
+- **Manutenzione**: Renovate per le dipendenze npm e per le GitHub Actions, `CODEOWNERS`, template PR e documentazione di contribuzione.
 - **Diagnostica locale**: comando `doctor` della CLI per stato della build, discovery degli script e ambiente locale; non sostituisce i gate CI.
 
 ### 1.2 Pipeline e compilatore
 
-La CI locale definisce 12 controlli principali:
+La CI locale definisce questi controlli principali, raccolti in pochi job:
 
 1. Lint.
 2. Format check.
@@ -141,12 +141,13 @@ La CI locale definisce 12 controlli principali:
 6. Type coverage.
 7. Scaffold.
 8. Test per nuove classi.
-9. Build.
-10. Test.
-11. Test coverage.
-12. Smoke build macOS.
+9. Controllo dei workflow (actionlint) e della loro sicurezza (zizmor).
+10. Build.
+11. Test.
+12. Test coverage.
+13. Gate statici e smoke dei package pubblicati.
 
-Il job aggregatore `CI Success` verifica che tutti abbiano successo. Il workflow gestisce anche `merge_group`. Audit e licenze sono in un workflow separato.
+Il job aggregatore `CI Success` verifica che tutti abbiano successo. Audit e licenze sono in un workflow separato.
 
 La configurazione del compilatore abilita i principali flag strict, `isolatedDeclarations` e i controlli sugli import. Alcuni tool e Lambda derogano a `isolatedDeclarations`.
 

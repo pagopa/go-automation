@@ -69,7 +69,7 @@ Le dipendenze condivise del monorepo sono centralizzate nel catalogo di `pnpm-wo
 
 - `catalogMode: strict` impedisce di aggiungere versioni fuori catalogo con `pnpm add`.
 - `Renovate` gestisce gli aggiornamenti `npm/pnpm` del monorepo, inclusi i cataloghi pnpm.
-- `Dependabot` resta attivo solo per le `github-actions`, così non genera PR duplicate sulle dipendenze Node.
+- `Renovate` aggiorna anche le `github-actions`, con le PR raggruppate e gli SHA fissati; non c'è più Dependabot.
 
 ## Documentazione
 

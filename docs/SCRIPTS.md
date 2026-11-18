@@ -524,39 +524,37 @@ La lista completa è in [CONVENTIONS.md](CONVENTIONS.md).
 
 ## Quality Gates: i Check Automatici
 
-La qualità del codice in GO Automation non è affidata solo alla code review. Una **pipeline CI** con 8 check paralleli protegge il repository da regressioni.
+La qualità del codice in GO Automation non è affidata solo alla code review. Una **pipeline CI** con job paralleli protegge il repository da regressioni.
 
 ### La CI Pipeline
 
 Ogni push su `main`/`develop` e ogni Pull Request esegue questi check:
 
 ```
-┌─────────────┐  ┌───────┐  ┌──────────┐  ┌──────┐
-│  Type Check  │  │ Lint  │  │  Format  │  │ Knip │
-└──────┬───────┘  └───┬───┘  └─────┬────┘  └──┬───┘
-       │              │            │           │
-┌──────┴───────┐  ┌───┴───┐  ┌────┴────┐  ┌───┴──────┐
-│  Scaffold    │  │ Build │  │  Test   │  │ Coverage │
-└──────────────┘  └───────┘  └─────────┘  └──────────┘
-                       │
-                       ▼
-              ┌─────────────────┐
-              │   CI Success    │  Tutti devono passare
-              └─────────────────┘
+┌───────────────┐ ┌──────┐ ┌────────────────┐ ┌────────────────────┐ ┌───────────────────────────┐
+│ Static Checks │ │ Lint │ │ Build and Test │ │ Published Packages │ │ Published Packages (pack) │
+└───────┬───────┘ └──┬───┘ └───────┬────────┘ └─────────┬──────────┘ └─────────────┬─────────────┘
+        │            │             │                    │                          ▼
+        │            │             │                    │             ┌──────────────────────────┐
+        │            │             │                    │             │  Smoke: Node × 3 shard   │
+        │            │             │                    │             └─────────────┬────────────┘
+        └────────────┴─────────────┴─────────┬──────────┴───────────────────────────┘
+                                             ▼
+                                    ┌─────────────────┐
+                                    │   CI Success    │  Tutti devono passare
+                                    └─────────────────┘
 ```
 
-| Check          | Comando              | Cosa verifica                        |
-| -------------- | -------------------- | ------------------------------------ |
-| **Type Check** | `tsc --noEmit`       | Compilazione TypeScript senza errori |
-| **Lint**       | `eslint`             | Regole di qualità del codice         |
-| **Format**     | `prettier --check`   | Formattazione uniforme               |
-| **Knip**       | `knip`               | Codice e export inutilizzati         |
-| **Scaffold**   | `validate:scaffold`  | Struttura corretta degli script      |
-| **Build**      | `tsc`                | Compilazione produce output valido   |
-| **Test**       | `pnpm test`          | Test unitari passano                 |
-| **Coverage**   | `pnpm test:coverage` | Copertura >= 90% linee, 80% branch   |
+| Job                           | Comandi                                                                                                                                         | Cosa verifica                                                                                                                                                  |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Static Checks**             | `format:check`, `knip`, `deps:check`, `dup:report`, `type-coverage`, `validate:scaffold`, `check:new-class-tests` (solo PR), actionlint, zizmor | Formato, codice inutilizzato, dipendenze, duplicati, copertura dei tipi, struttura degli script, test delle classi nuove, workflow GitHub (errori e sicurezza) |
+| **Lint**                      | `pnpm lint`                                                                                                                                     | Regole ESLint e dati sensibili nei sorgenti pubblicati                                                                                                         |
+| **Build and Test**            | `pnpm build`, `pnpm test`, `pnpm test:coverage`                                                                                                 | Compilazione, test, copertura >= 90% linee, 80% branch, 90% funzioni                                                                                           |
+| **Published Packages**        | `pnpm test:published:static`                                                                                                                    | publint, attw, fotografia dell'API, costo degli import, dati sensibili                                                                                         |
+| **Published Packages (pack)** | `check:published-packages --pack-to`                                                                                                            | Archivi `.tgz` e matrice dello smoke                                                                                                                           |
+| **Smoke** (Node × shard)      | `check:published-packages --from-tarballs`                                                                                                      | Installazione e uso dei package come li vede chi li installa                                                                                                   |
 
-**Tutti e 8 i check devono passare** perché la PR possa essere mergiata.
+**Tutti i job devono passare** perché la PR possa essere mergiata: lo controlla `CI Success`, il check obbligatorio.
 
 ### ESLint: Regole Custom
 
@@ -1243,9 +1241,9 @@ pnpm validate:scaffold
 
 **Configurazione**: `.github/workflows/ci.yml`
 
-La pipeline definisce 8 job paralleli (typecheck, lint, format, knip, scaffold, build, test, coverage) e un job finale `ci-success` che verifica che tutti siano passati. Questo job è il **branch protection check** — senza il suo successo, la PR non può essere mergiata.
+La pipeline definisce i job della tabella sopra e un job finale `ci-success` che verifica che tutti siano passati. Questo job è il **branch protection check** — senza il suo successo, la PR non può essere mergiata.
 
-I job usano un workflow riutilizzabile (`.github/workflows/ci-job.yml`) per evitare duplicazione della configurazione di setup (checkout, Node.js, pnpm, cache).
+La preparazione comune (pnpm, Node.js, cache, installazione) sta nell'action locale `.github/actions/setup-ci`. Ogni job compila ciò che gli serve: la build dura circa 30 secondi, meno di quanto costerebbe passarla da un job all'altro come artefatto.
 
 ---
 
