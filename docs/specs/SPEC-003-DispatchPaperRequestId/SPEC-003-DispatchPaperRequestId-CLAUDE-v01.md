@@ -144,6 +144,7 @@ solo allo scadere del timeout.
 
   Senza la fase `request-id` e senza un resume, una sessione non ha righe con il requestId: non si importa il
   requestId dall'input (§5).
+
 - **Tempi**, con un intervallo fisso e non un backoff, perché la richiesta è «ogni X minuti»:
 
   | Parametro                   | Default (D7) | Significato                                               |
@@ -267,13 +268,13 @@ solo allo scadere del timeout.
 
 ## 6. Le scelte del committente
 
-| Id  | Scelta                                                                                | Proposta dell'autore                                                                                                                                                      |
-| --- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1  | Il suffisso vale per tutte le categorie cercate o solo per quelle cartacee?           | **Tutte**: con le categorie predefinite sono cartacee. Chi cerca di nuovo `PREPARE_DIGITAL_DOMICILE` toglie il suffisso con `--request-id-append-suffix=false`.            |
-| D2  | Il suffisso è attivo per default?                                                     | **Sì**, `.PCRETRY_0`: l'id utile a valle è quello di pn-external-channels. Cambia l'output di chi oggi usa l'id della timeline.                                           |
-| D3  | `digitalRequestId` del report si rinomina o si affianca?                              | **Si rinomina** in `simpleRegisteredLetterRequestId`. `requestIds` contiene comunque tutte le categorie trovate.                                                          |
-| D4  | (C) Quando un `statusRequest` `null` chiude la riga come mock?                        | **Allo scadere del timeout**: `null` potrebbe voler dire anche «non ancora». Se il §3.3.1 conferma che prima dell'esito il record manca, si chiude al primo `null` letto. |
-| D5  | (C) `EC_MOCK` è un successo, cioè uscita `0` e presenza in `--output-only-success`?   | **Sì**: negli ambienti di test il mock è il comportamento atteso. Il riepilogo le conta a parte.                                                                         |
-| D6  | (C) Come si sceglie il profilo confinfo fra i `--aws-profiles`?                       | **Nuova chiave `confinfoAwsProfile` dell'ambiente**, come `awsProfile` per `pn-Timelines`. Nessun parametro di profilo dedicato.                                          |
-| D7  | (C) Default dei tempi                                                                 | Ritardo iniziale `10m`, intervallo `2m`, timeout `30m` per riga.                                                                                                          |
-| D8  | (C) La fase vale anche in modalità `direct`, dove il requestId viene dal template?     | **No, per ora**: la verifica in `direct` è ancora aperta. Si può aggiungere dopo senza toccare il modello.                                                                |
+| Id  | Scelta                                                                              | Proposta dell'autore                                                                                                                                                      |
+| --- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | Il suffisso vale per tutte le categorie cercate o solo per quelle cartacee?         | **Tutte**: con le categorie predefinite sono cartacee. Chi cerca di nuovo `PREPARE_DIGITAL_DOMICILE` toglie il suffisso con `--request-id-append-suffix=false`.           |
+| D2  | Il suffisso è attivo per default?                                                   | **Sì**, `.PCRETRY_0`: l'id utile a valle è quello di pn-external-channels. Cambia l'output di chi oggi usa l'id della timeline.                                           |
+| D3  | `digitalRequestId` del report si rinomina o si affianca?                            | **Si rinomina** in `simpleRegisteredLetterRequestId`. `requestIds` contiene comunque tutte le categorie trovate.                                                          |
+| D4  | (C) Quando un `statusRequest` `null` chiude la riga come mock?                      | **Allo scadere del timeout**: `null` potrebbe voler dire anche «non ancora». Se il §3.3.1 conferma che prima dell'esito il record manca, si chiude al primo `null` letto. |
+| D5  | (C) `EC_MOCK` è un successo, cioè uscita `0` e presenza in `--output-only-success`? | **Sì**: negli ambienti di test il mock è il comportamento atteso. Il riepilogo le conta a parte.                                                                          |
+| D6  | (C) Come si sceglie il profilo confinfo fra i `--aws-profiles`?                     | **Nuova chiave `confinfoAwsProfile` dell'ambiente**, come `awsProfile` per `pn-Timelines`. Nessun parametro di profilo dedicato.                                          |
+| D7  | (C) Default dei tempi                                                               | Ritardo iniziale `10m`, intervallo `2m`, timeout `30m` per riga.                                                                                                          |
+| D8  | (C) La fase vale anche in modalità `direct`, dove il requestId viene dal template?  | **No, per ora**: la verifica in `direct` è ancora aperta. Si può aggiungere dopo senza toccare il modello.                                                                |
