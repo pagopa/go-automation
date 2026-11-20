@@ -21,6 +21,7 @@ export type { RunbookRegistration } from '../common/registration/RunbookRegistra
 export { lambdaLogEvidenceMatches } from '../common/families/lambda/conditions/lambdaLogEvidenceMatches.js';
 export { extractLambdaRequestId } from '../common/families/lambda/helpers/extractLambdaRequestId.js';
 export { scanLambdaLogs } from '../common/families/lambda/helpers/scanLambdaLogs.js';
+export { boundedText } from '../common/parsing/correlation/boundedText.js';
 export { DEFAULT_LAMBDA_ERROR_QUERY } from '../common/families/lambda/queries/DEFAULT_LAMBDA_ERROR_QUERY.js';
 export { LambdaReporter } from '../common/families/lambda/reporting/LambdaReporter.js';
 export type { AnalysisDraftV1 } from '../common/analysis/draft/AnalysisDraft.js';
@@ -31,7 +32,7 @@ export type { RunbookOutput } from '../common/output/RunbookOutput.js';
 export { createTestServiceRegistry } from '../common/testing/createTestServiceRegistry.js';
 export type { ServiceRegistry } from '../common/services/ServiceRegistry.js';
 export { SEND_SERVICE_PROFILE } from './families/service/profiles/SEND_SERVICE_PROFILE.js';
-export type { ExecutedCloudWatchLogsQuery } from '../common/steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
+export type { ExecutedCloudWatchLogsQuery } from '../common/steps/aws/cloudwatch-logs/ExecutedCloudWatchLogsQuery.js';
 export { executeCloudWatchLogsQuery } from '../common/steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
 export { mergeCloudWatchLogsDiagnostics } from '../common/steps/aws/cloudwatch-logs/mergeCloudWatchLogsDiagnostics.js';
 export type { AwsLogicalAccount } from '../common/accounts/AwsLogicalAccount.js';

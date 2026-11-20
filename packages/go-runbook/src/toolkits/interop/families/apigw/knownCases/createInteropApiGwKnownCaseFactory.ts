@@ -21,7 +21,6 @@ type InteropApiGwKnownCaseEvidence = 'ANY' | 'API_GATEWAY';
 interface InteropApiGwKnownCaseConfig {
   readonly id: string;
   readonly description: string;
-  readonly priority: number;
   readonly regex: string;
   readonly resolution: string;
   readonly proposedStatus: 'IN_PROGRESS' | 'COMPLETED';
@@ -50,7 +49,6 @@ export function createInteropApiGwKnownCaseFactory(refs: InteropApiGwKnownCaseRe
     return {
       id: config.id,
       description: config.description,
-      priority: config.priority,
       condition: withEnvironment(guardedCondition, config.environments),
       action: knownCaseAction(refs, config.description, config.resolution),
       analysis: {

@@ -49,13 +49,15 @@ function accountReader(
   }
   return fakeReader({
     // eslint-disable-next-line @typescript-eslint/require-await
-    async queryWithStatistics(_groups: ReadonlyArray<string>, query: string) {
+    async queryWithStatistics(groups: ReadonlyArray<string>, query: string) {
       const output = rowsForQuery(account, queryKind(query));
       const statistics = { bytesScanned: 10, recordsScanned: 5, recordsMatched: output.length };
       return {
         rows: output,
         statistics,
-        queryExecutions: [{ queryId: `${account}-${queryKind(query)}`, statistics }],
+        queryExecutions: [
+          { queryId: `${account}-${queryKind(query)}`, profile: account, logGroups: groups, statistics },
+        ],
       };
     },
   });
@@ -133,6 +135,7 @@ describe('QueryLogsaverDiagnosticsStep', () => {
       logsaverStreamCount: '4',
       logsaverSpotInterruptionLogCount: '0',
       logsaverUnaccountedErrorLogCount: '2',
+      logsaverUnaccountedErrorLogCountState: 'complete',
     });
     const diagnostics = result.diagnostics?.cloudWatchLogs;
     assert.strictEqual(diagnostics?.rowsReturned, 6);
@@ -154,7 +157,7 @@ describe('QueryLogsaverDiagnosticsStep', () => {
     assert.strictEqual(result.diagnostics, undefined);
   });
 
-  it('names the saturated query kind and source account', async () => {
+  it('declares the saturated read of its source account', async () => {
     const result = await new QueryLogsaverDiagnosticsStep().execute(
       await context(
         (account, kind) => (account === 'confinfo' && kind === 'streams' ? rows(1000, '@logStream') : []),
@@ -162,8 +165,8 @@ describe('QueryLogsaverDiagnosticsStep', () => {
       ),
     );
 
-    assert.strictEqual(result.success, false);
-    assert.match(result.error ?? '', /Logsaver streams in confinfo reached 1000 rows/);
+    assert.strictEqual(result.success, true);
+    assert.ok(result.coverage?.some(({ source, reason }) => source === 'confinfo' && reason === 'saturated'));
   });
 
   it('declares both production SEND accounts, narrowed to the occurrence account', () => {

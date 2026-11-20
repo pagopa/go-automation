@@ -42,7 +42,7 @@ export { OperationalRunbookEngine } from './engine/OperationalRunbookEngine.js';
 export { CloudWatchLogsQueryStep } from './steps/aws/cloudwatch-logs/CloudWatchLogsQueryStep.js';
 export type { CloudWatchLogsQueryConfig } from './steps/aws/cloudwatch-logs/CloudWatchLogsQueryStep.js';
 export { executeCloudWatchLogsQuery } from './steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
-export type { ExecutedCloudWatchLogsQuery } from './steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
+export type { ExecutedCloudWatchLogsQuery } from './steps/aws/cloudwatch-logs/ExecutedCloudWatchLogsQuery.js';
 export { mergeCloudWatchLogsDiagnostics } from './steps/aws/cloudwatch-logs/mergeCloudWatchLogsDiagnostics.js';
 // Logical AWS accounts
 export type { AwsLogicalAccount } from './accounts/AwsLogicalAccount.js';

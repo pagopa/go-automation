@@ -4,6 +4,7 @@ import type { Step } from '../../../../engine/types/Step.js';
 import type { StepKind } from '../../../../engine/types/StepKind.js';
 import type { StepResult } from '../../../../engine/types/StepResult.js';
 import type { StepDiagnostics } from '../../../../engine/tracing/StepDiagnostics.js';
+import type { StepCoverage } from '../../../../engine/types/StepCoverage.js';
 import type { TimeRangeFromParams } from '../../../common/time/TimeRangeFromParams.js';
 import { resolveTimeRange } from '../../../common/time/resolveTimeRange.js';
 import type { BuildInteropK8sCidTrackerQueryFn } from '../types/BuildInteropK8sCidTrackerQueryFn.js';
@@ -145,15 +146,34 @@ export class QueryInteropCidTrackerStep
     const options = interopLogsQueryOptions(context);
     const cidResults: InteropK8sCidTrackerResult[] = [];
     const diagnostics: (StepDiagnostics | undefined)[] = [];
+    const coverage: StepCoverage[] = [];
     let totalRows = 0;
 
+    // Each CID is an independent read: a failed one becomes `unavailable`, the others keep their rows.
     for (const cid of queriedCids) {
       context.services.reporter.add({ label: `Query CID tracker [cid=${cid}]` });
       const query = this.buildQuery(cid);
-      const result = await executeCloudWatchLogsQuery(context, [logGroup], query, timeRange, options);
-      totalRows += result.rows.length;
-      diagnostics.push(result.diagnostics);
-      cidResults.push({ cid, rows: result.rows });
+      try {
+        const result = await executeCloudWatchLogsQuery(context, [logGroup], query, timeRange, options);
+        totalRows += result.rows.length;
+        diagnostics.push(result.diagnostics);
+        coverage.push(...result.coverage.map((entry) => ({ ...entry, source: `CID ${cid}` })));
+        cidResults.push({ cid, rows: result.rows });
+      } catch (error: unknown) {
+        if (context.signal?.aborted === true) throw error;
+        diagnostics.push(undefined);
+        const detail = error instanceof Error ? error.message : String(error);
+        coverage.push({ source: `CID ${cid}`, complete: false, reason: 'unavailable', detail });
+        context.services.reporter.add({ label: `Query CID tracker [cid=${cid}] non riuscita: ${detail}` });
+      }
+    }
+    if (skippedCids > 0) {
+      coverage.push({
+        source: 'CID tracker',
+        complete: false,
+        reason: 'saturated',
+        detail: `${String(skippedCids)} CID non interrogati (limite ${String(this.maxCids)})`,
+      });
     }
 
     context.services.reporter.add({ label: `Log CID tracker trovati: ${totalRows}` });
@@ -163,6 +183,7 @@ export class QueryInteropCidTrackerStep
       success: true,
       output: cidResults,
       ...(merged === undefined ? {} : { diagnostics: merged }),
+      ...(coverage.length > 0 ? { coverage } : {}),
       vars: {
         [varName(this.varPrefix, 'Executed')]: 'true',
         [varName(this.varPrefix, 'CidCount')]: String(queriedCids.length),

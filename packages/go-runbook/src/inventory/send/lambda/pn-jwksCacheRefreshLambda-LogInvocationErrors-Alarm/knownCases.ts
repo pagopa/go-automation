@@ -8,7 +8,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'jwks-inquery-tfdc-service-unavailable',
     description: 'Download JWKS Inquery caftfdc_pagopa.it fallito con HTTP 503',
-    priority: 90,
     condition: lambdaLogEvidenceMatches(
       'Error during addJwksCacheEntry.*caftfdc_pagopa\\.it.*iqpanel\\.inquery\\.it.*status:\\s*503.*Service Unavailable',
     ),
@@ -25,7 +24,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'jwks-uci-bad-gateway',
     description: 'Download JWKS gestione.sedi.uci.it fallito con HTTP 502',
-    priority: 89,
     condition: lambdaLogEvidenceMatches(
       'Error during addJwksCacheEntry.*gestione\\.sedi\\.uci\\.it.*status:\\s*502.*Bad Gateway',
     ),
@@ -43,7 +41,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'jwks-radd-econnreset',
     description: 'Download JWKS sedi RADD fallito con read ECONNRESET',
-    priority: 88,
     condition: lambdaLogEvidenceMatches('Error during addJwksCacheEntry.*AxiosError:\\s*read ECONNRESET'),
     title: 'JWKS cache refresh: errore di rete ECONNRESET su sede RADD',
     resolution:
@@ -59,7 +56,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'jwks-cafconfagricoltura-url-rewrite-error',
     description: 'Download JWKS cafconfagricoltura.it fallito con HTTP 500 URL Rewrite Module Error',
-    priority: 87,
     condition: lambdaLogEvidenceMatches(
       'Error downloading URL:\\s*https://www\\.cafconfagricoltura\\.it/\\.well-known/jwks\\.json.*status:\\s*500.*URL Rewrite Module Error',
     ),
@@ -76,7 +72,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'jwks-inquery-internal-server-error',
     description: 'Download JWKS Inquery fallito con HTTP 500 Internal Server Error',
-    priority: 86,
     condition: lambdaLogEvidenceMatches(
       'Error downloading URL:\\s*https://iqpanel\\.inquery\\.it/\\.well-known/jwks\\.json.*status:\\s*500.*Internal Server Error',
     ),

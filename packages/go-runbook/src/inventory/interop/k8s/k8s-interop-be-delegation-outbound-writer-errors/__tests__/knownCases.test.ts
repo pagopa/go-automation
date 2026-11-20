@@ -50,11 +50,12 @@ describe('delegation outbound writer known cases', () => {
     });
   }
 
-  it('prioritizes the crash when connection failures and coordinator errors coexist', async () => {
+  it('reports every error when connection failures, crash and coordinator errors coexist', async () => {
+    // Rows without a time keep the declaration order of the cases.
     assert.deepStrictEqual(await matchedIds([REFUSED, CRASH, COORDINATOR]), [
-      'delegation-outbound-writer-kafka-retries-exhausted',
       'delegation-outbound-writer-kafka-connection-refused',
       'delegation-outbound-writer-kafka-wrong-coordinator',
+      'delegation-outbound-writer-kafka-retries-exhausted',
     ]);
   });
 

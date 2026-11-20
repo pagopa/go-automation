@@ -45,7 +45,7 @@ export function buildRunbook(): Runbook {
     executionLogAnalysisMode: 'best-effort',
     hooks: [
       {
-        at: 'after-entry-analysis',
+        at: 'after-entry-read',
         evidence: [
           {
             id: 'versioning-lambda-errors',

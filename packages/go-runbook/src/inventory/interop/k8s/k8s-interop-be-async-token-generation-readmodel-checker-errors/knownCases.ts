@@ -7,7 +7,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'async-token-generation-catalog-platform-states-difference',
     description: 'Disallineamento dei platform state di una voce del catalogo ESERVICEDESCRIPTOR',
-    priority: 100,
     // The tracker includes other microservices; only the checker's own errors identify this case.
     condition: all(
       varEquals('interopEnvironment', 'att'),

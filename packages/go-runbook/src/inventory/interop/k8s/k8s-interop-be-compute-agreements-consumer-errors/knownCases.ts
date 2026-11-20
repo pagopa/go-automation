@@ -15,7 +15,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'compute-agreements-kafka-wrong-group-coordinator',
     description: 'Kafka restituisce un coordinator non corretto per il consumer group',
-    priority: 100,
     regex: 'This is not the correct coordinator for this group',
     resolution: 'PIN-7325 (Da verificare)',
     proposedStatus: 'IN_PROGRESS',
@@ -36,7 +35,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'compute-agreements-kafka-member-rejoin',
     description: 'Il coordinator Kafka non riconosce il member del consumer group',
-    priority: 90,
     regex: 'The coordinator is not aware of this member, re-joining the group',
     resolution:
       "Se l\u2019errore si presenta per un picco di occorrenze della durata di qualche secondo/minuto, non c'\u00E8 bisogno di fare ulteriori azioni",
@@ -51,7 +49,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'compute-agreements-tls-connection-error',
     description: 'Connessione interrotta prima dell’instaurazione TLS',
-    priority: 80,
     regex: 'Connection error: Client network socket disconnected before secure TLS connection was established',
     resolution:
       "Se l\u2019errore si presenta per un picco di occorrenze della durata di qualche secondo/minuto, non c'\u00E8 bisogno di fare ulteriori azioni",

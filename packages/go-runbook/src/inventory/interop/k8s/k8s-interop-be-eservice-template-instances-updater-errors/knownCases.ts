@@ -6,7 +6,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'eservice-template-instances-updater-kafka-coordinator-unknown-member',
     description: 'Il coordinator Kafka non riconosce il consumer dell’updater delle istanze di template',
-    priority: 100,
     // La pagina censisce l’heartbeat in Prod; il commento 354627 di PIN-7325 contiene anche il rejoin.
     // Entrambi i messaggi devono provenire dalla query applicativa filtrata sull’updater, non dal tracker.
     condition: all(

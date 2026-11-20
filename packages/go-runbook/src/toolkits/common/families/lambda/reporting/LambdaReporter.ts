@@ -104,7 +104,7 @@ export class LambdaReporter {
             ? { label: `Esito: caso noto${ids[0] !== undefined ? ` (${ids[0]})` : ''}` }
             : {
                 label: `Casi noti rilevati: ${ids.length}`,
-                children: ids.map((id, index) => ({ label: `${id}${index === 0 ? ' \u2190 primario' : ''}` })),
+                children: ids.map((id) => ({ label: id })),
               },
         );
         break;

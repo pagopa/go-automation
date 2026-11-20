@@ -1,5 +1,6 @@
 import { navigateFieldPath } from '@pagopa/go-common/json';
 import type { RunbookContext } from '../types/RunbookContext.js';
+import { relatedRowsKey } from '../tree/relatedRowsKey.js';
 
 /**
  * Resolves a dot-separated reference string against the runbook context.
@@ -10,6 +11,8 @@ import type { RunbookContext } from '../types/RunbookContext.js';
  * - `'steps.{stepId}.output'`          - step output
  * - `'steps.{stepId}.output.field'`    - nested step output field
  * - `'steps.{stepId}.output[0].field'` - array-indexed step output
+ * - `'steps.{stepId}.context'`         - related rows of an error node that are not errors
+ * - `'steps.{stepId}.siblings'`        - other error rows of the same identifier, in an error node
  *
  * @param ref - The reference string to resolve
  * @param context - The current runbook execution context
@@ -34,12 +37,23 @@ export function resolveRef(ref: string, context: RunbookContext): unknown {
     if (stepId === undefined) {
       return undefined;
     }
+    const remainingPath = parts.slice(2).join('.');
+    // The related rows of an error node: its context rows and its sibling error rows.
+    if (remainingPath === 'context' || remainingPath === 'siblings') {
+      const related = context.stepResults.get(relatedRowsKey(stepId, remainingPath));
+      if (remainingPath === 'context' && related !== undefined) return related;
+      // The siblings never include the rows of the node itself.
+      if (Array.isArray(related)) {
+        const own = context.stepResults.get(stepId);
+        return Array.isArray(own) ? related.filter((row: unknown) => !own.includes(row)) : related;
+      }
+    }
+
     const stepOutput = context.stepResults.get(stepId);
     if (stepOutput === undefined) {
       return undefined;
     }
 
-    const remainingPath = parts.slice(2).join('.');
     if (remainingPath === '' || remainingPath === 'output') {
       return stepOutput;
     }

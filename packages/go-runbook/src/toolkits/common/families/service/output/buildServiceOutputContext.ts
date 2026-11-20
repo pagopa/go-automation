@@ -14,6 +14,7 @@ import { addResultField, optionalNumber, optionalString } from '../../../output/
 import { extractRecentLogLines, logLineToRecord } from '../../../parsing/aws/cloudwatch-logs/resultRows.js';
 import type { ServiceOutputContext } from './ServiceOutputContext.js';
 import { isServiceRunbookContext } from './ServiceRunbookContext.js';
+import { representativeContext } from '../../../output/resultContexts.js';
 
 const DEFAULT_MAX_RECENT_LOGS = 5;
 
@@ -26,17 +27,18 @@ export function buildServiceOutputContext(
   result: RunbookExecutionResult,
   options: BuildServiceOutputContextOptions = {},
 ): RunbookOutputContext | undefined {
+  const context = representativeContext(result);
   if (!isServiceRunbookContext(runbook.runbookContext)) {
     return undefined;
   }
 
   const maxRecentLogs = options.maxRecentLogs ?? DEFAULT_MAX_RECENT_LOGS;
   const { service } = runbook.runbookContext;
-  const vars = result.finalContext.vars;
-  const params = result.finalContext.params;
+  const vars = context.vars;
+  const params = context.params;
 
-  const errorRows = readResultFieldRows(result.finalContext.stepResults.get(`query-${service.name}`));
-  const traceRows = readResultFieldRows(result.finalContext.stepResults.get(`query-${service.name}-trace`));
+  const errorRows = readResultFieldRows(context.stepResults.get(`query-${service.name}`));
+  const traceRows = readResultFieldRows(context.stepResults.get(`query-${service.name}-trace`));
   const recentLogs = extractRecentLogLines(errorRows, maxRecentLogs);
   const traceLogs = extractRecentLogLines(traceRows, maxRecentLogs);
   const evidence = buildEvidence(

@@ -17,7 +17,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'purpose-process-duplicate-event-stream-version',
     description: 'Duplicate key su events_stream_id_version_key gestito tramite retry',
-    priority: 10,
     condition: all(
       PRODUCTION,
       stepEvidenceMatches(
@@ -32,7 +31,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-invalid-content-disposition-header',
     description: 'Header Content-Disposition non valido nella risposta gestita dal BFF',
-    priority: 95,
     condition: all(
       PRODUCTION,
       stepEvidenceMatches(BFF_ROWS, 'Invalid character in header content[^\\r\\n]*Content-Disposition'),
@@ -49,7 +47,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-adm-zip-invalid-format',
     description: 'Archivio ZIP non valido o troncato ricevuto dal BFF',
-    priority: 94,
     condition: all(
       PRODUCTION,
       stepEvidenceMatches(BFF_ROWS, 'ADM-ZIP: Invalid or unsupported zip format\\. No END header found'),
@@ -66,7 +63,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-token-expired',
     description: 'Token JWT scaduto',
-    priority: 93,
     condition: all(
       PRODUCTION,
       any(stepEvidenceMatches(BFF_ROWS, 'Token verification failed: TokenExpiredError: jwt expired'), {
@@ -81,7 +77,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-error-getting-public-key',
     description: 'Errore nel recupero o nella validazione della public key',
-    priority: 90,
     condition: all(
       PRODUCTION,
       stepEvidenceMatches(
@@ -109,7 +104,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'bff-agreement-api-econnreset',
     description: 'ECONNRESET segnalato dal BFF; riferimento AgreementApi da verificare',
     title: 'ECONNRESET nella chiamata agreement API dal BFF (da verificare)',
-    priority: 80,
     condition: all(PRODUCTION, stepEvidenceMatches(BFF_ROWS, 'errors:\\s*008-9991[^\\r\\n]*read ECONNRESET\\b')),
     resolution: '(Da verificare) [PIN-6400] BFF - AgreementApi read ECONNRESET - Jira',
     details: DETAILS,
@@ -123,7 +117,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'purpose-process-unavailable-econnreset',
     description: 'Errore transitorio verso purpose-process',
-    priority: 85,
+    supersedes: ['bff-agreement-api-econnreset'],
     condition: all(
       PRODUCTION,
       stepEvidenceMatches(BFF_ROWS, '(?=[^\\r\\n]*purpose-process)[^\\r\\n]*(?:read ECONNRESET|socket hang up)'),
@@ -140,7 +134,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-tenant-kind-not-found',
     description: 'Tenant kind non trovato',
-    priority: 60,
     condition: all(PRODUCTION, stepEvidenceMatches(BFF_ROWS, 'errors:\\s*004-0004, Tenant kind[^\\r\\n]*not found')),
     resolution: 'In attesa di feedback dal team di prodotto.',
     details: DETAILS,
@@ -149,7 +142,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-selfcare-users-timeout',
     description: 'Timeout HTTP 504 nel recupero degli utenti del tenant da Selfcare',
-    priority: 96,
     condition: all(PRODUCTION, { type: 'exists', ref: `steps.${BFF_EVIDENCE_STEP_ID}.selfcareUsersTimeouts` }),
     resolution: 'Risoluzione non documentata.',
     details: DETAILS,
@@ -164,7 +156,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-connection-refused-9098',
     description: 'Connessione rifiutata verso la porta 9098',
-    priority: 97,
     condition: all(PRODUCTION, stepEvidenceMatches(BFF_ROWS, 'Connection error: connect ECONNREFUSED [^\\s]+:9098\\b')),
     resolution: 'Risoluzione non documentata.',
     details: DETAILS,

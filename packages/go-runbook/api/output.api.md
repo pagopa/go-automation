@@ -26,6 +26,26 @@ const ANALYSIS_DRAFT_BOUNDS: {
 };
 ```
 
+### `AnalysisDraftLimits` (type)
+
+```ts
+export interface AnalysisDraftLimits {
+    readonly textLength: number;
+    readonly draftBytes: number;
+    readonly arrayItems?: number;
+}
+```
+
+### `AnalysisDraftParts` (type)
+
+```ts
+export interface AnalysisDraftParts {
+    readonly noteEntries: ReadonlyArray<string>;
+    readonly coverageLines: ReadonlyArray<string>;
+    readonly detailEntries: ReadonlyArray<string>;
+}
+```
+
 ### `AnalysisDraftV1` (type)
 
 ```ts
@@ -56,6 +76,18 @@ export interface AnalysisResourceRef {
 
 ```ts
 export declare function buildAnalysisDraft(runbook: Runbook, result: RunbookExecutionResult): AnalysisDraftV1 | undefined;
+```
+
+### `buildCoverageLines` (value)
+
+```ts
+export declare function buildCoverageLines(result: Pick<RunbookExecutionResult, 'coverage' | 'observedErrors' | 'chains' | 'tree'>): ReadonlyArray<string>;
+```
+
+### `buildErrorChains` (value)
+
+```ts
+export declare function buildErrorChains(result: RunbookExecutionResult): ReadonlyArray<ErrorChainGroup>;
 ```
 
 ### `ClassifiedRunbookCheck` (type)
@@ -96,10 +128,120 @@ export interface CloudWatchLogsTelemetryQueryExecution {
 }
 ```
 
+### `CoverageEntry` (type)
+
+```ts
+export interface CoverageEntry extends StepCoverage {
+    readonly stepId: string;
+}
+```
+
+### `CoverageInterruptionCount` (type)
+
+```ts
+export interface CoverageInterruptionCount {
+    readonly reason: ErrorChainInterruptionReason;
+    readonly count: number;
+}
+```
+
+### `CoverageLevelOutput` (type)
+
+```ts
+export interface CoverageLevelOutput {
+    readonly target: string;
+    readonly nodes: number;
+    readonly recognized: number;
+    readonly unrecognized: number;
+    readonly failed: number;
+    readonly lowerBound?: boolean;
+}
+```
+
+### `CoverageReason` (type)
+
+```ts
+export type CoverageReason = 'saturated' | 'unavailable' | 'skipped' | 'manual';
+```
+
 ### `emptyRunbookOutputContext` (value)
 
 ```ts
 export declare function emptyRunbookOutputContext(): RunbookOutputContext;
+```
+
+### `ErrorChainGroup` (type)
+
+```ts
+export interface ErrorChainGroup {
+    readonly nodes: ReadonlyArray<ErrorChainNode>;
+    readonly end: 'leaf' | 'interrupted';
+    readonly interruptions: ReadonlyArray<ErrorChainInterruption>;
+    readonly incompleteEvidence: boolean;
+    readonly count: number;
+    readonly firstSeenAt?: string;
+    readonly lastSeenAt?: string;
+    readonly routes: ReadonlyArray<ErrorChainRoute>;
+    readonly samples: ReadonlyArray<ErrorChainSample>;
+    readonly members: ReadonlyArray<ErrorChainMember>;
+    readonly observations: ReadonlyArray<IdentifierObservation>;
+}
+```
+
+### `ErrorChainInterruption` (type)
+
+```ts
+export interface ErrorChainInterruption {
+    readonly reason: ErrorChainInterruptionReason;
+    readonly target?: string;
+    readonly count: number;
+}
+```
+
+### `ErrorChainInterruptionReason` (type)
+
+```ts
+export type ErrorChainInterruptionReason = 'skipped' | 'unavailable' | 'incomplete' | 'failed' | 'cycle';
+```
+
+### `ErrorChainMember` (type)
+
+```ts
+export interface ErrorChainMember extends ErrorChainSample {
+    readonly via?: ReadonlyArray<ReadonlyArray<string>>;
+    readonly occurredAt?: string;
+}
+```
+
+### `ErrorChainNode` (type)
+
+```ts
+export interface ErrorChainNode {
+    readonly level: number;
+    readonly target: string;
+    readonly label: string;
+    readonly description?: string;
+    readonly caseIds: ReadonlyArray<string>;
+    readonly status: 'recognized' | 'unrecognized' | 'failed';
+}
+```
+
+### `ErrorChainRoute` (type)
+
+```ts
+export interface ErrorChainRoute {
+    readonly via: ReadonlyArray<ReadonlyArray<string>>;
+    readonly count: number;
+}
+```
+
+### `ErrorChainSample` (type)
+
+```ts
+export interface ErrorChainSample {
+    readonly key: string;
+    readonly correlation: Readonly<Record<string, string>>;
+}
 ```
 
 ### `FailedOutcome` (type)
@@ -110,6 +252,31 @@ export interface FailedOutcome {
     readonly reason?: string;
     readonly failedStepId?: string;
     readonly error?: string;
+    readonly message: string;
+}
+```
+
+### `fitAnalysisDraft` (value)
+
+```ts
+export declare function fitAnalysisDraft(draft: KnownCaseAnalysisDraft, parts?: AnalysisDraftParts, limits?: AnalysisDraftLimits): KnownCaseAnalysisDraft;
+```
+
+### `IdentifierObservation` (type)
+
+```ts
+export interface IdentifierObservation extends EvidenceIdentifier {
+    readonly observedAt?: string;
+}
+```
+
+### `InconclusiveOutcome` (type)
+
+```ts
+export interface InconclusiveOutcome {
+    readonly kind: 'inconclusive';
+    readonly casesEvaluated: number;
+    readonly fallbackMessage?: string;
     readonly message: string;
 }
 ```
@@ -156,13 +323,14 @@ export interface KnownCaseAnalysisDraft {
 ```ts
 export interface KnownCaseMatchedOutcome {
     readonly kind: 'known-case-matched';
-    readonly primaryCaseId: string;
-    readonly primaryCaseDescription: string;
-    readonly matchedCases: ReadonlyArray<{
-        readonly id: string;
+    readonly detections: ReadonlyArray<{
+        readonly caseId: string;
         readonly description: string;
-        readonly priority: number;
+        readonly firstSeenAt?: string;
+        readonly lastSeenAt?: string;
+        readonly evidenceRows: number;
         readonly resolvedMessage?: string;
+        readonly observations: ReadonlyArray<IdentifierObservation>;
     }>;
     readonly message: string;
 }
@@ -172,6 +340,17 @@ export interface KnownCaseMatchedOutcome {
 
 ```ts
 export declare function noRunbookCheck(): RunbookCheck;
+```
+
+### `ObservedErrors` (type)
+
+```ts
+export interface ObservedErrors {
+    readonly unit: 'request' | 'invocation' | 'errorRow';
+    readonly observed: number;
+    readonly lowerBound?: boolean;
+    readonly examined: number;
+}
 ```
 
 ### `OperationalModelAugmentations` (type)
@@ -209,15 +388,26 @@ export interface ProcedureSuccessOutcome {
 }
 ```
 
+### `renderErrorChainLines` (value)
+
+```ts
+export declare function renderErrorChainLines(groups: ReadonlyArray<ErrorChainGroup>): ReadonlyArray<string>;
+```
+
+### `RUNBOOK_OUTPUT_SCHEMA_VERSION` (value)
+
+```ts
+const RUNBOOK_OUTPUT_SCHEMA_VERSION = "2.0.0";
+```
+
 ### `RunbookCheck` (type)
 
 ```ts
 export interface RunbookCheck {
     readonly status: RunbookCheckStatus;
     readonly outcomeKind?: string;
-    readonly primaryCaseId?: string;
-    readonly primaryCaseDescription?: string;
     readonly matchedCaseIds: ReadonlyArray<string>;
+    readonly incompleteSources?: Readonly<Partial<Record<CoverageReason, number>>>;
     readonly durationMs?: number;
     readonly cloudWatchRecordsScanned?: number;
     readonly cloudWatchBytesScanned?: number;
@@ -230,7 +420,19 @@ export interface RunbookCheck {
 ### `RunbookCheckStatus` (type)
 
 ```ts
-export type RunbookCheckStatus = 'HIT' | 'MISS' | 'NO-DATA' | 'NO_RUNBOOK' | 'CONFIG-ERROR' | 'EXECUTION-ERROR';
+export type RunbookCheckStatus = 'HIT' | 'MISS' | 'INCONCLUSIVE' | 'NO-DATA' | 'NO_RUNBOOK' | 'CONFIG-ERROR' | 'EXECUTION-ERROR';
+```
+
+### `RunbookCoverageOutput` (type)
+
+```ts
+export interface RunbookCoverageOutput {
+    readonly complete: boolean;
+    readonly sources: ReadonlyArray<CoverageEntry>;
+    readonly errors?: ObservedErrors;
+    readonly levels?: ReadonlyArray<CoverageLevelOutput>;
+    readonly interruptions?: ReadonlyArray<CoverageInterruptionCount>;
+}
 ```
 
 ### `RunbookEvidence` (type)
@@ -241,6 +443,7 @@ export interface RunbookEvidence {
     readonly label: string;
     readonly type: 'summary' | 'log-sample' | 'step-output' | 'artifact';
     readonly sourceStep?: string;
+    readonly node?: string;
     readonly items?: ReadonlyArray<Readonly<Record<string, string>>>;
     readonly truncated?: boolean;
 }
@@ -249,14 +452,14 @@ export interface RunbookEvidence {
 ### `RunbookOutcome` (type)
 
 ```ts
-export type RunbookOutcome = KnownCaseMatchedOutcome | UnknownCaseOutcome | ProcedureSuccessOutcome | ProcedureFailureOutcome | FailedOutcome | AbortedOutcome;
+export type RunbookOutcome = KnownCaseMatchedOutcome | UnknownCaseOutcome | InconclusiveOutcome | ProcedureSuccessOutcome | ProcedureFailureOutcome | FailedOutcome | AbortedOutcome;
 ```
 
 ### `RunbookOutput` (type)
 
 ```ts
 export interface RunbookOutput {
-    readonly schemaVersion: '1.0.0';
+    readonly schemaVersion: typeof RUNBOOK_OUTPUT_SCHEMA_VERSION;
     readonly generatedAt: string;
     readonly runbook: {
         readonly id: string;
@@ -272,8 +475,6 @@ export interface RunbookOutput {
         readonly durationMs: number;
         readonly status: RunbookExecutionStatus;
         readonly stepsExecuted: number;
-        readonly earlyResolution: boolean;
-        readonly resolvedAtStep?: string;
         readonly traceFile?: string;
         readonly recoveredErrors: ReadonlyArray<{
             readonly stepId: string;
@@ -282,6 +483,8 @@ export interface RunbookOutput {
     };
     readonly input: Readonly<Record<string, string>>;
     readonly outcome: RunbookOutcome;
+    readonly chains: ReadonlyArray<ErrorChainGroup>;
+    readonly coverage: RunbookCoverageOutput;
     readonly analysis?: AnalysisDraftV1;
     readonly telemetry?: RunbookTelemetry;
     readonly context: RunbookOutputContext;
@@ -388,7 +591,7 @@ export type ExecutionEnvironmentExtensionsAugmentation = 'executionEnvironment';
 ### `FlowDirectiveString` (dist/engine/types/FlowDirective.d.ts)
 
 ```ts
-export type FlowDirectiveString = 'continue' | 'stop' | 'resolve' | (string & {});
+export type FlowDirectiveString = 'continue' | 'stop' | (string & {});
 ```
 
 ### `KnownCaseExtensionsAugmentation` (dist/toolkits/common/augmentations/KnownCaseExtensions.d.ts)

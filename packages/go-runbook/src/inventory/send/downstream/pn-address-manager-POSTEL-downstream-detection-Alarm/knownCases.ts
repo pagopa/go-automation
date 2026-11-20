@@ -8,7 +8,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'postel-all-batches-worked-after-retry',
     description: '[DOWNSTREAM POSTEL] Tutti i batch impattati sono stati recuperati dai retry',
-    priority: 100,
     condition: all(
       stepEvidenceMatches('query-pn-address-manager', '\\[DOWNSTREAM\\] Service POSTEL returned errors='),
       varEquals('postelAllBatchesWorked', 'true'),

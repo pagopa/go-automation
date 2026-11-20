@@ -5,15 +5,25 @@ import { BFF_ALARM } from './alarmDefinition.js';
 
 export const BFF_EVIDENCE_STEP_ID = 'analyze-bff-case-evidence';
 
+const UNREAD_NOTIFICATIONS_401 =
+  /Error while fetching unread notifications: AxiosError: Request failed with status code 401\b/u;
+const TOKEN_EXPIRED = 'Token verification failed: TokenExpiredError: jwt expired';
+const USERS_RETRIEVAL_ERROR = 'Error while retrieving users corresponding to tenant';
+const SELFCARE_504 = /errors:\s*008-9991[^\r\n]*AxiosError: Request failed with status code 504\b/u;
+
 interface LogEvidence {
   readonly podApp: string;
   readonly message: string;
   readonly cid?: string;
+  /** Time of the log row, so the evidence of a case keeps when it happened. */
+  readonly timestamp?: string;
 }
 
 interface RequestEvidence {
   readonly cid: string;
   readonly logs: ReadonlyArray<LogEvidence>;
+  /** The rows of the sequence that proves the case: they give the request its time. */
+  readonly supportingRows: ReadonlyArray<LogEvidence>;
 }
 
 interface BffCaseEvidence {
@@ -64,20 +74,16 @@ export class AnalyzeBffEvidenceStep implements Step<BffCaseEvidence> {
     const selfcareUsersTimeouts: RequestEvidence[] = [];
     for (const [cid, logs] of requests) {
       const own = logs.filter((row) => row.podApp === BFF_ALARM.podApp);
-      if (
-        own.some(({ message }) =>
-          /Error while fetching unread notifications: AxiosError: Request failed with status code 401\b/u.test(message),
-        ) &&
-        logs.some(({ message }) => message.includes('Token verification failed: TokenExpiredError: jwt expired'))
-      )
-        expiredNotificationRequests.push({ cid, logs });
-      if (
-        own.some(({ message }) => message.includes('Error while retrieving users corresponding to tenant')) &&
-        own.some(({ message }) =>
-          /errors:\s*008-9991[^\r\n]*AxiosError: Request failed with status code 504\b/u.test(message),
-        )
-      )
-        selfcareUsersTimeouts.push({ cid, logs: own });
+      const unauthorized = own.filter(({ message }) => UNREAD_NOTIFICATIONS_401.test(message));
+      const expired = logs.filter(({ message }) => message.includes(TOKEN_EXPIRED));
+      if (unauthorized.length > 0 && expired.length > 0) {
+        expiredNotificationRequests.push({ cid, logs, supportingRows: [...unauthorized, ...expired] });
+      }
+      const usersErrors = own.filter(({ message }) => message.includes(USERS_RETRIEVAL_ERROR));
+      const timeouts = own.filter(({ message }) => SELFCARE_504.test(message));
+      if (usersErrors.length > 0 && timeouts.length > 0) {
+        selfcareUsersTimeouts.push({ cid, logs: own, supportingRows: [...usersErrors, ...timeouts] });
+      }
     }
 
     context.services.reporter.add({
@@ -105,5 +111,11 @@ function normalizeRow(row: ReadonlyArray<GOLogsInsightsResultField>, trackerCid?
   }
   const cid =
     trackerCid ?? readRowField(row, 'cid') ?? readRowField(row, 'CID') ?? /\bCID=([^\]\s,"']+)/u.exec(message)?.[1];
-  return { podApp, message, ...(cid === undefined || cid.trim() === '' ? {} : { cid }) };
+  const timestamp = readRowField(row, '@timestamp');
+  return {
+    podApp,
+    message,
+    ...(cid === undefined || cid.trim() === '' ? {} : { cid }),
+    ...(timestamp === undefined || timestamp.trim() === '' ? {} : { timestamp }),
+  };
 }

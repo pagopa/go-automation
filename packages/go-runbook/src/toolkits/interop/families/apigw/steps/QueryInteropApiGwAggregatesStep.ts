@@ -109,6 +109,7 @@ export class QueryInteropApiGwAggregatesStep
       success: true,
       output: enrichAggregateRows(result.rows),
       ...(result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics }),
+      ...(result.coverage.length > 0 ? { coverage: result.coverage } : {}),
     };
   }
 }

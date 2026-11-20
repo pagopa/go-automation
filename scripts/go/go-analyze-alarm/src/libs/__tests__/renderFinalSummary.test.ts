@@ -24,10 +24,10 @@ function recordingLogger(): { readonly logger: GOLogger; readonly lines: string[
   return { logger, lines };
 }
 
-// Safe: the renderers read only status, matched cases, vars and the failure reason.
+// Safe: the renderers read only status, detections, vars and the failure reason.
 const RESULT = {
   status: 'completed',
-  matchedCases: [],
+  detections: [],
   finalContext: { vars: new Map<string, string>() },
   trace: { execution: {} },
 } as unknown as RunbookExecutionResult;

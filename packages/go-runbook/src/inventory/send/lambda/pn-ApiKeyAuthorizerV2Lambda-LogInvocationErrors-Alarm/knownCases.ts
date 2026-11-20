@@ -7,7 +7,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'apikey-authorizer-timeout-single-occurrence',
     description: 'Timeout della Lambda authorizer pn-ApiKeyAuthorizerV2Lambda',
-    priority: 110,
+    supersedes: ['lambda-timeout'],
     condition: varEquals('lambdaErrorCategory', 'timeout'),
     title: 'Timeout pn-ApiKeyAuthorizerV2Lambda',
     resolution: 'Il runbook descrive occorrenze singole per le quali non \u00E8 richiesta un\u2019azione specifica.',
@@ -26,7 +26,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'apikey-authorizer-get-key-econnreset',
     description: 'Errore get key causato da interruzione connessione (ECONNRESET)',
-    priority: 90,
     condition: lambdaLogEvidenceMatches('Error in get key[\\s\\S]*AxiosError:\\s*read ECONNRESET'),
     title: 'pn-ApiKeyAuthorizerV2Lambda: Error in get key - AxiosError read ECONNRESET',
     resolution: 'Il runbook descrive occorrenze singole per le quali non \u00E8 richiesta un\u2019azione specifica.',

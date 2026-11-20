@@ -220,18 +220,17 @@ describe('declared runbook output', () => {
     assert.deepStrictEqual(output.context.details?.['diagnostics'], {});
   });
 
-  it('omits evidence from steps skipped by early resolution', async () => {
+  it('omits evidence from steps that did not run', async () => {
     const runbook = builder()
       .knownCase({
         id: 'known',
         description: 'Known',
-        priority: 1,
         condition: { type: 'compare', ref: 'vars.ready', operator: '==', value: 'yes' },
         action: { type: 'log', level: 'info', title: 'Known' },
       })
       .step({
         ...step('first'),
-        execute: async () => Promise.resolve({ success: true, vars: { ready: 'yes' }, next: 'resolve' as const }),
+        execute: async () => Promise.resolve({ success: true, vars: { ready: 'yes' }, next: 'stop' as const }),
       })
       .step(
         {
@@ -242,7 +241,6 @@ describe('declared runbook output', () => {
       )
       .build();
     const result = await new RunbookEngine(new GOLogger()).execute(runbook, new Map(), createTestServiceRegistry());
-    assert.strictEqual(result.earlyResolution, true);
     assert.deepStrictEqual(buildRunbookOutput(runbook, result).context.evidence, []);
   });
 

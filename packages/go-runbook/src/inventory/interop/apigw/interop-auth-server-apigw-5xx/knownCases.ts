@@ -1,5 +1,5 @@
 import { knownCase } from '../../../../toolkits/interop/index.js';
-import { all, any, type KnownCase, not, stepEvidenceMatches } from '../../../../engine/index.js';
+import { all, any, type KnownCase, stepEvidenceMatches } from '../../../../engine/index.js';
 import { AUTH_SERVER_5XX_ALARM as alarm } from './alarmDefinition.js';
 import {
   AUDIT_FALLBACK_CONFIRMED_VAR,
@@ -22,11 +22,11 @@ const fallbackConfirmed = {
   operator: '==',
   value: 'true',
 } as const;
-const fallbackSequenceConfirmed = {
-  ...fallbackConfirmed,
-  ref: `vars.${AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR}`,
-};
-const fallbackCompletionAllowed = any(not(fallbackSequenceConfirmed), fallbackConfirmed);
+/** The sequence is a derived value with three states: a negation reads the explicit `false`, never the absence of `true`. */
+const fallbackSequence = (value: 'true' | 'false' | 'unknown') =>
+  ({ ...fallbackConfirmed, ref: `vars.${AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR}`, value }) as const;
+/** Completion needs an explicit answer: no fallback sequence on complete evidence, or a fully confirmed fallback. */
+const fallbackCompletionAllowed = any(fallbackSequence('false'), fallbackConfirmed);
 const STANDALONE_KAFKA_LOCK_PATTERN = `^(?![^\\n]*${AUDIT_FALLBACK_PATTERN})[^\\n]*${KAFKA_LOCK_PATTERN}`;
 const FALLBACK_RESOLUTION =
   'Se i log riportano la scrittura del file token-details nel bucket di fallback, Auditing succeeded through fallback e Token generated, il salvataggio delle informazioni di audit e la generazione del token sono andati a buon fine.';
@@ -36,7 +36,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'auth-server-invalid-identity-token',
     description: 'Impossibile recuperare la chiave dall’identity provider',
-    priority: 690,
     condition: all(
       PRODUCTION,
       stepEvidenceMatches(
@@ -62,7 +61,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'auth-server-waf-call-failed',
     description: 'Chiamata WAF fallita',
-    priority: 680,
     condition: all(
       PRODUCTION,
       stepEvidenceMatches(alarm.stepIds.queryApplicationLogs, 'wafError:\\s*Failed to call WAF'),
@@ -85,7 +83,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'auth-server-stream-not-readable',
     description: 'Errore 007-9991 o stream non leggibile su token.oauth2',
-    priority: 670,
     condition: all(
       PRODUCTION,
       stepEvidenceMatches(
@@ -105,7 +102,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'auth-server-endpoint-connection-reset',
     description: 'Connessione API Gateway verso endpoint interrotta',
-    priority: 660,
     condition: all(
       PRODUCTION,
       stepEvidenceMatches(
@@ -132,11 +128,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'auth-server-audit-fallback-unverified',
     description: 'Fallback audit S3 senza conferma completa di recupero',
-    priority: 650,
     condition: all(
       PRODUCTION,
       stepEvidenceMatches(alarm.stepIds.queryApplicationLogs, AUDIT_FALLBACK_PATTERN),
-      not(fallbackSequenceConfirmed),
+      // Unverified: the sequence is not confirmed, or the evidence to confirm it is incomplete.
+      any(fallbackSequence('false'), fallbackSequence('unknown')),
     ),
     resolution: FALLBACK_RESOLUTION,
     details: DETAILS,
@@ -156,7 +152,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'auth-server-kafka-lock-timeout',
     description: 'Timeout durante la connessione ai broker Kafka',
-    priority: 640,
     condition: all(PRODUCTION, stepEvidenceMatches(alarm.stepIds.queryApplicationLogs, STANDALONE_KAFKA_LOCK_PATTERN)),
     resolution:
       'Al momento non è necessario aprire una card di Hotfix. Avvisare il team di prodotto nel caso in cui l’errore dovesse ripetersi. Riferimenti: Thread Slack 04/06/2026; PIN-10908.',
@@ -178,7 +173,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'auth-server-api-gateway-timeout',
     description: 'Timeout API Gateway oltre 29000 ms',
-    priority: 630,
     condition: all(
       PRODUCTION,
       stepEvidenceMatches(alarm.stepIds.queryApiGwAggregates, 'Execution failed due to a timeout error'),
@@ -195,11 +189,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'auth-server-audit-fallback-succeeded',
     description: 'Audit salvato tramite fallback S3 e token generato',
-    priority: 190,
     condition: all(
       PRODUCTION,
       stepEvidenceMatches(alarm.stepIds.queryApplicationLogs, AUDIT_FALLBACK_PATTERN),
-      fallbackSequenceConfirmed,
+      fallbackSequence('true'),
     ),
     resolution: FALLBACK_RESOLUTION,
     details: DETAILS,
@@ -220,7 +213,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'auth-server-invalid-client-assertion-header',
     description: 'Client assertion con chiavi header non valide',
-    priority: 180,
     condition: all(
       PRODUCTION,
       stepEvidenceMatches(
@@ -240,7 +232,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'auth-server-waf-timeout',
     description: 'Timeout temporaneo del WAF',
-    priority: 170,
     condition: all(
       PRODUCTION,
       stepEvidenceMatches(alarm.stepIds.queryApplicationLogs, 'WAF call got timed out'),

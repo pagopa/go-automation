@@ -43,7 +43,7 @@ const PROD_ONLY: ReadonlySet<string> = new Set([
   'notification-remove-api-role-conflict',
 ]);
 
-/** Cases that must stay ahead of the duplicate in a mixed window. */
+/** Open cases reported alongside the duplicate in a mixed window. */
 const OPEN_ALONGSIDE_DUPLICATE: ReadonlySet<string> = new Set([
   'notification-remove-api-role-conflict',
   'notification-selfcare-tenant-not-found',
@@ -112,7 +112,7 @@ describe('INTEROP notification user lifecycle known cases', () => {
     );
   });
 
-  it('closes a duplicate emitted by this service only when no open case is also present', async () => {
+  it('closes a duplicate emitted by this service and reports the open cases found with it', async () => {
     const run = async (messages: ReadonlyArray<string>): ReturnType<typeof executeAlarmWithLogs> =>
       executeAlarmWithLogs(
         buildRunbook(),
@@ -127,9 +127,11 @@ describe('INTEROP notification user lifecycle known cases', () => {
 
     for (const [id, message] of CASE_FIXTURES.filter(([caseId]) => OPEN_ALONGSIDE_DUPLICATE.has(caseId))) {
       const mixed = await run([DUPLICATE, message]);
-      assert.strictEqual(mixed.matchedIds[0], id);
+      assert.deepStrictEqual([...mixed.matchedIds].sort(), [DUPLICATE_ID, id].sort());
+      // One closable case is enough to propose the closure; the notes list both.
       assert.strictEqual(mixed.draft?.kind, 'KNOWN_CASE');
-      assert.strictEqual(mixed.draft.proposedStatus, 'IN_PROGRESS');
+      assert.strictEqual(mixed.draft.proposedStatus, 'COMPLETED');
+      assert.match(mixed.draft.conclusionNotes, /^1\. /u);
     }
   });
 });

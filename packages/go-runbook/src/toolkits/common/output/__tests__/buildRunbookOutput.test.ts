@@ -70,7 +70,6 @@ function knownCase(): KnownCase {
   return {
     id: 'known',
     description: 'Known case',
-    priority: 10,
     condition: { type: 'compare', ref: 'vars.reason', operator: '==', value: 'known' },
     action: { type: 'log', level: 'info', title: 'known {{vars.reason}}' },
   };
@@ -91,8 +90,8 @@ describe('buildRunbookOutput', () => {
     assert.strictEqual(output.execution.traceFile, 'trace-test.json');
     assert.strictEqual(output.execution.recoveredErrors[0]?.error, 'temporary error');
     if (output.outcome.kind === 'known-case-matched') {
-      assert.strictEqual(output.outcome.primaryCaseId, 'known');
-      assert.strictEqual(output.outcome.matchedCases[0]?.resolvedMessage, 'resolved action');
+      assert.strictEqual(output.outcome.detections[0]?.caseId, 'known');
+      assert.strictEqual(output.outcome.detections[0]?.resolvedMessage, 'resolved action');
     }
   });
 

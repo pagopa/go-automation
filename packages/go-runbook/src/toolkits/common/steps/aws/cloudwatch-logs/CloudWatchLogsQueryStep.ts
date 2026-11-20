@@ -179,10 +179,12 @@ export class CloudWatchLogsQueryStep
             }
           : result.diagnostics;
 
+      const coverage = result === initial ? initial.coverage : [...initial.coverage, ...result.coverage];
       return {
         success: true,
         output: result.rows,
         ...(diagnostics !== undefined ? { diagnostics } : {}),
+        ...(coverage.length > 0 ? { coverage } : {}),
       };
     });
   }

@@ -96,18 +96,10 @@ describe('INTEROP inventory', () => {
     });
   }
 
-  it('declares unique case ids and priorities, ranking open cases above completed ones', () => {
+  it('declares unique case ids', () => {
     for (const registration of INTEROP_MANIFEST) {
       const { knownCases } = registration.build();
       assert.strictEqual(new Set(knownCases.map(({ id }) => id)).size, knownCases.length, registration.key);
-      assert.strictEqual(new Set(knownCases.map(({ priority }) => priority)).size, knownCases.length, registration.key);
-      const open = knownCases.filter(({ analysis }) => analysis?.proposedStatus === 'IN_PROGRESS');
-      const completed = knownCases.filter(({ analysis }) => analysis?.proposedStatus === 'COMPLETED');
-      for (const openCase of open) {
-        for (const completedCase of completed) {
-          assert.ok(openCase.priority > completedCase.priority, `${registration.key}: ${openCase.id}`);
-        }
-      }
     }
   });
 });

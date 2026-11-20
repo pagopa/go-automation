@@ -82,11 +82,16 @@ export class QueryStreamLambdaLogsStep extends OperationalStep<Rows> implements 
           output: rows,
           vars: { [this.id]: 'queried' },
           ...(result.diagnostics !== undefined ? { diagnostics: result.diagnostics } : {}),
-          next: 'resolve' as const,
+          ...(result.coverage.length > 0 ? { coverage: result.coverage } : {}),
         };
       } catch (error: unknown) {
         const reason = error instanceof Error ? error.message : String(error);
-        return { success: true, output: [], vars: { [this.id]: 'unavailable', [`${this.id}-reason`]: reason } };
+        return {
+          success: true,
+          output: [],
+          vars: { [this.id]: 'unavailable', [`${this.id}-reason`]: reason },
+          coverage: [{ source: this.config.logGroup, complete: false, reason: 'unavailable', detail: reason }],
+        };
       }
     });
   }

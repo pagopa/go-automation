@@ -286,6 +286,7 @@ export interface ApiGwService {
     readonly executionLogGroup?: string;
     readonly varPrefix: string;
     readonly queryOverride?: string;
+    readonly exclusions?: ReadonlyArray<TreeExclusion>;
 }
 ```
 
@@ -500,7 +501,6 @@ export interface QueryApiGwExecutionLogsConfig {
     readonly accessLogSchema: AccessLogSchema;
     readonly queryProfileId: string;
     readonly maxRequestIdsOverride?: number;
-    readonly analysisMode?: ApiGwExecutionLogAnalysisMode;
 }
 ```
 
@@ -519,13 +519,11 @@ export declare class QueryApiGwExecutionLogsStep extends OperationalStep<Readonl
     private readonly accessLogSchema;
     private readonly queryProfileId;
     private readonly maxRequestIdsOverride;
-    private readonly analysisMode;
     constructor(config: QueryApiGwExecutionLogsConfig);
     getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>>;
     requiredServices(): ReadonlyArray<OperationalServiceName>;
     execute(context: OperationalContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>>;
     private buildUnavailableResult;
-    private rowHasApiGwErrorMessage;
     private buildExecutionLogQuery;
 }
 ```
@@ -1583,35 +1581,6 @@ export interface RunbookRegistration {
 
 ## namespace `service` (value)
 
-### `service.AnalyzeApplicationLogsConfig` (type)
-
-```ts
-export interface AnalyzeApplicationLogsConfig {
-    readonly id: string;
-    readonly label: string;
-    readonly fromStep: string;
-    readonly varPrefix: string;
-    readonly schema: ServiceLogSchema;
-    readonly extractFallbackUuid?: ExtractFallbackUuidFn;
-}
-```
-
-### `service.AnalyzeApplicationLogsStep` (value)
-
-```ts
-export declare class AnalyzeApplicationLogsStep implements Step<ServiceLogAnalysis> {
-    readonly id: string;
-    readonly label: string;
-    readonly kind: StepKind;
-    private readonly fromStep;
-    private readonly varPrefix;
-    private readonly schema;
-    private readonly extractFallbackUuid;
-    constructor(config: AnalyzeApplicationLogsConfig);
-    execute(context: RunbookContext): Promise<StepResult<ServiceLogAnalysis>>;
-}
-```
-
 ### `service.ApplicationLogsScan` (type)
 
 ```ts
@@ -1679,43 +1648,6 @@ export declare class PrepareServiceSectionStep implements Step<void> {
 }
 ```
 
-### `service.QueryServiceTraceLogsConfig` (type)
-
-```ts
-export interface QueryServiceTraceLogsConfig {
-    readonly id: string;
-    readonly label: string;
-    readonly serviceName: string;
-    readonly varPrefix: string;
-    readonly logGroups: ReadonlyArray<string>;
-    readonly queryTemplate: string;
-    readonly queryProfileId: string;
-    readonly timeRangeFromParams: TimeRangeFromParams;
-}
-```
-
-### `service.QueryServiceTraceLogsStep` (value)
-
-```ts
-export declare class QueryServiceTraceLogsStep extends OperationalStep<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
-    readonly id: string;
-    readonly label: string;
-    readonly kind: StepKind;
-    private readonly serviceName;
-    private readonly varPrefix;
-    private readonly logGroups;
-    private readonly queryTemplate;
-    private readonly queryProfileId;
-    private readonly timeRangeFromParams;
-    constructor(config: QueryServiceTraceLogsConfig);
-    getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>>;
-    requiredServices(): ReadonlyArray<OperationalServiceName>;
-    execute(context: OperationalContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>>;
-    private resolveTraceId;
-    private buildQuery;
-}
-```
-
 ### `service.scanApplicationLogs` (value)
 
 ```ts
@@ -1749,18 +1681,6 @@ export interface ServiceDescriptor {
     readonly varPrefix: string;
     readonly queryOverride?: string;
     readonly traceQueryOverride?: string;
-}
-```
-
-### `service.ServiceLogAnalysis` (type)
-
-```ts
-export interface ServiceLogAnalysis {
-    readonly errorMessage: string;
-    readonly logCount: number;
-    readonly traceId: string | undefined;
-    readonly traceIdRaw: string | undefined;
-    readonly fallbackUuid: string | undefined;
 }
 ```
 
@@ -1808,7 +1728,7 @@ export interface ServiceOutputContext {
 ### `service.ServicePipelineAnchor` (type)
 
 ```ts
-export type ServicePipelineAnchor = 'after-service-analysis';
+export type ServicePipelineAnchor = 'after-service-scan' | 'after-service-analysis';
 ```
 
 ### `service.ServiceRunbookContext` (type)
@@ -1859,12 +1779,6 @@ export type ActionType = 'log' | 'notify' | 'update' | 'escalate' | 'composite' 
 type ApiGwAuthorizerFailureType = 'timeout' | 'status-error';
 ```
 
-### `CloudWatchLogsRows` (dist/toolkits/common/steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.d.ts)
-
-```ts
-type CloudWatchLogsRows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
-```
-
 ### `ContainsCondition` (dist/engine/types/Condition.d.ts)
 
 ```ts
@@ -1908,7 +1822,7 @@ export type ExtractFallbackUuidFn = (message: string) => string | undefined;
 ### `FlowDirectiveString` (dist/engine/types/FlowDirective.d.ts)
 
 ```ts
-export type FlowDirectiveString = 'continue' | 'stop' | 'resolve' | (string & {});
+export type FlowDirectiveString = 'continue' | 'stop' | (string & {});
 ```
 
 ### `INTEROP` (dist/toolkits/common/registration/RunbookProduct.d.ts)
@@ -1923,7 +1837,6 @@ readonly INTEROP: "INTEROP";
 interface InteropApiGwKnownCaseConfig {
     readonly id: string;
     readonly description: string;
-    readonly priority: number;
     readonly regex: string;
     readonly resolution: string;
     readonly proposedStatus: 'IN_PROGRESS' | 'COMPLETED';
@@ -1989,7 +1902,6 @@ export interface InteropK8sAlarmSpec {
 export interface InteropK8sKnownCaseConfig {
     readonly id: string;
     readonly description: string;
-    readonly priority: number;
     readonly regex: string;
     readonly resolution: string;
     readonly proposedStatus: 'IN_PROGRESS' | 'COMPLETED';

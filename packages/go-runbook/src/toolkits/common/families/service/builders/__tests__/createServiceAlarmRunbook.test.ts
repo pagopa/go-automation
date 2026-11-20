@@ -80,7 +80,7 @@ describe('createServiceAlarmRunbook', () => {
     const runbook = createServiceAlarmRunbook(
       baseConfig({
         hooks: ['context', 'missing', 'empty'].map((name) => ({
-          at: 'after-service-analysis',
+          at: 'after-service-scan',
           step: new CloudWatchLogsQueryStep({
             id: `query-${name}`,
             label: name,
@@ -138,7 +138,7 @@ describe('createServiceAlarmRunbook', () => {
   });
 
   for (const matchKnownCase of [false, true]) {
-    it(`retains the first extracted trace in the output ${matchKnownCase ? 'on early resolution' : 'and the correlation query'}`, async () => {
+    it(`retains the first extracted trace in the output and the correlation query ${matchKnownCase ? 'with' : 'without'} a known case`, async () => {
       const firstTraceId = '1-6ad86e11-bbc9b685f973172eb4c3377e';
       const laterTraceId = '1-6ad86f35-b3cff4717d51f014d43d8d23';
       const queries: string[] = [];
@@ -149,7 +149,6 @@ describe('createServiceAlarmRunbook', () => {
                 knownCase({
                   id: 'known-error',
                   description: 'Known application error',
-                  priority: 100,
                   condition: {
                     type: 'compare',
                     ref: 'vars.pnServiceErrorMsg',
@@ -196,21 +195,24 @@ describe('createServiceAlarmRunbook', () => {
         }),
       );
 
+      // Each error row is a node with its own trace; both traces are read with one grouped query.
       assert.strictEqual(result.status, 'completed');
-      assert.strictEqual(result.finalContext.vars.get('pnServiceTraceId'), firstTraceId);
-      assert.strictEqual(result.finalContext.vars.get('pnServiceErrorMsg'), 'Exception: latest failure');
+      assert.deepStrictEqual(
+        result.tree?.filter((node) => node.parentId === undefined).map((node) => node.correlation['traceId']),
+        [firstTraceId, laterTraceId],
+      );
       const output = buildServiceOutputContext(runbook, result);
-      assert.strictEqual(output?.fields.find(({ name }) => name === 'traceId')?.value, firstTraceId);
-      assert.strictEqual(queries.length, matchKnownCase ? 1 : 2);
-      if (matchKnownCase) {
-        assert.deepStrictEqual(
-          result.matchedCases.map(({ id }) => id),
-          ['known-error'],
-        );
-      } else {
-        assert.ok(queries[1]?.includes(firstTraceId));
-        assert.ok(!queries[1]?.includes(laterTraceId));
-      }
+      // The output represents the first chain: the recognized error when there is one.
+      assert.strictEqual(
+        output?.fields.find(({ name }) => name === 'traceId')?.value,
+        matchKnownCase ? laterTraceId : firstTraceId,
+      );
+      assert.strictEqual(queries.length, 2);
+      assert.ok(queries[1]?.includes(firstTraceId) === true && queries[1].includes(laterTraceId));
+      assert.deepStrictEqual(
+        result.detections.map(({ knownCase }) => knownCase.id),
+        matchKnownCase ? ['known-error'] : [],
+      );
     });
   }
 

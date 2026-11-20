@@ -6,7 +6,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'in-app-notification-dispatcher-kafka-coordinator-member-rejoin',
     description: 'Il coordinator Kafka non riconosce il consumer dell’in-app notification dispatcher',
-    priority: 100,
     // Confluence censisce solo Prod e attribuisce il messaggio al dispatcher.
     // La query applicativa è filtrata sul suo pod; il CID tracker include anche altri servizi.
     condition: all(

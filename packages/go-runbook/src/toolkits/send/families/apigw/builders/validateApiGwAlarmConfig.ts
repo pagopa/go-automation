@@ -126,6 +126,7 @@ function computeWiredStepIds(config: ApiGwAlarmConfig, profile: ApiGwQueryProfil
   }
 
   ids.add('parse-api-gw-errors');
+  ids.add('descend-api-gateway');
 
   for (const hook of config.hooks ?? []) {
     ids.add(hook.step.id);
@@ -134,8 +135,7 @@ function computeWiredStepIds(config: ApiGwAlarmConfig, profile: ApiGwQueryProfil
   const services = [config.entryService, ...(config.services ?? [])];
   for (const s of services) {
     ids.add(`query-${s.name}`);
-    ids.add(`analyze-${s.name}`);
-    ids.add(`decide-${s.name}`);
+    ids.add(`descend-${s.name}`);
   }
 
   return ids;

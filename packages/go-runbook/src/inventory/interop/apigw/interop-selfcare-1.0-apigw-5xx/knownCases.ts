@@ -71,7 +71,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     ...knownCase({
       id: 'tenant-not-found-known-selfcare-id',
       description: 'Tenant non trovato per un SelfcareID esplicitamente censito come noto',
-      priority: 110,
       regex: TENANT_NOT_FOUND_PATTERN,
       resolution:
         'SelfcareID gi\u00E0 elencato nel runbook per l\u2019ambiente: non effettuare la segnalazione prevista per gli identificativi assenti dall\u2019elenco.',
@@ -85,7 +84,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-unread-notifications-in-app-manager-unavailable',
     description: 'Errore 504 nel recupero delle notifiche non lette da in-app-notification-manager',
-    priority: 190,
     regex:
       'Error while fetching unread notifications:[^\\n]*(?:ECONNREFUSED|ETIMEDOUT|status code 403)|' +
       '10\\.1\\.2\\.37:8088',
@@ -98,7 +96,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-s3-list-bucket-not-authorized',
     description: 'Permesso s3:ListBucket mancante durante il recupero di un documento',
-    priority: 1670,
     regex: 'not authorized to perform:\\s*s3:ListBucket|no identity-based policy allows the s3:ListBucket action',
     resolution: 'Probabile riconfigurazione dei permessi da parte del gruppo Infrastruttura.',
     proposedStatus: 'IN_PROGRESS',
@@ -108,7 +105,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-selfcare-products-retrieval-error',
     description: 'Errore nel recupero dei prodotti Selfcare per l’istituzione',
-    priority: 1660,
     regex: 'Error retrieving products for institution',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
@@ -119,7 +115,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-selfcare-users-504',
     description: 'Timeout 504 di Selfcare durante il recupero degli utenti del tenant',
-    priority: 1180,
     regex:
       'api\\.selfcare\\.pagopa\\.it/external/v2/institutions/[^\\s]+/users[^\\n]*504|' +
       'Error while retrieving users corresponding to tenant[^\\n]*status code 504',
@@ -133,7 +128,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-kafka-lock-timeout',
     description: 'Timeout temporaneo durante la connessione ai broker Kafka',
-    priority: 1650,
     regex: 'KafkaJSLockTimeout: Timeout while acquiring lock|connect to broker[^\\n]+:9098',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
@@ -144,7 +138,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-signed-contract-response-503',
     description: 'Response 503 durante il recupero del contratto firmato',
-    priority: 1640,
     regex: 'Response\\s*503\\s*Service Unavailable',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
@@ -161,7 +154,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-tenant-kind-error-004-0004',
     description: 'Tenant kind non trovato durante la creazione di un purpose',
-    priority: 1630,
     regex: 'errors:\\s*004-0004, Tenant kind for tenant[^\\n]*not found',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
@@ -173,7 +165,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     ...knownCase({
       id: 'tenant-not-found-selfcare-id',
       description: 'Tenant non trovato tramite SelfcareID',
-      priority: 1620,
       regex: TENANT_NOT_FOUND_PATTERN,
       resolution:
         'Verificare il tenant nel DB read_model dell\u2019ambiente e applicare le regole di notifica indicate nella sezione Verifiche e azioni finali.',
@@ -187,7 +178,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-session-token-origin-not-allowed',
     description: 'Tenant origin non consentita o SelfcareID fuori allow list',
-    priority: 1610,
     regex: 'Tenant origin is not allowed and SelfcareID[^\\n]*does not belong to allow list',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
@@ -197,7 +187,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-error-creating-eservice-descriptor',
     description: 'Errore nella creazione del descriptor di un eService',
-    priority: 1600,
     regex: 'Error creating descriptor in EService',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
@@ -207,7 +196,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-error-creating-eservice-template-document',
     description: 'Errore nella creazione del documento INTERFACE del template eService',
-    priority: 1590,
     regex: 'Error creating eService template document of kind INTERFACE',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
@@ -217,7 +205,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-selfcare-entity-not-filled',
     description: 'Selfcare UserInstitutionResource non valorizzata',
-    priority: 170,
     regex: 'Selfcare entity UserInstitutionResource with field unknown not filled',
     resolution:
       'Comportamento Atteso: Il BFF fallisce volutamente con 500 : fail-fast per segnalare un dato corrotto o non conforme del provider esterno.',
@@ -230,7 +217,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-invalid-content-disposition-header',
     description: 'Carattere non valido nell’header Content-Disposition',
-    priority: 1570,
     regex: 'Invalid character in header content[^\\n]*Content-Disposition',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
@@ -240,7 +226,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-adm-zip-invalid-format',
     description: 'Archivio ZIP non valido o troncato durante import eServices',
-    priority: 1560,
     regex: 'ADM-ZIP: Invalid or unsupported zip format\\. No END header found',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
@@ -250,7 +235,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'purpose-process-econnreset-or-socket-hang-up',
     description: 'Purpose-process indisponibile con ECONNRESET o socket hang up',
-    priority: 1550,
     regex: 'errors:\\s*008-9991[^\\n]*(?:read ECONNRESET|socket hang up)',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
@@ -261,7 +245,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'purpose-process-tenant-kind-not-found',
     description: 'Tenant kind non trovato in purpose-process',
-    priority: 1540,
     regex: 'Tenant kind for tenant[^\\n]*not found',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
@@ -273,7 +256,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'purpose-process-pdf-generation-timeout',
     description: 'Timeout durante la generazione PDF in purpose-process',
-    priority: 1530,
     regex: 'Error during pdf generation[^\\n]*Navigation timeout of 30000 ms exceeded',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
@@ -284,7 +266,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'tenant-process-read-model-connection-refused',
     description: 'Connessione al read_model rifiutata da tenant-process',
-    priority: 1520,
     regex: 'connect ECONNREFUSED 10\\.0\\.28\\.230:5432',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
@@ -295,7 +276,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-saml-not-on-or-after-not-compliant',
     description: 'Condizione SAML NotOnOrAfter non conforme',
-    priority: 1580,
     regex: 'Conditions NotOnOrAfter are not compliant',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
@@ -305,7 +285,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'authorization-process-invalid-api-role',
     description: 'Ruolo api non autorizzato per validateTokenGeneration',
-    priority: 1510,
     regex: 'Invalid roles[^\\n]*\\\\?"api\\\\?"[^\\n]*for this operation',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
@@ -322,7 +301,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-token-expired',
     description: 'Token JWT di sessione scaduto',
-    priority: 1160,
     regex:
       'Token verification failed: TokenExpiredError: jwt expired|' +
       'Error while fetching unread notifications:[^\\n]*status code 401',
@@ -337,7 +315,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-error-getting-public-key',
     description: 'Errore nel recupero della public key di firma',
-    priority: 1150,
     regex: 'Error getting public key|error in secret or public key callback: Error getting signing key',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
@@ -347,7 +324,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-privacy-notices-tos-retrieval-error',
     description: 'Errore nel recupero delle privacy notices TOS',
-    priority: 1140,
     regex: 'Error retrieving privacy notices for consentType TOS',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
@@ -357,7 +333,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'duplicate-event-stream-version',
     description: 'Evento duplicato su events_stream_id_version_key gestito tramite retry',
-    priority: 1130,
     regex: 'duplicate key value violates unique constraint[^\\n]*events_stream_id_version_key',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
@@ -368,7 +343,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'api-gateway-backend-timeout-504',
     description: 'API Gateway ha superato il timeout di 29 secondi del backend',
-    priority: 1120,
     regex: 'Execution failed due to a timeout error',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',

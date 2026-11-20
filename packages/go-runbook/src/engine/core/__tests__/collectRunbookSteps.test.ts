@@ -42,7 +42,6 @@ describe('collectRunbookSteps', () => {
         {
           id: 'case',
           description: 'case',
-          priority: 1,
           condition: { type: 'exists', ref: 'vars.a' },
           action: {
             type: 'composite',

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { KNOWN_CASES } from '../knownCases.js';
+import { lambda } from '../../../../../toolkits/send/index.js';
 import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
 import { caseMatches, matchingCaseIds, knownCaseById } from '../../../../../__tests__/helpers/knownCaseMatching.js';
 import { logRow } from '../../../../../__tests__/helpers/logRow.js';
@@ -29,7 +30,8 @@ describe('SenderDashboardDataIndexer known cases', () => {
   });
 
   it('does not classify an unrelated application error as a document-specific case', () => {
-    const documentCases = KNOWN_CASES.filter((knownCase) => knownCase.priority > 100);
+    const runtimeIds = new Set(lambda.LAMBDA_RUNTIME_KNOWN_CASES.map(({ id }) => id));
+    const documentCases = KNOWN_CASES.filter((knownCase) => !runtimeIds.has(knownCase.id));
     assert.deepStrictEqual(
       matchingCaseIds(documentCases, contextWithError('ERROR Unexpected application failure')),
       [],

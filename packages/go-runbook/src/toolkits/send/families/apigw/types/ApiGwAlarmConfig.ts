@@ -53,7 +53,7 @@ export interface ApiGwAlarmConfig {
    * come target.
    */
   readonly services?: ReadonlyArray<ApiGwService>;
-  /** Known URL usati per arricchire il trace e guidare il loop di analisi. */
+  /** Known URL: il servizio o il downstream che una riga d'errore chiama, dove scende il suo nodo. */
   readonly knownUrls: ReadonlyArray<KnownUrl>;
   /**
    * Gate opzionale per errori della Lambda authorizer. Quando configurato,

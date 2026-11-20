@@ -1,3 +1,5 @@
+import type { TreeExclusion } from '../../../../../engine/types/TreeExclusion.js';
+
 /**
  * Descriptor of a microservice analysed by an API Gateway alarm runbook.
  *
@@ -7,7 +9,7 @@
  *
  * In the dynamic API Gateway pipeline the {@link name} doubles as the
  * routing key: a {@link KnownUrl} whose `target` equals this `name`
- * causes the analysis loop to enter this service.
+ * makes an error that calls it descend to this service.
  */
 export interface ApiGwService {
   /** Canonical microservice name (e.g. `pn-user-attributes`). */
@@ -33,7 +35,12 @@ export interface ApiGwService {
   /**
    * Optional override of the query template (rare, advanced usage).
    * Must contain the `{{FILTER_CLAUSE}}` placeholder so that
-   * {@link QueryServiceLogsStep} can inject the runtime filter clauses.
+   * the read of the service can inject the predicates of its identifiers.
    */
   readonly queryOverride?: string;
+  /**
+   * Diagnoses a case of the caller may require to be absent from the whole read of this service for it, published
+   * on the caller as `<varPrefix>Exclusion.<name>`.
+   */
+  readonly exclusions?: ReadonlyArray<TreeExclusion>;
 }

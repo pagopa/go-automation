@@ -14,6 +14,7 @@ import { RUNBOOK_REGISTRY } from '@pagopa/go-runbook/inventory';
 import { resolveOccurrenceTimeWindow } from '@pagopa/go-runbook/runtime';
 import { collectRunbookSteps, type Runbook } from '@pagopa/go-runbook';
 import type { AwsAccountSelection } from '@pagopa/go-runbook/toolkits/common';
+import { RUNBOOK_OUTPUT_SCHEMA_VERSION } from '@pagopa/go-runbook/output';
 
 import type { RunbookCacheDescriptor } from './RunbookCacheDescriptor.js';
 import type { CachedRunbookAccounts } from './CachedRunbookAccounts.js';
@@ -24,10 +25,10 @@ import type { CachedRunbookMeta } from './CachedRunbookMeta.js';
  * (e.g. after a change to the fingerprint inputs or a `go-runbook` upgrade whose
  * effect is not otherwise captured by the structural hash).
  */
-const CACHE_FINGERPRINT_VERSION = 5;
+const CACHE_FINGERPRINT_VERSION = 14;
 
-/** `RunbookOutput` schema version this build expects; mismatch ⇒ cache miss. */
-const EXPECTED_OUTPUT_SCHEMA_VERSION = '1.0.0';
+/** `RunbookOutput` schema version this build expects, read from go-runbook; mismatch ⇒ cache miss. */
+const EXPECTED_OUTPUT_SCHEMA_VERSION = RUNBOOK_OUTPUT_SCHEMA_VERSION;
 
 /** SHA-256 hex digest of a string. */
 function sha256(input: string): string {

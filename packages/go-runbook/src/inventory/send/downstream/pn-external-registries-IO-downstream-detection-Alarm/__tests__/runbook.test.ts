@@ -27,21 +27,22 @@ describe('external-registries IO downstream runbook', () => {
 
     assert.strictEqual(result.status, 'completed');
     assert.strictEqual(result.stepsExecuted, 4);
-    assert.deepStrictEqual(result.matchedCases, []);
+    assert.deepStrictEqual(result.detections, []);
     assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
     assert.strictEqual(queries.length, 2);
-    assert.ok(queries[1]?.query.includes(`filter @message like '${TRACE_ID}'`));
+    assert.ok(queries[1]?.query.includes(`@message like '${TRACE_ID}'`));
   });
 
-  it('keeps standard early resolution for a known timeout without claiming recovery', async () => {
+  it('recognizes a known timeout, still reads its trace and does not claim recovery', async () => {
     const { result, queries } = await execute(
       '[DOWNSTREAM] Service IO returned errors=io.netty.handler.timeout.ReadTimeoutException',
     );
 
     assert.strictEqual(result.status, 'completed');
-    assert.strictEqual(result.stepsExecuted, 3);
-    assert.strictEqual(queries.length, 1);
-    assert.strictEqual(result.matchedCases[0]?.id, 'io-read-timeout');
+    assert.strictEqual(result.stepsExecuted, 4);
+    assert.strictEqual(queries.length, 2);
+    assert.ok(queries[1]?.query.includes(`@message like '${TRACE_ID}'`));
+    assert.strictEqual(result.detections[0]?.knownCase.id, 'io-read-timeout');
   });
 
   it('publishes the courtesy timeline checks for the documented JSON failure without proposing closure', async () => {

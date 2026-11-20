@@ -18,7 +18,8 @@ export interface KnownCaseSpec {
   readonly id: string;
   /** Full wording of the case, used by the trace and the runbook output. */
   readonly description: string;
-  readonly priority: number;
+  /** Cases this one replaces when both match (see `KnownCase.supersedes`). */
+  readonly supersedes?: ReadonlyArray<string>;
   readonly condition: Condition;
   /**
    * Table title. Defaults to {@link description}; declare it only to give the
@@ -46,7 +47,6 @@ export interface KnownCaseSpec {
  * knownCase({
  *   id: 'inad-500',
  *   description: '[DOWNSTREAM INAD] HTTP 500 durante il recupero del domicilio digitale',
- *   priority: 130,
  *   condition: stepEvidenceMatches('query-pn-national-registries', '…'),
  *   resolution: INAD_RECOVERY_RESOLUTION,
  *   details: [['Servizio', 'pn-national-registries'], ['Errore', '{{vars.nationalRegistriesErrorMsg}}']],
@@ -66,7 +66,7 @@ export function knownCase(spec: KnownCaseSpec): KnownCase {
   return {
     id: spec.id,
     description: spec.description,
-    priority: spec.priority,
+    ...(spec.supersedes === undefined ? {} : { supersedes: spec.supersedes }),
     condition: spec.condition,
     action,
     analysis: { resolution: spec.resolution, ...spec.analysis },

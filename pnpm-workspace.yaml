@@ -5,7 +5,6 @@ packages:
   - scripts/aws/*
   - scripts/interop/*
   - functions/*
-  - infra/*
 
 allowBuilds:
   better-sqlite3: true
@@ -28,7 +27,6 @@ catalog:
   '@changesets/cli': '3.0.3'
   '@changesets/parse': '1.0.0'
   'ajv': '8.20.0'
-  'ajv-formats': '3.0.1'
   '@aws-sdk/client-athena': '3.1169.0'
   '@aws-sdk/client-bedrock-runtime': '3.1169.0'
   '@aws-sdk/client-cloudwatch': '3.1169.0'
@@ -80,7 +78,6 @@ catalog:
   'semver': '7.8.6'
   'read-excel-file': '^9.3.17'
   'string-width': '^9.0.0'
-  'sst': '4.17.2'
   'tsx': '^4.23.15'
   'type-coverage': '^2.31.2'
   'typescript': '^6.0.3'

@@ -8,7 +8,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'io-activation-cosmos-conflict',
     description: '[DOWNSTREAM IO] HTTP 500 su activations per conflitto Cosmos DB',
-    priority: 180,
     condition: stepEvidenceMatches(
       'query-pn-external-registries',
       '\\[DOWNSTREAM\\] Service IO returned errors=500 Internal Server Error from PUT ' +
@@ -35,7 +34,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'io-activation-not-found',
     description: '[DOWNSTREAM IO] Attivazione non trovata',
-    priority: 160,
     condition: stepEvidenceMatches(
       'query-pn-external-registries',
       '\\[DOWNSTREAM\\] Service IO returned errors=404 Not Found from POST ' +
@@ -61,7 +59,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'io-read-timeout',
     description: '[DOWNSTREAM IO] Timeout di rete in lettura',
-    priority: 100,
     condition: stepEvidenceMatches(
       'query-pn-external-registries',
       '\\[DOWNSTREAM\\] Service IO returned errors=io\\.netty\\.handler\\.timeout\\.ReadTimeoutException\\b',
@@ -85,7 +82,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'io-messages-invalid-json-response-500',
     description: '[DOWNSTREAM IO] HTTP 500: risposta JSON incompleta delle configurazioni remote',
-    priority: 120,
     // A single evidence predicate keeps the HTTP error and its specific cause
     // on the same log row, instead of combining unrelated query results.
     condition: stepEvidenceMatches(

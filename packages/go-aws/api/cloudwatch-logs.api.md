@@ -30,6 +30,8 @@ export interface AWSCloudWatchLogsQueryExecution {
     readonly profile: string;
     readonly logGroups: ReadonlyArray<string>;
     readonly statistics: AWSCloudWatchLogsQueryStatistics;
+    readonly rowsReturned?: number;
+    readonly unreadPages?: 'budget' | 'failed';
 }
 ```
 
@@ -43,6 +45,7 @@ export interface AWSCloudWatchLogsQueryOptions {
     readonly queryResultsPageSize?: number;
     readonly maxResultPages?: number;
     readonly logGroupResolutionMode?: AWSCloudWatchLogsLogGroupResolutionMode;
+    readonly partialResults?: boolean;
     readonly onCleanupWarning?: AWSRemoteCleanupWarningHandler;
 }
 ```
@@ -54,6 +57,7 @@ export interface AWSCloudWatchLogsQueryResult {
     readonly rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
     readonly statistics: AWSCloudWatchLogsQueryStatistics;
     readonly queryExecutions: ReadonlyArray<AWSCloudWatchLogsQueryExecution>;
+    readonly failedReads?: ReadonlyArray<AWSCloudWatchLogsFailedRead>;
 }
 ```
 

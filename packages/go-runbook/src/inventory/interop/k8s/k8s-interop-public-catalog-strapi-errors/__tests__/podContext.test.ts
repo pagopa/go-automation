@@ -37,6 +37,7 @@ function context(
     ]),
     logs: [],
     recoveredErrors: [],
+    readPolicy: 'partial',
     services: createTestServiceRegistry({
       cloudWatchLogs: {
         // eslint-disable-next-line @typescript-eslint/require-await
@@ -78,6 +79,7 @@ describe('PublicCatalogStrapiContext (QueryInteropPodContextStep)', () => {
       end: new Date('2026-10-06T00:41:08Z'),
     });
     assert.deepStrictEqual(calls[0]?.options, {
+      partialResults: true,
       signal,
       paginateResults: true,
       logGroupResolutionMode: 'search-configured-profiles',
@@ -112,7 +114,7 @@ describe('PublicCatalogStrapiContext (QueryInteropPodContextStep)', () => {
     assert.match(calls[0]?.query ?? '', /filter pod_namespace = "att-public-catalog"/);
   });
 
-  it('accepts empty or complete evidence but rejects capped and partial results', async () => {
+  it('accepts empty or complete evidence, and keeps capped and partial results as saturated evidence', async () => {
     const step = new interop.k8s.QueryInteropPodContextStep(POD_CONTEXT);
     for (const count of [0, 999]) {
       const result = await step.execute(context([], VARS, count));
@@ -124,10 +126,12 @@ describe('PublicCatalogStrapiContext (QueryInteropPodContextStep)', () => {
       [10, 11],
     ]) {
       const result = await step.execute(context([], VARS, count, matched));
-      assert.strictEqual(result.success, false);
-      assert.match(result.error ?? '', /Strapi context is incomplete/);
-      assert.strictEqual(result.output, undefined);
-      assert.strictEqual(result.vars, undefined);
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.output?.length, count);
+      assert.deepStrictEqual(
+        result.coverage?.map(({ reason, detail }) => ({ reason, detail })),
+        [{ reason: 'saturated', detail: 'Strapi context is incomplete; narrow the interval or pod stream' }],
+      );
     }
   });
 

@@ -29,6 +29,7 @@ function context(
     vars: new Map(),
     logs: [],
     recoveredErrors: [],
+    readPolicy: 'partial',
     params: new Map([
       ['startTime', '2026-10-16T08:10:00Z'],
       ['endTime', '2026-10-16T08:20:00Z'],
@@ -51,7 +52,7 @@ describe('QueryStreamLambdaLogsStep', () => {
         assert.match(query, new RegExp(ID));
         assert.equal(query.split(ID).length, 2);
         assert.ok(!query.includes(OTHER_ID));
-        assert.deepEqual(options, { logGroupResolutionMode: 'search-configured-profiles' });
+        assert.deepEqual(options, { partialResults: true, logGroupResolutionMode: 'search-configured-profiles' });
         return [
           row({ '@requestId': ID, '@message': 'REPORT RequestId: test Status: timeout' }),
           row({ '@requestId': OTHER_ID, '@message': 'Unrelated error' }),
@@ -62,7 +63,7 @@ describe('QueryStreamLambdaLogsStep', () => {
     assert.equal(result.success, true);
     assert.equal(result.output?.length, 1);
     assert.equal(result.vars?.['lambda'], 'queried');
-    assert.equal(result.next, 'resolve');
+    assert.equal(result.next, undefined);
     assert.equal(calls, 1);
     assert.deepEqual(step.getTraceInfo()['logGroups'], ['/aws/lambda/stream-test']);
   });

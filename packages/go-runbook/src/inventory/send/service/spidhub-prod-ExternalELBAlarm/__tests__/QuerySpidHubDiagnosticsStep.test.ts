@@ -53,7 +53,14 @@ async function context(
           return {
             rows,
             statistics,
-            queryExecutions: [{ queryId: query === ERROR_QUERY ? 'errors' : 'streams', statistics }],
+            queryExecutions: [
+              {
+                queryId: query === ERROR_QUERY ? 'errors' : 'streams',
+                profile: 'confinfo',
+                logGroups: groups,
+                statistics,
+              },
+            ],
           };
         },
       }),
@@ -144,26 +151,38 @@ describe('QuerySpidHubDiagnosticsStep', () => {
   });
 
   for (const saturatedQuery of [ERROR_QUERY, STREAM_QUERY]) {
-    it(`fails on a saturated ${saturatedQuery === ERROR_QUERY ? 'error scan' : 'stream inventory'}`, async () => {
+    it(`keeps a saturated ${saturatedQuery === ERROR_QUERY ? 'error scan' : 'stream inventory'} as saturated coverage`, async () => {
       const result = await new QuerySpidHubDiagnosticsStep().execute(
         await context((query) => (query === saturatedQuery ? Array.from({ length: 1000 }, () => []) : [])),
       );
-      assert.strictEqual(result.success, false);
-      assert.match(result.error ?? '', /reached 1000 rows/u);
-      assert.strictEqual(result.vars, undefined);
+      assert.strictEqual(result.success, true);
+      assert.deepStrictEqual(
+        result.coverage?.map(({ reason }) => reason),
+        ['manual', 'saturated'],
+      );
     });
   }
 
-  it('fails on access errors without publishing partial diagnostics', async () => {
+  it('keeps the read that answered and declares the failed one unavailable', async () => {
     const result = await new QuerySpidHubDiagnosticsStep().execute(
       await context((query) => {
         if (query === STREAM_QUERY) throw new Error('AccessDenied');
         return [[{ field: '@message', value: RESPONDER }]];
       }),
     );
+    assert.strictEqual(result.success, true);
+    assert.ok(result.coverage?.some(({ reason, detail }) => reason === 'unavailable' && detail === 'AccessDenied'));
+    assert.strictEqual(result.vars?.['spidHubErrorLogCount'], '1');
+  });
+
+  it('fails when no read answers', async () => {
+    const result = await new QuerySpidHubDiagnosticsStep().execute(
+      await context(() => {
+        throw new Error('AccessDenied');
+      }),
+    );
     assert.strictEqual(result.success, false);
     assert.match(result.error ?? '', /AccessDenied/u);
-    assert.strictEqual(result.vars, undefined);
   });
 
   it('resolves the SPID Hub account from the directory, with or without an occurrence', async () => {

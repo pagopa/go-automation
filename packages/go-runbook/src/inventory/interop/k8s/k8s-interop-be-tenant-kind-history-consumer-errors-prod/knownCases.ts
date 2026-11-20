@@ -14,7 +14,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'tenant-kind-history-kafka-coordinator-errors',
     description: 'Errori di comunicazione con il broker Kafka del tenant kind history consumer',
-    priority: 100,
     condition: all(
       { type: 'compare', ref: 'vars.interopEnvironment', operator: '==', value: 'prod' },
       stepEvidenceMatches(
@@ -30,7 +29,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'tenant-kind-history-kafka-incorrect-coordinator',
     description: 'Coordinatore Kafka non corretto per il gruppo',
-    priority: 110,
     condition: all(
       { type: 'compare', ref: 'vars.interopEnvironment', operator: '==', value: 'prod' },
       stepEvidenceMatches(

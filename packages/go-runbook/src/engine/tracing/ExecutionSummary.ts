@@ -17,8 +17,4 @@ export interface ExecutionSummary {
   readonly stepsSkipped: number;
   /** Synthetic outcome: identified case and executed action */
   readonly outcome: string;
-  /** Whether the pipeline was terminated early via 'resolve' signal */
-  readonly earlyResolution?: boolean;
-  /** Step ID that triggered the successful early resolution */
-  readonly resolvedAtStep?: string;
 }

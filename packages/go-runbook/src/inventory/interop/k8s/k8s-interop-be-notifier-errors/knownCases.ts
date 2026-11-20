@@ -19,7 +19,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     interopK8sKnownCase(REFS, {
       id: 'notifier-unsupported-catalog-descriptor-state',
       description: 'Stato del catalog descriptor non gestito dal notifier',
-      priority: 100,
       regex:
         'Error trying to consume a message from SQS - Unable to deserialize json as a CatalogDescriptorState:[^\\n]*ArchivingSuspended',
       resolution: 'PIN-10510',
@@ -36,7 +35,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     interopK8sKnownCase(REFS, {
       id: 'notifier-organization-id-not-found',
       description: 'Organization ID associato al messaggio SQS non trovato',
-      priority: 90,
       regex:
         'Error trying to consume a message from SQS - No organizationId found associated to [0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}',
       resolution: 'PIN-10910',

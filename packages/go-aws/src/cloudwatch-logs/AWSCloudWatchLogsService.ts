@@ -156,19 +156,21 @@ export class AWSCloudWatchLogsService implements AWSCloudWatchLogsQueryService {
 
     const mode = options.logGroupResolutionMode ?? 'default-profile-only';
     if (mode === 'default-profile-only') {
-      return this.queryWithProfile(this.clientProvider.first.getProfile(), logGroups, query, timeRange, options);
+      return readOrReportFailure(logGroups, options, async () =>
+        this.queryWithProfile(this.clientProvider.first.getProfile(), logGroups, query, timeRange, options),
+      );
     }
 
     const results: AWSCloudWatchLogsQueryResult[] = [];
     for (const logGroup of logGroups) {
-      results.push(await this.queryLogGroupAcrossProfiles(logGroup, query, timeRange, options));
+      results.push(
+        await readOrReportFailure([logGroup], options, async () =>
+          this.queryLogGroupAcrossProfiles(logGroup, query, timeRange, options),
+        ),
+      );
     }
 
-    return {
-      rows: sortRowsByTimestamp(results.flatMap((result) => result.rows)),
-      statistics: sumCloudWatchLogsQueryStatistics(results.map((result) => result.statistics)),
-      queryExecutions: results.flatMap((result) => result.queryExecutions),
-    };
+    return mergeQueryResults(results);
   }
 
   clearLogGroupResolutionCache(): void {
@@ -196,21 +198,23 @@ export class AWSCloudWatchLogsService implements AWSCloudWatchLogsQueryService {
 
     const sources = targetSources(target);
     if (sources.length <= 1) {
-      return await this.querySource(sources[0], logGroups, target, query, timeRange, options);
+      return await readOrReportFailure(logGroups, options, async () =>
+        this.querySource(sources[0], logGroups, target, query, timeRange, options),
+      );
     }
 
     // One query per log group: two groups of the same step can live in
     // different accounts, and a single call would have to name one.
     const results: AWSCloudWatchLogsQueryResult[] = [];
     for (const logGroup of logGroups) {
-      results.push(await this.queryLogGroupAcrossSources(logGroup, sources, target, query, timeRange, options));
+      results.push(
+        await readOrReportFailure([logGroup], options, async () =>
+          this.queryLogGroupAcrossSources(logGroup, sources, target, query, timeRange, options),
+        ),
+      );
     }
 
-    return {
-      rows: sortRowsByTimestamp(results.flatMap((result) => result.rows)),
-      statistics: sumCloudWatchLogsQueryStatistics(results.map((result) => result.statistics)),
-      queryExecutions: results.flatMap((result) => result.queryExecutions),
-    };
+    return mergeQueryResults(results);
   }
 
   /**
@@ -422,8 +426,9 @@ export class AWSCloudWatchLogsService implements AWSCloudWatchLogsQueryService {
     response: GetQueryResultsCommandOutput,
   ): AWSCloudWatchLogsQueryResult {
     const statistics = normalizeQueryStatistics(response.statistics);
+    const rows = response.results ?? [];
     return {
-      rows: response.results ?? [],
+      rows,
       statistics,
       queryExecutions: [
         {
@@ -431,6 +436,9 @@ export class AWSCloudWatchLogsService implements AWSCloudWatchLogsQueryService {
           profile,
           logGroups: [...logGroups],
           statistics,
+          rowsReturned: rows.length,
+          // Without pagination the further pages are never read: the read is truncated, not complete.
+          ...(response.nextToken !== undefined ? { unreadPages: 'budget' as const } : {}),
         },
       ],
     };
@@ -450,15 +458,25 @@ export class AWSCloudWatchLogsService implements AWSCloudWatchLogsQueryService {
     let statistics = normalizeQueryStatistics(firstPage.statistics);
     let nextToken = firstPage.nextToken;
     let pageCount = 1;
+    let unreadPages: 'budget' | 'failed' | undefined;
     const seenTokens = new Set<string>();
+    const partial = options.partialResults === true;
 
     while (nextToken !== undefined) {
       if (seenTokens.has(nextToken)) {
+        if (partial) {
+          unreadPages = 'failed';
+          break;
+        }
         throw new Error(`CloudWatch Logs GetQueryResults returned a repeated nextToken for queryId ${queryId}`);
       }
       seenTokens.add(nextToken);
 
       if (pageCount >= maxPages) {
+        if (partial) {
+          unreadPages = 'budget';
+          break;
+        }
         throw new Error(`CloudWatch Logs GetQueryResults exceeded ${maxPages} pages for queryId ${queryId}`);
       }
 
@@ -469,10 +487,18 @@ export class AWSCloudWatchLogsService implements AWSCloudWatchLogsQueryService {
           ...(options.signal !== undefined ? [{ abortSignal: options.signal }] : []),
         );
       } catch (error: unknown) {
+        if (partial && options.signal?.aborted !== true) {
+          unreadPages = 'failed';
+          break;
+        }
         throw this.wrapAwsError('GetQueryResults', profile, queryId, error);
       }
 
       if (page.status !== 'Complete') {
+        if (partial) {
+          unreadPages = 'failed';
+          break;
+        }
         const status = page.status ?? 'Unknown';
         throw new Error(
           `CloudWatch Logs GetQueryResults returned status ${status} while paginating queryId ${queryId}`,
@@ -494,6 +520,8 @@ export class AWSCloudWatchLogsService implements AWSCloudWatchLogsQueryService {
           profile,
           logGroups: [...logGroups],
           statistics,
+          rowsReturned: rows.length,
+          ...(unreadPages !== undefined ? { unreadPages } : {}),
         },
       ],
     };
@@ -579,6 +607,52 @@ export class AWSCloudWatchLogsService implements AWSCloudWatchLogsQueryService {
       { cause: error },
     );
   }
+}
+
+/** One read of a query call, which already tries every candidate profile or account. */
+type QueryReadFn = () => Promise<AWSCloudWatchLogsQueryResult>;
+
+/** Configuration errors of the execution target: they keep throwing even with `partialResults`. */
+const TARGET_CONFIGURATION_ERROR_CODES: ReadonlySet<string> = new Set(['OAM_REGION_MISMATCH', 'INVALID_OAM_TARGET']);
+
+/**
+ * Runs one read; with `partialResults` a failure that is neither an abort nor a configuration error of the target
+ * becomes a failed read with no rows instead of an exception.
+ *
+ * @param logGroups - Log groups the read covers
+ * @param options - Query options
+ * @param read - The read, which already tries every candidate profile or account
+ * @returns The rows of the read, or an empty result that reports the failure
+ */
+async function readOrReportFailure(
+  logGroups: ReadonlyArray<string>,
+  options: AWSCloudWatchLogsQueryOptions,
+  read: QueryReadFn,
+): Promise<AWSCloudWatchLogsQueryResult> {
+  try {
+    return await read();
+  } catch (error: unknown) {
+    const targetConfiguration =
+      isAWSCloudWatchLogsConfigurationError(error) && TARGET_CONFIGURATION_ERROR_CODES.has(error.code);
+    if (options.partialResults !== true || options.signal?.aborted === true || targetConfiguration) throw error;
+    return {
+      rows: [],
+      statistics: normalizeQueryStatistics(undefined),
+      queryExecutions: [],
+      failedReads: [{ logGroups: [...logGroups], error: error instanceof Error ? error : new Error(String(error)) }],
+    };
+  }
+}
+
+/** Merges the results of the reads of one call: rows by time, statistics summed, executions and failures kept. */
+function mergeQueryResults(results: ReadonlyArray<AWSCloudWatchLogsQueryResult>): AWSCloudWatchLogsQueryResult {
+  const failedReads = results.flatMap((result) => result.failedReads ?? []);
+  return {
+    rows: sortRowsByTimestamp(results.flatMap((result) => result.rows)),
+    statistics: sumCloudWatchLogsQueryStatistics(results.map((result) => result.statistics)),
+    queryExecutions: results.flatMap((result) => result.queryExecutions),
+    ...(failedReads.length > 0 ? { failedReads } : {}),
+  };
 }
 
 function isRecoverableProfileSearchError(error: unknown): boolean {

@@ -15,7 +15,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'public-catalog-invalid-uuid-syntax',
     description: 'UUID non valido nella query verso il database del public catalog',
-    priority: 95,
     // Il valore dello uuid invalido varia tra le occorrenze: il pattern non lo vincola.
     regex: 'invalid input syntax for type uuid',
     resolution: 'PIN-8696',
@@ -30,7 +29,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'public-catalog-undefined-length-type-error',
     description: "TypeError su proprietà 'length' di undefined nel public catalog frontend",
-    priority: 90,
     regex: "TypeError: Cannot read properties of undefined \\(reading 'length'\\)",
     resolution: 'PIN-8718 PIN-8836',
     proposedStatus: 'IN_PROGRESS',
@@ -45,7 +43,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'public-catalog-astro-frontend-missing-env-files',
     description: 'Caricamento dei file .env fallito nel package astro-frontend',
-    priority: 85,
     // Messaggio reale:
     // [dotenv-flow@4.1.0]: \".env*\" files loading failed: no \".env*\" files matching pattern \".env[.node_env][.local]\" in \"/app/packages/astro-frontend\" dir undefined
     // Le virgolette arrivano già escapate nei log e vengono escapate di nuovo dal confronto
@@ -61,7 +58,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'public-catalog-react-list-key-warning',
     description: 'Warning React per elementi della lista senza una key univoca',
-    priority: 80,
     regex: 'Each child in a list should have a unique .*key.* prop',
     resolution: 'PIN-10606',
     // Il PDF parla di "probabile" falso positivo: senza la conferma del 200 non è sicuro chiudere l'analisi.
@@ -86,7 +82,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'public-catalog-failed-sql-query',
     description: 'Fallimento di una query SQL del public catalog',
-    priority: 75,
     // La query SQL è variabile e può estendersi su più righe: viene riconosciuta solo la firma stabile.
     regex: 'Error: Failed query:',
     resolution: 'PIN-10761',
@@ -106,7 +101,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'public-catalog-error-fetching-from-database',
     description: 'Errore di lettura dal database del public catalog',
-    priority: 70,
     regex: 'Error fetching .* from the database',
     resolution: 'PIN-8718 PIN-8836',
     proposedStatus: 'IN_PROGRESS',
@@ -121,7 +115,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'public-catalog-astro-node-could-not-render',
     description: 'Astro Node non riesce a renderizzare una risorsa del public catalog frontend',
-    priority: 65,
     // Il target successivo a "Could not render" è variabile: la firma stabile termina prima del suo valore.
     regex: '\\[ERROR\\] \\[@astrojs/node\\] Could not render',
     resolution: 'Risoluzione non documentata.',

@@ -15,7 +15,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'authorization-process-connection-terminated-by-administrator',
     description: 'Connessione terminata da un comando amministrativo',
-    priority: 100,
     regex:
       'Error uncaughtException intercepted; Error detail: error: terminating connection due to administrator command',
     resolution: 'Thread Slack 03/08/2026',
@@ -35,7 +34,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'authorization-process-closed-connection-while-sending',
     description: 'Connessione chiusa durante l’invio dei messaggi',
-    priority: 90,
     regex: 'Failed to send messages:\\s*Closed connection',
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
@@ -48,7 +46,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'authorization-process-kafka-lock-timeout',
     description: 'Timeout durante l’acquisizione del lock Kafka',
-    priority: 80,
     regex: 'KafkaJSLockTimeout:\\s*Timeout while acquiring lock',
     resolution: 'Nessuna azione in caso di singolo evento/momentaneo picco di eventi.',
     proposedStatus: 'IN_PROGRESS',
@@ -61,7 +58,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'authorization-process-clients-with-keys-unauthorized',
     description: 'Recupero della chiave pubblica non autorizzato',
-    priority: 70,
     regex:
       '(?:clientsWithKeys[^\\n]*401:Unauthorized[^\\n]*Error getting public key|Error getting public key[^\\n]*clientsWithKeys[^\\n]*401:Unauthorized)',
     resolution: 'Nessuna azione in caso di singolo evento/momentaneo picco di eventi.',
@@ -75,7 +71,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'authorization-process-duplicate-event-stream-version',
     description: 'Evento duplicato gestito tramite retry',
-    priority: 60,
     regex:
       'Error creating event: error: duplicate key value violates unique constraint[^\\n]*events_stream_id_version_key',
     resolution: 'Risoluzione non documentata.',

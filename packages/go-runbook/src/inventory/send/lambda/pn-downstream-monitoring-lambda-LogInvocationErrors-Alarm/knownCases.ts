@@ -14,7 +14,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'downstream-monitoring-s3-slow-down',
     description: 'S3 restituisce SlowDown 503 durante l’esecuzione della Lambda',
-    priority: 130,
     condition: S3_SLOW_DOWN,
     title: 'Errore S3 SlowDown 503',
     resolution: 'Infra sta valutando di intervenire lato lambda/s3 per ridurre il throttling (da Sync Infra.)',
@@ -34,7 +33,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'downstream-monitoring-aws-slow-down',
     description: 'AWS SlowDown HTTP 503: servizio e recupero da verificare',
-    priority: 120,
     condition: all(lambdaLogEvidenceMatches(SLOW_DOWN_PATTERN), not(S3_SLOW_DOWN)),
     title: 'Errore SlowDown 503 nella Lambda downstream monitoring',
     resolution: 'Infra sta valutando di intervenire lato lambda/s3 per ridurre il throttling (da Sync Infra.)',

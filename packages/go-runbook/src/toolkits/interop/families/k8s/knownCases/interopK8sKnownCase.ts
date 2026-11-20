@@ -21,7 +21,6 @@ export interface InteropK8sKnownCaseRefs {
 export interface InteropK8sKnownCaseConfig {
   readonly id: string;
   readonly description: string;
-  readonly priority: number;
   readonly regex: string;
   readonly resolution: string;
   /** Proposed state: the apply persists IN_PROGRESS, a CONFIRMED review promotes it. */
@@ -40,14 +39,13 @@ export interface InteropK8sKnownCaseConfig {
  * application-logs evidence and the CID tracker evidence of the runbook.
  *
  * @param refs - Step ids and var prefix of the owning runbook
- * @param config - Known case id, priority, regex and resolution text
+ * @param config - Known case id, regex and resolution text
  * @returns The assembled known case
  */
 export function interopK8sKnownCase(refs: InteropK8sKnownCaseRefs, config: InteropK8sKnownCaseConfig): KnownCase {
   return {
     id: config.id,
     description: config.description,
-    priority: config.priority,
     condition: anyInteropEvidenceMatches(refs, config.regex),
     action: interopKnownCaseAction(refs, config.description, config.resolution),
     analysis: {

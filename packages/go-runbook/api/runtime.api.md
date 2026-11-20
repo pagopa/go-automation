@@ -230,6 +230,12 @@ export interface RuntimeAwsAccountsPortOptions extends AwsAccountsDirectoryPortO
 export declare function scrubAwsProfileNames(message: string, profileNames?: ReadonlyArray<string>): string;
 ```
 
+### `scrubAwsProfileNamesDeep` (value)
+
+```ts
+export declare function scrubAwsProfileNamesDeep<T>(value: T, profileNames: ReadonlyArray<string>): T;
+```
+
 ### `TimeRangeReference` (type)
 
 ```ts
@@ -335,7 +341,7 @@ export type ExecutionEnvironmentExtensionsAugmentation = 'executionEnvironment';
 ### `FlowDirectiveString` (dist/engine/types/FlowDirective.d.ts)
 
 ```ts
-export type FlowDirectiveString = 'continue' | 'stop' | 'resolve' | (string & {});
+export type FlowDirectiveString = 'continue' | 'stop' | (string & {});
 ```
 
 ### `KnownCaseExtensionsAugmentation` (dist/toolkits/common/augmentations/KnownCaseExtensions.d.ts)

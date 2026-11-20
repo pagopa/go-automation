@@ -6,11 +6,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'selfcare-pa-invalid-tenant-context',
     description: '[DOWNSTREAM SelfcarePA] HTTP 400: Invalid tenant context',
-    priority: 120,
     condition: {
       type: 'and',
       conditions: [
-        { type: 'exists', ref: 'vars.externalRegistriesTraceLogCount' },
         stepEvidenceMatches(
           'query-pn-external-registries',
           '\\[DOWNSTREAM\\] Service SelfcarePA returned errors=400 Bad Request from GET ' +
@@ -39,11 +37,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'selfcare-pa-user-groups-rate-too-large',
     description: '[DOWNSTREAM SelfcarePA] HTTP 500 con RequestRateTooLarge nella risposta',
-    priority: 110,
     condition: {
       type: 'and',
       conditions: [
-        { type: 'exists', ref: 'vars.externalRegistriesTraceLogCount' },
         stepEvidenceMatches(
           'query-pn-external-registries',
           '\\[DOWNSTREAM\\] Service SelfcarePA returned errors=500 Internal Server Error from GET ' +
@@ -72,12 +68,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'selfcare-pa-read-timeout',
     description: '[DOWNSTREAM SelfcarePA] Timeout di lettura',
-    priority: 100,
     condition: {
       type: 'and',
       conditions: [
-        // Complete the documented q2 trace lookup before classifying q1 evidence.
-        { type: 'exists', ref: 'vars.externalRegistriesTraceLogCount' },
         stepEvidenceMatches(
           'query-pn-external-registries',
           '\\[DOWNSTREAM\\] Service SelfcarePA returned errors=io\\.netty\\.handler\\.timeout\\.ReadTimeoutException\\b',

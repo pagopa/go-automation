@@ -5,6 +5,7 @@ import type { RunbookOutput } from '../RunbookOutput.js';
 import type { RunbookResultField } from '../RunbookOutputContext.js';
 import type { RunbookOutcome } from '../RunbookOutcome.js';
 import { classifyRunbookOutcome } from '../classifyRunbookOutcome.js';
+import type { CoverageEntry } from '../../../../engine/types/CoverageEntry.js';
 
 const RETENTION_ERROR =
   "CloudWatch Logs StartQuery failed: [MalformedQueryException] Query's end date and time is either " +
@@ -17,13 +18,14 @@ function output(
     readonly recordsScanned?: number;
     readonly recordsMatched?: number;
     readonly fields?: ReadonlyArray<RunbookResultField>;
+    readonly incompleteSources?: number;
   } = {},
 ): RunbookOutput {
   const recordsScanned = options.recordsScanned ?? 0;
   const recordsMatched = options.recordsMatched ?? 0;
 
   return {
-    schemaVersion: '1.0.0',
+    schemaVersion: '2.0.0',
     generatedAt: '2026-09-01T10:00:00.000Z',
     runbook: {
       id: 'test-runbook',
@@ -39,11 +41,15 @@ function output(
       durationMs: 1000,
       status: outcome.kind === 'failed' ? 'failed' : 'completed',
       stepsExecuted: 1,
-      earlyResolution: false,
       recoveredErrors: options.recoveredErrors ?? [],
     },
     input: {},
     outcome,
+    chains: [],
+    coverage: {
+      complete: (options.incompleteSources ?? 0) === 0,
+      sources: incompleteSources(options.incompleteSources ?? 0),
+    },
     telemetry: {
       cloudWatchLogs: {
         queryCount: 1,
@@ -59,14 +65,20 @@ function output(
   };
 }
 
+function incompleteSources(count: number): ReadonlyArray<CoverageEntry> {
+  return Array.from({ length: count }, (_unused, index) => ({
+    stepId: `query-${String(index)}`,
+    complete: false,
+    reason: 'unavailable' as const,
+  }));
+}
+
 describe('classifyRunbookOutcome', () => {
   it('classifies known cases, unknown cases and failures', () => {
     const hit = output(
       {
         kind: 'known-case-matched',
-        primaryCaseId: 'lambda-timeout',
-        primaryCaseDescription: 'Timeout',
-        matchedCases: [{ id: 'lambda-timeout', description: 'Timeout', priority: 100 }],
+        detections: [{ caseId: 'lambda-timeout', description: 'Timeout', evidenceRows: 1, observations: [] }],
         message: 'm',
       },
       { recordsMatched: 1, recordsScanned: 10 },
@@ -89,12 +101,23 @@ describe('classifyRunbookOutcome', () => {
         'CONFIG-ERROR',
       ],
       ['a generic failure', output({ kind: 'failed', error: 'boom', message: 'm' }), 'EXECUTION-ERROR'],
+      [
+        'an inconclusive case',
+        output({ kind: 'inconclusive', casesEvaluated: 2, message: 'm' }, { incompleteSources: 1 }),
+        'INCONCLUSIVE',
+      ],
     ];
 
     for (const [name, runbookOutput, status] of cases) {
       assert.strictEqual(classifyRunbookOutcome(runbookOutput).status, status, name);
     }
-    assert.strictEqual(classifyRunbookOutcome(hit).primaryCaseId, 'lambda-timeout');
+    assert.deepStrictEqual(classifyRunbookOutcome(hit).matchedCaseIds, ['lambda-timeout']);
+    assert.deepStrictEqual(
+      classifyRunbookOutcome(
+        output({ kind: 'inconclusive', casesEvaluated: 2, message: 'm' }, { incompleteSources: 2 }),
+      ).incompleteSources,
+      { unavailable: 2 },
+    );
   });
 
   it('classifies a fatal query outside log retention as NO-DATA', () => {
@@ -151,10 +174,8 @@ describe('classifyRunbookOutcome', () => {
     const { telemetry: _withoutTelemetry, ...hitOutput } = output(
       {
         kind: 'known-case-matched',
-        primaryCaseId: 'c',
-        primaryCaseDescription: 'd',
         message: 'matched',
-        matchedCases: [{ id: 'c', description: 'd', priority: 1 }],
+        detections: [{ caseId: 'c', description: 'd', evidenceRows: 1, observations: [] }],
       },
       { fields },
     );

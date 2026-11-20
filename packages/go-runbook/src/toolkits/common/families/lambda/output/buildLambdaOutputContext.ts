@@ -15,6 +15,7 @@ import { addResultField, optionalNumber, optionalString, normalizeOutputValue } 
 import { extractRecentLogLines, logLineToRecord } from '../../../parsing/aws/cloudwatch-logs/resultRows.js';
 import type { LambdaDownstreamOutput, LambdaOutputContext } from './LambdaOutputContext.js';
 import { isLambdaRunbookContext } from './LambdaRunbookContext.js';
+import { representativeContext } from '../../../output/resultContexts.js';
 
 const DEFAULT_MAX_RECENT_LOGS = 5;
 
@@ -37,21 +38,28 @@ export function buildLambdaOutputContext(
   result: RunbookExecutionResult,
   options: BuildLambdaOutputContextOptions = {},
 ): RunbookOutputContext | undefined {
+  const executionContext = representativeContext(result);
   if (!isLambdaRunbookContext(runbook.runbookContext)) {
     return undefined;
   }
 
   const maxRecentLogs = options.maxRecentLogs ?? DEFAULT_MAX_RECENT_LOGS;
-  const vars = result.finalContext.vars;
-  const params = result.finalContext.params;
+  const vars = executionContext.vars;
+  const params = executionContext.params;
   const context = runbook.runbookContext;
 
-  const errorRows = readResultFieldRows(result.finalContext.stepResults.get('query-lambda-errors'));
-  const invocationRows = readResultFieldRows(result.finalContext.stepResults.get('query-lambda-invocation'));
+  const errorRows = readResultFieldRows(executionContext.stepResults.get('query-lambda-errors'));
+  const invocationRows = readResultFieldRows(executionContext.stepResults.get('query-lambda-invocation'));
   const recentErrors = extractRecentLogLines(errorRows, maxRecentLogs);
 
   const downstreamTarget = normalizeOutputValue(vars.get('lambdaDownstreamTarget'));
-  const downstream = buildDownstream(context.downstreams, downstreamTarget, result, vars, maxRecentLogs);
+  const downstream = buildDownstream(
+    context.downstreams,
+    downstreamTarget,
+    executionContext.stepResults,
+    vars,
+    maxRecentLogs,
+  );
 
   const lambdaContext: LambdaOutputContext = {
     alarm: buildAlarmOutput(params),
@@ -85,13 +93,13 @@ export function buildLambdaOutputContext(
 function buildDownstream(
   downstreams: ReadonlyArray<{ readonly name: string; readonly logGroup?: string; readonly varPrefix: string }>,
   target: string | undefined,
-  result: RunbookExecutionResult,
+  stepResults: ReadonlyMap<string, unknown>,
   vars: ReadonlyMap<string, string>,
   maxRecentLogs: number,
 ): LambdaDownstreamOutput | undefined {
   if (target === undefined) return undefined;
   const declared = downstreams.find((entry) => entry.name === target);
-  const rows = readResultFieldRows(result.finalContext.stepResults.get(`query-${target}`));
+  const rows = readResultFieldRows(stepResults.get(`query-${target}`));
   const recentLogs = extractRecentLogLines(rows, maxRecentLogs);
   const varPrefix = declared?.varPrefix;
   const errorMessage = varPrefix !== undefined ? normalizeOutputValue(vars.get(`${varPrefix}ErrorMsg`)) : undefined;

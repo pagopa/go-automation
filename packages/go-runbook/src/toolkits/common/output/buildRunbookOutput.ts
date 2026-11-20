@@ -4,7 +4,7 @@ import {
 } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { omitUndefined } from '@pagopa/go-common/utils';
 import type { CaseAction } from '../../../engine/types/CaseAction.js';
-import type { KnownCase } from '../../../engine/types/KnownCase.js';
+import type { KnownCaseDetection } from '../../../engine/types/KnownCaseDetection.js';
 import type { Runbook } from '../../../engine/types/Runbook.js';
 import type { RunbookExecutionResult } from '../../../engine/types/RunbookExecutionResult.js';
 import type { RunbookOutput } from './RunbookOutput.js';
@@ -21,6 +21,14 @@ import { buildAnalysisDraft } from '../analysis/draft/buildAnalysisDraft.js';
 import { ANALYSIS_LOG_ACTION_RENDERER } from '../analysis/reporting/ANALYSIS_LOG_ACTION_RENDERER.js';
 import { resolveActionMessage } from '../../../engine/actions/resolveActionMessage.js';
 import { buildDeclaredOutputContext } from './buildDeclaredOutputContext.js';
+import { buildErrorChains } from './buildErrorChains.js';
+import { RUNBOOK_OUTPUT_SCHEMA_VERSION } from './RUNBOOK_OUTPUT_SCHEMA_VERSION.js';
+import { detectionContext, detectionObservations, representativeContext } from './resultContexts.js';
+import type { RunbookContext } from '../../../engine/types/RunbookContext.js';
+import type { IdentifierObservation } from '../../../engine/types/IdentifierObservation.js';
+import type { RunbookCoverageOutput } from './RunbookCoverageOutput.js';
+import type { CoverageLevelOutput } from './CoverageLevelOutput.js';
+import type { ErrorChainInterruptionReason } from '../../../engine/types/ErrorChainInterruptionReason.js';
 
 export interface BuildRunbookOutputOptions {
   readonly traceFile?: string;
@@ -41,7 +49,7 @@ export function buildRunbookOutput(
   const telemetry = buildRunbookTelemetry(trace.pipeline);
   const analysis = buildAnalysisDraft(runbook, result);
   return {
-    schemaVersion: '1.0.0',
+    schemaVersion: RUNBOOK_OUTPUT_SCHEMA_VERSION,
     generatedAt: new Date().toISOString(),
     runbook: {
       id: runbook.metadata.id,
@@ -57,8 +65,6 @@ export function buildRunbookOutput(
       durationMs: result.durationMs,
       status: result.status,
       stepsExecuted: result.stepsExecuted,
-      earlyResolution: result.earlyResolution === true,
-      ...(result.resolvedAtStep !== undefined ? { resolvedAtStep: result.resolvedAtStep } : {}),
       ...(options.traceFile !== undefined ? { traceFile: options.traceFile } : {}),
       recoveredErrors: result.recoveredErrors.map((err) => ({
         stepId: err.stepId,
@@ -67,6 +73,13 @@ export function buildRunbookOutput(
     },
     input: trace.input,
     outcome: buildOutcome(runbook, result),
+    chains: buildErrorChains(result),
+    coverage: {
+      complete: evidenceComplete(result),
+      sources: result.coverage,
+      ...(result.observedErrors !== undefined ? { errors: result.observedErrors } : {}),
+      ...treeCoverage(result),
+    },
     ...(analysis !== undefined ? { analysis } : {}),
     ...(telemetry !== undefined ? { telemetry } : {}),
     context: buildDeclaredOutputContext(
@@ -140,16 +153,17 @@ function buildOutcome(runbook: Runbook, result: RunbookExecutionResult): Runbook
     };
   }
 
-  if (result.matchedCases.length > 0) {
+  if (result.detections.length > 0) {
     return buildKnownCaseMatchedOutcome(result);
   }
 
   if (runbook.metadata.type === 'alarm-resolution') {
+    const complete = evidenceComplete(result);
     return {
-      kind: 'unknown-case',
+      kind: complete ? 'unknown-case' : 'inconclusive',
       casesEvaluated: result.trace.caseMatching.casesEvaluated,
       ...resolvedActionMessage(runbook.fallbackAction, result),
-      message: 'Nessun caso noto individuato',
+      message: complete ? 'Nessun caso noto individuato' : 'Nessun caso noto individuato, con evidenza incompleta',
     };
   }
 
@@ -161,39 +175,44 @@ function buildOutcome(runbook: Runbook, result: RunbookExecutionResult): Runbook
 }
 
 function buildKnownCaseMatchedOutcome(result: RunbookExecutionResult): RunbookOutcome {
-  const primary = result.matchedCases[0];
-  if (primary === undefined) {
-    throw new Error('Cannot build known-case outcome without a primary matched case.');
-  }
-
-  return {
-    kind: 'known-case-matched',
-    primaryCaseId: primary.id,
-    primaryCaseDescription: primary.description,
-    matchedCases: result.matchedCases.map((knownCase) => knownCaseOutput(knownCase, result)),
-    message: `Individuato caso noto: ${primary.description}`,
-  };
+  const executed = result.trace.actionsExecuted.filter((action) => action.executed);
+  const detections = result.detections.map((detection, index) =>
+    detectionOutput(
+      detection,
+      detectionObservations(result, detection),
+      (result.tree === undefined ? executed[index]?.resolvedMessage : undefined) ??
+        resolveOutcomeMessage(detection.knownCase.action, result, detectionContext(result, detection)),
+    ),
+  );
+  const [first] = result.detections;
+  const message =
+    result.detections.length === 1 && first !== undefined
+      ? `Individuato caso noto: ${first.knownCase.description}`
+      : `Individuati ${String(result.detections.length)} casi noti: ${result.detections.map((d) => d.knownCase.description).join(' | ')}`;
+  return { kind: 'known-case-matched', detections, message };
 }
 
-function knownCaseOutput(
-  knownCase: KnownCase,
-  result: RunbookExecutionResult,
+function detectionOutput(
+  detection: KnownCaseDetection,
+  observations: ReadonlyArray<IdentifierObservation>,
+  resolvedMessage: string | undefined,
 ): {
-  readonly id: string;
+  readonly caseId: string;
   readonly description: string;
-  readonly priority: number;
+  readonly firstSeenAt?: string;
+  readonly lastSeenAt?: string;
+  readonly evidenceRows: number;
   readonly resolvedMessage?: string;
+  readonly observations: ReadonlyArray<IdentifierObservation>;
 } {
-  const resolvedMessage =
-    result.matchedCases[0]?.id === knownCase.id
-      ? result.trace.actionsExecuted.find((action) => action.executed)?.resolvedMessage
-      : resolveOutcomeMessage(knownCase.action, result);
-
   return {
-    id: knownCase.id,
-    description: knownCase.description,
-    priority: knownCase.priority,
+    caseId: detection.knownCase.id,
+    description: detection.knownCase.description,
+    ...(detection.firstSeenAt !== undefined ? { firstSeenAt: detection.firstSeenAt } : {}),
+    ...(detection.lastSeenAt !== undefined ? { lastSeenAt: detection.lastSeenAt } : {}),
+    evidenceRows: detection.evidenceRows,
     ...(resolvedMessage !== undefined ? { resolvedMessage } : {}),
+    observations,
   };
 }
 
@@ -235,14 +254,65 @@ function resolvedActionMessage(
   action: CaseAction,
   result: RunbookExecutionResult,
 ): { readonly fallbackMessage?: string } {
-  const resolved = resolveOutcomeMessage(action, result);
+  const resolved = resolveOutcomeMessage(action, result, representativeContext(result));
   return resolved === undefined ? {} : { fallbackMessage: resolved };
 }
 
-function resolveOutcomeMessage(action: CaseAction, result: RunbookExecutionResult): string | undefined {
-  return resolveActionMessage(
-    action,
-    { vars: result.finalContext.vars, params: result.finalContext.params },
-    ANALYSIS_LOG_ACTION_RENDERER,
+function resolveOutcomeMessage(
+  action: CaseAction,
+  result: RunbookExecutionResult,
+  context: RunbookContext = result.finalContext,
+): string | undefined {
+  return resolveActionMessage(action, { vars: context.vars, params: context.params }, ANALYSIS_LOG_ACTION_RENDERER);
+}
+
+/**
+ * Whether the evidence of an execution is complete: no partial read and, in an error tree, no interrupted chain.
+ *
+ * @param result - Result of the execution
+ * @returns `true` when nothing is missing
+ */
+function evidenceComplete(result: RunbookExecutionResult): boolean {
+  const interrupted = (result.chains ?? []).some((group) =>
+    group.members.some((member) => member.end === 'interrupted'),
   );
+  return result.coverage.length === 0 && !interrupted;
+}
+
+/** The nodes of each level and the interrupted chains of an error tree; nothing for a window-level runbook. */
+function treeCoverage(result: RunbookExecutionResult): Pick<RunbookCoverageOutput, 'levels' | 'interruptions'> {
+  if (result.tree === undefined) return {};
+  type LevelCounts = { -readonly [K in keyof CoverageLevelOutput]-?: CoverageLevelOutput[K] };
+  const levels = new Map<string, LevelCounts>();
+  const level = (target: string): LevelCounts => {
+    const existing = levels.get(target);
+    if (existing !== undefined) return existing;
+    const created: LevelCounts = { target, nodes: 0, recognized: 0, unrecognized: 0, failed: 0, lowerBound: false };
+    levels.set(target, created);
+    return created;
+  };
+  for (const node of result.tree) {
+    const counts = level(node.target);
+    counts.nodes += 1;
+    if (node.status === 'failed') counts.failed += 1;
+    else if (node.detections.length > 0) counts.recognized += 1;
+    else counts.unrecognized += 1;
+    if (node.parentId === undefined && result.observedErrors?.lowerBound === true) counts.lowerBound = true;
+    // A level read incompletely for a parent, or not read at all, has at least the nodes it shows.
+    for (const descent of node.descents) {
+      const below = level(descent.target);
+      if (descent.state !== 'queried') below.lowerBound = true;
+    }
+  }
+  const interruptions = new Map<ErrorChainInterruptionReason, number>();
+  for (const group of result.chains ?? []) {
+    for (const member of group.members) {
+      const reason = member.interruption?.reason;
+      if (reason !== undefined) interruptions.set(reason, (interruptions.get(reason) ?? 0) + 1);
+    }
+  }
+  return {
+    levels: [...levels.values()].map(({ lowerBound, ...counts }) => (lowerBound ? { ...counts, lowerBound } : counts)),
+    interruptions: [...interruptions.entries()].map(([reason, count]) => ({ reason, count })),
+  };
 }

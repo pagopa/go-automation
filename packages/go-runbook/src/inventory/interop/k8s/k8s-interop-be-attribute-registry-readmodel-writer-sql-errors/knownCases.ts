@@ -6,7 +6,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'attribute-registry-temporary-network-errors',
     description: 'Errore di connessione del readmodel writer SQL; temporaneità da verificare',
-    priority: 100,
     // Entrambi i casi sono censiti solo in Prod; il tracker comprende anche altri servizi.
     condition: all(
       varEquals('interopEnvironment', 'prod'),
@@ -35,7 +34,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'attribute-registry-kafka-coordinator-member-rejoin',
     description: 'Il coordinator Kafka non riconosce il member del readmodel writer SQL',
-    priority: 90,
     condition: all(
       varEquals('interopEnvironment', 'prod'),
       stepEvidenceMatches(

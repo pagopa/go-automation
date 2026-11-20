@@ -14,7 +14,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'eservice-template-readmodel-writer-sql-kafka-coordinator-member-rejoin',
     description: 'Il coordinator Kafka non riconosce il member del writer SQL dei template e-service',
-    priority: 100,
     regex: 'The coordinator is not aware of this member,\\s*re-joining the group',
     resolution:
       'Se le occorrenze sono poche e in intervalli di tempo piccoli (qualche minuto) non ci sono azioni da fare. Se il disservizio continua per ore o giorni, contattare il team prodotto',

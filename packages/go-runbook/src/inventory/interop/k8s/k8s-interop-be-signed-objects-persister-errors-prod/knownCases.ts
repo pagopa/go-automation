@@ -14,7 +14,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'signed-objects-signature-reference-parse-error',
     description: 'Errore di parsing del riferimento alla firma',
-    priority: 100,
     condition: all(
       { type: 'compare', ref: 'vars.interopEnvironment', operator: '==', value: 'prod' },
       stepEvidenceMatches(
@@ -29,7 +28,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'signed-objects-purpose-risk-analysis-http-500',
     description: 'HTTP 500 durante la registrazione del documento firmato di analisi del rischio',
-    priority: 110,
     // A single row must identify the queue, HTTP status and operation together.
     condition: all(
       { type: 'compare', ref: 'vars.interopEnvironment', operator: '==', value: 'prod' },
@@ -58,7 +56,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'signed-objects-safe-storage-file-timeout',
     description: 'Timeout nel recupero del contenuto del file da Safe Storage',
-    priority: 120,
     condition: all(
       { type: 'compare', ref: 'vars.interopEnvironment', operator: '==', value: 'prod' },
       stepEvidenceMatches(
@@ -74,7 +71,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'signed-objects-agreement-signed-contract-http-409',
     description: 'HTTP 409 durante la registrazione del contratto firmato',
-    priority: 130,
     condition: all(
       { type: 'compare', ref: 'vars.interopEnvironment', operator: '==', value: 'prod' },
       stepEvidenceMatches(

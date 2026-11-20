@@ -6,7 +6,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'att-eservices-documented-probe-paths-403',
     description: 'HTTP 403 su richieste GET ai percorsi sospetti documentati',
-    priority: 100,
     condition: varEquals('attEservicesAllDocumentedProbes', 'true'),
     resolution: "In caso di chiamate effettuate a path sospetti, non c'è alcuna azione da intraprendere.",
     details: [

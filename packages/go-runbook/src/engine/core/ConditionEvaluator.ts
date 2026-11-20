@@ -5,6 +5,8 @@ import { resolveRef } from '../context/resolveRef.js';
 import { compileContextRegex } from '../context/compileContextRegex.js';
 import { compareValues } from './compareValues.js';
 import type { CompareOperator } from './CompareOperator.js';
+import type { EvidenceIndices } from './EvidenceIndices.js';
+import type { ElementPredicate } from './ElementPredicate.js';
 
 // Condition types supported by the evaluator
 type ConditionType = string | number | boolean;
@@ -13,11 +15,19 @@ interface PredicateEvaluation {
   readonly matched: boolean;
   /** Trace payload; absent when the caller only asked for a boolean. */
   readonly detail?: unknown;
+  /** Indices of every array element that satisfies the predicate, in detailed mode. */
+  readonly indices?: ReadonlyArray<number>;
 }
 
 export interface ConditionEvaluationDetails {
   readonly matched: boolean;
   readonly resolvedValues: Readonly<Record<string, unknown>>;
+  /**
+   * Evidence of the match: for each array ref, the indices of the elements that satisfied a predicate in a
+   * logically satisfied branch. An `or` contributes only its matching branches, a `not` nothing. Empty when the
+   * condition did not match or read only scalars.
+   */
+  readonly evidence: ReadonlyMap<string, ReadonlySet<number>>;
 }
 
 interface ConditionEvaluationOptions {
@@ -144,9 +154,10 @@ export class ConditionEvaluator {
   ): boolean | ConditionEvaluationDetails {
     const collect = options?.withResolvedValues === true;
     const values: Record<string, unknown> = {};
-    const matched = this.evaluateAndCollect(condition, context, values, collect);
+    const evidence: EvidenceIndices = new Map();
+    const matched = this.evaluateAndCollect(condition, context, values, collect, evidence);
     if (options?.withResolvedValues === true) {
-      return { matched, resolvedValues: values };
+      return { matched, resolvedValues: values, evidence: matched ? evidence : new Map() };
     }
     return matched;
   }
@@ -166,59 +177,85 @@ export class ConditionEvaluator {
     context: RunbookContext,
     values: Record<string, unknown>,
     collect: boolean,
+    evidence: EvidenceIndices,
   ): boolean {
     switch (condition.type) {
       case 'compare': {
         const actual = resolveRef(condition.ref, context);
         const result = this.evaluateCompare(actual, condition.operator, condition.value, collect);
-        if (collect) recordResolvedValue(values, condition.ref, result.detail);
-        return result.matched;
+        return this.recordPredicate(condition.ref, result, values, collect, evidence);
       }
       case 'pattern': {
         const actual = resolveRef(condition.ref, context);
         const result = this.evaluatePattern(actual, condition.regex, context, collect);
-        if (collect) recordResolvedValue(values, condition.ref, result.detail);
-        return result.matched;
+        return this.recordPredicate(condition.ref, result, values, collect, evidence);
       }
       case 'exists': {
         const actual = resolveRef(condition.ref, context);
         const result = this.evaluateExists(actual, collect);
-        if (collect) recordResolvedValue(values, condition.ref, result.detail);
-        return result.matched;
+        return this.recordPredicate(condition.ref, result, values, collect, evidence);
       }
       case 'contains': {
         const actual = resolveRef(condition.ref, context);
         const result = this.evaluateContains(actual, condition, context, collect);
-        if (collect) recordResolvedValue(values, condition.ref, result.detail);
-        return result.matched;
+        return this.recordPredicate(condition.ref, result, values, collect, evidence);
       }
       case 'and': {
         let matched = true;
+        const branches: EvidenceIndices[] = [];
         for (const c of condition.conditions) {
-          if (!this.evaluateAndCollect(c, context, values, collect)) {
+          const branch: EvidenceIndices = new Map();
+          if (!this.evaluateAndCollect(c, context, values, collect, branch)) {
             if (!collect) return false;
             matched = false;
           }
+          branches.push(branch);
         }
+        if (matched) for (const branch of branches) mergeEvidence(evidence, branch);
         return matched;
       }
       case 'or': {
         let matched = false;
         for (const c of condition.conditions) {
-          if (this.evaluateAndCollect(c, context, values, collect)) {
+          const branch: EvidenceIndices = new Map();
+          if (this.evaluateAndCollect(c, context, values, collect, branch)) {
             if (!collect) return true;
             matched = true;
+            mergeEvidence(evidence, branch);
           }
         }
         return matched;
       }
       case 'not':
-        return !this.evaluateAndCollect(condition.condition, context, values, collect);
+        // A negation proves an absence: it never contributes evidence rows.
+        return !this.evaluateAndCollect(condition.condition, context, values, collect, new Map());
       default: {
         const _exhaustive: never = condition;
         throw new Error(`Unknown condition type: ${(_exhaustive as Condition).type}`);
       }
     }
+  }
+
+  /**
+   * Records the trace detail of a predicate and, when it matched, its evidence indices.
+   *
+   * @returns Whether the predicate matched
+   */
+  private recordPredicate(
+    ref: string,
+    result: PredicateEvaluation,
+    values: Record<string, unknown>,
+    collect: boolean,
+    evidence: EvidenceIndices,
+  ): boolean {
+    if (!collect) return result.matched;
+    recordResolvedValue(values, ref, result.detail);
+    if (result.matched && result.indices !== undefined && result.indices.length > 0) {
+      const indices = evidence.get(ref) ?? new Set<number>();
+      for (const index of result.indices) indices.add(index);
+      evidence.set(ref, indices);
+    }
+    return result.matched;
   }
 
   private evaluateExists(actual: unknown, collect: boolean): PredicateEvaluation {
@@ -228,7 +265,9 @@ export class ConditionEvaluator {
     }
     const arr = actual as ReadonlyArray<unknown>;
     const matched = arr.length > 0;
-    return collect ? { matched, detail: { matched, totalElements: arr.length } } : { matched };
+    return collect
+      ? { matched, detail: { matched, totalElements: arr.length }, indices: arr.map((_element, index) => index) }
+      : { matched };
   }
 
   /**
@@ -248,30 +287,13 @@ export class ConditionEvaluator {
     if (!Array.isArray(actual)) {
       return { matched: compareValues(actual, operator, expected), detail: actual };
     }
-    const arr = actual as ReadonlyArray<unknown>;
-    for (let i = 0; i < arr.length; i++) {
-      const el = arr[i];
-      if (el === undefined || el === null) continue;
-      if (compareValues(el, operator, expected)) {
-        if (!collect) return { matched: true };
-        const detail: MatchDetailSingle = {
-          matched: true,
-          matchedIndex: i,
-          matchedElement: el,
-          totalElements: arr.length,
-        };
-        return { matched: true, detail };
-      }
-    }
-    return collect
-      ? { matched: false, detail: { matched: false, matchedCount: 0, totalElements: arr.length } }
-      : { matched: false };
+    return scanElements(actual as ReadonlyArray<unknown>, (el) => compareValues(el, operator, expected), collect);
   }
 
   /**
    * Compact trace detail for a `pattern` condition. For arrays records
-   * the first matching element (consistent with the OR + short-circuit
-   * semantic of {@link evaluatePattern}).
+   * the first matching element; the detailed evaluation also returns the
+   * index of every matching element as evidence.
    */
   private evaluatePattern(
     actual: unknown,
@@ -286,24 +308,7 @@ export class ConditionEvaluator {
     if (!Array.isArray(actual)) {
       return { matched: compiled.test(valueToString(actual)), detail: actual };
     }
-    const arr = actual as ReadonlyArray<unknown>;
-    for (let i = 0; i < arr.length; i++) {
-      const el = arr[i];
-      if (el === undefined || el === null) continue;
-      if (compiled.test(valueToString(el))) {
-        if (!collect) return { matched: true };
-        const detail: MatchDetailSingle = {
-          matched: true,
-          matchedIndex: i,
-          matchedElement: el,
-          totalElements: arr.length,
-        };
-        return { matched: true, detail };
-      }
-    }
-    return collect
-      ? { matched: false, detail: { matched: false, matchedCount: 0, totalElements: arr.length } }
-      : { matched: false };
+    return scanElements(actual as ReadonlyArray<unknown>, (el) => compiled.test(valueToString(el)), collect);
   }
 
   /**
@@ -330,13 +335,15 @@ export class ConditionEvaluator {
       const arr = actual as ReadonlyArray<unknown>;
       let matchedCount = 0;
       const samples: { index: number; element: unknown }[] = [];
+      const indices: number[] = [];
       for (let i = 0; i < arr.length; i++) {
         const el = arr[i];
         if (el === undefined || el === null) continue;
         if (compiled.test(valueToString(el))) {
-          // A verdict needs one hit; the count only exists for the trace.
+          // A verdict needs one hit; the count and the indices only exist for the trace and the evidence.
           if (!collect) return { matched: true };
           matchedCount += 1;
+          indices.push(i);
           if (samples.length < MAX_TRACE_MATCHES) {
             samples.push({ index: i, element: el });
           }
@@ -349,7 +356,7 @@ export class ConditionEvaluator {
         totalElements: arr.length,
         truncated: matchedCount > samples.length,
       };
-      return { matched: detail.matched, detail };
+      return { matched: detail.matched, detail, indices };
     }
 
     if (condition.value === undefined) {
@@ -365,21 +372,48 @@ export class ConditionEvaluator {
     if (!Array.isArray(actual)) {
       return { matched: candidates.has(valueToString(actual)), detail: actual };
     }
-    const arr = actual as ReadonlyArray<unknown>;
-    for (let i = 0; i < arr.length; i++) {
-      const el = arr[i];
-      if (el === undefined || el === null) continue;
-      if (candidates.has(valueToString(el))) {
-        const detail: MatchDetailSingle = {
-          matched: true,
-          matchedIndex: i,
-          matchedElement: el,
-          totalElements: arr.length,
-        };
-        return { matched: true, detail };
-      }
-    }
-    return { matched: false, detail: { matched: false, matchedCount: 0, totalElements: arr.length } };
+    return scanElements(actual as ReadonlyArray<unknown>, (el) => candidates.has(valueToString(el)), true);
+  }
+}
+
+/**
+ * Applies a predicate element-wise with OR semantics.
+ *
+ * Without `collect` it stops at the first hit. With `collect` it visits every element: the trace keeps the first
+ * hit, as before, and the evidence receives the index of every hit.
+ *
+ * @param arr - Elements of the array ref
+ * @param predicate - Test of a single non-null element
+ * @param collect - Whether the trace detail and the evidence indices are wanted
+ * @returns The evaluation of the predicate over the array
+ */
+function scanElements(arr: ReadonlyArray<unknown>, predicate: ElementPredicate, collect: boolean): PredicateEvaluation {
+  let first: MatchDetailSingle | undefined;
+  const indices: number[] = [];
+  for (let i = 0; i < arr.length; i++) {
+    const el = arr[i];
+    if (el === undefined || el === null || !predicate(el)) continue;
+    if (!collect) return { matched: true };
+    first ??= { matched: true, matchedIndex: i, matchedElement: el, totalElements: arr.length };
+    indices.push(i);
+  }
+  if (first !== undefined) return { matched: true, detail: first, indices };
+  return collect
+    ? { matched: false, detail: { matched: false, matchedCount: 0, totalElements: arr.length } }
+    : { matched: false };
+}
+
+/**
+ * Adds the evidence of a satisfied branch to the evidence of its parent.
+ *
+ * @param target - Evidence of the parent condition
+ * @param source - Evidence of the satisfied branch
+ */
+function mergeEvidence(target: EvidenceIndices, source: EvidenceIndices): void {
+  for (const [ref, indices] of source) {
+    const merged = target.get(ref) ?? new Set<number>();
+    for (const index of indices) merged.add(index);
+    target.set(ref, merged);
   }
 }
 

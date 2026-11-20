@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { AWSCloudWatchLogsQueryOptions } from '@pagopa/go-aws/cloudwatch-logs';
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookReporter } from '../../../../../../engine/reporting/RunbookReporter.js';
 import type { TimeRange } from '../../../../time/TimeRange.js';
 
@@ -46,9 +46,11 @@ function createContext(args: {
   readonly stepOutput: Rows;
   readonly cloudWatchLogs: unknown;
   readonly reporter?: RunbookReporter;
+  readonly vars?: Readonly<Record<string, string>>;
 }): OperationalContext {
   return createTestContext({
     stepResults: { 'query-api-gw-logs': args.stepOutput },
+    ...(args.vars !== undefined ? { vars: args.vars } : {}),
     params: { startTime: '2026-01-01T00:00:00.000Z', endTime: '2026-01-01T00:10:00.000Z' },
     services: {
       cloudWatchLogs: args.cloudWatchLogs,
@@ -59,7 +61,7 @@ function createContext(args: {
 
 /** The step with the SEND profile (the step has no product default). */
 function createStep(
-  overrides: Partial<Pick<QueryApiGwExecutionLogsConfig, 'maxRequestIdsOverride' | 'analysisMode'>> & {
+  overrides: Partial<Pick<QueryApiGwExecutionLogsConfig, 'maxRequestIdsOverride'>> & {
     readonly executionLogGroup?: string | null;
   } = {},
 ): QueryApiGwExecutionLogsStep {
@@ -80,16 +82,13 @@ function createStep(
 }
 
 describe('queryApiGwExecutionLogs', () => {
-  it('skips the CloudWatch query when no access-log row has an API Gateway errorMessage', async () => {
+  it('skips the CloudWatch query when no access-log row is a request in error', async () => {
     const { service, calls } = createFakeCwLogs();
     const step = createStep();
     const result = await step.execute(
       createContext({
         cloudWatchLogs: service,
-        stepOutput: [
-          logRow({ status: '500', errorMessage: '-' }),
-          logRow({ status: '200', errorMessage: 'Internal server error', requestId: 'req-ignored' }),
-        ],
+        stepOutput: [logRow({ status: '200', errorMessage: 'Internal server error', requestId: 'req-ignored' })],
       }),
     );
 
@@ -99,6 +98,20 @@ describe('queryApiGwExecutionLogs', () => {
     assert.strictEqual(result.vars?.['apiGwExecutionLogRequestCount'], '0');
     assert.strictEqual(result.vars?.['apiGwExecutionLogCount'], '0');
     assert.strictEqual(calls.length, 0);
+  });
+
+  it('looks up every request in error with a request id, whatever its errorMessage', async () => {
+    const { service, calls } = createFakeCwLogs();
+    const result = await createStep().execute(
+      createContext({
+        cloudWatchLogs: service,
+        stepOutput: [logRow({ status: '500', errorMessage: '-', requestId: 'req-1', path: '/foo' })],
+      }),
+    );
+
+    assert.strictEqual(result.vars?.['apiGwExecutionLogMode'], 'queried');
+    assert.strictEqual(result.vars?.['apiGwExecutionLogRequestIds'], 'req-1');
+    assert.strictEqual(calls.length, 1);
   });
 
   it('skips execution-log analysis as not-configured when executionLogGroup is missing', async () => {
@@ -126,8 +139,8 @@ describe('queryApiGwExecutionLogs', () => {
   it('extracts requestIds, renders one OR-combined query and enriches execution-log rows', async () => {
     const { reporter, lines } = captureNarrative();
     const { service, calls } = createFakeCwLogs([
-      logRow({ '@message': 'Execution failed for req-1' }),
-      logRow({ '@message': 'Execution failed for req-2' }),
+      logRow({ '@message': '(req-1) Execution failed' }),
+      logRow({ '@message': '(req-2) Execution failed' }),
       logRow({ '@message': 'Execution failed without a matched request id' }),
     ]);
     const step = createStep();
@@ -158,8 +171,9 @@ describe('queryApiGwExecutionLogs', () => {
     assert.strictEqual(result.vars?.['apiGwExecutionLogRequestCount'], '2');
     assert.strictEqual(result.vars?.['apiGwExecutionLogRequestIds'], 'req-1,req-2');
     assert.strictEqual(result.vars?.['apiGwExecutionLogPaths'], '/foo,/bar');
-    assert.strictEqual(result.vars?.['apiGwExecutionLogCount'], '3');
-    assert.strictEqual(result.next, 'resolve');
+    // A line without its leading request id has no verifiable owner: it is left out.
+    assert.strictEqual(result.vars?.['apiGwExecutionLogCount'], '2');
+    assert.strictEqual(result.next, undefined);
     reporter.flush();
     const joined = lines.join('\n');
     assert.match(joined, /Verifica execution log API Gateway/);
@@ -169,13 +183,13 @@ describe('queryApiGwExecutionLogs', () => {
     assert.ok(output !== undefined);
     assert.deepStrictEqual(output[0]?.slice(-2), logRow({ requestId: 'req-1', path: '/foo' }));
     assert.deepStrictEqual(output[1]?.slice(-2), logRow({ requestId: 'req-2', path: '/bar' }));
-    assert.deepStrictEqual(output[2]?.slice(-2), logRow({ requestId: '', path: '' }));
+    assert.strictEqual(output.length, 2);
   });
 
   it('keeps distinct requestIds that share the same path', async () => {
     const { service, calls } = createFakeCwLogs([
-      logRow({ '@message': 'Execution failed for req-1' }),
-      logRow({ '@message': 'Execution failed for req-2' }),
+      logRow({ '@message': '(req-1) Execution failed' }),
+      logRow({ '@message': '(req-2) Execution failed' }),
     ]);
     const step = createStep();
 
@@ -207,15 +221,19 @@ describe('queryApiGwExecutionLogs', () => {
     assert.deepStrictEqual(output[1]?.slice(-2), logRow({ requestId: 'req-2', path: '/same' }));
   });
 
-  it('fails fast when the extracted requestIds exceed the configured limit', async () => {
-    const { reporter, lines } = captureNarrative();
-    const { service, calls } = createFakeCwLogs();
-    const step = createStep({ maxRequestIdsOverride: 1 });
-
-    const result = await step.execute(
+  it('reads more request ids than a query takes with one query per batch, merging their rows', async () => {
+    const calls: string[] = [];
+    const service = {
+      async query(_groups: ReadonlyArray<string>, query: string): Promise<Rows> {
+        await Promise.resolve();
+        calls.push(query);
+        const id = query.includes('req-1') ? 'req-1' : 'req-2';
+        return [logRow({ '@timestamp': '2026-01-01 00:01:00.000', '@message': `(${id}) Execution failed` })];
+      },
+    };
+    const result = await createStep({ maxRequestIdsOverride: 1 }).execute(
       createContext({
         cloudWatchLogs: service,
-        reporter,
         stepOutput: [
           logRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
           logRow({ status: '503', errorMessage: 'Bad gateway', requestId: 'req-2', path: '/bar' }),
@@ -223,12 +241,13 @@ describe('queryApiGwExecutionLogs', () => {
       }),
     );
 
-    assert.strictEqual(result.success, false);
-    assert.match(result.error ?? '', /would combine 2 requestId predicates/);
-    assert.match(result.error ?? '', /over the limit of 1/);
-    assert.strictEqual(calls.length, 0);
-    reporter.flush();
-    assert.match(lines.join('\n'), /Query execution log non eseguita[\s\S]*over the limit of 1/);
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(calls.length, 2);
+    assert.deepStrictEqual(
+      result.output?.map((row) => readRowField(row, 'requestId')),
+      ['req-1', 'req-2'],
+    );
+    assert.strictEqual(result.vars?.['apiGwExecutionLogMode'], 'queried');
   });
 
   it('degrades to unavailable and continues when a best-effort execution-log query fails', async () => {
@@ -236,7 +255,7 @@ describe('queryApiGwExecutionLogs', () => {
       [],
       new Error('MalformedQueryException: time range exceeds the log retention settings'),
     );
-    const step = createStep({ analysisMode: 'best-effort' });
+    const step = createStep();
 
     const result = await step.execute(
       createContext({
@@ -262,15 +281,17 @@ describe('queryApiGwExecutionLogs', () => {
     assert.strictEqual(result.vars?.['terminationReason'], undefined);
   });
 
-  it('degrades to unavailable when a best-effort query exceeds the requestId limit', async () => {
-    const { reporter, lines } = captureNarrative();
-    const { service, calls } = createFakeCwLogs();
-    const step = createStep({ analysisMode: 'best-effort', maxRequestIdsOverride: 1 });
-
-    const result = await step.execute(
+  it('keeps the batches that answered when another batch fails, declaring it unavailable', async () => {
+    const service = {
+      async query(_groups: ReadonlyArray<string>, query: string): Promise<Rows> {
+        await Promise.resolve();
+        if (query.includes('req-2')) throw new Error('ThrottlingException');
+        return [logRow({ '@timestamp': '2026-01-01 00:01:00.000', '@message': '(req-1) Execution failed' })];
+      },
+    };
+    const result = await createStep({ maxRequestIdsOverride: 1 }).execute(
       createContext({
         cloudWatchLogs: service,
-        reporter,
         stepOutput: [
           logRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
           logRow({ status: '503', errorMessage: 'Bad gateway', requestId: 'req-2', path: '/bar' }),
@@ -278,15 +299,77 @@ describe('queryApiGwExecutionLogs', () => {
       }),
     );
 
-    assert.strictEqual(result.success, true);
-    assert.strictEqual(result.vars?.['apiGwExecutionLogMode'], 'unavailable');
-    assert.match(result.vars?.['apiGwExecutionLogUnavailableReason'] ?? '', /over the limit of 1/);
-    assert.strictEqual(calls.length, 0);
-    reporter.flush();
-    assert.match(lines.join('\n'), /Query execution log non eseguita[\s\S]*over the limit of 1/);
+    assert.strictEqual(result.vars?.['apiGwExecutionLogMode'], 'queried');
+    assert.strictEqual(result.output?.length, 1);
+    assert.deepStrictEqual(
+      result.coverage?.map(({ reason, detail }) => ({ reason, detail })),
+      [{ reason: 'unavailable', detail: 'ThrottlingException' }],
+    );
   });
 
-  it('continues without early resolution when no requestId can be extracted', async () => {
+  it('declares both the failed lookup and the errors without request id when the query fails', async () => {
+    const { service } = createFakeCwLogs([], new Error('ThrottlingException'));
+    const result = await createStep().execute(
+      createContext({
+        cloudWatchLogs: service,
+        stepOutput: [
+          logRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
+          logRow({ status: '500', errorMessage: 'Internal server error', requestId: '-', path: '/bar' }),
+        ],
+      }),
+    );
+    assert.deepStrictEqual(
+      result.coverage?.map(({ reason }) => reason),
+      ['unavailable', 'skipped'],
+    );
+  });
+
+  it('drops a line of another request that only mentions a requested id', async () => {
+    const { service } = createFakeCwLogs([logRow({ '@message': '(req-9) Execution failed, see also req-1' })]);
+    const result = await createStep().execute(
+      createContext({
+        cloudWatchLogs: service,
+        stepOutput: [
+          logRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
+        ],
+      }),
+    );
+    assert.deepStrictEqual(result.output, []);
+  });
+
+  it('declares skipped the eligible errors without a request id, next to the ones it looked up', async () => {
+    const { service } = createFakeCwLogs([logRow({ '@message': '(req-1) Execution failed' })]);
+    const result = await createStep().execute(
+      createContext({
+        cloudWatchLogs: service,
+        stepOutput: [
+          logRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
+          logRow({ status: '500', errorMessage: 'Internal server error', requestId: '-', path: '/bar' }),
+        ],
+      }),
+    );
+    assert.deepStrictEqual(
+      result.coverage?.map(({ reason, detail }) => ({ reason, detail })),
+      [{ reason: 'skipped', detail: '1 errori senza requestId' }],
+    );
+  });
+
+  it('attributes a line by its leading request id, not by another id it mentions', async () => {
+    const { service } = createFakeCwLogs([logRow({ '@message': '(req-1) Execution failed, see also req-2' })]);
+    const result = await createStep().execute(
+      createContext({
+        cloudWatchLogs: service,
+        stepOutput: [
+          logRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-2', path: '/bar' }),
+          logRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
+        ],
+      }),
+    );
+
+    assert.deepStrictEqual(result.output?.[0]?.slice(-2), logRow({ requestId: 'req-1', path: '/foo' }));
+  });
+
+  it('declares the execution-log read skipped when no requestId can be extracted', async () => {
     const { service, calls } = createFakeCwLogs();
     const step = createStep();
 
@@ -300,8 +383,10 @@ describe('queryApiGwExecutionLogs', () => {
     assert.strictEqual(result.success, true);
     assert.deepStrictEqual(result.output, []);
     assert.strictEqual(result.vars?.['apiGwExecutionLogMode'], 'no-request-id');
-    assert.strictEqual(result.vars?.['apiGwErrorCount'], '1');
-    assert.strictEqual(result.vars?.['apiGwStatusCode'], '500');
+    assert.deepStrictEqual(
+      result.coverage?.map(({ reason }) => reason),
+      ['skipped'],
+    );
     assert.strictEqual(result.vars?.['apiGwExecutionLogRequestCount'], '0');
     assert.strictEqual(result.vars?.['apiGwExecutionLogRequestIds'], '');
     assert.strictEqual(result.vars?.['apiGwExecutionLogPaths'], '');

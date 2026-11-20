@@ -1,4 +1,4 @@
-import { readXrayHeaderRoot } from '../traceIds/readXrayHeaderRoot.js';
+import { canonicalTraceId } from '../traceIds/canonicalTraceId.js';
 import { transformRawTraceId } from '../traceIds/transformRawTraceId.js';
 import type { ServiceLogSchema } from './ServiceLogSchema.js';
 import type { TraceIdCandidateMatch } from './TraceIdCandidateMatch.js';
@@ -44,8 +44,4 @@ export function matchTraceIdCandidate(
     if (labeled !== undefined && fromMessage !== undefined) return { raw: labeled, canonical: fromMessage };
   }
   return undefined;
-}
-
-function canonicalTraceId(raw: string): string | undefined {
-  return transformRawTraceId(raw) ?? readXrayHeaderRoot(raw);
 }

@@ -9,14 +9,13 @@ import {
   varMatches,
 } from '../../../../engine/index.js';
 
-// Evaluate gateway cases together after grouping, preserving their priority order.
+// Evaluate gateway cases only after the execution logs are grouped by request.
 const EXECUTION_LOGS_GROUPED = { type: 'exists', ref: 'steps.resolve-api-gw-diagnosis' } as const;
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'authorizer-invocation-504',
     description: 'Invocazione authorizer terminata con 504 senza Lambda request ID',
-    priority: 600,
     condition: stepEvidenceMatches(
       'resolve-api-gw-diagnosis.requests',
       '^(?=[\\s\\S]*Lambda invocation failed with status: 504\\. Lambda request id: N/A)' +
@@ -34,7 +33,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'integration-signature-mismatch',
     description: 'Firma AWS non valida durante l’invocazione dell’integrazione',
-    priority: 590,
     condition: all(
       EXECUTION_LOGS_GROUPED,
       stepEvidenceMatches(
@@ -48,7 +46,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'authorizer-configuration-error',
     description: 'Errore nella fase di autorizzazione API Gateway',
-    priority: 580,
     condition: all(
       EXECUTION_LOGS_GROUPED,
       stepEvidenceMatches(
@@ -62,7 +59,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'authorizer-access-log-failure',
     description: 'Errore authorizer segnalato dall’access log con dettaglio da verificare',
-    priority: 570,
     condition: all(
       EXECUTION_LOGS_GROUPED,
       varExists('apiGwExecutionLogMode'),
@@ -80,7 +76,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'integration-502',
     description: 'Integrazione 502 con authorizer 200 e risposta API Gateway 500',
-    priority: 560,
     condition: all(
       EXECUTION_LOGS_GROUPED,
       varExists('apiGwExecutionLogMode'),
@@ -100,7 +95,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'execution-failed-configuration-error',
     description: 'Allarme',
-    priority: 101,
     condition: all(
       EXECUTION_LOGS_GROUPED,
       stepEvidenceMatches('query-api-gw-execution-logs', 'Execution failed due to configuration error'),
@@ -112,7 +106,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'downstream-pdv-500-internal-server-error',
     description: 'Allarme',
-    priority: 100,
     condition: any(
       stepEvidenceMatches(
         'query-pn-data-vault',
@@ -138,7 +131,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'f24-metadata-gone',
     description: 'Metadati F24 non disponibili con risposta Safe Storage 410',
-    priority: 90,
     condition: stepEvidenceMatches(
       'query-pn-f24',
       '410 Gone from GET https?://[^\\s]+/safe-storage/v1/files/PN_F24_META-',

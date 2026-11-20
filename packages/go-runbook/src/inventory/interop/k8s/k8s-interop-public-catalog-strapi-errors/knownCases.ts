@@ -5,7 +5,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'public-catalog-strapi-connection-reset',
     description: 'Connessione TCP interrotta durante una lettura di Strapi',
-    priority: 100,
     // The CID tracker includes other services: only Strapi's error scan is evidence.
     condition: all(
       varEquals('interopEnvironment', 'prod'),
@@ -28,7 +27,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'public-catalog-strapi-transfer-token-salt-warning',
     description: 'Warning di avvio Strapi: funzionalità data transfer disabilitate',
-    priority: 70,
     condition: all(
       varEquals('interopEnvironment', 'prod'),
       stepEvidenceMatches(
@@ -52,7 +50,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'public-catalog-strapi-startup-stderr',
     description: 'Messaggi di avvio Corepack o baseline-browser-mapping su stderr di Strapi',
-    priority: 50,
     condition: all(
       varEquals('interopEnvironment', 'prod'),
       stepEvidenceMatches(

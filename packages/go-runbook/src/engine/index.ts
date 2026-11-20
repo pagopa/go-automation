@@ -60,6 +60,9 @@ export type { SwitchStepConfig } from './steps/control/SwitchStep.js';
 export { SwitchStep } from './steps/control/SwitchStep.js';
 export { executeStep } from './steps/execution/executeStep.js';
 export { readStepOutput } from './context/readStepOutput.js';
+export { isStepEvidenceComplete } from './context/isStepEvidenceComplete.js';
+export { readStepLookupState } from './context/readStepLookupState.js';
+export type { StepLookupState } from './types/StepLookupState.js';
 export type { ExtractFieldConfig } from './steps/transform/ExtractFieldStep.js';
 export { ExtractFieldStep } from './steps/transform/ExtractFieldStep.js';
 export type { MapArrayConfig } from './steps/transform/MapStep.js';
@@ -71,7 +74,6 @@ export { TemplateStep } from './steps/transform/TemplateStep.js';
 export type { ActionTrace } from './tracing/ActionTrace.js';
 export type { CaseEvaluationTrace } from './tracing/CaseEvaluationTrace.js';
 export type { CaseMatchingTrace } from './tracing/CaseMatchingTrace.js';
-export type { EarlyResolutionTrace } from './tracing/EarlyResolutionTrace.js';
 export type { ExecutionInfo } from './tracing/ExecutionInfo.js';
 export type { ExecutionEnvironment } from './tracing/ExecutionEnvironment.js';
 export type { ExecutionEnvironmentExtensions } from './tracing/ExecutionEnvironmentExtensions.js';
@@ -93,6 +95,49 @@ export type { ErrorRecoveryInfo } from './types/ErrorRecoveryInfo.js';
 export type { FlowDirective } from './types/FlowDirective.js';
 export type { IfBranchConfig } from './types/IfBranchConfig.js';
 export type { KnownCase } from './types/KnownCase.js';
+export type { KnownCaseDetection } from './types/KnownCaseDetection.js';
+export type { IdentifierObservation } from './types/IdentifierObservation.js';
+export type { StepCoverage } from './types/StepCoverage.js';
+export type { BranchOutcome } from './types/BranchOutcome.js';
+export type { DescendRequest } from './types/DescendRequest.js';
+export type { ErrorChainInterruptionReason } from './types/ErrorChainInterruptionReason.js';
+export type { ErrorNodeSpec } from './types/ErrorNodeSpec.js';
+export type { ErrorTreeDefinition } from './types/ErrorTreeDefinition.js';
+export type { ErrorTreeNode } from './types/ErrorTreeNode.js';
+export type { TreeChain } from './types/TreeChain.js';
+export type { TreeChainEnd } from './types/TreeChainEnd.js';
+export type { TreeChainInterruption } from './types/TreeChainInterruption.js';
+export type { TreeReadState } from './types/TreeReadState.js';
+export type { TreeChainGroup } from './types/TreeChainGroup.js';
+export type { TreeDescent } from './types/TreeDescent.js';
+export type { TreeDescentState } from './types/TreeDescentState.js';
+export type { TreeEnumerated } from './types/TreeEnumerated.js';
+export type { TreeEnumeration } from './types/TreeEnumeration.js';
+export type { TreeEnumeratorFn } from './types/TreeEnumeratorFn.js';
+export type { TreeExclusion } from './types/TreeExclusion.js';
+export type { TreeLevel } from './types/TreeLevel.js';
+export type { TreeLevelReader } from './types/TreeLevelReader.js';
+export type { TreeLevelReadResult } from './types/TreeLevelReadResult.js';
+export type { TreeReadIdentifier } from './types/TreeReadIdentifier.js';
+export type { TreeRowAttributionFn } from './types/TreeRowAttributionFn.js';
+export type { TreeRowIdentityFn } from './types/TreeRowIdentityFn.js';
+export type { TreeSecondAttemptFn } from './types/TreeSecondAttemptFn.js';
+export type { TreeVarOwnershipFn } from './types/TreeVarOwnershipFn.js';
+export {
+  BRANCH_OUTCOME_VAR,
+  exclusionVar,
+  logCountAllVisitsVar,
+  logCountVar,
+  lookupStateVar,
+} from './tree/descentVarNames.js';
+export type { CoverageReason } from './types/CoverageReason.js';
+export type { CoverageEntry } from './types/CoverageEntry.js';
+export type { ObservedErrors } from './types/ObservedErrors.js';
+export type { EvidenceIdentifier } from './types/EvidenceIdentifier.js';
+export type { EvidenceIdentifierKind } from './types/EvidenceIdentifierKind.js';
+export type { TimedEvidenceIdentifier } from './types/TimedEvidenceIdentifier.js';
+export type { EvidenceTime } from './types/EvidenceTime.js';
+export type { EvidenceTimeReaderFn } from './types/EvidenceTimeReaderFn.js';
 export type { LogEntry } from './types/LogEntry.js';
 export type { PipelineHook } from './types/PipelineHook.js';
 export type { Runbook } from './types/Runbook.js';

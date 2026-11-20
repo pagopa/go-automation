@@ -5,6 +5,7 @@ import { buildRunbook } from '../runbook.js';
 import { executeWithLogs } from '../../../../../__tests__/helpers/executeWithLogs.js';
 import { logRow } from '../../../../../__tests__/helpers/logRow.js';
 import type { RunbookLogsExecution } from '../../../../../__tests__/helpers/RunbookLogsExecution.js';
+import { treeNodeVars } from '../../../../../__tests__/helpers/treeNodeVars.js';
 
 const ENDPOINT = 'https://api.selfcare.pagopa.it/external/data-vault/v1/pn-pg/institutions/add';
 const HTTP_500 = `[DOWNSTREAM] Service SelfcarePG returned errors=500 Internal Server Error from POST ${ENDPOINT}`;
@@ -37,15 +38,16 @@ describe('personal-data-vault SelfcarePG runbook', () => {
     const { result, queries, draft } = await execute(`${HTTP_500};{"status":500}`);
     assert.strictEqual(result.status, 'completed');
     assert.deepStrictEqual(
-      result.matchedCases.map(({ id }) => id),
+      result.detections.map(({ knownCase }) => knownCase.id),
       ['selfcarepg-institutions-add-http-500'],
     );
-    assert.strictEqual(queries.length, 1);
+    // A known case does not stop the run: the trace of the error is read too.
+    assert.strictEqual(queries.length, 2);
     assert.ok(draft?.kind === 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
     assert.strictEqual(draft.conclusionNotes, 'Risoluzione non documentata.');
     assert.deepStrictEqual(draft.finalActions, []);
-    assert.strictEqual(result.finalContext.vars.get('dataVaultTraceId'), TRACE_ID);
+    assert.strictEqual(treeNodeVars(result).get('dataVaultTraceId'), TRACE_ID);
   });
 
   it('does not generalize the observed HTTP 500 to other statuses, services or endpoints', async () => {
@@ -57,17 +59,17 @@ describe('personal-data-vault SelfcarePG runbook', () => {
       HTTP_500.replace('SelfcarePG', 'AnotherService'),
     ]) {
       const { result } = await execute(message);
-      assert.deepStrictEqual(result.matchedCases, [], message);
+      assert.deepStrictEqual(result.detections, [], message);
     }
   });
 
   it('requires the correlated timeout evidence for an empty downstream error', async () => {
     const message = '[DOWNSTREAM] Service SelfcarePG returned errors=';
     const unknown = await execute(message);
-    assert.deepStrictEqual(unknown.result.matchedCases, []);
+    assert.deepStrictEqual(unknown.result.detections, []);
     const known = await execute(message, 'io.netty.handler.timeout.ReadTimeoutException: null');
     assert.deepStrictEqual(
-      known.result.matchedCases.map(({ id }) => id),
+      known.result.detections.map(({ knownCase }) => knownCase.id),
       ['selfcarepg-read-timeout-with-empty-error'],
     );
     assert.ok(known.queries[1]?.query.includes(TRACE_ID));

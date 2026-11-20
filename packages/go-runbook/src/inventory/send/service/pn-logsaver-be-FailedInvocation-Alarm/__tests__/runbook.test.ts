@@ -277,10 +277,10 @@ describe('logsaver Batch diagnostic runbook', () => {
       [[{ field: '@message', value: 'Your Spot Task was interrupted.' }]],
       { errorRecordsMatched: 2 },
     );
-    assert.strictEqual(result.status, 'failed');
+    // The rows read stay, but the counter is incomplete: the Spot-only case cannot close the occurrence.
+    assert.strictEqual(result.status, 'completed');
     assert.notStrictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(result.finalContext.vars.get('logsaverDiagnostics'), undefined);
-    assert.strictEqual(result.finalContext.vars.get('logsaverUnaccountedErrorLogCount'), undefined);
+    assert.strictEqual(result.finalContext.vars.get('logsaverUnaccountedErrorLogCountState'), 'incomplete');
   });
 
   it('rejects foreign occurrences, an unconfigured environment and unreachable accounts before reading', async () => {
@@ -308,17 +308,19 @@ describe('logsaver Batch diagnostic runbook', () => {
     assert.ok(calls.every(({ account }) => account === 'confinfo'));
   });
 
-  it('fails on query access errors and saturation instead of emitting a successful diagnostic draft', async () => {
+  it('declares failed and saturated reads instead of emitting a successful diagnostic draft', async () => {
     for (const failQuery of ['fields', 'stats']) {
       const { result, draft } = await execute(CONFINFO_OCCURRENCE, [], { failQuery });
-      assert.strictEqual(result.status, 'failed');
+      assert.strictEqual(result.status, 'completed');
+      assert.ok(result.coverage.some(({ reason }) => reason === 'unavailable'));
       assert.notStrictEqual(draft?.kind, 'KNOWN_CASE');
     }
     const { result, draft } = await execute(
       CONFINFO_OCCURRENCE,
       Array.from({ length: 1000 }, () => [{ field: '@message', value: 'ERROR' }]),
     );
-    assert.strictEqual(result.status, 'failed');
+    assert.strictEqual(result.status, 'completed');
+    assert.ok(result.coverage.some(({ reason }) => reason === 'saturated'));
     assert.notStrictEqual(draft?.kind, 'KNOWN_CASE');
   });
 

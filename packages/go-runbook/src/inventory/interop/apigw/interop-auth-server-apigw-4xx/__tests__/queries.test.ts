@@ -16,6 +16,6 @@ describe('INTEROP auth-server API Gateway queries', () => {
     assert.match(query, /@message not like \/Invalid claims in client assertion payload\//u);
     assert.match(query, /latest\(cidValue\) as cid/u);
     assert.match(query, /by errorMessage/u);
-    assert.match(query, /display latestTimestamp, count, cid, errorMessage/u);
+    assert.match(query, /display firstTimestamp, latestTimestamp, count, cid, errorMessage/u);
   });
 });

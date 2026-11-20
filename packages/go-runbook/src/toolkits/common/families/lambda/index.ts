@@ -15,14 +15,10 @@ export { QueryLambdaInvocationStep } from './steps/QueryLambdaInvocationStep.js'
 export type { QueryLambdaInvocationConfig } from './steps/QueryLambdaInvocationStep.js';
 export { AnalyzeLambdaInvocationStep } from './steps/AnalyzeLambdaInvocationStep.js';
 export type { AnalyzeLambdaInvocationConfig } from './steps/AnalyzeLambdaInvocationStep.js';
-export { QueryDownstreamLogsStep } from './steps/QueryDownstreamLogsStep.js';
-export type { QueryDownstreamLogsConfig } from './steps/QueryDownstreamLogsStep.js';
 export { QueryLambdaAcrossAccountsStep } from './steps/QueryLambdaAcrossAccountsStep.js';
 export type { QueryLambdaAcrossAccountsConfig } from './types/QueryLambdaAcrossAccountsConfig.js';
 export { LambdaReporter } from './reporting/LambdaReporter.js';
 export type { LambdaResultInfo, LambdaTermination } from './reporting/LambdaReporter.js';
-export { renderLambdaFinalSummary } from './reporting/renderLambdaFinalSummary.js';
-export type { LambdaFinalSummaryInput } from './reporting/renderLambdaFinalSummary.js';
 export type { LambdaRunbookContext } from './output/LambdaRunbookContext.js';
 export { isLambdaRunbookContext } from './output/LambdaRunbookContext.js';
 export type { LambdaOutputContext, LambdaDownstreamOutput } from './output/LambdaOutputContext.js';

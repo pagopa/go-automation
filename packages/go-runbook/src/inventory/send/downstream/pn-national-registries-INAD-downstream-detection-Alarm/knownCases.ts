@@ -12,7 +12,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'inad-unauthorized-after-token-refresh-401',
     description: '[DOWNSTREAM INAD] HTTP 401 anche dopo il refresh del token',
-    priority: 140,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
       'Service INAD returned errors=401 Unauthorized from GET ' +
@@ -45,7 +44,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'inad-digital-domicile-internal-server-error-500',
     description: '[DOWNSTREAM INAD] HTTP 500 durante il recupero del domicilio digitale',
-    priority: 130,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
       '\\[DOWNSTREAM\\] Service INAD returned errors=500 Internal Server Error from GET ' +
@@ -77,7 +75,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'inad-connection-reset-by-peer',
     description: '[DOWNSTREAM INAD] Connessione chiusa dal downstream',
-    priority: 120,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
       '\\[DOWNSTREAM\\] Service INAD returned errors=recvAddress\\(\\.\\.\\) failed: Connection reset by peer',
@@ -102,7 +99,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'inad-connect-timeout',
     description: '[DOWNSTREAM INAD] Timeout di connessione',
-    priority: 110,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
       '\\[DOWNSTREAM\\] Service INAD returned errors=connection timed out after \\d+ ms: ' +
@@ -128,7 +124,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'inad-service-unavailable-503',
     description: '[DOWNSTREAM INAD] Servizio temporaneamente non disponibile (HTTP 503)',
-    priority: 100,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
       '\\[DOWNSTREAM\\] Service INAD returned errors=503 Service Unavailable',

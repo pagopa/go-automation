@@ -19,9 +19,7 @@
     "test": "node --import tsx/esm --test --experimental-test-isolation=none 'src/**/__tests__/**/*.test.ts'"
   },
   "dependencies": {
-    "@pagopa/go-common": "workspace:*",
-    "ajv": "catalog:",
-    "ajv-formats": "catalog:"
+    "@pagopa/go-common": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

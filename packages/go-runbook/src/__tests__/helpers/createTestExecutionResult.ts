@@ -12,17 +12,19 @@ import type { TestExecutionResultOptions } from './TestExecutionResultOptions.js
 export function createTestExecutionResult(options: TestExecutionResultOptions = {}): RunbookExecutionResult {
   const status = options.status ?? 'completed';
   const matchedCases = options.matchedCases ?? [];
+  const coverage = options.coverage ?? [];
   const finalContext = createTestContext(options);
   return {
     runbookId: 'test-runbook',
     status,
-    matchedCases,
+    detections: matchedCases.map((knownCase) => ({ knownCase, evidenceRows: 0, observations: [] })),
+    coverage,
     durationMs: 0,
     stepsExecuted: 0,
     finalContext,
     recoveredErrors: finalContext.recoveredErrors,
     trace: {
-      schemaVersion: '1.0.0',
+      schemaVersion: '2.0.0',
       execution: {
         executionId: finalContext.executionId,
         runbookId: 'test-runbook',
@@ -40,6 +42,7 @@ export function createTestExecutionResult(options: TestExecutionResultOptions = 
       variables: { ...options.vars },
       caseMatching: { casesEvaluated: 0, evaluations: [], matchedCaseIds: matchedCases.map(({ id }) => id) },
       actionsExecuted: [],
+      coverage,
       summary: {
         description: status,
         totalSteps: 0,

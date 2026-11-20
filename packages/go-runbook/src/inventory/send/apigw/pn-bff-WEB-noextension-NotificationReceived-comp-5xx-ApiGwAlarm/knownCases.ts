@@ -4,18 +4,19 @@ import {
   any,
   anyStepEvidenceMatches,
   type KnownCase,
+  BRANCH_OUTCOME_VAR,
   stepEvidenceMatches,
+  varEquals,
   varExists,
 } from '../../../../engine/index.js';
 
-// DecideNextStep sets this only when the reachable traversal stops.
-const TRAVERSAL_FINISHED = varExists('terminationReason');
+// The BFF error is the diagnosis only when the branch below it is complete and recognizes nothing more specific.
+const BRANCH_UNDIAGNOSED = varEquals(BRANCH_OUTCOME_VAR, 'undiagnosed');
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'delivery-index-out-of-bounds',
     description: 'Errore di indice durante la ricerca delle notifiche ricevute in pn-delivery',
-    priority: 650,
     condition: stepEvidenceMatches(
       'query-pn-delivery',
       '^(?=[\\s\\S]*PnInternalException)(?=[\\s\\S]*java\\.lang\\.IndexOutOfBoundsException: Index -1 out of bounds for length [0-9]+\\b)',
@@ -33,7 +34,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'delivery-dynamodb-filter-expression-too-large',
     description: 'Espressione filtro DynamoDB troppo grande durante la ricerca in pn-delivery',
-    priority: 640,
     condition: stepEvidenceMatches(
       'query-pn-delivery',
       'DynamoDbException:[\\s\\S]*Invalid FilterExpression: Expression size has exceeded the maximum allowed size',
@@ -51,7 +51,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'delivery-date-range-reversed',
     description: 'Intervallo date con startDate successiva a endDate in pn-delivery',
-    priority: 630,
     condition: stepEvidenceMatches(
       'query-pn-delivery',
       'IllegalArgumentException:[\\s\\S]*Start \\(YearAndMonth\\([\\s\\S]*can.t be after end \\(YearAndMonth',
@@ -69,7 +68,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'delivery-data-vault-read-timeout',
     description: 'Timeout di lettura di pn-delivery verso Personal Data Vault',
-    priority: 620,
     condition: stepEvidenceMatches(
       'query-pn-delivery',
       '^(?=[\\s\\S]*ResourceAccessException)(?=[\\s\\S]*/datavault-private/v1/recipients/internal)(?=[\\s\\S]*SocketTimeoutException: Read timed out)',
@@ -88,7 +86,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'checkout-connect-timeout',
     description: 'Timeout di connessione verso Checkout pagoPA',
-    priority: 610,
     condition: anyStepEvidenceMatches(
       ['query-pn-external-registries', 'query-pn-external-registries-checkout'],
       '\\[DOWNSTREAM\\] Service Checkout returned errors=connection timed out after [0-9]+ ms: api\\.platform\\.pagopa\\.it',
@@ -107,9 +104,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-payments-info-read-timeout',
     description: 'Timeout BFF durante getPaymentsInfoV1 verso pn-external-registries',
-    priority: 500,
     condition: all(
-      TRAVERSAL_FINISHED,
+      BRANCH_UNDIAGNOSED,
       varExists('externalRegistriesLogCount'),
       stepEvidenceMatches(
         'query-pn-bff',
@@ -130,9 +126,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-delivery-read-timeout',
     description: 'Timeout BFF durante la chiamata a pn-delivery',
-    priority: 490,
     condition: all(
-      TRAVERSAL_FINISHED,
+      BRANCH_UNDIAGNOSED,
       varExists('deliveryLogCount'),
       stepEvidenceMatches(
         'query-pn-bff',
@@ -153,9 +148,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-connection-observed-error',
     description: 'Errore di connessione osservato dal BFF con causa da verificare',
-    priority: 100,
     condition: all(
-      TRAVERSAL_FINISHED,
+      BRANCH_UNDIAGNOSED,
       any(varExists('deliveryLogCount'), varExists('externalRegistriesLogCount')),
       stepEvidenceMatches('query-pn-bff', 'The connection observed an error'),
     ),

@@ -14,7 +14,6 @@ function caseOn(stepId: string): KnownCase {
   return knownCase({
     id: `case-on-${stepId}`,
     description: 'probe',
-    priority: 100,
     condition: { type: 'contains', ref: `steps.${stepId}`, regex: 'boom' },
     resolution: 'n/a',
     analysis: { proposedStatus: 'COMPLETED', analysisType: 'ANALYZABLE' },

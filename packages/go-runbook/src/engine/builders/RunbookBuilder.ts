@@ -11,6 +11,10 @@ import type { ValidationErrorEntry } from '../validation/ValidationErrorEntry.js
 import type { GoToReference } from '../validation/GoToGraphAnalyzer.js';
 import { RunbookValidationError } from '../validation/RunbookValidationError.js';
 import { findUnwiredKnownCaseStepRef } from '../validation/findUnwiredKnownCaseStepRef.js';
+import { validateErrorTree } from '../validation/validateErrorTree.js';
+import { findUnanchoredRowPredicates } from '../validation/findUnanchoredRowPredicates.js';
+import { levelStepIds } from '../tree/levelStepIds.js';
+import type { ErrorTreeDefinition } from '../types/ErrorTreeDefinition.js';
 import { GoToGraphAnalyzer } from '../validation/GoToGraphAnalyzer.js';
 import { IfBranchStep } from '../steps/control/IfBranchStep.js';
 import { SwitchBranchStep } from '../steps/control/SwitchBranchStep.js';
@@ -62,6 +66,7 @@ export class RunbookBuilder {
   /** Steps wired so far, in order; subclasses read them to validate their extensions. */
   protected readonly stepDescriptors: StepDescriptor[] = [];
   private readonly cases: KnownCase[] = [];
+  private treeDefinition: ErrorTreeDefinition | undefined;
   private fallbackAction?: CaseAction;
   private iterationsLimit?: number;
 
@@ -149,7 +154,24 @@ export class RunbookBuilder {
    * @returns The wired step ids, in insertion order
    */
   wiredStepIds(): ReadonlySet<string> {
-    return new Set(this.stepDescriptors.map((descriptor) => descriptor.step.id));
+    return new Set([...this.stepDescriptors.map((descriptor) => descriptor.step.id), ...this.treeStepIds()]);
+  }
+
+  /**
+   * Declares the levels the runbook investigates after the steps of the window, one node per error.
+   *
+   * @param tree - Root level and the levels it may descend to
+   * @returns This builder for chaining
+   */
+  errorTree(tree: ErrorTreeDefinition): this {
+    this.treeDefinition = tree;
+    return this;
+  }
+
+  /** The step ids of the levels of the error tree. */
+  private treeStepIds(): ReadonlyArray<string> {
+    const tree = this.treeDefinition;
+    return tree === undefined ? [] : [tree.root, ...tree.levels].flatMap((level) => levelStepIds(level));
   }
 
   /**
@@ -214,7 +236,7 @@ export class RunbookBuilder {
   /**
    * Validates the runbook configuration.
    * Checks: duplicate step IDs, invalid goTo references,
-   * cycles in the goTo graph, duplicate KnownCase IDs/priorities.
+   * cycles in the goTo graph, duplicate KnownCase IDs, unknown or cyclic `supersedes`.
    *
    * @returns Array of validation errors (empty if valid)
    */
@@ -294,22 +316,31 @@ export class RunbookBuilder {
       caseIds.add(knownCase.id);
     }
 
-    // 6. Check duplicate KnownCase priorities
-    const casePriorities = new Map<number, string>();
-    for (const knownCase of this.cases) {
-      const existingCaseId = casePriorities.get(knownCase.priority);
-      if (existingCaseId !== undefined) {
+    // 6. Check the cases each case supersedes
+    errors.push(...validateSupersedes(this.cases));
+
+    // 7. The levels of the error tree, and the cases that would need one row to satisfy a signature split over two
+    if (this.treeDefinition !== undefined) {
+      errors.push(
+        ...validateErrorTree(this.treeDefinition, stepIds, (descriptors) => this.collectGoToReferences(descriptors)),
+      );
+      const levelReads = new Set(
+        this.treeDefinition.levels.flatMap((level) => (level.read === undefined ? [] : [level.read.id])),
+      );
+      const unanchored = findUnanchoredRowPredicates(this.cases, levelReads);
+      if (unanchored !== undefined) {
         errors.push({
-          code: 'DUPLICATE_CASE_PRIORITY',
-          message: `KnownCase "${knownCase.id}" has the same priority (${knownCase.priority}) as "${existingCaseId}". Priorities must be unique.`,
-          caseId: knownCase.id,
+          code: 'UNANCHORED_ROW_PREDICATES',
+          message:
+            `KnownCase "${unanchored.caseId}" reads the rows of "${unanchored.stepId}" twice in one all(...): ` +
+            'anchor one predicate on the node and read the other from its siblings or its context.',
+          caseId: unanchored.caseId,
         });
       }
-      casePriorities.set(knownCase.priority, knownCase.id);
     }
 
-    // 7. Known cases must reference only steps the runbook wires (P10)
-    const unwired = findUnwiredKnownCaseStepRef(this.cases, stepIds);
+    // 8. Known cases must reference only steps the runbook wires (P10), the levels of the error tree included
+    const unwired = findUnwiredKnownCaseStepRef(this.cases, this.wiredStepIds());
     if (unwired !== undefined) {
       errors.push({
         code: 'UNWIRED_CASE_STEP_REF',
@@ -352,20 +383,19 @@ export class RunbookBuilder {
       ...this.buildExtensions(),
     };
 
-    if (this.iterationsLimit !== undefined) {
-      return { ...result, maxIterations: this.iterationsLimit };
-    }
-
-    return result;
+    const withTree = this.treeDefinition !== undefined ? { ...result, tree: this.treeDefinition } : result;
+    return this.iterationsLimit !== undefined ? { ...withTree, maxIterations: this.iterationsLimit } : withTree;
   }
 
   /**
    * Collects all goTo references from registered steps for static analysis.
    */
-  private collectGoToReferences(): ReadonlyArray<GoToReference> {
+  private collectGoToReferences(
+    descriptors: ReadonlyArray<StepDescriptor> = this.stepDescriptors,
+  ): ReadonlyArray<GoToReference> {
     const refs: GoToReference[] = [];
 
-    for (const descriptor of this.stepDescriptors) {
+    for (const descriptor of descriptors) {
       const { step } = descriptor;
 
       if (isIfStepWithGoTo(step)) {
@@ -386,4 +416,60 @@ export class RunbookBuilder {
 
     return refs;
   }
+}
+
+/**
+ * Validates the `supersedes` of the known cases: every replaced case exists, no case replaces itself, and the
+ * replacements form no cycle.
+ *
+ * Complexity: O(C + S) over cases and supersedes entries.
+ *
+ * @param cases - Known cases of the runbook
+ * @returns The validation errors, empty when the replacements are sound
+ */
+function validateSupersedes(cases: ReadonlyArray<KnownCase>): ReadonlyArray<ValidationErrorEntry> {
+  const errors: ValidationErrorEntry[] = [];
+  const ids = new Set(cases.map((knownCase) => knownCase.id));
+  const edges = new Map<string, ReadonlyArray<string>>();
+  for (const knownCase of cases) {
+    const replaced = knownCase.supersedes ?? [];
+    edges.set(knownCase.id, replaced);
+    for (const target of replaced) {
+      if (target === knownCase.id) {
+        errors.push({
+          code: 'SUPERSEDES_CYCLE',
+          message: `KnownCase "${knownCase.id}" supersedes itself.`,
+          caseId: knownCase.id,
+        });
+      } else if (!ids.has(target)) {
+        errors.push({
+          code: 'UNKNOWN_SUPERSEDED_CASE',
+          message: `KnownCase "${knownCase.id}" supersedes "${target}", which is not a case of this runbook.`,
+          caseId: knownCase.id,
+        });
+      }
+    }
+  }
+
+  const done = new Set<string>();
+  const onPath = new Set<string>();
+  const visit = (id: string): boolean => {
+    if (onPath.has(id)) return true;
+    if (done.has(id)) return false;
+    onPath.add(id);
+    const cyclic = (edges.get(id) ?? []).some((target) => target !== id && ids.has(target) && visit(target));
+    onPath.delete(id);
+    done.add(id);
+    return cyclic;
+  };
+  for (const knownCase of cases) {
+    if (!done.has(knownCase.id) && visit(knownCase.id)) {
+      errors.push({
+        code: 'SUPERSEDES_CYCLE',
+        message: `The supersedes of KnownCase "${knownCase.id}" form a cycle.`,
+        caseId: knownCase.id,
+      });
+    }
+  }
+  return errors;
 }

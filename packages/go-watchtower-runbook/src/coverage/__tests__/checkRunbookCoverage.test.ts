@@ -265,7 +265,6 @@ function knownCase(analysis: Partial<KnownCaseAnalysis>): KnownCase {
   return {
     id: 'primary',
     description: 'primary',
-    priority: 100,
     condition: { type: 'contains', ref: 'steps.query', regex: 'boom' },
     action: { type: 'log', level: 'info', renderAs: 'known-case', title: 'primary' },
     analysis: {

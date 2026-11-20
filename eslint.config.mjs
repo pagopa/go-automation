@@ -457,7 +457,6 @@ export default tseslint.config(
       'packages/go-documents/**/*.ts',
       'packages/go-slack/**/*.ts',
       'packages/go-cli/**/*.ts',
-      'packages/go-execute-runbook-contracts/**/*.ts',
       'packages/go-watchtower-client/**/*.ts',
       'infra/**/*.ts',
     ],

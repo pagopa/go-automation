@@ -13,7 +13,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'infocamere-richiesta-elenco-pec-read-timeout',
     description: '[DOWNSTREAM InfoCamere] Timeout durante la richiesta elenco PEC',
-    priority: 120,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
       '\\[DOWNSTREAM\\] Service InfoCamere returned errors=Unknown error' +
@@ -41,7 +40,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'infocamere-authentication-internal-server-error-500',
     description: '[DOWNSTREAM InfoCamere] Errore HTTP 500 durante autenticazione',
-    priority: 110,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
       '\\[DOWNSTREAM\\] Service InfoCamere returned errors=500 Internal Server Error from POST ' +
@@ -68,7 +66,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'infocamere-connect-timeout',
     description: '[DOWNSTREAM InfoCamere] Timeout di connessione',
-    priority: 100,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
       '\\[DOWNSTREAM\\] Service InfoCamere returned errors=finishConnect\\(\\.\\.\\) failed: ' +
@@ -93,7 +90,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'infocamere-connection-reset-by-peer',
     description: '[DOWNSTREAM InfoCamere] Connessione chiusa dal downstream',
-    priority: 90,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
       '\\[DOWNSTREAM\\] Service InfoCamere returned errors=recvAddress\\(\\.\\.\\) failed: ' +
@@ -117,7 +113,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'infocamere-legal-representative-internal-server-error-500',
     description: '[DOWNSTREAM InfoCamere] HTTP 500 durante l’elenco legale rappresentante',
-    priority: 130,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
       '\\[DOWNSTREAM\\] Service InfoCamere returned errors=500 Internal Server Error from GET ' +

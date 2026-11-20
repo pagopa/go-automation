@@ -15,7 +15,6 @@ function rowWithAiExplanation(explanation: string): RtaCheckRow {
     },
     runbook: {
       status: 'HIT',
-      primaryCaseId: 'lambda-timeout',
       matchedCaseIds: ['lambda-timeout'],
     },
     comparison: {
