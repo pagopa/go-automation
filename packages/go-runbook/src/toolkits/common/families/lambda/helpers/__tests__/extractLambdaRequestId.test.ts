@@ -27,6 +27,20 @@ describe('extractLambdaRequestId', () => {
     }
   });
 
+  it('prefers the invocation of the line to a request id quoted in its message', () => {
+    assert.strictEqual(
+      extractLambdaRequestId(
+        '2026-01-01T00:00:00.000Z\t11111111-2222-3333-4444-555555555555\tERROR\t' +
+          'retry failed after RequestId: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      ),
+      '11111111-2222-3333-4444-555555555555',
+    );
+    assert.strictEqual(
+      extractLambdaRequestId('[INFO] previous END RequestId: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'),
+      'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+    );
+  });
+
   it('returns undefined when no request id is present', () => {
     assert.strictEqual(extractLambdaRequestId('just a log line'), undefined);
   });
