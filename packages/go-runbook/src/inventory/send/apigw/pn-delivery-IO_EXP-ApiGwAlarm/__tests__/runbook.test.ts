@@ -10,6 +10,7 @@ import { createTestContext } from '../../../../../__tests__/helpers/createTestCo
 import { executeWithLogs } from '../../../../../__tests__/helpers/executeWithLogs.js';
 import { caseMatches, knownCaseById } from '../../../../../__tests__/helpers/knownCaseMatching.js';
 import type { LoggedQuery } from '../../../../../__tests__/helpers/LoggedQuery.js';
+import { treeNodeVars } from '../../../../../__tests__/helpers/treeNodeVars.js';
 
 const ROOT = '1-6ad0dd73-32533ff75fc4602939265354';
 const REQUEST = '42e21ca4-bb03-4597-9af8-e80691ca0d80';
@@ -78,10 +79,11 @@ describe('IO_EXP diagnosis', () => {
         'Gateway response type: AUTHORIZER_CONFIGURATION_ERROR with status code: 500',
       ],
     );
-    assert.strictEqual(result.matchedCases[0]?.id, 'authorizer-invocation-504');
+    assert.strictEqual(result.detections[0]?.knownCase.id, 'authorizer-invocation-504');
+    // A known case does not end the traversal: Delivery is still read for the same request.
     assert.deepStrictEqual(
       calls.map((c) => c.groups[0]),
-      [API_GW_LOG_GROUP, EXECUTION_GROUP],
+      [API_GW_LOG_GROUP, EXECUTION_GROUP, '/aws/ecs/pn-delivery'],
     );
     assert.strictEqual(draft?.proposedStatus, 'IN_PROGRESS');
     const evidence = buildRunbookOutput(buildRunbook(), result).context.evidence;
@@ -98,7 +100,7 @@ describe('IO_EXP diagnosis', () => {
       'Lambda invocation failed with status: 403. Lambda request id: integration-request',
       'Execution failed due to configuration error: The request signature we calculated does not match the signature you provided. Check your AWS Secret Access Key and signing method.',
     ]);
-    assert.strictEqual(result.matchedCases[0]?.id, 'integration-signature-mismatch');
+    assert.strictEqual(result.detections[0]?.knownCase.id, 'integration-signature-mismatch');
     assert.strictEqual(draft?.proposedStatus, 'IN_PROGRESS');
   });
 
@@ -112,8 +114,8 @@ describe('IO_EXP diagnosis', () => {
       {},
       [access({ requestId: OTHER_REQUEST, authorizerStatus: '500' })],
     );
-    assert.strictEqual(result.matchedCases[0]?.id, 'authorizer-configuration-error');
-    assert.ok(!result.matchedCases.some(({ id }) => id === 'authorizer-invocation-504'));
+    assert.strictEqual(result.detections[0]?.knownCase.id, 'authorizer-configuration-error');
+    assert.ok(!result.detections.some(({ knownCase }) => knownCase.id === 'authorizer-invocation-504'));
   });
 
   it('recognizes signatures in the same request despite interleaved requests and reversed log order', async () => {
@@ -126,36 +128,50 @@ describe('IO_EXP diagnosis', () => {
       const { result } = await execute(access({ authorizerStatus: '500' }), executionMessages, {}, [
         access({ requestId: OTHER_REQUEST }),
       ]);
-      assert.strictEqual(result.matchedCases[0]?.id, 'authorizer-invocation-504');
+      assert.strictEqual(result.detections[0]?.knownCase.id, 'authorizer-invocation-504');
     }
   });
 
   it('does not correlate execution signatures whose request IDs are missing or unknown', async () => {
-    for (const requestId of ['', 'unrequested-id']) {
-      const { result } = await execute(access({ authorizerStatus: '500' }), [
-        { requestId, message: INVOCATION_504 },
-        { requestId, message: AUTHORIZER_ERROR },
-      ]);
-      assert.strictEqual(result.matchedCases[0]?.id, 'authorizer-configuration-error');
-      assert.ok(!result.matchedCases.some(({ id }) => id === 'authorizer-invocation-504'));
-    }
+    const missing = await execute(access({ authorizerStatus: '500' }), [
+      { requestId: '', message: INVOCATION_504 },
+      { requestId: '', message: AUTHORIZER_ERROR },
+    ]);
+    // Lines without the request id belong to no request: only the access log speaks for it.
+    const missingIds = missing.result.detections.map(({ knownCase }) => knownCase.id);
+    assert.strictEqual(missingIds[0], 'authorizer-access-log-failure');
+    assert.ok(!missingIds.includes('authorizer-configuration-error'));
+    assert.ok(!missingIds.includes('authorizer-invocation-504'));
+
+    // Lines of a request that was not looked up are not evidence of this investigation.
+    const unknown = await execute(access({ authorizerStatus: '500' }), [
+      { requestId: 'unrequested-id', message: INVOCATION_504 },
+      { requestId: 'unrequested-id', message: AUTHORIZER_ERROR },
+    ]);
+    const ids = unknown.result.detections.map(({ knownCase }) => knownCase.id);
+    assert.ok(!ids.includes('authorizer-configuration-error'));
+    assert.ok(!ids.includes('authorizer-invocation-504'));
   });
 
-  it('retains an unresolved authorizer diagnosis when execution logs cannot be read', async () => {
+  it('retains an unresolved authorizer diagnosis and declares the execution logs unavailable when they cannot be read', async () => {
     const { result, draft, calls } = await execute(
       access({ authorizerStatus: '500', authorizerLatency: '10000' }),
       new Error('AccessDeniedException'),
     );
-    assert.strictEqual(result.matchedCases[0]?.id, 'authorizer-access-log-failure');
-    assert.strictEqual(result.finalContext.vars.get('apiGwExecutionLogMode'), 'unavailable');
+    assert.strictEqual(result.detections[0]?.knownCase.id, 'authorizer-access-log-failure');
+    assert.strictEqual(treeNodeVars(result).get('apiGwExecutionLogMode'), 'unavailable');
+    assert.deepStrictEqual(
+      result.coverage.map(({ source, reason, detail }) => ({ source, reason, detail })),
+      [{ source: EXECUTION_GROUP, reason: 'unavailable', detail: 'AccessDeniedException' }],
+    );
     assert.strictEqual(draft?.proposedStatus, 'IN_PROGRESS');
-    assert.ok(!calls.some((c) => c.groups[0] === '/aws/ecs/pn-delivery'));
+    assert.ok(calls.some((c) => c.groups[0] === '/aws/ecs/pn-delivery'));
   });
 
   it('does not assume that an integration 502 proves Delivery unavailability', async () => {
     const { result, draft, calls } = await execute(access({ integrationServiceStatus: '502' }));
     assert.ok(calls.some((c) => c.groups[0] === EXECUTION_GROUP));
-    assert.strictEqual(result.matchedCases[0]?.id, 'integration-502');
+    assert.strictEqual(result.detections[0]?.knownCase.id, 'integration-502');
     assert.strictEqual(draft?.proposedStatus, 'IN_PROGRESS');
   });
 
@@ -176,12 +192,12 @@ describe('IO_EXP diagnosis', () => {
         }),
       ],
     });
-    assert.strictEqual(result.matchedCases[0]?.id, 'downstream-pdv-500-internal-server-error');
+    assert.strictEqual(result.detections[0]?.knownCase.id, 'downstream-pdv-500-internal-server-error');
     const query = calls.find((c) => c.groups[0] === '/aws/ecs/pn-data-vault-sep')?.query ?? '';
     assert.ok(query.includes(ROOT));
     assert.ok(!query.includes(FALLBACK));
     assert.ok(query.includes("level = 'WARN'"));
-    assert.strictEqual(result.finalContext.vars.get('deliveryFallbackUuid'), FALLBACK);
+    assert.strictEqual(treeNodeVars(result, 'pn-delivery').get('deliveryFallbackUuid'), FALLBACK);
     assert.strictEqual(draft?.proposedStatus, 'IN_PROGRESS');
   });
 
@@ -216,7 +232,7 @@ describe('IO_EXP diagnosis', () => {
         }),
       ],
     });
-    assert.strictEqual(result.matchedCases[0]?.id, 'f24-metadata-gone');
+    assert.strictEqual(result.detections[0]?.knownCase.id, 'f24-metadata-gone');
     assert.strictEqual(draft?.proposedStatus, 'IN_PROGRESS');
   });
 
@@ -246,12 +262,13 @@ describe('IO_EXP diagnosis', () => {
           }),
         ],
       });
+      // The F24 error is followed; the earlier INFO invocation of Data Vault is a route of the request, without errors.
       assert.deepStrictEqual(
         calls.map(({ groups }) => groups[0] ?? '').filter((group) => group.startsWith('/aws/ecs/')),
-        ['/aws/ecs/pn-delivery', '/aws/ecs/pn-f24'],
+        ['/aws/ecs/pn-delivery', '/aws/ecs/pn-data-vault-sep', '/aws/ecs/pn-f24', '/aws/ecs/pn-safe-storage'],
       );
-      assert.strictEqual(result.finalContext.vars.get('deliveryNextUrlTarget'), 'pn-f24');
-      assert.strictEqual(result.matchedCases[0]?.id, 'f24-metadata-gone');
+      assert.strictEqual(treeNodeVars(result, 'pn-delivery').get('deliveryNextUrlTarget'), 'pn-f24');
+      assert.strictEqual(result.detections[0]?.knownCase.id, 'f24-metadata-gone');
     }
   });
 });

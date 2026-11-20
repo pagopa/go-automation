@@ -14,7 +14,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'selfcare-onboarding-kafka-broker-errors',
     description: 'Errore di comunicazione KafkaJS verso i broker Selfcare',
-    priority: 100,
     condition: all(
       { type: 'compare', ref: 'vars.interopEnvironment', operator: '==', value: 'prod' },
       stepEvidenceMatches(
@@ -40,7 +39,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'selfcare-onboarding-consume-message-conflict',
     description: 'HTTP 409 durante il consumo di un messaggio',
-    priority: 110,
     condition: all(
       { type: 'compare', ref: 'vars.interopEnvironment', operator: '==', value: 'test' },
       stepEvidenceMatches(
@@ -66,7 +64,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'selfcare-onboarding-offset-commit-server-error',
     description: 'Errore del server Kafka durante OffsetCommit',
-    priority: 105,
     condition: all(
       { type: 'compare', ref: 'vars.interopEnvironment', operator: '==', value: 'test' },
       stepEvidenceMatches(

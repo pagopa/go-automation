@@ -7,6 +7,9 @@ import type { LogActionRenderer } from './LogActionRenderer.js';
 import { PLAIN_LOG_ACTION_RENDERER } from './PLAIN_LOG_ACTION_RENDERER.js';
 import { resolveActionMessage } from './resolveActionMessage.js';
 
+/** Longest resolved message of an action. */
+const MAX_RESOLVED_MESSAGE = 4000;
+
 /**
  * Result of executing an action.
  * Contains all data needed by TraceBuilder.traceAction().
@@ -86,7 +89,11 @@ export class ActionExecutor {
    * @returns Resolved message or undefined if action has no message
    */
   private getResolvedMessage(action: CaseAction, context: RunbookContext): string | undefined {
-    return resolveActionMessage(action, context, this.renderer);
+    const message = resolveActionMessage(action, context, this.renderer);
+    // A message copies raw evidence (an error, a stack trace): it stays within a bound.
+    return message === undefined || message.length <= MAX_RESOLVED_MESSAGE
+      ? message
+      : message.slice(0, MAX_RESOLVED_MESSAGE);
   }
 
   private async executeAction(action: CaseAction, context: RunbookContext): Promise<void> {

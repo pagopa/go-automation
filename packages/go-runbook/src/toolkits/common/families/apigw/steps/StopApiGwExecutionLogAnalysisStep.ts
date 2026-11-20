@@ -31,9 +31,7 @@ export class StopApiGwExecutionLogAnalysisStep implements Step<void> {
       success: true,
       vars: {
         terminationReason: 'api-gw-execution-log-unresolved',
-        lastErrorMsg:
-          context.vars.get('lastErrorMsg') ??
-          "API Gateway execution log analizzati, ma non e' stato possibile determinare il problema.",
+        lastErrorMsg: "API Gateway execution log analizzati, ma non e' stato possibile determinare il problema.",
       },
       next: 'stop',
     };

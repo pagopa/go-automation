@@ -15,7 +15,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'one-trust-http-503',
     description: 'OneTrust: risposta HTTP 503',
-    priority: 120,
     condition: stepEvidenceMatches(
       ALARM.stepIds.queryApplicationLogs,
       'AxiosError: Request failed with status code 503\\b',
@@ -33,7 +32,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'one-trust-http-502',
     description: 'OneTrust: risposta HTTP 502',
-    priority: 110,
     condition: stepEvidenceMatches(
       ALARM.stepIds.queryApplicationLogs,
       'AxiosError: Request failed with status code 502\\b',
@@ -57,7 +55,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'one-trust-http-500',
     description: 'OneTrust: risposta HTTP 500',
-    priority: 100,
     condition: stepEvidenceMatches(
       ALARM.stepIds.queryApplicationLogs,
       'AxiosError: Request failed with status code 500\\b',
@@ -78,7 +75,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'one-trust-ssl-connection',
     description: 'Errore di connessione SSL nei log di interop-be-one-trust-notices',
-    priority: 90,
     condition: stepEvidenceMatches(
       ALARM.stepIds.queryApplicationLogs,
       'Error: There was an error establishing an SSL connection\\b',

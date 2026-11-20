@@ -3,7 +3,7 @@ import {
   sumCloudWatchLogsQueryStatistics,
 } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
-import { executeStep, type Step, type StepResult } from '../../../../engine/index.js';
+import { executeStep, type Step, type StepCoverage, type StepResult } from '../../../../engine/index.js';
 import {
   executeCloudWatchLogsQuery,
   resolveAwsAccountSelection,
@@ -13,14 +13,7 @@ import {
   type OperationalContext,
   type OperationalServiceName,
 } from '../../../../toolkits/send/index.js';
-import {
-  ERROR_QUERY,
-  ROW_LIMIT,
-  SPIDHUB_ACCOUNTS,
-  SPIDHUB_ALARM,
-  SPIDHUB_LOG_GROUP,
-  STREAM_QUERY,
-} from './alarmDefinition.js';
+import { ERROR_QUERY, SPIDHUB_ACCOUNTS, SPIDHUB_ALARM, SPIDHUB_LOG_GROUP, STREAM_QUERY } from './alarmDefinition.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 const RESPONDER_SIGNATURE =
@@ -81,17 +74,34 @@ export class QuerySpidHubDiagnosticsStep extends OperationalStep<Rows> implement
       let streamCount = 0;
       let responderCount = 0;
       let headersSentCount = 0;
+      // The ALB requests are correlated by hand: the diagnosis never sees them.
+      const coverage: StepCoverage[] = [
+        { source: 'ALB', complete: false, reason: 'manual', detail: 'correlazione delle richieste ALB manuale' },
+      ];
       for (const [queryKind, query] of [
         ['errors', ERROR_QUERY],
         ['streams', STREAM_QUERY],
       ] as const) {
-        const result = await executeCloudWatchLogsQuery(scopedContext, [SPIDHUB_LOG_GROUP], query, timeRange, {
-          ...(context.signal === undefined ? {} : { signal: context.signal }),
-          paginateResults: true,
-        });
-        if (result.rows.length >= ROW_LIMIT) {
-          throw new Error(`SPID Hub ${queryKind} reached ${String(ROW_LIMIT)} rows; narrow the time range`);
+        // Each read stands on its own: a failed one is unavailable, the other keeps its rows.
+        let result: Awaited<ReturnType<typeof executeCloudWatchLogsQuery>>;
+        try {
+          result = await executeCloudWatchLogsQuery(scopedContext, [SPIDHUB_LOG_GROUP], query, timeRange, {
+            ...(context.signal === undefined ? {} : { signal: context.signal }),
+            paginateResults: true,
+          });
+        } catch (error: unknown) {
+          if (context.signal?.aborted === true) throw error;
+          const detail = error instanceof Error ? error.message : String(error);
+          coverage.push({
+            source: `${SPIDHUB_LOG_GROUP} ${queryKind}`,
+            complete: false,
+            reason: 'unavailable',
+            detail,
+          });
+          continue;
         }
+        // A read at the row limit is declared saturated by the read itself.
+        coverage.push(...result.coverage);
         queries.push(result);
         if (queryKind === 'errors') {
           errorCount = result.rows.length;
@@ -109,10 +119,12 @@ export class QuerySpidHubDiagnosticsStep extends OperationalStep<Rows> implement
           ]),
         );
       }
+      if (queries.length === 0) throw new Error(coverage[coverage.length - 1]?.detail ?? 'SPID Hub logs unavailable');
       const diagnostics = queries.flatMap((query) => query.diagnostics?.cloudWatchLogs ?? []);
       return {
         success: true,
         output: rows,
+        coverage,
         vars: {
           spidHubDiagnostics: 'COLLECTED',
           spidHubAccountId: account.accountId,

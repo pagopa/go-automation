@@ -1,4 +1,7 @@
-import type { AWSCloudWatchLogsQueryService } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import type {
+  AWSCloudWatchLogsQueryResult,
+  AWSCloudWatchLogsQueryService,
+} from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { AwsAccountsDiagnosticFn } from './AwsAccountsDiagnosticFn.js';
 import { scrubAwsProfileNames } from './scrubAwsProfileNames.js';
@@ -49,13 +52,30 @@ export function withScrubbedErrors(
       if (!QUERY_METHODS.has(property)) return method.bind(target);
       return async (...args: unknown[]): Promise<unknown> => {
         try {
-          return await method.apply(target, args);
+          return scrubFailedReads(await method.apply(target, args), diagnose);
         } catch (error: unknown) {
           throw scrubError(error, diagnose);
         }
       };
     },
   });
+}
+
+/**
+ * A query result whose failed reads (kept with `partialResults`) carry scrubbed errors, like the thrown ones.
+ *
+ * @param result - Result of a query method
+ * @param diagnose - Local diagnostic sink
+ * @returns The same result, with scrubbed failed reads
+ */
+function scrubFailedReads(result: unknown, diagnose: AwsAccountsDiagnosticFn | undefined): unknown {
+  if (typeof result !== 'object' || result === null || !('failedReads' in result)) return result;
+  const { failedReads } = result as Pick<AWSCloudWatchLogsQueryResult, 'failedReads'>;
+  if (failedReads === undefined) return result;
+  return {
+    ...result,
+    failedReads: failedReads.map((read) => ({ ...read, error: scrubError(read.error, diagnose) as Error })),
+  };
 }
 
 function scrubError(error: unknown, diagnose: AwsAccountsDiagnosticFn | undefined): unknown {

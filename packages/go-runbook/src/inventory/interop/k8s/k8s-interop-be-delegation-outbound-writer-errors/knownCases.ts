@@ -5,7 +5,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'delegation-outbound-writer-kafka-heartbeat-unknown-member',
     description: 'Il coordinator Kafka non riconosce il consumer durante l’heartbeat',
-    priority: 100,
     condition: {
       type: 'and',
       conditions: [
@@ -51,7 +50,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'delegation-outbound-writer-kafka-connection-refused',
     description: 'Connessione al broker Kafka rifiutata per il delegation outbound writer',
-    priority: 120,
     condition: {
       type: 'and',
       conditions: [
@@ -90,7 +88,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'delegation-outbound-writer-kafka-wrong-coordinator',
     description: 'Il broker non è il coordinator corretto del consumer group del writer',
-    priority: 110,
     condition: {
       type: 'and',
       conditions: [
@@ -130,7 +127,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'delegation-outbound-writer-kafka-retries-exhausted',
     description: 'Consumer del delegation outbound writer in crash con retry Kafka esauriti',
-    priority: 200,
     condition: {
       type: 'and',
       conditions: [

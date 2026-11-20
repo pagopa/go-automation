@@ -6,7 +6,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'audit-signer-safe-storage-upload-500-503',
     description: 'Errore HTTP 500 o 503 durante l’upload del contenuto su Safe Storage',
-    priority: 100,
     condition: all(
       varEquals('interopEnvironment', 'prod'),
       stepEvidenceMatches(
@@ -46,7 +45,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'audit-signer-safe-storage-create-timeout',
     description: 'Timeout di 30 secondi nella creazione del file su Safe Storage',
-    priority: 90,
     condition: all(
       varEquals('interopEnvironment', 'prod'),
       stepEvidenceMatches(

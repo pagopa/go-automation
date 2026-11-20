@@ -17,7 +17,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'catalog-platformstate-writer-kafka-retries-exhausted',
     description: 'Consumer Kafka del catalog platformstate writer in crash con retry esauriti',
-    priority: 200,
     condition: writerEvidence(
       '(?:Crash:\\s*KafkaJSNumberOfRetriesExceeded\\b|Error Consumer crashed\\b[^\\n]*KafkaJSNumberOfRetriesExceeded\\b)',
     ),
@@ -36,7 +35,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'catalog-platformstate-writer-temporary-network-errors',
     description: 'Errore di connessione del catalog platformstate writer; temporaneità da verificare',
-    priority: 100,
     condition: writerEvidence(
       'ERROR\\s*-\\s*Connection\\s+(?:timeout\\b|error:\\s*(?:Client network socket disconnected before secure TLS connection was established\\b|connect ECONNREFUSED\\b))',
     ),
@@ -54,7 +52,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'catalog-platformstate-writer-kafka-coordinator-member-rejoin',
     description: 'Errore di membership o coordinator Kafka del catalog platformstate writer',
-    priority: 90,
     condition: writerEvidence(
       '(?:Response Heartbeat\\(key:\\s*12, version:\\s*3\\)\\s*-\\s*(?:The coordinator is not aware of this member\\b|This is not the correct coordinator for this group\\b)|The coordinator is not aware of this member,\\s*re-joining the group\\s*-\\s*The coordinator is not aware of this member\\b)',
     ),

@@ -1,6 +1,5 @@
 import type { FlowDirectiveString } from '../types/FlowDirective.js';
 import type { StepKind } from '../types/StepKind.js';
-import type { EarlyResolutionTrace } from './EarlyResolutionTrace.js';
 import type { StepDiagnostics } from './StepDiagnostics.js';
 
 /**
@@ -40,8 +39,6 @@ export interface StepTrace {
   readonly varsWritten: Readonly<Record<string, string>>;
   /** Optional service/runtime diagnostics captured outside business output */
   readonly diagnostics?: StepDiagnostics;
-  /** Flow directive produced: 'continue', 'stop', 'resolve', or target step ID for goTo */
+  /** Flow directive produced: 'continue', 'stop', or target step ID for goTo */
   readonly flowDirective: FlowDirectiveString;
-  /** Result of early resolution attempt when step signaled 'resolve' */
-  readonly earlyResolution?: EarlyResolutionTrace;
 }

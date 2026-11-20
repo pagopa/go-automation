@@ -10,7 +10,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'anpr-not-found-404',
     description: '[DOWNSTREAM ANPR] Risposta HTTP 404 dal servizio di notifica',
-    priority: 120,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
       '\\[DOWNSTREAM\\] Service ANPR returned errors=404 Not Found from POST ' +
@@ -37,7 +36,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'anpr-not-specified-error',
     description: '[DOWNSTREAM ANPR] Errore senza dettaglio restituito dal downstream',
-    priority: 110,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
       '\\[DOWNSTREAM\\] Service ANPR returned errors=<not specified>',
@@ -62,7 +60,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'anpr-bad-request-400',
     description: '[DOWNSTREAM ANPR] Risposta HTTP 400 dal servizio di notifica',
-    priority: 100,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
       '\\[DOWNSTREAM\\] Service ANPR returned errors=400 Bad Request from POST ' +

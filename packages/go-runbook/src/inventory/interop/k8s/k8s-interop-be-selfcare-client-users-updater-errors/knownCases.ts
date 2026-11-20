@@ -19,7 +19,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'selfcare-users-updater-kafka-broker-errors',
     description: 'Errore di comunicazione KafkaJS verso i broker Selfcare',
-    priority: 100,
     condition: {
       type: 'or',
       conditions: [
@@ -60,7 +59,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'selfcare-kafka-metadata-timeout',
     description: 'Timeout della richiesta Metadata al cluster Kafka',
-    priority: 120,
     condition: {
       type: 'and',
       conditions: [
@@ -83,7 +81,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'selfcare-kafka-connection-reset',
     description: 'Connessione Kafka interrotta con ECONNRESET',
-    priority: 110,
     condition: {
       type: 'and',
       conditions: [
@@ -103,7 +100,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'selfcare-kafka-tls-connection-interrupted',
     description: 'Connessione interrotta prima del completamento della connessione TLS',
-    priority: 130,
     condition: {
       type: 'and',
       conditions: [

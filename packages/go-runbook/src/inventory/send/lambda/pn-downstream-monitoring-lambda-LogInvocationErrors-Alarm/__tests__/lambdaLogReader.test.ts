@@ -41,6 +41,8 @@ const PROD: PortOptions = { environment: 'prod' };
  * Reader of one logical account: records the call, fails for `failingAccount`, and
  * returns per-account statistics so their merge is observable.
  */
+const INVOCATION_PREDICATE = /@requestId = '([^']+)'/;
+
 function accountReader(
   account: string,
   calls: QueryCall[],
@@ -69,7 +71,15 @@ function accountReader(
           { field: '@message', value: `${account} ERROR Invoke Error` },
         ],
       ];
-      const rows = rowsForQuery?.(account, query) ?? rowsByAccount?.get(account) ?? defaultRows;
+      const read = rowsForQuery?.(account, query) ?? rowsByAccount?.get(account) ?? defaultRows;
+      // An invocation read answers with rows of the first request id it asks for, as Logs Insights would.
+      const asked = INVOCATION_PREDICATE.exec(query)?.[1];
+      const rows =
+        asked === undefined
+          ? read
+          : read.map((row) =>
+              row.some(({ field }) => field === '@requestId') ? row : [...row, { field: '@requestId', value: asked }],
+            );
       const statistics = {
         bytesScanned: 1,
         recordsScanned: 1,
@@ -232,9 +242,12 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
           account === 'confinfo' ? saturatedRows : [],
         ),
       );
-      // The saturation message names the resolved account: the uat one, not production.
-      assert.strictEqual(result.success, false);
-      assert.match(result.error ?? '', new RegExp(`confinfo \\(${SEND_ACCOUNT_IDS.confinfoUat}\\) reached`));
+      // The saturation names the resolved account: the uat one, not production.
+      assert.strictEqual(result.success, true);
+      assert.match(
+        result.coverage?.[0]?.detail ?? '',
+        new RegExp(`confinfo \\(${SEND_ACCOUNT_IDS.confinfoUat}\\) reached`),
+      );
       assert.deepStrictEqual(
         calls.map(({ account }) => account),
         ['core', 'confinfo'],
@@ -257,11 +270,11 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
     assert.strictEqual(calls.length, 2);
   });
 
-  it('fails the error scan explicitly if either account reaches the row limit', async () => {
+  it('keeps the error scan of an account at the row limit, declaring that account saturated', async () => {
     const saturatedRows = Array.from({ length: 1000 }, () => [{ field: '@message', value: 'ERROR' }]);
-    for (const [accountId, source, expectedQueries] of [
-      [SEND_ACCOUNT_IDS.coreProd, 'core', 1],
-      [SEND_ACCOUNT_IDS.confinfoProd, 'confinfo', 2],
+    for (const [accountId, source] of [
+      [SEND_ACCOUNT_IDS.coreProd, 'core'],
+      [SEND_ACCOUNT_IDS.confinfoProd, 'confinfo'],
     ] as const) {
       const calls: QueryCall[] = [];
       const input = await context(PROD, calls, undefined, undefined, (account) =>
@@ -270,11 +283,18 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
 
       const result = await errorScan().execute(input);
 
-      assert.strictEqual(result.success, false);
-      assert.match(result.error ?? '', new RegExp(`${source} \\(${accountId}\\) reached the 1000-row limit`));
-      assert.match(result.error ?? '', /correlation requires a complete scan/);
-      assert.strictEqual(result.output, undefined);
-      assert.strictEqual(calls.length, expectedQueries);
+      assert.strictEqual(result.success, true);
+      assert.deepStrictEqual(
+        result.coverage?.map(({ source: coverageSource, reason }) => ({ source: coverageSource, reason })),
+        [{ source, reason: 'saturated' }],
+      );
+      assert.match(
+        result.coverage?.[0]?.detail ?? '',
+        new RegExp(`${source} \\(${accountId}\\) reached the 1000-row limit`),
+      );
+      assert.strictEqual(result.output?.length, 1000);
+      // The other account is read all the same.
+      assert.strictEqual(calls.length, 2);
     }
   });
 
@@ -391,7 +411,7 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
     );
   });
 
-  it('fails explicitly when a single invocation still reaches the row limit', async () => {
+  it('keeps the rows of a single invocation at the row limit, declaring its source saturated', async () => {
     const calls: QueryCall[] = [];
     const saturatedRows = Array.from({ length: 1000 }, () => [{ field: '@message', value: 'many rows' }]);
     const input = await context(PROD, calls, undefined, undefined, () => saturatedRows);
@@ -404,12 +424,13 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
 
     const result = await invocation().execute(input);
 
-    assert.strictEqual(result.success, false);
-    assert.match(result.error ?? '', /reached the 1000-row limit/);
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.output?.length, 1000);
+    assert.match(result.coverage?.[0]?.detail ?? '', /reached the 1000-row limit/);
     assert.strictEqual(calls.length, 1);
   });
 
-  it('fails explicitly when splitting would exceed the 100-query budget', async () => {
+  it('reads every initial batch, splits the saturated ones within a budget of 100 extra queries, then declares saturated', async () => {
     const calls: QueryCall[] = [];
     const saturatedRow = [{ field: '@message', value: 'many rows' }];
     const saturatedRows = Array.from({ length: 1000 }, () => saturatedRow);
@@ -426,9 +447,14 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
 
     const result = await invocation().execute(input);
 
-    assert.strictEqual(result.success, false);
-    assert.match(result.error ?? '', /query budget exceeded \(100 queries\)/);
-    assert.strictEqual(calls.length, 100);
+    // Three initial batches (25, 25, 10), then 100 split queries.
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(calls.length, 103);
+    assert.ok(
+      result.coverage?.some(
+        ({ reason, detail }) => reason === 'saturated' && /budget of 100 exhausted/.test(detail ?? ''),
+      ),
+    );
   });
 
   it('skips an account without a request ID and reports zero when no IDs are available', async () => {
@@ -462,12 +488,15 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
     assert.strictEqual(calls.length, 1);
   });
 
-  it('fails if either account cannot be read', async () => {
+  it('declares an account it cannot read unavailable and keeps the rows of the other', async () => {
     const calls: QueryCall[] = [];
     const input = await context(occurrenceIn(SEND_ACCOUNT_IDS.coreProd), calls, 'confinfo');
     const result = await errorScan().execute(input);
-    assert.strictEqual(result.success, false);
-    assert.match(result.error ?? '', /AccessDenied/);
+    assert.strictEqual(result.success, true);
+    assert.deepStrictEqual(
+      result.coverage?.map(({ source, reason, detail }) => ({ source, reason, detail })),
+      [{ source: 'confinfo', reason: 'unavailable', detail: 'AccessDenied' }],
+    );
     assert.strictEqual(calls.length, 2);
   });
 });

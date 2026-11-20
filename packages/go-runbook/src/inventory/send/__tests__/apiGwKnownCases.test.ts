@@ -9,6 +9,7 @@ import type { TestContextOptions } from '../../../__tests__/helpers/TestContextO
 const AUTHENTICATION = 'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/authentication';
 const ADE_TIMEOUT_VARS = {
   apiGwStatusCode: '504',
+  nationalRegistriesLookupState: 'queried',
   nationalRegistriesLogCount: '0',
   apiGwErrorMessage: 'Endpoint request timed out',
   apiGwHttpMethod: 'POST',

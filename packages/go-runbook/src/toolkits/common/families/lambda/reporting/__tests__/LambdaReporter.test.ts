@@ -85,14 +85,14 @@ describe('LambdaReporter', () => {
     ]);
   });
 
-  it('nests every matched case under the count, marking the primary one', () => {
+  it('nests every matched case under the count, in the order received', () => {
     const { lines, reporter: logger } = captureNarrative();
     new LambdaReporter(logger).stopSummary({ reason: 'known-case', matchedCaseIds: ['a', 'b', 'c'] });
 
     logger.flush();
     assert.deepStrictEqual(lines.slice(2), [
       '  \u2514\u2500 Casi noti rilevati: 3',
-      '     \u251c\u2500 a \u2190 primario',
+      '     \u251c\u2500 a',
       '     \u251c\u2500 b',
       '     \u2514\u2500 c',
     ]);
@@ -110,7 +110,7 @@ describe('LambdaReporter', () => {
     assert.deepStrictEqual(lines.slice(2), [
       '  \u251c\u2500 Categoria errore: timeout',
       '  \u2514\u2500 Casi noti rilevati: 2',
-      '     \u251c\u2500 a \u2190 primario',
+      '     \u251c\u2500 a',
       '     \u2514\u2500 b',
     ]);
   });

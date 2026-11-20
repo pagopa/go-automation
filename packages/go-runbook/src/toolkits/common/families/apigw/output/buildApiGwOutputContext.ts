@@ -20,6 +20,7 @@ import type {
   ApiGwServiceOutput,
 } from './ApiGwOutputContext.js';
 import { isApiGwRunbookContext } from './ApiGwRunbookContext.js';
+import { representativeContext } from '../../../output/resultContexts.js';
 
 const DEFAULT_MAX_RECENT_LOGS = 5;
 
@@ -32,17 +33,18 @@ export function buildApiGwOutputContext(
   result: RunbookExecutionResult,
   options: BuildApiGwOutputContextOptions = {},
 ): RunbookOutputContext | undefined {
+  const context = representativeContext(result);
   if (!isApiGwRunbookContext(runbook.runbookContext)) {
     return undefined;
   }
 
   const maxRecentLogs = options.maxRecentLogs ?? DEFAULT_MAX_RECENT_LOGS;
-  const vars = result.finalContext.vars;
-  const params = result.finalContext.params;
-  const accessLogRows = readResultFieldRows(result.finalContext.stepResults.get('query-api-gw-logs'));
+  const vars = context.vars;
+  const params = context.params;
+  const accessLogRows = readResultFieldRows(context.stepResults.get('query-api-gw-logs'));
   const apiGwRecentLogs = extractRecentLogLines(accessLogRows, maxRecentLogs);
   const serviceContexts = runbook.runbookContext.services.map((service) => {
-    const serviceRows = readResultFieldRows(result.finalContext.stepResults.get(`query-${service.name}`));
+    const serviceRows = readResultFieldRows(context.stepResults.get(`query-${service.name}`));
     return {
       name: service.name,
       logGroup: service.logGroup,

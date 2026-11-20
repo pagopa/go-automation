@@ -18,6 +18,7 @@ import {
 } from '../../../../../toolkits/send/accounts/__tests__/fixtures.js';
 import { DOWNSTREAM_MONITORING_LAMBDA_ALARM } from '../registration.js';
 import { buildRunbook } from '../runbook.js';
+import { treeNodeVars } from '../../../../../__tests__/helpers/treeNodeVars.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 /** Rows a logical account (`core`, `confinfo`) returns for a query. */
@@ -104,7 +105,7 @@ describe('pn-downstream-monitoring-lambda runbook', () => {
       ],
     );
     assert.deepStrictEqual(
-      result.matchedCases.map(({ id }) => id),
+      result.detections.map(({ knownCase }) => knownCase.id),
       ['downstream-monitoring-aws-slow-down'],
     );
     const invocationRows = result.finalContext.stepResults.get('query-lambda-invocation') as Rows;
@@ -138,9 +139,9 @@ describe('pn-downstream-monitoring-lambda runbook', () => {
     );
 
     assert.strictEqual(result.status, 'completed');
-    assert.strictEqual(result.finalContext.vars.get('lambdaErrorCategory'), 'out-of-memory');
+    assert.strictEqual(treeNodeVars(result).get('lambdaErrorCategory'), 'out-of-memory');
     assert.deepStrictEqual(
-      result.matchedCases.map(({ id }) => id),
+      result.detections.map(({ knownCase }) => knownCase.id),
       ['lambda-out-of-memory'],
     );
     assert.deepStrictEqual(

@@ -81,7 +81,6 @@ describe('assertCloudExecutableRunbook — HTTP requests', () => {
         {
           id: 'case',
           description: 'case',
-          priority: 1,
           condition: { type: 'exists', ref: 'vars.x' },
           action: { type: 'composite', actions: [{ type: 'update', step: request('PUT') }] },
         },

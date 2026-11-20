@@ -8,7 +8,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'app-io-backend-idp-keys-unavailable',
     description: '[DOWNSTREAM AppIO - backend IO] Timeout o errore nel recupero delle chiavi CIE/SPID',
-    priority: 110,
     condition: any(
       lambdaLogEvidenceMatches(
         'Errore nella chiamata idpKeys(?:CieGet|SpidTagGet):[\\s\\S]*Message:\\s*Timeout of 1000ms exceeded',
@@ -30,7 +29,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'missing-aws-lambda-trace-data-xray',
     description: 'Falso positivo X-Ray per dati di tracing Lambda mancanti',
-    priority: 90,
     condition: lambdaLogEvidenceMatches('Missing AWS Lambda trace data for X-Ray'),
     title: 'Missing AWS Lambda trace data for X-Ray',
     resolution: 'PN-20042',
@@ -57,7 +55,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'register-it-signature-validation-error',
     description: 'Errore noto di validazione firma per il provider SPID register.it',
-    priority: 89,
     condition: all(
       lambdaLogEvidenceMatches('SIGNATURE_VALIDATION_ERROR'),
       lambdaLogEvidenceMatches("entityID:\\s*'https://spid\\.register\\.it'"),

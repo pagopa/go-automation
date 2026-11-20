@@ -35,8 +35,9 @@ filter (@message like /ERROR/ or stream = "stderr" or @message like /(?i)Respons
 /**
  * Aggregated warning scan of a service behind an INTEROP API Gateway.
  *
- * Groups by error message and keeps one CID and one timestamp per distinct
- * message, so a burst of the same warning reads as a single row with a count.
+ * Groups by error message and keeps one CID, the first and the latest time per
+ * distinct message, so a burst of the same warning reads as a single row with a
+ * count and its interval. The most recent messages come first.
  *
  * @param podApp - k8s pod app whose application logs are scanned
  * @param excludedMessagePatterns - Literal message markers of non-causal warnings to drop (P18)
@@ -55,9 +56,9 @@ fields @timestamp, @message
 | filter pod_app like /${escapedPodApp}/
 | filter @message like /WARN/${exclusions}
 | parse @message /\\[CID=(?<cidValue>[^\\]]*)\\](?:\\s*\\[SPANID=[^\\]]*\\])?\\s*(?<errorMessage>.*?)","pod_app":/
-| stats count(*) as count, latest(@timestamp) as latestTimestamp, latest(cidValue) as cid by errorMessage
-| display latestTimestamp, count, cid, errorMessage
-| sort count desc
+| stats count(*) as count, earliest(@timestamp) as firstTimestamp, latest(@timestamp) as latestTimestamp, latest(cidValue) as cid by errorMessage
+| display firstTimestamp, latestTimestamp, count, cid, errorMessage
+| sort latestTimestamp desc
 | limit ${String(INTEROP_API_GW_APPLICATION_QUERY_LIMIT)}
 `.trim();
 }

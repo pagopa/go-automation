@@ -12,7 +12,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'emd-submit-message-unauthorized-401',
     description: '[DOWNSTREAM EMD] Errore di autorizzazione durante submitMessage (HTTP 401)',
-    priority: 130,
     condition: stepEvidenceMatches(
       'query-pn-emd-integration',
       '\\[DOWNSTREAM\\] Service submitMessage returned errors=401 Unauthorized from POST ' +
@@ -43,7 +42,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'emd-submit-message-internal-server-error-500',
     description: '[DOWNSTREAM EMD] Errore interno durante submitMessage (HTTP 500)',
-    priority: 120,
     condition: stepEvidenceMatches(
       'query-pn-emd-integration',
       '\\[DOWNSTREAM\\] Service submitMessage returned errors=500 Internal Server Error from POST ' +
@@ -70,7 +68,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'emd-retrieval-payload-not-found-or-expired-404',
     description: '[DOWNSTREAM EMD] Retrieval payload non trovato o scaduto (HTTP 404)',
-    priority: 110,
     condition: stepEvidenceMatches(
       'query-pn-emd-integration',
       '\\[DOWNSTREAM\\] Service getRetrieval returned errors=404 Not Found from GET ' +
@@ -113,7 +110,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'emd-submit-message-too-many-requests-429-uat',
     description: '[DOWNSTREAM EMD] Rate limiting durante submitMessage in UAT (HTTP 429)',
-    priority: 100,
     condition: stepEvidenceMatches(
       'query-pn-emd-integration',
       '\\[DOWNSTREAM\\] Service submitMessage returned errors=429 Too Many Requests from POST ' +

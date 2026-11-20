@@ -1,22 +1,42 @@
 import type {
+  AWSCloudWatchLogsQueryExecution,
   AWSCloudWatchLogsQueryOptions,
   AWSCloudWatchLogsQueryResult,
 } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { formatBytes } from '@pagopa/go-common/utils';
 
 import type { TimeRange } from '../../../time/TimeRange.js';
 import type { OperationalContext } from '../../../services/OperationalContext.js';
-import type { StepDiagnostics } from '../../../../../engine/tracing/StepDiagnostics.js';
 import type { CloudWatchLogsStepDiagnostics } from '../../../telemetry/CloudWatchLogsStepDiagnostics.js';
+import { queryCoverage, queryRowLimit } from './queryCoverage.js';
+import type { ExecutedCloudWatchLogsQuery } from './ExecutedCloudWatchLogsQuery.js';
 
-type CloudWatchLogsRows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
-
-export interface ExecutedCloudWatchLogsQuery {
-  readonly rows: CloudWatchLogsRows;
-  readonly diagnostics?: StepDiagnostics;
-}
-
+/**
+ * Runs a Logs Insights read of a runbook step through the context's reader, with partial results when the context's
+ * read policy is `partial` (an alarm analysis); with the `strict` policy of a procedure a failed read throws.
+ *
+ * - The rows of the physical queries and pages that answered are returned, with their diagnostics.
+ * - What was not read becomes coverage: a query at its row limit or with unread pages is `saturated`, a failed page or
+ *   a read that failed after every candidate is `unavailable` (see `queryCoverage`).
+ * - When no read answered at all, the error of the first failure is thrown, as without partial results: a step that
+ *   could not read anything still fails.
+ * - A reader without statistics returns its rows; reaching the query limit is then `saturated`.
+ *
+ * Cancellation and configuration errors of the target always throw.
+ *
+ * @param context - Context of the step, whose `cloudWatchLogs` service runs the read
+ * @param logGroups - Log groups to read
+ * @param query - Logs Insights query
+ * @param timeRange - Time range of the read
+ * @param options - Options of the read; `partialResults` follows the read policy of the context unless the caller sets it
+ * @returns The rows, the diagnostics and the coverage of the read
+ * @throws Error when no read answered, or on cancellation and target configuration errors
+ *
+ * @example
+ * ```typescript
+ * const { rows, coverage } = await executeCloudWatchLogsQuery(context, ['/aws/ecs/pn-delivery'], query, range, {});
+ * ```
+ */
 export async function executeCloudWatchLogsQuery(
   context: OperationalContext,
   logGroups: ReadonlyArray<string>,
@@ -27,13 +47,40 @@ export async function executeCloudWatchLogsQuery(
   const service = context.services.cloudWatchLogs;
 
   if (service.queryWithStatistics !== undefined) {
-    const result = await service.queryWithStatistics(logGroups, query, timeRange, options);
+    // Partial reads only where the execution keeps partial evidence (an alarm analysis); a procedure reads strictly.
+    const partialResults = context.readPolicy === 'partial';
+    const result = await service.queryWithStatistics(logGroups, query, timeRange, { partialResults, ...options });
+    const failedReads = result.failedReads ?? [];
+    // Nothing answered: the read failed as a whole, exactly as without partial results.
+    const firstFailure = failedReads[0];
+    if (result.queryExecutions.length === 0 && firstFailure !== undefined) throw firstFailure.error;
     const cloudWatchLogs = toCloudWatchLogsDiagnostics(result);
     logQueryStatistics(context, cloudWatchLogs);
-    return { rows: result.rows, diagnostics: { cloudWatchLogs } };
+    return {
+      rows: result.rows,
+      diagnostics: { cloudWatchLogs },
+      coverage: queryCoverage(query, withRowCounts(result), failedReads),
+    };
   }
 
-  return { rows: await service.query(logGroups, query, timeRange, options) };
+  const rows = await service.query(logGroups, query, timeRange, options);
+  return {
+    rows,
+    coverage:
+      rows.length >= queryRowLimit(query)
+        ? [{ source: logGroups.join(', '), complete: false, reason: 'saturated' }]
+        : [],
+  };
+}
+
+/**
+ * The executions of a result, each with its row count: a reader that does not report it per query, with a
+ * single execution, returned all the rows from that one.
+ */
+function withRowCounts(result: AWSCloudWatchLogsQueryResult): ReadonlyArray<AWSCloudWatchLogsQueryExecution> {
+  const [only, ...others] = result.queryExecutions;
+  if (only === undefined || others.length > 0 || only.rowsReturned !== undefined) return result.queryExecutions;
+  return [{ ...only, rowsReturned: result.rows.length }];
 }
 
 function toCloudWatchLogsDiagnostics(result: AWSCloudWatchLogsQueryResult): CloudWatchLogsStepDiagnostics {

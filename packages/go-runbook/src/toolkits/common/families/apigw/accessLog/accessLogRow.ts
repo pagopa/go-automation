@@ -85,28 +85,3 @@ export function sanitizeApiGwField(raw: string | undefined, schema: AccessLogSch
   if (schema.notApplicableSentinels.includes(trimmed)) return '';
   return trimmed;
 }
-
-/**
- * Builds the canonical `apiGw*` vars from an AccessLog row.
- *
- * Includes `apiGwErrorCount` and `apiGwStatusCode` plus every field
- * declared by the schema's `fieldToVar` mapping (e.g. `errorMessage` →
- * `apiGwErrorMessage`, `httpMethod` → `apiGwHttpMethod`).
- */
-export function buildApiGwVars(
-  row: ReadonlyArray<GOLogsInsightsResultField>,
-  errorCount: number,
-  schema: AccessLogSchema,
-): Record<string, string> {
-  const vars: Record<string, string> = {
-    apiGwErrorCount: String(errorCount),
-    apiGwStatusCode: pickPrimaryStatusCode(row, schema),
-  };
-  for (const [field, contextVar] of schema.fieldToVar) {
-    const raw = readRowField(row, field);
-    if (raw !== undefined) {
-      vars[contextVar] = raw;
-    }
-  }
-  return vars;
-}

@@ -6,7 +6,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'delegation-readmodel-writer-sql-kafka-coordinator-member-rejoin',
     description: 'Il coordinator Kafka non riconosce il consumer del delegation readmodel writer SQL',
-    priority: 100,
     // La pagina censisce Prod e Att e attribuisce il log al writer SQL.
     // Il tracker comprende altri servizi: il riconoscimento usa la query applicativa filtrata sul writer.
     condition: all(

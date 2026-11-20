@@ -1,5 +1,5 @@
 import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import type { RunbookContext, Step, StepResult } from '../../../../engine/index.js';
+import { isStepEvidenceComplete, type RunbookContext, type Step, type StepResult } from '../../../../engine/index.js';
 import {
   INTEROP_API_GW_APPLICATION_QUERY_LIMIT,
   INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT,
@@ -109,7 +109,11 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
     }
     // Reaching the query cap means additional failures may have been omitted. Without
     // a total count, only a result strictly below the cap proves that the evidence is complete.
-    const applicationEvidenceComplete = application.length < INTEROP_API_GW_APPLICATION_QUERY_LIMIT;
+    // A saturated or failed read (rows at the cap, unread pages, a CID left unread) may hide another fallback.
+    const applicationEvidenceComplete =
+      application.length < INTEROP_API_GW_APPLICATION_QUERY_LIMIT &&
+      isStepEvidenceComplete(context, AUTH_SERVER_5XX_ALARM.stepIds.queryApplicationLogs);
+    const trackerEvidenceComplete = isStepEvidenceComplete(context, AUTH_SERVER_5XX_ALARM.stepIds.queryCidTracker);
     let apiGatewayErrorCount = 0;
     let apiGatewayIntegrationErrorCount = 0;
     let apiGatewayCountsValid = true;
@@ -122,12 +126,26 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
       }
     }
     const apiGatewayEvidenceComplete =
-      apiGateway.length > 0 && apiGateway.length < INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT;
+      apiGateway.length > 0 &&
+      apiGateway.length < INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT &&
+      isStepEvidenceComplete(context, AUTH_SERVER_5XX_ALARM.stepIds.queryApiGwAggregates);
     const sequenceConfirmed =
       applicationEvidenceComplete &&
+      trackerEvidenceComplete &&
       confirmedCids.length > 0 &&
       unresolvedCids.length === 0 &&
       uncorrelatedErrors === 0;
+    // Derived from evidence: `unknown` when that evidence is incomplete, never a certain `false`.
+    // A certain `false` (no fallback sequence) lets the WAF case close the alarm: every read must be complete,
+    // the API Gateway aggregates included.
+    const gatewayReadComplete =
+      apiGateway.length < INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT &&
+      isStepEvidenceComplete(context, AUTH_SERVER_5XX_ALARM.stepIds.queryApiGwAggregates);
+    const sequenceState = sequenceConfirmed
+      ? 'true'
+      : applicationEvidenceComplete && trackerEvidenceComplete && gatewayReadComplete
+        ? 'false'
+        : 'unknown';
     // Aggregates do not expose the application CID: access-log request counts cannot be
     // compared with deduplicated application CIDs because retries may emit multiple 5xx.
     // Keep the evidence fail-closed on truncation/malformed counts and reject an explicit
@@ -164,7 +182,7 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
       success: true,
       output,
       vars: {
-        [AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR]: String(sequenceConfirmed),
+        [AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR]: sequenceState,
         [AUDIT_FALLBACK_CONFIRMED_VAR]: String(confirmed),
       },
     };

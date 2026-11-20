@@ -6,8 +6,7 @@ pubblicandoli su Slack.
 
 Pattern wrapper canonico del repo: importa `scriptMetadata`,
 `scriptParameters` e l'hook `prepareConfig` da `send-monitor-athena-query/config`,
-e anche `main()` dallo script — a differenza di `go-ExecuteRunbookLambda`,
-che si ferma a metadata e parametri.
+e anche `main()` dallo script.
 
 ## Responsabilità
 

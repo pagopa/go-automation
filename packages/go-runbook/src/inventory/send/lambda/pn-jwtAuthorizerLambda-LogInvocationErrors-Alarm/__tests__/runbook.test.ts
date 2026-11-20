@@ -8,6 +8,7 @@ import { logRow } from '../../../../../__tests__/helpers/logRow.js';
 import type { RunbookLogsExecution } from '../../../../../__tests__/helpers/RunbookLogsExecution.js';
 import { LAMBDA_FUNCTION } from '../knownServices.js';
 import { buildRunbook } from '../runbook.js';
+import { treeNodeVars } from '../../../../../__tests__/helpers/treeNodeVars.js';
 
 const REQUEST_ID = '11111111-2222-4333-8444-555555555555';
 const IAM_DENIED =
@@ -65,10 +66,11 @@ describe('JWT authorizer Lambda runbook', () => {
     for (const [id, message] of FIXTURES) {
       const { result, draft, queries } = await execute([message], [report]);
       assert.deepStrictEqual(
-        result.matchedCases.map((c) => c.id),
+        result.detections.map((c) => c.knownCase.id),
         [id],
       );
-      assert.strictEqual(result.stepsExecuted, 5, id);
+      // The window (prepare, errors, invocations) and the steps of the invocation (parse, analysis, descent).
+      assert.strictEqual(result.stepsExecuted, 6, id);
       assert.strictEqual(draft?.kind, 'KNOWN_CASE');
       assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
       assert.strictEqual(
@@ -78,7 +80,7 @@ describe('JWT authorizer Lambda runbook', () => {
       assert.strictEqual(queries.length, 2);
       assert.ok(queries[1]?.query.includes(REQUEST_ID));
       assert.ok(queries.every(({ resolutionMode }) => resolutionMode === 'search-configured-profiles'));
-      assert.strictEqual(result.finalContext.vars.get('lambdaRequestId'), REQUEST_ID);
+      assert.strictEqual(treeNodeVars(result).get('lambdaRequestId'), REQUEST_ID);
     }
   });
 
@@ -86,7 +88,7 @@ describe('JWT authorizer Lambda runbook', () => {
     const { result, draft, queries } = await execute(['Unrecognized authorizer error'], [KMS_INVALID]);
     assert.strictEqual(queries.length, 2);
     assert.deepStrictEqual(
-      result.matchedCases.map((c) => c.id),
+      result.detections.map((c) => c.knownCase.id),
       ['jwt-kms-key-not-found'],
     );
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
@@ -96,7 +98,7 @@ describe('JWT authorizer Lambda runbook', () => {
   it('can classify an error without a requestId while leaving the invocation evidence absent', async () => {
     const { result, draft, queries } = await execute([KMS_INVALID], [], '');
     assert.strictEqual(queries.length, 1);
-    assert.strictEqual(result.finalContext.vars.get('lambdaInvocationLogCount'), '0');
+    assert.strictEqual(treeNodeVars(result).get('lambdaInvocationLogCount'), '0');
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
   });
@@ -104,11 +106,11 @@ describe('JWT authorizer Lambda runbook', () => {
   it('does not promote a disconnect error into evidence that the Redis cluster was down', async () => {
     const { result } = await execute([DISCONNECT]);
     assert.deepStrictEqual(
-      result.matchedCases.map((c) => c.id),
+      result.detections.map((c) => c.knownCase.id),
       ['jwt-redis-disconnect-null'],
     );
     const both = await execute([DISCONNECT, HASH_SLOT]);
-    assert.strictEqual(both.result.matchedCases[0]?.id, 'jwt-redis-cluster-down');
+    assert.strictEqual(both.result.detections[0]?.knownCase.id, 'jwt-redis-cluster-down');
   });
 
   it('keeps empty logs, unrelated errors and undocumented runtime failures unknown', async () => {
@@ -119,7 +121,7 @@ describe('JWT authorizer Lambda runbook', () => {
       ['Runtime.OutOfMemory'],
     ]) {
       const { result, draft } = await execute(messages);
-      assert.deepStrictEqual(result.matchedCases, []);
+      assert.deepStrictEqual(result.detections, []);
       assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
     }
   });

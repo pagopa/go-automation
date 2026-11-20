@@ -6,7 +6,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'agreement-readmodel-writer-sql-kafka-coordinator-member-rejoin',
     description: 'Rejoin del consumer Kafka dell’agreement readmodel writer SQL; causa da verificare',
-    priority: 100,
     // La pagina censisce solo Prod. Il commento 293001 di PIN-7325 riporta il writer senza CID.
     // Il tracker comprende altri servizi: il caso usa solo le evidenze applicative del writer.
     condition: all(

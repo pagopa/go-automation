@@ -102,14 +102,21 @@ export class QueryInteropPodContextStep extends OperationalStep<Rows> implements
         },
       );
       const unreturned = (result.diagnostics?.cloudWatchLogs?.statistics.recordsMatched ?? 0) > result.rows.length;
-      if (result.rows.length >= ROW_LIMIT || (this.completeness === 'row-limit-or-unreturned-matches' && unreturned)) {
-        throw new Error(this.incompleteContextError);
-      }
+      const truncated =
+        result.rows.length >= ROW_LIMIT || (this.completeness === 'row-limit-or-unreturned-matches' && unreturned);
+      // A truncated context keeps the rows it read and says it is incomplete, instead of failing the run.
+      const coverage = truncated
+        ? [
+            ...result.coverage.filter(({ reason }) => reason !== 'saturated'),
+            { source: logGroup, complete: false, reason: 'saturated' as const, detail: this.incompleteContextError },
+          ]
+        : result.coverage;
       return {
         success: true,
         output: result.rows,
         vars: { [this.countVar]: String(result.rows.length) },
         ...(result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics }),
+        ...(coverage.length > 0 ? { coverage } : {}),
       };
     });
   }

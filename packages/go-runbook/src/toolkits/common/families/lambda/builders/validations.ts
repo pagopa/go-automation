@@ -7,8 +7,9 @@ import {
   failAlarmConfig,
   type AlarmConfigValidationContext,
 } from '../../../builders/alarmConfigValidation.js';
+import { REQUEST_ID_FILTER_PLACEHOLDER } from '../helpers/lambdaRequestIdFilter.js';
 
-const REQUEST_ID_PLACEHOLDER = '{{vars.lambdaRequestId}}';
+const REQUEST_ID_PLACEHOLDER = REQUEST_ID_FILTER_PLACEHOLDER;
 
 function context(config: LambdaAlarmConfig): AlarmConfigValidationContext {
   return { builderName: 'createLambdaAlarmRunbook', runbookId: config.id };
@@ -28,6 +29,7 @@ function computeWiredStepIds(config: LambdaAlarmConfig): ReadonlySet<string> {
     'parse-lambda-errors',
     'query-lambda-invocation',
     'analyze-lambda-invocation',
+    'descend-lambda',
   ]);
   for (const hook of config.hooks ?? []) {
     ids.add(hook.step.id);

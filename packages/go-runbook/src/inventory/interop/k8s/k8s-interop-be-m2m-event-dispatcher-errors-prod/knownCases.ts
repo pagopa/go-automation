@@ -13,7 +13,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'm2m-consumer-crash',
     description: 'Crash del consumer Kafka dopo esaurimento dei tentativi',
-    priority: 120,
     condition: stepEvidenceMatches(
       M2M_EVENT_DISPATCHER_ALARM.stepIds.queryApplicationLogs,
       'Crash: KafkaJSNumberOfRetriesExceeded|Error Consumer crashed',
@@ -31,7 +30,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'm2m-connection-refused',
     description: 'Connessione al broker Kafka rifiutata',
-    priority: 110,
     condition: stepEvidenceMatches(
       M2M_EVENT_DISPATCHER_ALARM.stepIds.queryApplicationLogs,
       'Connection error: connect ECONNREFUSED',
@@ -49,7 +47,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'm2m-wrong-coordinator',
     description: 'Coordinator Kafka non corretto per il consumer group',
-    priority: 100,
     condition: stepEvidenceMatches(
       M2M_EVENT_DISPATCHER_ALARM.stepIds.queryApplicationLogs,
       'This is not the correct coordinator for this group',
@@ -67,7 +64,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'm2m-member-rejoin',
     description: 'Il coordinator Kafka non riconosce il member del consumer group',
-    priority: 90,
     condition: stepEvidenceMatches(
       M2M_EVENT_DISPATCHER_ALARM.stepIds.queryApplicationLogs,
       'The coordinator is not aware of this member',
@@ -85,7 +81,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'm2m-connection-timeout-tls',
     description: 'Timeout di connessione o interruzione prima della negoziazione TLS',
-    priority: 80,
     condition: stepEvidenceMatches(
       M2M_EVENT_DISPATCHER_ALARM.stepIds.queryApplicationLogs,
       'Connection timeout|Connection error: Client network socket disconnected before secure TLS connection was established',

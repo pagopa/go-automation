@@ -108,6 +108,18 @@ export interface AssertStepConfig {
 }
 ```
 
+### `BRANCH_OUTCOME_VAR` (value)
+
+```ts
+const BRANCH_OUTCOME_VAR = "branchOutcome";
+```
+
+### `BranchOutcome` (type)
+
+```ts
+export type BranchOutcome = 'diagnosed' | 'incomplete' | 'undiagnosed';
+```
+
 ### `CaseAction` (type)
 
 ```ts
@@ -126,10 +138,14 @@ export type CaseActionType = 'log' | 'notify' | 'update' | 'escalate' | 'composi
 export interface CaseEvaluationTrace {
     readonly caseId: string;
     readonly description: string;
-    readonly priority: number;
     readonly condition: Condition;
     readonly matched: boolean;
     readonly resolvedValues: Readonly<Record<string, unknown>>;
+    readonly firstSeenAt?: string;
+    readonly lastSeenAt?: string;
+    readonly evidenceRows?: number;
+    readonly supersededBy?: string;
+    readonly nodeId?: string;
 }
 ```
 
@@ -229,6 +245,7 @@ export declare class ConditionEvaluator {
     evaluate(condition: Condition, context: RunbookContext): boolean;
     evaluate(condition: Condition, context: RunbookContext, options: ConditionEvaluationOptions): ConditionEvaluationDetails;
     private evaluateAndCollect;
+    private recordPredicate;
     private evaluateExists;
     private evaluateCompare;
     private evaluatePattern;
@@ -250,6 +267,20 @@ export declare class ConsoleRunbookReporter implements RunbookReporter {
 }
 ```
 
+### `CoverageEntry` (type)
+
+```ts
+export interface CoverageEntry extends StepCoverage {
+    readonly stepId: string;
+}
+```
+
+### `CoverageReason` (type)
+
+```ts
+export type CoverageReason = 'saturated' | 'unavailable' | 'skipped' | 'manual';
+```
+
 ### `createInitialContext` (value)
 
 ```ts
@@ -262,13 +293,37 @@ export declare function createInitialContext<TServices extends WorkflowServices>
 export declare function createTestWorkflowServices(): WorkflowServices;
 ```
 
-### `EarlyResolutionTrace` (type)
+### `DescendRequest` (type)
 
 ```ts
-export interface EarlyResolutionTrace {
-    readonly resolved: boolean;
-    readonly matchedCaseIds: ReadonlyArray<string>;
-    readonly evaluations: ReadonlyArray<CaseEvaluationTrace>;
+export interface DescendRequest {
+    readonly target: string;
+    readonly identifier: string;
+    readonly kind: EvidenceIdentifierKind;
+    readonly via?: ReadonlyArray<string>;
+}
+```
+
+### `ErrorChainInterruptionReason` (type)
+
+```ts
+export type ErrorChainInterruptionReason = 'skipped' | 'unavailable' | 'incomplete' | 'failed' | 'cycle';
+```
+
+### `ErrorNodeSpec` (type)
+
+```ts
+export interface ErrorNodeSpec {
+    readonly key: string;
+    readonly label: string;
+    readonly occurredAt?: string;
+    readonly correlation?: Readonly<Record<string, string>>;
+    readonly vars?: Readonly<Record<string, string>>;
+    readonly scopedOutputs: Readonly<Record<string, ReadonlyArray<unknown>>>;
+    readonly contextOutputs?: Readonly<Record<string, ReadonlyArray<unknown>>>;
+    readonly siblingOutputs?: Readonly<Record<string, ReadonlyArray<unknown>>>;
+    readonly rowIdentities?: ReadonlyArray<string>;
+    readonly incompleteEvidence?: boolean;
 }
 ```
 
@@ -280,6 +335,37 @@ export interface ErrorRecoveryInfo {
     readonly originalError: string;
     readonly failedAt: Date;
     readonly skipped: true;
+}
+```
+
+### `ErrorTreeDefinition` (type)
+
+```ts
+export interface ErrorTreeDefinition {
+    readonly root: TreeLevel;
+    readonly levels: ReadonlyArray<TreeLevel>;
+}
+```
+
+### `ErrorTreeNode` (type)
+
+```ts
+export interface ErrorTreeNode {
+    readonly id: string;
+    readonly parentId?: string;
+    readonly level: number;
+    readonly target: string;
+    readonly key: string;
+    readonly label: string;
+    readonly occurredAt?: string;
+    readonly correlation: Readonly<Record<string, string>>;
+    readonly via?: ReadonlyArray<string>;
+    readonly descents: ReadonlyArray<TreeDescent>;
+    readonly status: 'ok' | 'failed';
+    readonly failure?: string;
+    readonly detections: ReadonlyArray<KnownCaseDetection>;
+    readonly branchOutcome: BranchOutcome;
+    readonly incompleteEvidence?: boolean;
 }
 ```
 
@@ -298,6 +384,44 @@ export interface EscalateAction {
     readonly severity: 'low' | 'medium' | 'high' | 'critical';
     readonly message: string;
 }
+```
+
+### `EvidenceIdentifier` (type)
+
+```ts
+export interface EvidenceIdentifier {
+    readonly kind: EvidenceIdentifierKind;
+    readonly value: string;
+}
+```
+
+### `EvidenceIdentifierKind` (type)
+
+```ts
+export type EvidenceIdentifierKind = 'traceId' | 'requestId' | 'fallbackUuid' | 'cid';
+```
+
+### `EvidenceTime` (type)
+
+```ts
+export interface EvidenceTime {
+    readonly first?: number;
+    readonly last?: number;
+    readonly weight: number;
+    readonly identifiers?: ReadonlyArray<TimedEvidenceIdentifier>;
+}
+```
+
+### `EvidenceTimeReaderFn` (type)
+
+```ts
+export type EvidenceTimeReaderFn = (element: unknown) => EvidenceTime | undefined;
+```
+
+### `exclusionVar` (value)
+
+```ts
+export declare function exclusionVar(prefix: string, name: string): string;
 ```
 
 ### `executeStep` (value)
@@ -361,8 +485,6 @@ export interface ExecutionSummary {
     readonly stepsRecovered: number;
     readonly stepsSkipped: number;
     readonly outcome: string;
-    readonly earlyResolution?: boolean;
-    readonly resolvedAtStep?: string;
 }
 ```
 
@@ -428,7 +550,7 @@ export declare class ExtractFieldStep implements Step<string> {
 ### `FlowDirective` (type)
 
 ```ts
-export type FlowDirective = 'continue' | 'stop' | 'resolve' | {
+export type FlowDirective = 'continue' | 'stop' | {
     readonly goTo: string;
 };
 ```
@@ -447,6 +569,14 @@ export declare class GoToGraphAnalyzer {
 export interface GoToReference {
     readonly sourceId: string;
     readonly targetId: string;
+}
+```
+
+### `IdentifierObservation` (type)
+
+```ts
+export interface IdentifierObservation extends EvidenceIdentifier {
+    readonly observedAt?: string;
 }
 ```
 
@@ -511,6 +641,12 @@ export declare function interpolatePlaceholders(template: string, values: Templa
 export declare function interpolatePlaceholders(template: string, values: TemplatePlaceholderValues, options?: InterpolatePlaceholdersOptions): string;
 ```
 
+### `isStepEvidenceComplete` (value)
+
+```ts
+export declare function isStepEvidenceComplete(context: RunbookContext, stepId: string): boolean;
+```
+
 ### `KnownCase` (type)
 
 ```ts
@@ -519,7 +655,19 @@ export interface KnownCase extends KnownCaseExtensions {
     readonly description: string;
     readonly condition: Condition;
     readonly action: CaseAction;
-    readonly priority: number;
+    readonly supersedes?: ReadonlyArray<string>;
+}
+```
+
+### `KnownCaseDetection` (type)
+
+```ts
+export interface KnownCaseDetection {
+    readonly knownCase: KnownCase;
+    readonly firstSeenAt?: string;
+    readonly lastSeenAt?: string;
+    readonly evidenceRows: number;
+    readonly observations: ReadonlyArray<IdentifierObservation>;
 }
 ```
 
@@ -569,6 +717,18 @@ export interface LogActionValues {
 }
 ```
 
+### `logCountAllVisitsVar` (value)
+
+```ts
+export declare function logCountAllVisitsVar(prefix: string): string;
+```
+
+### `logCountVar` (value)
+
+```ts
+export declare function logCountVar(prefix: string): string;
+```
+
 ### `LogEntry` (type)
 
 ```ts
@@ -609,6 +769,12 @@ export interface LogStepConfig {
     readonly level: LogLevel;
     readonly message: string;
 }
+```
+
+### `lookupStateVar` (value)
+
+```ts
+export declare function lookupStateVar(prefix: string): string;
 ```
 
 ### `MapArrayConfig` (type)
@@ -679,6 +845,17 @@ export interface NotifyAction {
 }
 ```
 
+### `ObservedErrors` (type)
+
+```ts
+export interface ObservedErrors {
+    readonly unit: 'request' | 'invocation' | 'errorRow';
+    readonly observed: number;
+    readonly lowerBound?: boolean;
+    readonly examined: number;
+}
+```
+
 ### `OrCondition` (type)
 
 ```ts
@@ -735,6 +912,12 @@ export interface PipelineHook<TAnchor extends string> extends StepDescriptor {
 
 ```ts
 const PLAIN_LOG_ACTION_RENDERER: LogActionRenderer;
+```
+
+### `readStepLookupState` (value)
+
+```ts
+export declare function readStepLookupState(context: RunbookContext, stepId: string): StepLookupState;
 ```
 
 ### `readStepOutput` (value)
@@ -795,6 +978,7 @@ export interface Runbook extends RunbookExtensions {
     readonly knownCases: ReadonlyArray<KnownCase>;
     readonly fallbackAction: CaseAction;
     readonly maxIterations?: number;
+    readonly tree?: ErrorTreeDefinition;
 }
 ```
 
@@ -806,6 +990,7 @@ export declare class RunbookBuilder {
     private meta?;
     protected readonly stepDescriptors: StepDescriptor[];
     private readonly cases;
+    private treeDefinition;
     private fallbackAction?;
     private iterationsLimit?;
     protected constructor(id: string);
@@ -816,6 +1001,8 @@ export declare class RunbookBuilder {
     protected buildExtensions(): RunbookExtensions;
     protected validateExtensions(): ReadonlyArray<ValidationErrorEntry>;
     wiredStepIds(): ReadonlySet<string>;
+    errorTree(tree: ErrorTreeDefinition): this;
+    private treeStepIds;
     ifBranch(config: IfBranchConfig): this;
     switchBranch(config: SwitchBranchConfig): this;
     knownCase(knownCase: KnownCase): this;
@@ -841,6 +1028,9 @@ export interface RunbookContext<TServices extends WorkflowServices = WorkflowSer
     readonly recoveredErrors: ReadonlyArray<ErrorRecoveryInfo>;
     readonly signal?: AbortSignal;
     readonly regexCache?: GORegexCache;
+    readonly coverage?: ReadonlyArray<CoverageEntry>;
+    readonly readPolicy?: 'partial' | 'strict';
+    readonly sharedReads?: Map<string, Promise<unknown>>;
 }
 ```
 
@@ -858,9 +1048,11 @@ export declare class RunbookEngine {
     private executeStepDescriptor;
     private captureStepInput;
     private flowDirectiveToString;
-    private evaluateKnownCasesCore;
-    private evaluateKnownCasesForEarlyResolution;
-    private matchKnownCases;
+    private detectKnownCases;
+    private investigateTree;
+    private runNodeSteps;
+    private logTreeDetections;
+    private readEvidence;
 }
 ```
 
@@ -870,6 +1062,7 @@ export declare class RunbookEngine {
 export interface RunbookEngineOptions {
     readonly serviceCapabilities?: ServiceCapabilityCheck;
     readonly logActionRenderer?: LogActionRenderer;
+    readonly evidenceTime?: EvidenceTimeReaderFn;
 }
 ```
 
@@ -879,14 +1072,17 @@ export interface RunbookEngineOptions {
 export interface RunbookExecutionResult {
     readonly runbookId: string;
     readonly status: RunbookExecutionStatus;
-    readonly matchedCases: ReadonlyArray<KnownCase>;
+    readonly detections: ReadonlyArray<KnownCaseDetection>;
+    readonly coverage: ReadonlyArray<CoverageEntry>;
+    readonly observedErrors?: ObservedErrors;
+    readonly tree?: ReadonlyArray<ErrorTreeNode>;
+    readonly nodeContexts?: ReadonlyMap<string, RunbookContext>;
+    readonly chains?: ReadonlyArray<TreeChainGroup>;
     readonly durationMs: number;
     readonly stepsExecuted: number;
     readonly finalContext: RunbookContext;
     readonly recoveredErrors: ReadonlyArray<ErrorRecoveryInfo>;
     readonly trace: RunbookExecutionTrace;
-    readonly earlyResolution?: boolean;
-    readonly resolvedAtStep?: string;
 }
 ```
 
@@ -900,13 +1096,14 @@ export type RunbookExecutionStatus = 'completed' | 'failed' | 'aborted';
 
 ```ts
 export interface RunbookExecutionTrace {
-    readonly schemaVersion: '1.0.0';
+    readonly schemaVersion: '2.0.0';
     readonly execution: ExecutionInfo;
     readonly input: Readonly<Record<string, string>>;
     readonly pipeline: ReadonlyArray<StepTrace>;
     readonly variables: Readonly<Record<string, string>>;
     readonly caseMatching: CaseMatchingTrace;
     readonly actionsExecuted: ReadonlyArray<ActionTrace>;
+    readonly coverage: ReadonlyArray<CoverageEntry>;
     readonly summary: ExecutionSummary;
 }
 ```
@@ -1044,6 +1241,18 @@ export interface Step<TOutput = unknown> {
 }
 ```
 
+### `StepCoverage` (type)
+
+```ts
+export interface StepCoverage {
+    readonly source?: string;
+    readonly complete: boolean;
+    readonly reason?: CoverageReason;
+    readonly detail?: string;
+    readonly scoped?: boolean;
+}
+```
+
 ### `StepDescriptor` (type)
 
 ```ts
@@ -1086,6 +1295,12 @@ export declare function stepEvidenceMatches(stepId: string, regex: string): Cond
 export type StepKind = 'data' | 'transform' | 'check' | 'mutation' | 'control';
 ```
 
+### `StepLookupState` (type)
+
+```ts
+export type StepLookupState = 'queried' | 'saturated' | 'unavailable' | 'skipped';
+```
+
 ### `StepResult` (type)
 
 ```ts
@@ -1096,6 +1311,9 @@ export interface StepResult<TOutput = unknown> {
     readonly vars?: Readonly<Record<string, string>>;
     readonly diagnostics?: StepDiagnostics;
     readonly next?: FlowDirective;
+    readonly coverage?: ReadonlyArray<StepCoverage>;
+    readonly observedErrors?: ObservedErrors;
+    readonly descend?: ReadonlyArray<DescendRequest>;
     readonly errorRecovery?: ErrorRecoveryInfo;
 }
 ```
@@ -1121,7 +1339,6 @@ export interface StepTrace {
     readonly varsWritten: Readonly<Record<string, string>>;
     readonly diagnostics?: StepDiagnostics;
     readonly flowDirective: FlowDirectiveString;
-    readonly earlyResolution?: EarlyResolutionTrace;
 }
 ```
 
@@ -1212,6 +1429,14 @@ export declare class TemplateStep implements Step<string> {
 export declare function throwIfRunbookAborted(context: Pick<RunbookContext, 'signal'>): void;
 ```
 
+### `TimedEvidenceIdentifier` (type)
+
+```ts
+export interface TimedEvidenceIdentifier extends EvidenceIdentifier {
+    readonly at?: number;
+}
+```
+
 ### `TraceBuilder` (value)
 
 ```ts
@@ -1223,16 +1448,188 @@ export declare class TraceBuilder {
     private readonly stepTraces;
     private readonly caseEvaluations;
     private readonly actionTraces;
+    private detectionIds;
+    private coverage;
     private readonly startedAt;
     private readonly startedAtMs;
     constructor(executionId: string, runbook: Runbook, params: ReadonlyMap<string, string>);
     traceStep(stepId: string, label: string, kind: StepKind, reachedVia: 'sequential' | 'goTo' | 'subPipeline', startedAt: string, completedAt: string, durationMs: number, status: 'success' | 'failed' | 'skipped', recovered: boolean, input: unknown, output: unknown, varsWritten: Readonly<Record<string, string>>, flowDirective: FlowDirectiveString, diagnostics?: StepDiagnostics, error?: string, parentStepId?: string): void;
-    traceEarlyResolution(earlyResolution: EarlyResolutionTrace): void;
-    traceCaseEvaluation(knownCase: KnownCase, matched: boolean, resolvedValues: Readonly<Record<string, unknown>>): void;
+    traceCaseEvaluation(knownCase: KnownCase, matched: boolean, resolvedValues: Readonly<Record<string, unknown>>, match?: Pick<CaseEvaluationTrace, 'firstSeenAt' | 'lastSeenAt' | 'evidenceRows' | 'supersededBy' | 'nodeId'>): void;
+    traceDetections(caseIds: ReadonlyArray<string>): void;
+    traceCoverage(coverage: ReadonlyArray<CoverageEntry>): void;
     traceAction(action: CaseAction, actionType: ActionType, status: 'success' | 'failed', durationMs: number, resolvedMessage?: string, error?: string): void;
     build(finalContext: RunbookContext, status: RunbookExecutionStatus, environment: ExecutionEnvironment, failureReason?: string): RunbookExecutionTrace;
     private buildSummaryDescription;
 }
+```
+
+### `TreeChain` (type)
+
+```ts
+export interface TreeChain {
+    readonly nodeIds: ReadonlyArray<string>;
+    readonly end: TreeChainEnd;
+    readonly interruption?: TreeChainInterruption;
+    readonly incompleteEvidence: boolean;
+    readonly firstSeenAt?: string;
+    readonly lastSeenAt?: string;
+}
+```
+
+### `TreeChainEnd` (type)
+
+```ts
+export type TreeChainEnd = 'leaf' | 'interrupted';
+```
+
+### `TreeChainGroup` (type)
+
+```ts
+export interface TreeChainGroup {
+    readonly key: string;
+    readonly members: ReadonlyArray<TreeChain>;
+}
+```
+
+### `TreeChainInterruption` (type)
+
+```ts
+export interface TreeChainInterruption {
+    readonly reason: ErrorChainInterruptionReason;
+    readonly target?: string;
+}
+```
+
+### `TreeDescent` (type)
+
+```ts
+export interface TreeDescent extends DescendRequest {
+    readonly state: TreeDescentState;
+    readonly childIds: ReadonlyArray<string>;
+    readonly rowCount: number;
+    readonly incompleteVia?: boolean;
+}
+```
+
+### `TreeDescentState` (type)
+
+```ts
+export type TreeDescentState = 'queried' | 'saturated' | 'unavailable' | 'skipped' | 'cycle';
+```
+
+### `TreeEnumerated` (type)
+
+```ts
+export interface TreeEnumerated {
+    readonly nodes: ReadonlyArray<ErrorNodeSpec>;
+    readonly routings?: ReadonlyArray<ErrorNodeSpec>;
+    readonly observedErrors?: Omit<ObservedErrors, 'examined'>;
+}
+```
+
+### `TreeEnumeration` (type)
+
+```ts
+export interface TreeEnumeration {
+    readonly context: RunbookContext;
+    readonly rows: ReadonlyArray<unknown>;
+    readonly identifier?: TreeReadIdentifier;
+    readonly secondAttempt?: TreeReadIdentifier;
+}
+```
+
+### `TreeEnumeratorFn` (type)
+
+```ts
+export type TreeEnumeratorFn = (enumeration: TreeEnumeration) => TreeEnumerated;
+```
+
+### `TreeExclusion` (type)
+
+```ts
+export interface TreeExclusion {
+    readonly name: string;
+    readonly condition: Condition;
+}
+```
+
+### `TreeLevel` (type)
+
+```ts
+export interface TreeLevel {
+    readonly target: string;
+    readonly varPrefix?: string;
+    readonly read?: TreeLevelReader;
+    readonly batchSize?: number;
+    readonly attribute?: TreeRowAttributionFn;
+    readonly rowIdentity?: TreeRowIdentityFn;
+    readonly secondAttempt?: TreeSecondAttemptFn;
+    readonly enumerate: TreeEnumeratorFn;
+    readonly perNode?: ReadonlyArray<StepDescriptor>;
+    readonly afterDescend?: ReadonlyArray<StepDescriptor>;
+    readonly exclusions?: ReadonlyArray<TreeExclusion>;
+    readonly scopedSteps?: ReadonlyArray<string>;
+    readonly ownsVar?: TreeVarOwnershipFn;
+}
+```
+
+### `TreeLevelReader` (type)
+
+```ts
+export interface TreeLevelReader extends Step<unknown> {
+    read(context: RunbookContext, identifiers: ReadonlyArray<TreeReadIdentifier>): Promise<TreeLevelReadResult>;
+}
+```
+
+### `TreeLevelReadResult` (type)
+
+```ts
+export interface TreeLevelReadResult {
+    readonly success: boolean;
+    readonly error?: string;
+    readonly rows: ReadonlyArray<unknown>;
+    readonly coverage?: ReadonlyArray<StepCoverage>;
+    readonly diagnostics?: StepDiagnostics;
+}
+```
+
+### `TreeReadIdentifier` (type)
+
+```ts
+export interface TreeReadIdentifier {
+    readonly kind: EvidenceIdentifierKind;
+    readonly value: string;
+}
+```
+
+### `TreeReadState` (type)
+
+```ts
+export type TreeReadState = 'queried' | 'saturated' | 'unavailable';
+```
+
+### `TreeRowAttributionFn` (type)
+
+```ts
+export type TreeRowAttributionFn = (row: unknown, identifier: TreeReadIdentifier) => boolean;
+```
+
+### `TreeRowIdentityFn` (type)
+
+```ts
+export type TreeRowIdentityFn = (row: unknown) => string;
+```
+
+### `TreeSecondAttemptFn` (type)
+
+```ts
+export type TreeSecondAttemptFn = (rows: ReadonlyArray<unknown>, identifier: TreeReadIdentifier) => TreeReadIdentifier | undefined;
+```
+
+### `TreeVarOwnershipFn` (type)
+
+```ts
+export type TreeVarOwnershipFn = (name: string) => boolean;
 ```
 
 ### `UpdateAction` (type)
@@ -1264,11 +1661,14 @@ export interface ValidationErrorCodes {
     readonly INVALID_GOTO_REF: true;
     readonly LOOP_DETECTED: true;
     readonly DUPLICATE_CASE_ID: true;
-    readonly DUPLICATE_CASE_PRIORITY: true;
+    readonly UNKNOWN_SUPERSEDED_CASE: true;
+    readonly SUPERSEDES_CYCLE: true;
     readonly MISSING_METADATA: true;
     readonly MISSING_FALLBACK: true;
     readonly EMPTY_STEPS: true;
     readonly UNWIRED_CASE_STEP_REF: true;
+    readonly INVALID_ERROR_TREE: true;
+    readonly UNANCHORED_ROW_PREDICATES: true;
 }
 interface ValidationErrorCodes {
     readonly INVALID_OUTPUT_DEFINITION: true;
@@ -1335,6 +1735,7 @@ export type CompareOperator = '==' | '!=' | '>' | '<' | '>=' | '<=';
 export interface ConditionEvaluationDetails {
     readonly matched: boolean;
     readonly resolvedValues: Readonly<Record<string, unknown>>;
+    readonly evidence: ReadonlyMap<string, ReadonlySet<number>>;
 }
 ```
 
@@ -1383,7 +1784,7 @@ type EvidenceRetention = {
 ### `FlowDirectiveString` (dist/engine/types/FlowDirective.d.ts)
 
 ```ts
-export type FlowDirectiveString = 'continue' | 'stop' | 'resolve' | (string & {});
+export type FlowDirectiveString = 'continue' | 'stop' | (string & {});
 ```
 
 ### `InterpolatePlaceholdersOptions` (dist/engine/context/templatePlaceholders.d.ts)

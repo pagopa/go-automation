@@ -1,1 +1,0 @@
-export type WorkerDisposition = 'COMPLETE_OUTCOME' | 'CANCEL_EXECUTION' | 'RETRY_MESSAGE' | 'FAIL_EXECUTION';

@@ -1,6 +1,7 @@
 import type { RunbookOutcome } from './RunbookOutcome.js';
 import type { RunbookOutput } from './RunbookOutput.js';
 import type { ClassifiedRunbookCheck, RunbookCheck } from './RunbookCheck.js';
+import type { CoverageReason } from '../../../engine/types/CoverageReason.js';
 
 const CONFIG_ERROR_SIGNATURES: ReadonlyArray<string> = [
   'resourcenotfound',
@@ -61,6 +62,8 @@ export function classifyRunbookOutcome(output: RunbookOutput): ClassifiedRunbook
       : {}),
   };
   const outcome = output.outcome;
+  const incompleteSources = countIncompleteSources(output);
+  const coverageField = incompleteSources === undefined ? {} : { incompleteSources };
   const recoveredText = output.execution.recoveredErrors.map((error) => `${error.stepId}: ${error.error}`).join(' | ');
 
   switch (outcome.kind) {
@@ -68,9 +71,19 @@ export function classifyRunbookOutcome(output: RunbookOutput): ClassifiedRunbook
       return {
         status: 'HIT',
         outcomeKind: outcome.kind,
-        primaryCaseId: outcome.primaryCaseId,
-        primaryCaseDescription: outcome.primaryCaseDescription,
-        matchedCaseIds: outcome.matchedCases.map((knownCase) => knownCase.id),
+        matchedCaseIds: outcome.detections.map((detection) => detection.caseId),
+        ...coverageField,
+        ...base,
+      };
+    case 'inconclusive':
+      return {
+        status: 'INCONCLUSIVE',
+        outcomeKind: outcome.kind,
+        matchedCaseIds: [],
+        ...coverageField,
+        ...(recoveredText !== '' ? { error: recoveredText } : {}),
+        ...(output.context.fields.length > 0 ? { fields: output.context.fields } : {}),
+        ...(outcome.fallbackMessage !== undefined ? { fallbackMessage: outcome.fallbackMessage } : {}),
         ...base,
       };
     case 'failed':
@@ -109,6 +122,21 @@ export function classifyRunbookOutcome(output: RunbookOutput): ClassifiedRunbook
       throw new Error(`Unhandled runbook outcome kind: ${JSON.stringify(exhaustive)}`);
     }
   }
+}
+
+/**
+ * Counts the incomplete sources of an output by reason.
+ *
+ * @returns The counts, or `undefined` when the evidence is complete
+ */
+function countIncompleteSources(output: RunbookOutput): Readonly<Partial<Record<CoverageReason, number>>> | undefined {
+  if (output.coverage.sources.length === 0) return undefined;
+  const counts: Partial<Record<CoverageReason, number>> = {};
+  for (const source of output.coverage.sources) {
+    const reason = source.reason ?? 'unavailable';
+    counts[reason] = (counts[reason] ?? 0) + 1;
+  }
+  return counts;
 }
 
 /** Classification used when no registered runbook exists for an occurrence. */

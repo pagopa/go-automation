@@ -48,7 +48,6 @@ function runbook(steps: ReadonlyArray<Step>, fallbackAction: CaseAction, knownCa
             {
               id: 'case',
               description: 'case',
-              priority: 1,
               condition: { type: 'exists', ref: 'vars.never' },
               action: knownCaseAction,
             },

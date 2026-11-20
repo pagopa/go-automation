@@ -12,10 +12,10 @@ import { createTestExecutionResult } from '../../../../../__tests__/helpers/crea
 import { createTestRunbook } from '../../../../../__tests__/helpers/createTestRunbook.js';
 
 describe('buildAnalysisDraft', () => {
-  it('emits a KNOWN_CASE draft taking scalars from the primary case even when other cases matched', () => {
+  it('proposes COMPLETED when at least one detection is a closable case, and lists every case in order', () => {
     const cases = [
-      analysedCase('primary', { proposedStatus: 'IN_PROGRESS' }),
-      analysedCase('secondary', { proposedStatus: 'COMPLETED' }),
+      analysedCase('first', { proposedStatus: 'IN_PROGRESS', resolution: 'Da lavorare.' }),
+      analysedCase('second', { proposedStatus: 'COMPLETED', resolution: 'Chiudibile.' }),
     ];
 
     const draft = buildAnalysisDraft(
@@ -25,8 +25,91 @@ describe('buildAnalysisDraft', () => {
 
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.schemaVersion, 1);
-    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
+    assert.strictEqual(draft.proposedStatus, 'COMPLETED');
     assert.strictEqual(draft.analysisType, 'ANALYZABLE');
+    assert.strictEqual(draft.conclusionNotes, '1. first: Da lavorare.\n2. second: Chiudibile.');
+  });
+
+  it('proposes IN_PROGRESS when no detection is a closable case', () => {
+    const cases = [analysedCase('a', {}), analysedCase('b', {})];
+    const draft = buildAnalysisDraft(
+      runbook({ defaults: {}, cases }),
+      createTestExecutionResult({ matchedCases: cases }),
+    );
+    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
+    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
+  });
+
+  it('is IGNORABLE only when every detection is ignorable with the same reason', () => {
+    const ignorable = (id: string, code: string): KnownCase =>
+      analysedCase(id, { analysisType: 'IGNORABLE', ignoreReasonCode: code, proposedStatus: 'COMPLETED' });
+    const same = [ignorable('a', 'TEST'), ignorable('b', 'TEST')];
+    const different = [ignorable('a', 'TEST'), ignorable('b', 'MAINTENANCE')];
+    const mixed = [ignorable('a', 'TEST'), analysedCase('b', {})];
+
+    const draftOf = (cases: ReadonlyArray<KnownCase>): ReturnType<typeof buildAnalysisDraft> =>
+      buildAnalysisDraft(runbook({ defaults: {}, cases }), createTestExecutionResult({ matchedCases: cases }));
+    const sameDraft = draftOf(same);
+    assert.strictEqual(sameDraft?.kind === 'KNOWN_CASE' ? sameDraft.analysisType : undefined, 'IGNORABLE');
+    assert.strictEqual(sameDraft?.kind === 'KNOWN_CASE' ? sameDraft.ignoreReasonCode : undefined, 'TEST');
+    for (const cases of [different, mixed]) {
+      const draft = draftOf(cases);
+      assert.strictEqual(draft?.kind === 'KNOWN_CASE' ? draft.analysisType : undefined, 'ANALYZABLE');
+      assert.strictEqual(draft?.kind === 'KNOWN_CASE' ? draft.ignoreReasonCode : 'x', undefined);
+    }
+  });
+
+  it('writes the time of each detection and the coverage lines in the notes', () => {
+    const cases = [analysedCase('only', { resolution: 'Risolto.' })];
+    const result = createTestExecutionResult({
+      matchedCases: cases,
+      coverage: [{ stepId: 'query', complete: false, reason: 'saturated', detail: 'AccessDenied for profile x' }],
+    });
+    const draft = buildAnalysisDraft(runbook({ defaults: {}, cases }), {
+      ...result,
+      detections: [
+        {
+          knownCase: cases[0] ?? analysedCase('x', {}),
+          firstSeenAt: '2026-11-19T10:15:42.000Z',
+          evidenceRows: 1,
+          observations: [],
+        },
+      ],
+    });
+
+    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
+    assert.strictEqual(
+      draft.conclusionNotes,
+      '1. 2026-11-19 10:15:42 UTC — only: Risolto.\nEvidenza incompleta: 1 fonti (sature 1)',
+    );
+    assert.ok(!draft.conclusionNotes.includes('AccessDenied'));
+  });
+
+  it('keeps the draft of a single case unchanged when there is nothing to say about coverage', () => {
+    const cases = [analysedCase('only', { resolution: 'Risolto.', errorDetails: 'Dettaglio.' })];
+    const draft = buildAnalysisDraft(
+      runbook({ defaults: {}, cases }),
+      createTestExecutionResult({ matchedCases: cases }),
+    );
+    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
+    assert.strictEqual(draft.conclusionNotes, 'Risolto.');
+    assert.strictEqual(draft.errorDetails, 'Dettaglio.');
+  });
+
+  it('fits many long entries within the text limit, keeping whole entries and saying how many were left out', () => {
+    const cases = Array.from({ length: 4 }, (_unused, index) =>
+      analysedCase(`case-${String(index)}`, { resolution: 'x'.repeat(2_000), errorDetails: 'é'.repeat(3_000) }),
+    );
+    const draft = buildAnalysisDraft(
+      runbook({ defaults: {}, cases }),
+      createTestExecutionResult({ matchedCases: cases }),
+    );
+
+    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
+    assert.ok(draft.conclusionNotes.length <= 5_000);
+    assert.ok((draft.errorDetails?.length ?? 0) <= 5_000);
+    assert.match(draft.conclusionNotes, /^1\. case-0: x+\n2\. case-1: x+\n… e altri 2 casi \(vedi l'esecuzione\)$/u);
+    assert.ok(Buffer.byteLength(JSON.stringify(draft), 'utf8') <= 65_536);
   });
 
   it('unions the lists of defaults and every matched case, de-duplicated', () => {
@@ -84,14 +167,12 @@ describe('buildAnalysisDraft', () => {
           resolution: 'Primary resolution',
           downstreams: [SEND_DOWNSTREAMS.APP_IO],
         }),
-        priority: 200,
       },
       {
         ...analysedCase('secondary', {
           resolution: 'Secondary resolution',
           downstreams: [SEND_DOWNSTREAMS.ADE],
         }),
-        priority: 100,
       },
     ];
     const definition = runbook({
@@ -100,9 +181,12 @@ describe('buildAnalysisDraft', () => {
     });
 
     const candidates = buildPotentialAnalysisDrafts(definition);
-    const runtimeDrafts = cases.map((_primary, index) =>
-      buildAnalysisDraft(definition, createTestExecutionResult({ matchedCases: cases.slice(index) })),
+    const runtimeDrafts = cases.map((knownCase) =>
+      buildAnalysisDraft(definition, createTestExecutionResult({ matchedCases: [knownCase] })),
     );
+    // All cases together are the worst case of the lists; the notes then list both declared resolutions.
+    const together = buildAnalysisDraft(definition, createTestExecutionResult({ matchedCases: cases }));
+    runtimeDrafts.push(together === undefined ? undefined : { ...together });
     runtimeDrafts.push(buildAnalysisDraft(definition, createTestExecutionResult({ matchedCases: [] })));
 
     assert.deepStrictEqual(candidates, runtimeDrafts);
@@ -161,7 +245,6 @@ function analysedCase(id: string, analysis: Partial<KnownCaseAnalysis>): KnownCa
   return {
     id,
     description: id,
-    priority: 100,
     condition: { type: 'contains', ref: 'steps.query', regex: 'boom' },
     action: { type: 'log', level: 'info', title: `[CASO NOTO] ${id}` },
     analysis: {

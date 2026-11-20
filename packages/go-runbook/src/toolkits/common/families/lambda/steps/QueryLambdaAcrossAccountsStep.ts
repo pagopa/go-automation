@@ -17,23 +17,35 @@ import { OperationalStep } from '../../../steps/OperationalStep.js';
 import { resolveTimeRange } from '../../../time/resolveTimeRange.js';
 import type { TimeRange } from '../../../time/TimeRange.js';
 import { extractLambdaRequestId } from '../helpers/extractLambdaRequestId.js';
+import { LAMBDA_REQUEST_ID, lambdaInvocationQuery } from '../helpers/lambdaRequestIdFilter.js';
+import { rowsOfInvocations } from '../helpers/rowsOfInvocations.js';
+import { lambdaRowRequestId } from '../helpers/lambdaRowRequestId.js';
+import { DEFAULT_LAMBDA_INVOCATION_QUERY } from '../queries/DEFAULT_LAMBDA_INVOCATION_QUERY.js';
+import type { StepCoverage } from '../../../../../engine/types/StepCoverage.js';
 import type { QueryLambdaAcrossAccountsConfig } from '../types/QueryLambdaAcrossAccountsConfig.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
 /** Request ids per invocation query: at most 80 queries for the 2,000 rows of two error scans. */
 const INVOCATION_BATCH_SIZE = 25;
-/** Same sequential fan-out bound used by the INTEROP CID tracker. */
-const MAX_INVOCATION_QUERIES = 100;
+/** Extra queries that split saturated batches, over the whole execution: the initial batches never count. */
+const MAX_SPLIT_QUERIES = 100;
 /** Row limit of every query; reaching it means the result may be truncated. */
 const QUERY_ROW_LIMIT = 1000;
 const ERRORS_STEP_ID = 'query-lambda-errors';
-const LAMBDA_REQUEST_ID = /^[A-Za-z0-9-]{1,128}$/;
 
-/** Time range and invocation queries used so far, shared by all the sources of one execution. */
+/** Time range and split queries used so far, shared by all the sources of one execution. */
 interface InvocationRun {
   readonly timeRange: TimeRange;
-  used: number;
+  splits: number;
+}
+
+/** A read of a source: its rows, with the telemetry and the incomplete parts of the read. */
+interface SourceRead {
+  readonly rows: Rows;
+  readonly failed?: boolean;
+  readonly diagnostics?: StepDiagnostics;
+  readonly coverage?: ReadonlyArray<StepCoverage>;
 }
 
 /** One source of the step: the tag written on its rows, how it is named in messages, its reader. */
@@ -89,10 +101,12 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
       ...(this.config.queryKind === 'errors'
         ? { query: this.config.errorQuery }
         : {
-            queryTemplate: invocationQueryFor(['<requestId>']),
+            queryTemplate: lambdaInvocationQuery(DEFAULT_LAMBDA_INVOCATION_QUERY, [
+              '00000000-0000-0000-0000-000000000000',
+            ]),
             correlation: `${this.sourceField()} + requestId`,
             batchSize: INVOCATION_BATCH_SIZE,
-            maxQueries: MAX_INVOCATION_QUERIES,
+            maxSplitQueries: MAX_SPLIT_QUERIES,
           }),
     };
   }
@@ -150,9 +164,9 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
 
       const run: InvocationRun = {
         timeRange: resolveTimeRange(context, { start: 'startTime', end: 'endTime' }),
-        used: 0,
+        splits: 0,
       };
-      const results: { rows: Rows; diagnostics?: StepDiagnostics }[] = [];
+      const results: SourceRead[] = [];
       for (const source of readers) {
         if (requestIds === undefined) {
           results.push(...(await this.queryRows(context, source, undefined, run)));
@@ -165,10 +179,16 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
           );
         }
       }
+      // No read answered: the step has nothing to report.
+      const firstFailure = results.find((result) => result.failed === true)?.coverage?.[0]?.detail;
+      if (results.length > 0 && results.every((result) => result.failed === true)) {
+        throw new Error(firstFailure ?? 'Lambda logs unavailable');
+      }
       const rows = results
         .flatMap((result) => result.rows)
         .sort((a, b) => (readRowField(a, '@timestamp') ?? '').localeCompare(readRowField(b, '@timestamp') ?? ''));
       const diagnostics = mergeCloudWatchLogsDiagnostics(results.map((result) => result.diagnostics));
+      const coverage = results.flatMap((result) => result.coverage ?? []);
       context.services.reporter.add({ label: `${this.config.labels.report}: ${String(rows.length)} righe` });
       return {
         success: true,
@@ -181,6 +201,7 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
                 rows,
               ),
         ...(diagnostics === undefined ? {} : { diagnostics }),
+        ...(coverage.length > 0 ? { coverage } : {}),
       };
     });
   }
@@ -189,47 +210,75 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
    * One query on one source. A saturated invocation batch keeps its diagnostics
    * and is replaced by the results of its two halves.
    */
+  /**
+   * Reads a source: the error scan, or a batch of request ids. A saturated batch is split in two, within the budget of
+   * the extra queries, and the halves replace it; a half that stays incomplete keeps the rows the saturated read
+   * found for its request ids. A read that cannot be completed keeps its rows and declares the source `saturated`.
+   */
   private async queryRows(
     context: OperationalContext,
     source: LambdaLogSource,
     batch: ReadonlyArray<string> | undefined,
     run: InvocationRun,
-  ): Promise<ReadonlyArray<{ rows: Rows; diagnostics?: StepDiagnostics }>> {
-    if (batch !== undefined) {
-      if (run.used >= MAX_INVOCATION_QUERIES) {
-        throw new Error(`Lambda invocation query budget exceeded (${String(MAX_INVOCATION_QUERIES)} queries)`);
-      }
-      run.used += 1;
+  ): Promise<ReadonlyArray<SourceRead>> {
+    const query =
+      batch === undefined ? this.config.errorQuery : lambdaInvocationQuery(DEFAULT_LAMBDA_INVOCATION_QUERY, batch);
+    let result: Awaited<ReturnType<typeof executeCloudWatchLogsQuery>>;
+    try {
+      result = await executeCloudWatchLogsQuery(source.context, [this.config.logGroup], query, run.timeRange, {
+        ...(context.signal === undefined ? {} : { signal: context.signal }),
+        paginateResults: true,
+      });
+    } catch (error: unknown) {
+      // An abort or a configuration error ends the step; any other failure is an unavailable read of this source.
+      if (context.signal?.aborted === true || isConfigurationError(error)) throw error;
+      const detail = error instanceof Error ? error.message : String(error);
+      return [
+        { rows: [], failed: true, coverage: [{ source: source.key, complete: false, reason: 'unavailable', detail }] },
+      ];
     }
-    const query = batch === undefined ? this.config.errorQuery : invocationQueryFor(batch);
-    const result = await executeCloudWatchLogsQuery(source.context, [this.config.logGroup], query, run.timeRange, {
-      ...(context.signal === undefined ? {} : { signal: context.signal }),
-      paginateResults: true,
-    });
     const diagnostics = result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics };
+    const tag = { field: this.sourceField(), value: source.key };
+    const own = batch === undefined ? result.rows : rowsOfInvocations(result.rows, batch);
+    const rows = own.map((row) => [...row, tag]);
     if (result.rows.length < QUERY_ROW_LIMIT) {
-      const tag = { field: this.sourceField(), value: source.key };
-      return [{ rows: result.rows.map((row) => [...row, tag]), ...diagnostics }];
+      return [{ rows, ...diagnostics, ...(result.coverage.length > 0 ? { coverage: result.coverage } : {}) }];
     }
+    const saturated = (detail: string): StepCoverage => ({
+      source: source.key,
+      complete: false,
+      reason: 'saturated',
+      detail,
+    });
     if (batch === undefined) {
-      const message =
-        `Lambda error scan in ${source.display} reached the ${String(QUERY_ROW_LIMIT)}-row limit; ` +
-        'invocation correlation requires a complete scan';
+      const message = `Lambda error scan in ${source.display} reached the ${String(QUERY_ROW_LIMIT)}-row limit`;
       context.services.reporter.add({ label: message });
-      throw new Error(message);
+      return [{ rows, ...diagnostics, coverage: [...unread(result.coverage), saturated(message)] }];
     }
-    if (batch.length === 1) {
-      throw new Error(
-        `Lambda invocation ${batch[0] ?? ''} in ${source.key} reached the ${String(QUERY_ROW_LIMIT)}-row limit`,
-      );
+    if (batch.length === 1 || run.splits + 2 > MAX_SPLIT_QUERIES) {
+      const detail =
+        batch.length === 1
+          ? `invocation ${batch[0] ?? ''} reached the ${String(QUERY_ROW_LIMIT)}-row limit`
+          : `${String(batch.length)} invocations not split: query budget of ${String(MAX_SPLIT_QUERIES)} exhausted`;
+      return [{ rows, ...diagnostics, coverage: [...unread(result.coverage), saturated(detail)] }];
     }
+    run.splits += 2;
     const middle = Math.ceil(batch.length / 2);
-    const first = await this.queryRows(context, source, batch.slice(0, middle), run);
-    const second = await this.queryRows(context, source, batch.slice(middle), run);
-    return [{ rows: [], ...diagnostics }, ...first, ...second];
+    const reads: SourceRead[] = [{ rows: [], ...diagnostics, coverage: unread(result.coverage) }];
+    for (const half of [batch.slice(0, middle), batch.slice(middle)]) {
+      const halfReads = await this.queryRows(context, source, half, run);
+      reads.push(...halfReads);
+      if (!halfReads.some((read) => (read.coverage ?? []).some((entry) => !entry.complete))) continue;
+      // The half is still incomplete: the saturated read keeps the rows of its invocations, without duplicates.
+      const ids = new Set(half);
+      const seen = new Set(halfReads.flatMap((read) => read.rows.map((row) => rowIdentity(row))));
+      reads.push({
+        rows: rows.filter((row) => ids.has(lambdaRowRequestId(row) ?? '') && !seen.has(rowIdentity(row))),
+      });
+    }
+    return reads;
   }
 
-  /** Request ids of the error rows, by source; a row of an unknown source or a malformed id fails. */
   private requestIdsBySource(rows: Rows, sourceKeys: ReadonlyArray<string>): Map<string, ReadonlyArray<string>> {
     const idsBySource = new Map<string, Set<string>>(sourceKeys.map((key) => [key, new Set<string>()]));
     for (const row of rows) {
@@ -240,8 +289,8 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
       }
       const requestId =
         (readRowField(row, '@requestId') ?? '').trim() || extractLambdaRequestId(readRowField(row, '@message') ?? '');
-      if (requestId === undefined || requestId === '') continue;
-      if (!LAMBDA_REQUEST_ID.test(requestId)) throw new Error('invalid Lambda requestId');
+      // A row without a usable request id is an invocation of its own, never reconstructed.
+      if (requestId === undefined || !LAMBDA_REQUEST_ID.test(requestId)) continue;
       ids.add(requestId);
     }
     return new Map([...idsBySource].map(([source, ids]) => [source, [...ids]]));
@@ -283,12 +332,18 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
   }
 }
 
-function invocationQueryFor(requestIds: ReadonlyArray<string>): string {
-  const filter = requestIds
-    .map((requestId) => `(@requestId = '${requestId}' or @message like '${requestId}')`)
-    .join(' or ');
-  return `fields @timestamp, @requestId, @message
-| filter ${filter}
-| sort @timestamp asc
-| limit ${String(QUERY_ROW_LIMIT)}`;
+/** The identity of a row, to keep a row of two reads once. */
+function rowIdentity(row: ReadonlyArray<GOLogsInsightsResultField>): string {
+  return row.map(({ field, value }) => `${field ?? ''}=${value ?? ''}`).join('\u0001');
+}
+
+/** A configuration error of the execution target, which no other read can recover. */
+function isConfigurationError(error: unknown): boolean {
+  const code = (error as { readonly code?: unknown } | undefined)?.code;
+  return code === 'OAM_REGION_MISMATCH' || code === 'INVALID_OAM_TARGET';
+}
+
+/** The parts of a read that failed: they stay beside the saturation the step declares. */
+function unread(coverage: ReadonlyArray<StepCoverage>): ReadonlyArray<StepCoverage> {
+  return coverage.filter((entry) => !entry.complete && entry.reason === 'unavailable');
 }

@@ -155,8 +155,8 @@ describe('INTEROP Selfcare API Gateway known cases', () => {
 
     assert.strictEqual(caseMatches(knownId, mixedContext), true);
     assert.strictEqual(caseMatches(generic, mixedContext), true);
-    // The actionable generic case outranks the suppression of the listed ID.
-    assert.deepStrictEqual(matchingCaseIds(KNOWN_CASES, mixedContext), [generic.id, knownId.id]);
+    // Two distinct errors: both are reported, the actionable one is not hidden by the suppression.
+    assert.deepStrictEqual(matchingCaseIds(KNOWN_CASES, mixedContext), [knownId.id, generic.id]);
   });
 
   it('suppresses each documented SelfcareID only in its listed environments', () => {

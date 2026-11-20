@@ -12,13 +12,12 @@ editato a mano.
 - **`WatchtowerClient`** — metodi tipizzati sopra l'OpenAPI generato:
   `listProducts`, `listProductAlarms`, `listProductRunbooks`,
   `getProductCensus`, `listAlarmEvents`, `getShadowReport`, e altri.
-- **`parseAutomaticAlarmAnalysisCommandV1`** / `watchtowerErrorReason` —
-  parsing e classificazione errori sui contratti generati.
+- **`watchtowerErrorReason`** — classificazione degli errori sui contratti generati.
 - **`src/generated/`** — client OpenAPI (`openapi-typescript`) e tipi dai
   JSON Schema upstream (`json-schema-to-typescript`), rigenerati con
   `pnpm --filter=@go-automation/go-watchtower-client generate`.
 
-Consumato da `go-watchtower-runbook`, `go-execute-runbook`, `go-rta-check`.
+Consumato da `go-watchtower-runbook` e `go-rta-check`. Espone solo letture.
 
 ## Esempio
 

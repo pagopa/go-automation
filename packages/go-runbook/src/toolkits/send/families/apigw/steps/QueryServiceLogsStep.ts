@@ -9,6 +9,7 @@ import { resolveTimeRange } from '../../../../common/time/resolveTimeRange.js';
 import { executeStep } from '../../../../../engine/steps/execution/executeStep.js';
 import { executeCloudWatchLogsQuery } from '../../../../common/steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
 import type { StepDiagnostics } from '../../../../../engine/tracing/StepDiagnostics.js';
+import type { StepCoverage } from '../../../../../engine/types/StepCoverage.js';
 import { ApiGwServiceChainReporter } from '../reporting/ApiGwServiceChainReporter.js';
 import type { ServiceLogSpec } from '../profiles/ServiceLogSpec.js';
 import { SEND_API_GW_PROFILE } from '../profiles/SEND_API_GW_PROFILE.js';
@@ -167,6 +168,15 @@ export class QueryServiceLogsStep
           success: true,
           output: [],
           vars: apiGwServiceVisitVars(context.vars, this.serviceName, 0, visitPlan, { mode: 'none', value: '' }),
+          // The request cannot be followed into the service: the read is skipped, not empty.
+          coverage: [
+            {
+              source: this.logGroups.join(', '),
+              complete: false,
+              reason: 'skipped',
+              detail: 'trace id e fallback mancanti',
+            },
+          ],
         };
       }
 
@@ -175,6 +185,7 @@ export class QueryServiceLogsStep
 
       let results: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
       let diagnostics: StepDiagnostics | undefined;
+      let coverage: ReadonlyArray<StepCoverage>;
       try {
         const queryResult = await executeCloudWatchLogsQuery(context, this.logGroups, query, timeRange, {
           ...(context.signal !== undefined ? { signal: context.signal } : {}),
@@ -182,6 +193,7 @@ export class QueryServiceLogsStep
         });
         results = queryResult.rows;
         diagnostics = queryResult.diagnostics;
+        coverage = queryResult.coverage;
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         reporter?.queryFailed(this.logGroups, message);
@@ -194,6 +206,7 @@ export class QueryServiceLogsStep
         success: true,
         output: results,
         ...(diagnostics !== undefined ? { diagnostics } : {}),
+        ...(coverage.length > 0 ? { coverage } : {}),
         vars: apiGwServiceVisitVars(context.vars, this.serviceName, results.length, visitPlan, {
           mode: activeIdentifier.kind,
           value: activeIdentifier.value,

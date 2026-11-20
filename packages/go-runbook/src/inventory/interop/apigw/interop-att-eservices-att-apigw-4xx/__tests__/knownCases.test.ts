@@ -55,7 +55,7 @@ describe('Attestazione e-services API Gateway 4xx known case', () => {
       throw new Error('AccessDenied');
     });
     assert.strictEqual(result.status, 'failed');
-    assert.deepStrictEqual(result.matchedCases, []);
+    assert.deepStrictEqual(result.detections, []);
   });
 
   it('exports the latest structured requests as bounded evidence for unexplained 4xx occurrences', async () => {

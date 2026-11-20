@@ -12,6 +12,7 @@ import type { LambdaErrorScan } from '../helpers/scanLambdaLogs.js';
 import type { LambdaErrorScannerFn } from '../types/LambdaErrorScannerFn.js';
 import { findDownstreamInRows } from '../helpers/matchDownstreamErrorPattern.js';
 import { LambdaReporter } from '../reporting/LambdaReporter.js';
+import { boundedText } from '../../../parsing/correlation/boundedText.js';
 
 /**
  * Configuration for {@link ParseLambdaErrorsStep}.
@@ -76,8 +77,8 @@ export class ParseLambdaErrorsStep implements Step<LambdaErrorScan> {
     const vars: Record<string, string> = {
       lambdaErrorCount: String(scan.errorCount),
       lambdaErrorCategory: scan.category,
-      lambdaErrorMessage: scan.message,
-      lastErrorMsg: scan.message,
+      lambdaErrorMessage: boundedText(scan.message),
+      lastErrorMsg: boundedText(scan.message),
     };
     if (scan.requestId !== undefined) vars['lambdaRequestId'] = scan.requestId;
     if (scan.report?.status !== undefined) vars['lambdaRuntimeStatus'] = scan.report.status;
@@ -101,6 +102,11 @@ export class ParseLambdaErrorsStep implements Step<LambdaErrorScan> {
       }),
     });
 
-    return { success: true, output: scan, vars };
+    // The runbook follows the representative invocation: the others are observed and not examined.
+    return {
+      success: true,
+      output: { ...scan, message: boundedText(scan.message) },
+      vars,
+    };
   }
 }

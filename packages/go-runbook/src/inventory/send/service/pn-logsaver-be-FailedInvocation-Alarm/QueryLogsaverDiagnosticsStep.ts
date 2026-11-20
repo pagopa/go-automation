@@ -1,6 +1,6 @@
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
-import { executeStep, type Step, type StepResult } from '../../../../engine/index.js';
+import { executeStep, type Step, type StepCoverage, type StepResult } from '../../../../engine/index.js';
 import {
   awsLogicalAccountName,
   executeCloudWatchLogsQuery,
@@ -91,27 +91,42 @@ export class QueryLogsaverDiagnosticsStep extends OperationalStep<Rows> implemen
       let streamCount = 0;
       let spotInterruptionCount = 0;
       let unaccountedErrorCount = 0;
+      // The counters sum the error reads of every account: they are complete only when every one of them is.
+      let errorsComplete = true;
+      const coverage: StepCoverage[] = [];
       for (const source of targets) {
         const scopedContext = { ...context, services: { ...context.services, cloudWatchLogs: source.cloudWatchLogs } };
         for (const [queryKind, query] of [
           ['errors', ERROR_QUERY],
           ['streams', STREAM_QUERY],
         ] as const) {
-          const result = await executeCloudWatchLogsQuery(scopedContext, [LOG_GROUP], query, timeRange, {
-            ...(context.signal === undefined ? {} : { signal: context.signal }),
-            paginateResults: true,
-          });
-          if (result.rows.length >= ROW_LIMIT) {
-            throw new Error(
-              `Logsaver ${queryKind} in ${source.name} reached ${String(ROW_LIMIT)} rows; narrow the time range`,
-            );
+          let result: Awaited<ReturnType<typeof executeCloudWatchLogsQuery>>;
+          try {
+            result = await executeCloudWatchLogsQuery(scopedContext, [LOG_GROUP], query, timeRange, {
+              ...(context.signal === undefined ? {} : { signal: context.signal }),
+              paginateResults: true,
+            });
+          } catch (error: unknown) {
+            if (context.signal?.aborted === true) throw error;
+            const detail = error instanceof Error ? error.message : String(error);
+            coverage.push({ source: source.name, complete: false, reason: 'unavailable', detail });
+            if (queryKind === 'errors') errorsComplete = false;
+            continue;
           }
-          if (
-            queryKind === 'errors' &&
-            (result.diagnostics?.cloudWatchLogs?.statistics.recordsMatched ?? 0) > result.rows.length
-          ) {
-            throw new Error(`Logsaver errors in ${source.name} returned incomplete results; narrow the time range`);
+          coverage.push(...result.coverage.map((entry) => ({ ...entry, source: source.name })));
+          const truncated =
+            result.rows.length >= ROW_LIMIT ||
+            (queryKind === 'errors' &&
+              (result.diagnostics?.cloudWatchLogs?.statistics.recordsMatched ?? 0) > result.rows.length);
+          if (truncated && result.coverage.length === 0) {
+            coverage.push({
+              source: source.name,
+              complete: false,
+              reason: 'saturated',
+              detail: `Logsaver ${queryKind} returned incomplete results`,
+            });
           }
+          if (queryKind === 'errors' && (truncated || result.coverage.length > 0)) errorsComplete = false;
           results.push(result);
           if (queryKind === 'errors') {
             errorCount += result.rows.length;
@@ -138,6 +153,7 @@ export class QueryLogsaverDiagnosticsStep extends OperationalStep<Rows> implemen
           );
         }
       }
+      if (results.length === 0) throw new Error(coverage[0]?.detail ?? 'Logsaver logs unavailable');
       const diagnostics = mergeCloudWatchLogsDiagnostics(results.map((result) => result.diagnostics));
       context.services.reporter.add({
         label: `Logsaver: ${String(errorCount)} log di errore, ${String(streamCount)} stream.`,
@@ -152,7 +168,9 @@ export class QueryLogsaverDiagnosticsStep extends OperationalStep<Rows> implemen
           logsaverStreamCount: String(streamCount),
           logsaverSpotInterruptionLogCount: String(spotInterruptionCount),
           logsaverUnaccountedErrorLogCount: String(unaccountedErrorCount),
+          logsaverUnaccountedErrorLogCountState: errorsComplete ? 'complete' : 'incomplete',
         },
+        ...(coverage.length > 0 ? { coverage } : {}),
         ...(diagnostics === undefined ? {} : { diagnostics }),
       };
     });

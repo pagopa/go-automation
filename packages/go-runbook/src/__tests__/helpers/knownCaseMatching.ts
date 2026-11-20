@@ -7,8 +7,9 @@ import type { RunbookContext } from '../../engine/types/RunbookContext.js';
 const EVALUATOR = new ConditionEvaluator();
 
 /**
- * Ids of the known cases whose condition holds in a context, highest priority
- * first, as the engine reports them.
+ * Ids of the known cases whose condition holds in a context, in declaration
+ * order, without the cases another matching case supersedes: the detections the
+ * engine reports for an untimed context.
  *
  * @param knownCases - Known cases of a runbook
  * @param context - Context to evaluate
@@ -20,10 +21,9 @@ const EVALUATOR = new ConditionEvaluator();
  * ```
  */
 export function matchingCaseIds(knownCases: ReadonlyArray<KnownCase>, context: RunbookContext): ReadonlyArray<string> {
-  return knownCases
-    .filter(({ condition }) => EVALUATOR.evaluate(condition, context))
-    .sort((left, right) => right.priority - left.priority)
-    .map(({ id }) => id);
+  const matching = knownCases.filter(({ condition }) => EVALUATOR.evaluate(condition, context));
+  const superseded = new Set(matching.flatMap(({ supersedes }) => supersedes ?? []));
+  return matching.filter(({ id }) => !superseded.has(id)).map(({ id }) => id);
 }
 
 /**

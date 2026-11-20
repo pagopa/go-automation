@@ -17,6 +17,7 @@ import { logRow } from '../../../../../../__tests__/helpers/logRow.js';
 async function evaluate(
   rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
   options: Partial<Pick<EvaluateApiGwAuthorizerFailureConfig, 'check' | 'fromStep'>> = {},
+  vars: Readonly<Record<string, string>> = {},
 ): Promise<StepResult<ApiGwAuthorizerFailureInfo | undefined>> {
   const step = new EvaluateApiGwAuthorizerFailureStep({
     schema: SEND_API_GW_PROFILE.accessLog.schema,
@@ -26,10 +27,25 @@ async function evaluate(
     fromStep: options.fromStep ?? 'query-api-gw-logs',
     check: options.check ?? { defaultAuthorizer: API_GW_AUTHORIZER_LAMBDAS['pn-ioAuthorizerLambda'] },
   });
-  return step.execute(createTestContext({ stepResults: { 'query-api-gw-logs': rows } }));
+  return step.execute(createTestContext({ stepResults: { 'query-api-gw-logs': rows }, vars }));
 }
 
 describe('evaluateApiGwAuthorizerFailure', () => {
+  it('ends the chain of a request that failed in the authorizer, explaining it with its timeout before an error', async () => {
+    // The rows of one request: a timeout explains it better than an authorizer error.
+    const result = await evaluate([
+      logRow({ status: '504', authorizerStatus: '500', authorizerLatency: '100', requestId: 'req-c' }),
+      logRow({ status: '503', authorizerStatus: '500', authorizerLatency: '5000', requestId: 'req-c' }),
+    ]);
+    assert.strictEqual(result.next, 'stop');
+    assert.strictEqual(result.vars?.['apiGwAuthorizerOutcome'], 'timeout');
+    assert.strictEqual(result.vars?.['lastErrorMsg'], result.vars?.['apiGwAuthorizerDetail']);
+
+    const error = await evaluate([logRow({ status: '504', authorizerStatus: '500', authorizerLatency: '100' })]);
+    assert.strictEqual(error.next, 'stop');
+    assert.strictEqual(error.vars?.['apiGwAuthorizerOutcome'], 'error');
+  });
+
   it('continues when no row has authorizerStatus over the threshold', async () => {
     const result = await evaluate([logRow({ status: '500', authorizerStatus: '200', authorizerLatency: '10' })]);
 
@@ -43,7 +59,7 @@ describe('evaluateApiGwAuthorizerFailure', () => {
     assert.strictEqual(result.vars?.['apiGwAuthorizerTimeoutMs'], '5000');
   });
 
-  it('resolves a timeout when authorizerStatus is >= 500 and latency reaches the lambda timeout', async () => {
+  it('ends the chain on a timeout when authorizerStatus is >= 500 and latency reaches the lambda timeout', async () => {
     const result = await evaluate([
       logRow({
         status: '-',
@@ -56,7 +72,7 @@ describe('evaluateApiGwAuthorizerFailure', () => {
     ]);
 
     assert.strictEqual(result.success, true);
-    assert.strictEqual(result.next, 'resolve');
+    assert.strictEqual(result.next, 'stop');
     assert.strictEqual(result.output?.outcome, 'timeout');
     assert.strictEqual(result.output?.failureType, 'timeout');
     assert.strictEqual(result.output?.lambdaName, 'pn-ioAuthorizerLambda');
@@ -64,13 +80,11 @@ describe('evaluateApiGwAuthorizerFailure', () => {
     assert.strictEqual(result.vars?.['apiGwAuthorizerLatencyMs'], '5000');
     assert.strictEqual(result.vars?.['apiGwAuthorizerTimeoutMs'], '5000');
     assert.strictEqual(result.vars?.['apiGwAuthorizerRequestId'], 'auth-req-1');
-    // terminationReason is owned by DecideNextStep and must stay within the
-    // TerminationReason union. This step exposes the authorizer-specific
-    // signal via apiGwAuthorizerOutcome / apiGwAuthorizerFailureType.
+    // The authorizer signal is apiGwAuthorizerOutcome / apiGwAuthorizerFailureType, never a termination reason.
     assert.strictEqual(result.vars?.['terminationReason'], undefined);
   });
 
-  it('resolves a generic authorizer error when latency is below timeout', async () => {
+  it('ends the chain on a generic authorizer error when latency is below timeout', async () => {
     const result = await evaluate([
       logRow({
         status: '-',
@@ -81,7 +95,7 @@ describe('evaluateApiGwAuthorizerFailure', () => {
     ]);
 
     assert.strictEqual(result.success, true);
-    assert.strictEqual(result.next, 'resolve');
+    assert.strictEqual(result.next, 'stop');
     assert.strictEqual(result.output?.outcome, 'error');
     assert.strictEqual(result.output?.failureType, 'status-error');
     assert.strictEqual(result.vars?.['apiGwAuthorizerOutcome'], 'error');
@@ -113,13 +127,13 @@ describe('evaluateApiGwAuthorizerFailure', () => {
     assert.strictEqual(result.vars?.['apiGwAuthorizerHttpMethod'], 'PUT');
   });
 
-  it('resolves a generic authorizer error when latency is missing', async () => {
+  it('ends the chain on a generic authorizer error when latency is missing', async () => {
     const result = await evaluate([
       logRow({ status: '-', authorizerStatus: '500', authorizerRequestId: 'auth-req-3' }),
     ]);
 
     assert.strictEqual(result.success, true);
-    assert.strictEqual(result.next, 'resolve');
+    assert.strictEqual(result.next, 'stop');
     assert.strictEqual(result.output?.outcome, 'error');
     assert.strictEqual(result.vars?.['apiGwAuthorizerLatencyMs'], '');
   });

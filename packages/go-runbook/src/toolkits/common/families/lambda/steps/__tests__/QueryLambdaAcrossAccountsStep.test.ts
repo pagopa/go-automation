@@ -171,12 +171,12 @@ describe('QueryLambdaAcrossAccountsStep', () => {
     assert.match(result.error ?? '', /account port is required/u);
   });
 
-  it('fails an error scan at the row limit, because correlation needs every request id', async () => {
+  it('keeps an error scan at the row limit, declaring its account saturated', async () => {
     const rowsFor: RowsForFn = () => Array.from({ length: 1000 }, () => row('t', 'r'));
     const step = new QueryLambdaAcrossAccountsStep({ ...BASE, queryKind: 'errors', sources: ACCOUNTS });
     const result = await step.execute(context([], rowsFor, undefined, await accountsPort([], rowsFor)));
-    assert.equal(result.success, false);
-    assert.match(result.error ?? '', /core \(000000000101\) reached the 1000-row limit/u);
+    assert.equal(result.success, true);
+    assert.match(result.coverage?.[0]?.detail ?? '', /core \(000000000101\) reached the 1000-row limit/u);
   });
 
   it('reconstructs only the request ids of each logical account', async () => {

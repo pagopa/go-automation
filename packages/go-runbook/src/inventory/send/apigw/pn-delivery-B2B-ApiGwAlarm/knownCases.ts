@@ -1,6 +1,8 @@
 import {
   all,
   any,
+  anyStepEvidenceMatches,
+  exclusionVar,
   type KnownCase,
   not,
   stepEvidenceMatches,
@@ -14,33 +16,11 @@ import { apiGwPathMatches, apiGwStatusIs, knownCase, SEND_DOWNSTREAMS } from '..
  */
 
 import { VERSIONING_LAMBDA_ERROR_COUNT_VAR, VERSIONING_LAMBDA_PROBE_STATE_VAR } from './versioningLambdaProbe.js';
-const EXTERNAL_REGISTRIES_SELFCARE_READ_TIMEOUT = any(
-  stepEvidenceMatches(
-    'query-pn-external-registries',
-    '\\[DOWNSTREAM\\] Service SelfcarePG returned errors=[\\s\\S]*io\\.netty\\.handler\\.timeout\\.ReadTimeoutException',
-  ),
-  all(
-    stepEvidenceMatches(
-      'query-pn-external-registries',
-      'Request to GET https://api\\.selfcare\\.pagopa\\.it/external/v2/user-groups',
-    ),
-    stepEvidenceMatches(
-      'query-pn-external-registries',
-      'Caused by: io\\.netty\\.handler\\.timeout\\.ReadTimeoutException',
-    ),
-  ),
-);
-const EXTERNAL_REGISTRIES_SELFCARE_RETRY_TIMEOUT = all(
-  stepEvidenceMatches('query-pn-external-registries', 'Exception caught by retry'),
-  stepEvidenceMatches(
-    'query-pn-external-registries',
-    'ResourceAccessException:[\\s\\S]*ext-registry-private/pa/v1/groups-all[\\s\\S]*Read timed out',
-  ),
-);
-const EXTERNAL_REGISTRIES_CONNECTION_ABORTED = stepEvidenceMatches(
-  'query-pn-external-registries',
-  'reactor\\.netty\\.channel\\.AbortedException: Connection has been closed BEFORE send operation',
-);
+import {
+  EXTERNAL_REGISTRIES_CONNECTION_ABORTED,
+  EXTERNAL_REGISTRIES_SELFCARE_READ_TIMEOUT,
+  EXTERNAL_REGISTRIES_SELFCARE_RETRY_TIMEOUT,
+} from './externalRegistriesDiagnoses.js';
 const GENERIC_API_GATEWAY_500 = any(
   not(varExists('apiGwErrorMessage')),
   varEquals('apiGwErrorMessage', '-'),
@@ -54,7 +34,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'pdv-tokenizer-404-tbd',
     description: 'Personal Data Vault Tokenizer restituisce 404 Not Found',
-    priority: 1550,
     condition: stepEvidenceMatches(
       'query-pn-data-vault',
       '\\[DOWNSTREAM\\] Service PersonalDataVault_Tokenizer returned errors=404 Not Found',
@@ -76,7 +55,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'pn-ss-pn-f24-read-forbidden',
     description: 'Il client pn-f24 non ha i privilegi di lettura sul documento Safe Storage',
-    priority: 1540,
     condition: stepEvidenceMatches(
       'query-pn-safestorage',
       'Ending process getFile\\(\\) with errors=403 FORBIDDEN[\\s\\S]*Client\\s*:\\s*pn-f24 not has privilege for read document',
@@ -99,7 +77,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'pn-f24-safe-storage-metadata-gone',
     description: 'PN-F24 riceve 410 Gone recuperando i metadati F24 da Safe Storage',
-    priority: 1530,
     condition: all(
       apiGwStatusIs('500'),
       apiGwPathMatches('/attachments/payment/[^/]+/F24$'),
@@ -136,7 +113,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'delivery-document-index-out-of-bounds',
     description: 'Indice documento fuori dai limiti causa ArrayIndexOutOfBoundsException su pn-delivery',
-    priority: 299,
     condition: all(
       apiGwStatusIs('500'),
       apiGwPathMatches('/attachments/documents/-?\\d+$'),
@@ -167,7 +143,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'delivery-missing-payment-attachment-index',
     description: 'Notifica priva dell’indice dell’allegato di pagamento richiesto',
-    priority: 298,
     condition: all(
       apiGwStatusIs('500'),
       apiGwPathMatches('/attachments/payment/[^/]+/PAGOPA$'),
@@ -203,7 +178,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'apigw-lambda-invocation-503',
     description: 'API Gateway non riesce a invocare temporaneamente la Lambda di integrazione (503)',
-    priority: 1297,
     condition: all(
       apiGwStatusIs('503'),
       varMatches('apiGwErrorMessage', 'Internal server error'),
@@ -228,7 +202,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'selfcare-tls-hostname-mismatch',
     description: 'Chiamata a Selfcare fallita per certificato TLS non corrispondente all’hostname',
-    priority: 1520,
     condition: stepEvidenceMatches(
       'query-pn-data-vault',
       'No subject alternative DNS name matching api\\.selfcare\\.pagopa\\.it found',
@@ -249,7 +222,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'pn-ss-get-file-document-deleted',
     description: 'safe-storage restituisce 410 GONE perché il documento è stato cancellato',
-    priority: 1283,
     condition: stepEvidenceMatches('query-pn-f24', 'Ending process getFile\\(\\) with errors=410 GONE'),
     title: 'safe-storage 410 GONE - documento cancellato',
     resolution: 'Risoluzione non documentata.',
@@ -267,7 +239,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'apigw-waf-rule-evaluation-error',
     description: 'API Gateway 500 per errore di valutazione delle regole AWS WAF',
-    priority: 1286,
     condition: all(apiGwStatusIs('500'), varMatches('apiGwErrorMessage', 'error evaluating the AWS WAF rules')),
     title: 'API Gateway 500 - errore di valutazione WAF',
     resolution: 'Risoluzione non documentata.',
@@ -285,7 +256,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'apigw-endpoint-network-error',
     description: 'API Gateway 504 per errore di rete nella comunicazione con l’integrazione',
-    priority: 1285,
     condition: all(apiGwStatusIs('504'), varMatches('apiGwErrorMessage', 'Network error communicating with endpoint')),
     title: 'API Gateway 504 - Network error communicating with endpoint',
     resolution: 'Risoluzione non documentata.',
@@ -303,10 +273,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'apigw-endpoint-timeout-no-delivery-logs',
     description: 'API Gateway 504 per superamento del timeout di integrazione senza errori su pn-delivery',
-    priority: 296,
     condition: all(
       apiGwStatusIs('504'),
       varMatches('apiGwErrorMessage', 'Endpoint request timed out'),
+      varEquals('deliveryLookupState', 'queried'),
       varEquals('deliveryLogCount', '0'),
     ),
     title: 'API Gateway 504 - Endpoint request timed out',
@@ -326,9 +296,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'apigw-500-no-application-logs',
     description: 'API Gateway 500 senza errori correlati su pn-delivery o sulla Lambda di versioning',
-    priority: 1295,
     condition: all(
       apiGwStatusIs('500'),
+      varEquals('deliveryLookupState', 'queried'),
       varEquals('deliveryLogCount', '0'),
       {
         type: 'compare',
@@ -367,7 +337,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'data-vault-selfcarepg-500',
     description: 'SelfcarePG restituisce 500 durante l’inserimento dell’istituzione in pn-data-vault',
-    priority: 294,
     condition: stepEvidenceMatches(
       'query-pn-data-vault',
       '\\[DOWNSTREAM\\] Service SelfcarePG returned errors=500 Internal Server Error from POST https://api\\.selfcare\\.pagopa\\.it/external/data-vault/v1/pn-pg/institutions/add',
@@ -396,7 +365,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'data-vault-selfcare-read-timeout',
     description: 'ReadTimeout verso Selfcare durante l’inserimento dell’istituzione in pn-data-vault',
-    priority: 293,
     condition: stepEvidenceMatches(
       'query-pn-data-vault',
       'WebClientRequestException:[\\s\\S]*ReadTimeoutException[\\s\\S]*Request to POST https://api\\.selfcare\\.pagopa\\.it/external/data-vault/v1/pn-pg/institutions/add',
@@ -415,7 +383,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'external-registries-selfcarepg-read-timeout',
     description: 'ReadTimeout del downstream SelfcarePG da pn-external-registries',
-    priority: 292,
     condition: EXTERNAL_REGISTRIES_SELFCARE_READ_TIMEOUT,
     title: '[DOWNSTREAM] SelfcarePG - ReadTimeout da pn-external-registries',
     resolution: 'Problematica segnalata gi\u00E0 da tempo al downstream coinvolto.',
@@ -431,7 +398,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'external-registries-selfcare-retry-timeout',
     description: 'Retry fallito per timeout verso Selfcare da pn-external-registries',
-    priority: 291,
     condition: EXTERNAL_REGISTRIES_SELFCARE_RETRY_TIMEOUT,
     title: '[DOWNSTREAM] Selfcare - retry fallito per ReadTimeout',
     resolution: 'Problematica segnalata gi\u00E0 da tempo al downstream coinvolto.',
@@ -447,7 +413,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'external-registries-connection-aborted',
     description: 'Connessione chiusa prima dell’invio da pn-external-registries',
-    priority: 290,
     condition: EXTERNAL_REGISTRIES_CONNECTION_ABORTED,
     title: 'pn-external-registries - Connection Aborted prima dell’invio',
     resolution: "Trattandosi di un\u2019evento occasionale non c'\u00E8 nessuna azione da intraprendere.",
@@ -462,17 +427,20 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'data-vault-connection-aborted-after-success',
     description: 'Connessione pn-data-vault chiusa dopo il completamento corretto dell’operazione',
-    priority: 1289,
     condition: all(
       stepEvidenceMatches(
         'query-pn-data-vault',
         'reactor\\.netty\\.channel\\.AbortedException: Connection has been closed BEFORE send operation',
       ),
-      stepEvidenceMatches(
-        'query-pn-data-vault',
+      // The successful operation and its completion are related rows of the same request, not errors.
+      anyStepEvidenceMatches(
+        ['query-pn-data-vault', 'query-pn-data-vault.context'],
         'Successful API operation: RecipientsApi\\._getRecipientDenominationByInternalId',
       ),
-      stepEvidenceMatches('query-pn-data-vault', 'Ending process _getRecipientDenominationByInternalId'),
+      anyStepEvidenceMatches(
+        ['query-pn-data-vault', 'query-pn-data-vault.context'],
+        'Ending process _getRecipientDenominationByInternalId',
+      ),
     ),
     title: 'pn-data-vault - Connection Aborted dopo operazione riuscita',
     resolution: 'Risoluzione non documentata.',
@@ -487,20 +455,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'delivery-external-registries-read-timeout',
     description: 'pn-delivery non riesce a recuperare i gruppi per timeout verso pn-external-registries',
-    priority: 288,
     condition: all(
       stepEvidenceMatches(
         'query-pn-delivery',
         'Error during retrieve of the groups[\\s\\S]*ResourceAccessException:[\\s\\S]*ext-registry-private/pa/v1/groups-all[\\s\\S]*Read timed out',
       ),
-      varExists('externalRegistriesLogCount'),
-      not(
-        any(
-          EXTERNAL_REGISTRIES_SELFCARE_READ_TIMEOUT,
-          EXTERNAL_REGISTRIES_SELFCARE_RETRY_TIMEOUT,
-          EXTERNAL_REGISTRIES_CONNECTION_ABORTED,
-        ),
-      ),
+      // The complete read of pn-external-registries for this error has no more specific diagnosis.
+      varEquals(exclusionVar('externalRegistries', 'specificDiagnosis'), 'absent'),
     ),
     title: 'pn-delivery - timeout verso pn-external-registries',
     resolution: 'Da segnalare se si protrae nel tempo.',
@@ -515,7 +476,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'delivery-data-vault-read-timeout',
     description: 'pn-delivery riceve un ReadTimeout chiamando pn-data-vault',
-    priority: 1287,
     condition: all(
       stepEvidenceMatches(
         'query-pn-delivery',

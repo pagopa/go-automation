@@ -69,7 +69,6 @@ go-automation/
 │   │   └── tsconfig.json
 │   ├── go-ai/                   # Client e helper per provider AI
 │   ├── go-cli/                  # Entry point di `pnpm go` (discovery, scaffold)
-│   ├── go-execute-runbook-contracts/  # Tipi condivisi runbook ↔ infra Lambda
 │   ├── go-runbook/               # Engine, step, servizi e tracing dei runbook
 │   ├── go-send/                  # Builder, servizi e worker SEND
 │   ├── go-watchtower-client/      # Client HTTP verso la console Watchtower
@@ -720,13 +719,6 @@ La build non è più solo compilazione: il monorepo usa una pipeline centralizza
 │ - uno script workspace       │
 │ - @pagopa/go-common          │
 └──────────────────────────────┘
-
-┌─────────────────────────────────┐
-│ infra/watchtower-alarm-analysis │
-├─────────────────────────────────┤
-│ importa:                        │
-│ - go-execute-runbook-contracts  │
-└─────────────────────────────────┘
 ```
 
 ### Dipendenze Esterne Principali

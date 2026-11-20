@@ -7,6 +7,7 @@ import type { RunbookContext } from '../../../../../engine/index.js';
 import { cidTrackerOutput, conditionContext } from '../../../shared/__tests__/helpers/knownCaseTesting.js';
 import { matchingCaseIds } from '../../../../../__tests__/helpers/knownCaseMatching.js';
 import type { LogRows } from '../../../../../__tests__/helpers/LogRows.js';
+import { readEvidenceTime } from '../../../../../toolkits/common/parsing/aws/cloudwatch-logs/readEvidenceTime.js';
 
 const DUPLICATE =
   'errors: 004-9991, Error creating event: error: duplicate key value violates unique constraint "events_stream_id_version_key"';
@@ -133,10 +134,10 @@ describe('INTEROP BFF known cases', () => {
     );
   });
 
-  it('does not infer a purpose-process failure from a separate mention and ranks its direct evidence above an unattributed reset', async () => {
+  it('does not infer a purpose-process failure from a separate mention, and lets its direct evidence replace an unattributed reset', async () => {
     assert.deepStrictEqual(matches(await context([row('calling purpose-process'), row('read ECONNRESET')])), []);
     const ctx = await context([row('errors: 008-9991, call to purpose-process failed: read ECONNRESET')]);
-    assert.strictEqual(matches(ctx)[0], 'purpose-process-unavailable-econnreset');
+    assert.deepStrictEqual(matches(ctx), ['purpose-process-unavailable-econnreset']);
   });
 
   it('recognizes the documented Selfcare users 504 only within one BFF request', async () => {
@@ -155,6 +156,34 @@ describe('INTEROP BFF known cases', () => {
       ),
       [],
     );
+  });
+
+  it('keeps the time of the BFF rows and the rows of the sequence that proves a request', async () => {
+    const timed = (message: string, at: string): LogRows[number] => [
+      ...row(message, BFF_ALARM.podApp, 'a'),
+      { field: '@timestamp', value: at },
+    ];
+    const result = await new AnalyzeBffEvidenceStep().execute(
+      conditionContext(
+        [
+          [
+            BFF_ALARM.stepIds.queryApplicationLogs,
+            [timed(USERS_504, '2026-10-06 00:40:00.000'), timed(USERS_WARN, '2026-10-06 00:38:00.000')],
+          ],
+          [BFF_ALARM.stepIds.queryCidTracker, []],
+        ],
+        'prod',
+      ),
+    );
+    const request = result.output?.selfcareUsersTimeouts[0];
+    assert.deepStrictEqual(
+      request?.supportingRows.map(({ timestamp }) => timestamp),
+      ['2026-10-06 00:38:00.000', '2026-10-06 00:40:00.000'],
+    );
+    const time = readEvidenceTime(request);
+    assert.strictEqual(time?.first, Date.parse('2026-10-06T00:38:00.000Z'));
+    assert.strictEqual(time?.last, Date.parse('2026-10-06T00:40:00.000Z'));
+    assert.strictEqual(time?.weight, 2);
   });
 
   it('does not match another service error from the CID tracker or another connection port', async () => {

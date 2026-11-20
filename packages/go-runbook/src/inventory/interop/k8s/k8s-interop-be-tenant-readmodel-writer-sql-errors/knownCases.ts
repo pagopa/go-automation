@@ -15,7 +15,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'tenant-readmodel-writer-sql-kafka-tls-connection-error',
     description: 'Connessione TLS verso il cluster Kafka interrotta',
-    priority: 100,
     regex:
       'ERROR\\s*-\\s*Connection error: Client network socket disconnected before secure TLS connection was established',
     resolution: 'Risoluzione non documentata.',

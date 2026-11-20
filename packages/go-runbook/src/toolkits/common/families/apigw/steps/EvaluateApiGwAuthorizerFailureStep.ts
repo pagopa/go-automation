@@ -86,26 +86,25 @@ export class EvaluateApiGwAuthorizerFailureStep implements Step<ApiGwAuthorizerF
       };
     }
 
-    const rows = upstream.value;
+    const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = upstream.value;
     const reporter = new ApiGwReporter(context.services.reporter);
-    const firstEvidence = this.extractEvidence(rows[0]);
-    let firstError: ApiGwAuthorizerFailureInfo | undefined;
-
+    // The rows of one request: a timeout explains it best, then the first authorizer error.
+    let failure: ApiGwAuthorizerFailureInfo | undefined;
     for (const row of rows) {
       const info = this.evaluateRow(row);
       if (info === undefined) continue;
+      failure ??= info;
       if (info.outcome === 'timeout') {
-        reporter?.apiGwAuthorizerEvaluation(toReporterInput(info));
-        return this.toResolvedResult(info);
+        failure = info;
+        break;
       }
-      firstError ??= info;
+    }
+    if (failure !== undefined) {
+      reporter?.apiGwAuthorizerEvaluation(toReporterInput(failure));
+      return this.toResolvedResult(failure);
     }
 
-    if (firstError !== undefined) {
-      reporter?.apiGwAuthorizerEvaluation(toReporterInput(firstError));
-      return this.toResolvedResult(firstError);
-    }
-
+    const firstEvidence = this.extractEvidence(rows[0]);
     reporter?.apiGwAuthorizerEvaluation({
       lambdaName: firstEvidence?.authorizer.lambdaName ?? this.check.defaultAuthorizer?.lambdaName ?? 'n/a',
       outcome: 'none',
@@ -170,6 +169,11 @@ export class EvaluateApiGwAuthorizerFailureStep implements Step<ApiGwAuthorizerF
     };
   }
 
+  /**
+   * The row of the request the access-log parser selected, by the exact position it published. Without a parser (no
+   * position published) there is no selection: the gate is the first reader of the access log, and any failing row
+   * ends the chain.
+   */
   private toResolvedResult(info: ApiGwAuthorizerFailureInfo): StepResult<ApiGwAuthorizerFailureInfo | undefined> {
     const vars: Record<string, string> = {
       apiGwAuthorizerOutcome: info.outcome,
@@ -181,15 +185,12 @@ export class EvaluateApiGwAuthorizerFailureStep implements Step<ApiGwAuthorizerF
       apiGwAuthorizerRequestId: info.requestId ?? '',
       apiGwAuthorizerPath: info.path ?? '',
       apiGwAuthorizerHttpMethod: info.httpMethod ?? '',
+      apiGwAuthorizerDetail: buildAuthorizerMessage(info),
       lastErrorMsg: buildAuthorizerMessage(info),
     };
 
-    return {
-      success: true,
-      output: info,
-      vars,
-      next: 'resolve',
-    };
+    // The authorizer rejected the request before the integration: no backend was called, the chain ends.
+    return { success: true, output: info, vars, next: 'stop' };
   }
 
   private toNoErrorResult(

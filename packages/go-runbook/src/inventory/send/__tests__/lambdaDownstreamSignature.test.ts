@@ -23,7 +23,10 @@ describe('SEND Lambda runbooks classify the downstream signature', () => {
   it('classifies "External service … returned errors" as a downstream error in every SEND Lambda pipeline', async () => {
     const parseSteps = SEND_MANIFEST.flatMap((registration) => {
       const runbook = registration.build();
-      const step = runbook.steps.find(({ step: candidate }) => candidate.id === 'parse-lambda-errors')?.step;
+      // The parse runs on every invocation of the root level.
+      const step = runbook.tree?.root.perNode?.find(
+        ({ step: candidate }) => candidate.id === 'parse-lambda-errors',
+      )?.step;
       return step === undefined ? [] : [{ runbookId: runbook.metadata.id, step }];
     });
     assert.ok(parseSteps.length >= 12, `found ${parseSteps.length}`);

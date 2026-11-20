@@ -4,6 +4,7 @@ import { RunbookEngine } from '../../engine/core/RunbookEngine.js';
 import type { Runbook } from '../../engine/types/Runbook.js';
 import { buildAnalysisDraft } from '../../toolkits/common/analysis/draft/buildAnalysisDraft.js';
 import { createTestServiceRegistry } from '../../toolkits/common/testing/createTestServiceRegistry.js';
+import { readEvidenceTime } from '../../toolkits/common/parsing/aws/cloudwatch-logs/readEvidenceTime.js';
 import { fakeCloudWatchLogs } from './fakeCloudWatchLogs.js';
 import type { LogsResponderFn } from './LogsResponderFn.js';
 import type { RunbookLogsExecution } from './RunbookLogsExecution.js';
@@ -28,7 +29,7 @@ export async function executeWithLogs(
   respond: LogsResponderFn,
 ): Promise<RunbookLogsExecution> {
   const cloudWatchLogs = fakeCloudWatchLogs(respond);
-  const result = await new RunbookEngine(new GOLogger()).execute(
+  const result = await new RunbookEngine(new GOLogger(), { evidenceTime: readEvidenceTime }).execute(
     runbook,
     new Map(Object.entries(params)),
     createTestServiceRegistry({ cloudWatchLogs }),
@@ -36,7 +37,7 @@ export async function executeWithLogs(
   return {
     result,
     draft: buildAnalysisDraft(runbook, result),
-    matchedIds: result.matchedCases.map(({ id }) => id),
+    matchedIds: result.detections.map(({ knownCase }) => knownCase.id),
     queries: cloudWatchLogs.queries,
   };
 }

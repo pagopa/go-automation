@@ -1,6 +1,8 @@
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { Step } from '../../types/Step.js';
 import type { StepResult } from '../../types/StepResult.js';
+import type { DescendRequest } from '../../types/DescendRequest.js';
+import type { StepCoverage } from '../../types/StepCoverage.js';
 
 /**
  * Builds a StepResult with optional vars, avoiding explicit undefined assignment
@@ -9,11 +11,23 @@ import type { StepResult } from '../../types/StepResult.js';
 function buildResult(
   success: boolean,
   accumulatedVars: Readonly<Record<string, string>>,
+  collected: SubPipelineCollected,
   extra?: { readonly error?: string; readonly next?: 'stop' },
 ): StepResult<void> {
   const hasVars = Object.keys(accumulatedVars).length > 0;
-  const base: StepResult<void> = hasVars ? { success, vars: accumulatedVars, ...extra } : { success, ...extra };
-  return base;
+  return {
+    success,
+    ...(hasVars ? { vars: accumulatedVars } : {}),
+    ...(collected.descend.length > 0 ? { descend: collected.descend } : {}),
+    ...(collected.coverage.length > 0 ? { coverage: collected.coverage } : {}),
+    ...extra,
+  };
+}
+
+/** What the steps of a sub-pipeline declared beside their variables: descents and partial evidence. */
+interface SubPipelineCollected {
+  readonly descend: DescendRequest[];
+  readonly coverage: StepCoverage[];
 }
 
 /**
@@ -37,6 +51,7 @@ export async function executeSubPipeline(
   const childStepResults = new Map<string, unknown>(parentContext.stepResults);
   const childVars = new Map<string, string>(parentContext.vars);
   const accumulatedVars: Record<string, string> = {};
+  const collected: SubPipelineCollected = { descend: [], coverage: [] };
 
   // The child context wraps the two child Maps, which are mutated in place
   // across sub-steps — so a single context object stays valid for the whole
@@ -49,9 +64,11 @@ export async function executeSubPipeline(
 
   for (const step of steps) {
     const result = await step.execute(childContext);
+    collected.descend.push(...(result.descend ?? []));
+    collected.coverage.push(...(result.coverage ?? []));
 
     if (!result.success) {
-      return buildResult(false, accumulatedVars, {
+      return buildResult(false, accumulatedVars, collected, {
         error: `Sub-step '${step.id}' failed: ${result.error ?? 'unknown error'}`,
       });
     }
@@ -69,9 +86,9 @@ export async function executeSubPipeline(
 
     // If the sub-step requests a stop, propagate it
     if (result.next === 'stop') {
-      return buildResult(true, accumulatedVars, { next: 'stop' });
+      return buildResult(true, accumulatedVars, collected, { next: 'stop' });
     }
   }
 
-  return buildResult(true, accumulatedVars);
+  return buildResult(true, accumulatedVars, collected);
 }

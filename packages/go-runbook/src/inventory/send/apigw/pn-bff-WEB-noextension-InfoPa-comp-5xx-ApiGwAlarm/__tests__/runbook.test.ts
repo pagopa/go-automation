@@ -3,11 +3,12 @@ import { describe, it } from 'node:test';
 import type { RunbookContext } from '../../../../../engine/index.js';
 import { buildRunbook } from '../runbook.js';
 import { KNOWN_CASES } from '../knownCases.js';
-import { API_GW_LOG_GROUP } from '../knownServices.js';
+import { API_GW_LOG_GROUP, ENTRY_SERVICE } from '../knownServices.js';
 import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
 import { executeWithLogs } from '../../../../../__tests__/helpers/executeWithLogs.js';
 import { caseMatches, knownCaseById } from '../../../../../__tests__/helpers/knownCaseMatching.js';
 import { logRow } from '../../../../../__tests__/helpers/logRow.js';
+import { treeNodeVars } from '../../../../../__tests__/helpers/treeNodeVars.js';
 
 const ROOT = '1-6abf5ca6-432e6382038c4b060d8e8ddd';
 const FALLBACK = '4e88b614-ecc0-4327-86ae-a7b02490ea39';
@@ -29,7 +30,13 @@ function context(messages: ReadonlyArray<string>, queried = true): RunbookContex
       apiGwStatusCode: '500',
       apiGwHttpMethod: 'GET',
       apiGwPath: '/bff/v1/institutions/products',
-      ...(queried ? { externalRegistriesLogCount: String(messages.length) } : {}),
+      // The BFF error above a node of pn-external-registries, and how its read and branch ended.
+      bffErrorMsg: BFF_TIMEOUT,
+      bffReadTimeout: 'true',
+      ...(queried
+        ? { externalRegistriesLookupState: 'queried', externalRegistriesLogCount: String(messages.length) }
+        : {}),
+      branchOutcome: 'undiagnosed',
     },
     stepResults: {
       'query-pn-bff': [logRow({ '@message': JSON.stringify({ message: BFF_TIMEOUT }) })],
@@ -69,6 +76,7 @@ describe('InfoPa API Gateway runbook', () => {
     steps.set('query-pn-bff', [logRow({ '@message': bff })]);
     const vars = new Map(ctx.vars);
     vars.set('apiGwPath', '/bff/v1/pa/groups');
+    vars.set('bffErrorMsg', bff);
     const correlated = { ...ctx, vars, stepResults: steps };
     const id = 'selfcare-user-groups-invalid-tenant-context';
     assert.equal(matches(id, correlated), true);
@@ -76,7 +84,9 @@ describe('InfoPa API Gateway runbook', () => {
       matches(id, { ...correlated, vars: new Map([...vars, ['apiGwPath', '/bff/v1/institutions']]) }),
       false,
     );
-    assert.equal(matches(id, { ...correlated, stepResults: new Map([...steps, ['query-pn-bff', []]]) }), false);
+    const withoutBff = new Map(vars);
+    withoutBff.delete('bffErrorMsg');
+    assert.equal(matches(id, { ...correlated, vars: withoutBff }), false);
     for (const unrelated of [
       failure.replace('api.selfcare.pagopa.it', 'other.example'),
       failure.replace('user-groups', 'users'),
@@ -110,10 +120,11 @@ describe('InfoPa API Gateway runbook', () => {
     assert.strictEqual(matches('external-registries-response-already-committed', context([ABORTED, COMMITTED])), true);
     assert.strictEqual(matches('external-registries-response-already-committed', context([ABORTED])), false);
     assert.strictEqual(matches('external-registries-response-already-committed', context([COMMITTED])), false);
+    // Without the BFF timeout above, the committed response is not this case.
     const ctx = context([ABORTED, COMMITTED]);
-    const stepResults = new Map(ctx.stepResults);
-    stepResults.set('query-pn-bff', []);
-    assert.strictEqual(matches('external-registries-response-already-committed', { ...ctx, stepResults }), false);
+    const vars = new Map(ctx.vars);
+    vars.set('bffReadTimeout', 'false');
+    assert.strictEqual(matches('external-registries-response-already-committed', { ...ctx, vars }), false);
   });
 
   it('traverses using the X-Ray root when BFF and downstream fallback UUIDs differ', async () => {
@@ -141,11 +152,12 @@ describe('InfoPa API Gateway runbook', () => {
         return [logRow({ level: 'ERROR', '@message': SELFCARE_TIMEOUT, trace_id: ROOT })];
       },
     );
+    // Every request with a request id is looked up in the execution log, whatever its errorMessage.
     assert.deepStrictEqual(
       queries.map(({ groups }) => groups[0]),
-      [API_GW_LOG_GROUP, '/aws/ecs/pn-bff', '/aws/ecs/pn-external-registries'],
+      [API_GW_LOG_GROUP, ENTRY_SERVICE.executionLogGroup, '/aws/ecs/pn-bff', '/aws/ecs/pn-external-registries'],
     );
-    assert.strictEqual(result.matchedCases[0]?.id, 'external-registries-selfcare-read-timeout');
-    assert.strictEqual(result.finalContext.vars.get('bffFallbackUuid'), FALLBACK);
+    assert.strictEqual(result.detections[0]?.knownCase.id, 'external-registries-selfcare-read-timeout');
+    assert.strictEqual(treeNodeVars(result, 'pn-bff').get('bffFallbackUuid'), FALLBACK);
   });
 });

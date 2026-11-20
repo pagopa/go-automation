@@ -5,6 +5,7 @@
 import type { apigw } from '../../../../toolkits/send/index.js';
 
 import { DELIVERY_API_GW_EXECUTION_LOG_GROUP } from '../../shared/DELIVERY_API_GW_EXECUTION_LOG_GROUP.js';
+import { EXTERNAL_REGISTRIES_EXCLUSIONS } from './externalRegistriesDiagnoses.js';
 
 const EXTERNAL_REGISTRIES_QUERY = `{{FILTER_CLAUSE}}
 | filter level == 'ERROR' or @message like 'Invoking external service Selfcare'
@@ -47,6 +48,7 @@ export const REACHABLE_SERVICES: ReadonlyArray<apigw.ApiGwService> = [
     logGroup: '/aws/ecs/pn-external-registries',
     varPrefix: 'externalRegistries',
     queryOverride: EXTERNAL_REGISTRIES_QUERY,
+    exclusions: EXTERNAL_REGISTRIES_EXCLUSIONS,
   },
   {
     name: 'pn-data-vault',

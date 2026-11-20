@@ -82,7 +82,7 @@ describe('CloudWatchLogsQueryStep.execute', () => {
           ) => {
             await Promise.resolve();
             queries.push(query);
-            assert.deepStrictEqual(options, { paginateResults: true });
+            assert.deepStrictEqual(options, { partialResults: true, paginateResults: true });
             const rows = query === 'initial' ? [] : [[{ field: 'status', value: '403' }]];
             const statistics = { bytesScanned: 100, recordsScanned: 10, recordsMatched: rows.length };
             return {
@@ -161,7 +161,7 @@ describe('CloudWatchLogsQueryStep.execute', () => {
 
     assert.strictEqual(result.success, true);
     assert.deepStrictEqual(result.output, rows);
-    assert.deepStrictEqual(seenOptions, [{}]);
+    assert.deepStrictEqual(seenOptions, [{ partialResults: true }]);
     assert.strictEqual(result.diagnostics?.cloudWatchLogs?.statistics.bytesScanned, 1024);
     assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions[0]?.queryId, 'qid-1');
     reporter.flush();

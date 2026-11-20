@@ -10,7 +10,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'ade-legal-representative-internal-server-error-500',
     description: '[DOWNSTREAM AdE] HTTP 500 durante la verifica del rappresentante legale',
-    priority: 120,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
       '\\[DOWNSTREAM\\] Service AdE returned errors=500 Internal Server Error from POST ' +
@@ -35,7 +34,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'ade-legal-representative-read-timeout',
     description: '[DOWNSTREAM AdE] Timeout durante la verifica del rappresentante legale',
-    priority: 110,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
       '\\[DOWNSTREAM\\] Service AdE returned errors=<not specified>[\\s\\S]*Request to POST ' +
@@ -63,7 +61,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'ade-read-timeout',
     description: '[DOWNSTREAM AdE] Timeout di lettura generico',
-    priority: 100,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
       '\\[DOWNSTREAM\\] Service AdE returned errors=nested exception is ' +

@@ -13,7 +13,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'service-desk-view-notification-not-found',
     description: '[AUD_CA_VIEW_NOTIFICATION] Notifica non trovata (HTTP 404)',
-    priority: 100,
     condition: anyStepEvidenceMatches(
       QUERY_STEPS,
       String.raw`\[AUD_CA_VIEW_NOTIFICATION\] FAILURE - errorReason = 404 Not Found from GET http://[^\s"\\/]+/delivery-private/notifications/[^\s"\\/,]+, An error occurred while calling the service to obtain sent notifications`,
@@ -35,7 +34,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'service-desk-notification-document-gone',
     description: 'Recupero documento di notifica: HTTP 410 Gone',
-    priority: 90,
     condition: anyStepEvidenceMatches(
       QUERY_STEPS,
       String.raw`errorReason = 410 Gone from GET http://[^\s"\\/]+/delivery-private/notifications/received/[^\s"\\/,]+/attachments/documents/\d+, An error occurred while calling the service to obtain notification document`,

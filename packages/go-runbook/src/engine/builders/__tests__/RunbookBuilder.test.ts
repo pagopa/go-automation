@@ -52,7 +52,6 @@ describe('RunbookBuilder', () => {
       .knownCase({
         id: 'case',
         description: 'case',
-        priority: 1,
         condition: { type: 'exists', ref: 'steps.missing-step' },
         action: logAction({ level: 'info', title: 'case' }),
       })

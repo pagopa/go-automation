@@ -1,6 +1,9 @@
+import type { IdentifierObservation } from '../../../engine/types/IdentifierObservation.js';
+
 export type RunbookOutcome =
   | KnownCaseMatchedOutcome
   | UnknownCaseOutcome
+  | InconclusiveOutcome
   | ProcedureSuccessOutcome
   | ProcedureFailureOutcome
   | FailedOutcome
@@ -8,19 +11,30 @@ export type RunbookOutcome =
 
 export interface KnownCaseMatchedOutcome {
   readonly kind: 'known-case-matched';
-  readonly primaryCaseId: string;
-  readonly primaryCaseDescription: string;
-  readonly matchedCases: ReadonlyArray<{
-    readonly id: string;
+  /** Every detection, in time order (declaration order on ties, untimed last). */
+  readonly detections: ReadonlyArray<{
+    readonly caseId: string;
     readonly description: string;
-    readonly priority: number;
+    readonly firstSeenAt?: string;
+    readonly lastSeenAt?: string;
+    readonly evidenceRows: number;
     readonly resolvedMessage?: string;
+    readonly observations: ReadonlyArray<IdentifierObservation>;
   }>;
   readonly message: string;
 }
 
+/** No case matched, and the evidence is complete. */
 export interface UnknownCaseOutcome {
   readonly kind: 'unknown-case';
+  readonly casesEvaluated: number;
+  readonly fallbackMessage?: string;
+  readonly message: string;
+}
+
+/** No case matched, and the evidence is incomplete: a failed, skipped or saturated read. */
+export interface InconclusiveOutcome {
+  readonly kind: 'inconclusive';
   readonly casesEvaluated: number;
   readonly fallbackMessage?: string;
   readonly message: string;

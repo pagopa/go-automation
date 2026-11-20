@@ -8,6 +8,7 @@ import { readStepOutput } from '../../../../../engine/context/readStepOutput.js'
 import type { DownstreamErrorPattern } from '../types/DownstreamErrorPattern.js';
 import { findDownstreamInRows } from '../helpers/matchDownstreamErrorPattern.js';
 import { scanLambdaLogs } from '../helpers/scanLambdaLogs.js';
+import { boundedText } from '../../../parsing/correlation/boundedText.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
@@ -102,7 +103,7 @@ export class AnalyzeLambdaInvocationStep implements Step<undefined> {
       const match = findDownstreamInRows(rows, this.downstreamErrorPatterns);
       if (match !== undefined) {
         vars['lambdaDownstreamTarget'] = match.target;
-        vars['lastErrorMsg'] = match.message;
+        vars['lastErrorMsg'] = boundedText(match.message);
         // The downstream is the actionable signal: promote the category unless
         // a more critical runtime category (timeout/OOM/throttle) was detected.
         const category = (context.vars.get('lambdaErrorCategory') ?? '').trim();

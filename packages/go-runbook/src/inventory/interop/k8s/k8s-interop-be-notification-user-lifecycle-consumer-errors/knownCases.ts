@@ -14,7 +14,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'notification-kafka-no-broker',
     description: 'Nessun broker Kafka disponibile',
-    priority: 130,
     condition: {
       type: 'and',
       conditions: [
@@ -38,7 +37,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'notification-kafka-metadata-timeout',
     description: 'Timeout della richiesta Metadata al cluster Kafka',
-    priority: 120,
     condition: {
       type: 'and',
       conditions: [
@@ -62,7 +60,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'notification-kafka-replica-retries-exhausted',
     description: 'Retry Kafka esauriti per replica non disponibile',
-    priority: 110,
     condition: {
       type: 'and',
       conditions: [
@@ -86,7 +83,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'notification-kafka-broker-communication-errors',
     description: 'Errore di connessione verso Kafka',
-    priority: 100,
     condition: {
       type: 'or',
       conditions: [
@@ -123,7 +119,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'notification-kafka-read-timeout',
     description: 'Timeout di lettura nella connessione Kafka',
-    priority: 95,
     condition: {
       type: 'and',
       conditions: [
@@ -144,7 +139,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'notification-duplicate-event-stream-version',
     description: 'Evento duplicato su events_stream_id_version_key',
-    priority: 90,
     condition: stepEvidenceMatches(
       ALARM.stepIds.queryApplicationLogs,
       'Error creating event: error: duplicate key value violates unique constraint[^\\n]*events_stream_id_version_key',
@@ -164,7 +158,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'notification-certifier-tenant-istat-not-found',
     description: 'Tenant ISTAT del certificatore non trovato',
-    priority: 80,
     condition: stepEvidenceMatches(ALARM.stepIds.queryApplicationLogs, 'Message: Certifier tenant ISTAT not found\\b'),
     resolution: 'Nessuna azione necessaria',
     details: DETAILS,
@@ -185,7 +178,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'notification-remove-api-role-conflict',
     description: 'HTTP 409 durante la rimozione del ruolo api dalla configurazione delle notifiche',
-    priority: 145,
     condition: {
       type: 'and',
       conditions: [
@@ -214,7 +206,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'notification-selfcare-tenant-not-found',
     description: 'Tenant assente nel read model per il selfcareId',
-    priority: 135,
     condition: {
       type: 'and',
       conditions: [

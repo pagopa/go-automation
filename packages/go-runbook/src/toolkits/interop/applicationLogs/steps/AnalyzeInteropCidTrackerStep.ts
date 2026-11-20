@@ -78,7 +78,6 @@ export class AnalyzeInteropCidTrackerStep implements Step<InteropK8sCidTrackerAn
         [varName(this.varPrefix, 'Messages')]: JSON.stringify(analysis.messages),
         [varName(this.varPrefix, 'AnalysisCompleted')]: 'true',
       },
-      next: 'resolve',
     };
   }
 }

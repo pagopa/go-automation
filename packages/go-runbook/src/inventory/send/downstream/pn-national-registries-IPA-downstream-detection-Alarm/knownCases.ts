@@ -9,7 +9,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'ipa-service-unavailable-503',
     description: '[DOWNSTREAM IPA] Indice PA temporaneamente non disponibile (HTTP 503)',
-    priority: 100,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
       '\\[DOWNSTREAM\\] Service IPA returned errors=503 Service Unavailable from POST ' +
@@ -36,7 +35,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'ipa-connection-prematurely-closed',
     description: '[DOWNSTREAM IPA] Connessione chiusa prematuramente dal downstream',
-    priority: 120,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
       '\\[DOWNSTREAM\\] Service IPA returned errors=Connection prematurely closed BEFORE response\\b',

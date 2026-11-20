@@ -27,6 +27,7 @@ import {
   VERSIONING_LAMBDA_UNAVAILABLE_REASON_VAR,
   type VersioningLambdaProbeState,
 } from './versioningLambdaProbe.js';
+import { boundedText } from '../../../../toolkits/common/parsing/correlation/boundedText.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
@@ -94,56 +95,70 @@ export class QueryVersioningLambdaErrorsStep extends OperationalStep<Rows> imple
         };
       }
 
-      const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
-      let queryResult: ExecutedCloudWatchLogsQuery;
-      try {
-        queryResult = await executeCloudWatchLogsQuery(
-          context,
-          [this.lambdaLogGroup],
-          DEFAULT_LAMBDA_ERROR_QUERY,
-          timeRange,
-          {
-            ...(context.signal !== undefined ? { signal: context.signal } : {}),
-            logGroupResolutionMode: 'search-configured-profiles',
-          },
-        );
-      } catch (error: unknown) {
-        const reason = error instanceof Error ? error.message : String(error);
-        new LambdaReporter(context.services.reporter).queryFailed([this.lambdaLogGroup], reason);
-        return {
-          success: true,
-          output: [],
-          vars: probeVars('unavailable', { unavailableReason: reason }),
-          // A failed query is not evidence of zero errors: keep traversing.
-          next: 'continue' as const,
-        };
+      // One read for the whole execution: every request that needs the probe shares it, with its coverage; only the
+      // first declares the telemetry.
+      const key = `window-read:${this.id}`;
+      const shared = context.sharedReads?.get(key) as Promise<StepResult<Rows>> | undefined;
+      if (shared !== undefined) {
+        const { diagnostics: _measured, ...result } = await shared;
+        return result;
       }
+      const read = this.probe(context);
+      context.sharedReads?.set(key, read);
+      return read;
+    });
+  }
 
-      const scan = scanLambdaLogs(queryResult.rows, []); // message only: the category is not read here
-      context.services.reporter.add({
-        label: `Lambda versioning: ${String(queryResult.rows.length)} errori nella finestra`,
-      });
-
+  /** Reads the errors of the versioning Lambda in the window. */
+  private async probe(context: OperationalContext): Promise<StepResult<Rows>> {
+    const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
+    let queryResult: ExecutedCloudWatchLogsQuery;
+    try {
+      queryResult = await executeCloudWatchLogsQuery(
+        context,
+        [this.lambdaLogGroup],
+        DEFAULT_LAMBDA_ERROR_QUERY,
+        timeRange,
+        {
+          ...(context.signal !== undefined ? { signal: context.signal } : {}),
+          logGroupResolutionMode: 'search-configured-profiles',
+        },
+      );
+    } catch (error: unknown) {
+      const reason = error instanceof Error ? error.message : String(error);
+      new LambdaReporter(context.services.reporter).queryFailed([this.lambdaLogGroup], reason);
       return {
         success: true,
-        output: queryResult.rows,
-        vars: probeVars('queried', {
-          errorCount: queryResult.rows.length,
-          errorMessage: scan?.message ?? '',
-        }),
-        ...(queryResult.diagnostics !== undefined ? { diagnostics: queryResult.diagnostics } : {}),
-        // The corroborating evidence is in: try to close the case here and skip
-        // a traversal that would scan gigabytes for nothing. When no case
-        // matches the engine simply carries on.
-        next: 'resolve' as const,
+        output: [],
+        vars: probeVars('unavailable', { unavailableReason: reason }),
+        coverage: [{ source: this.lambdaLogGroup, complete: false, reason: 'unavailable', detail: reason }],
+        // A failed query is not evidence of zero errors: keep traversing.
+        next: 'continue' as const,
       };
+    }
+
+    const scan = scanLambdaLogs(queryResult.rows, []); // message only: the category is not read here
+    context.services.reporter.add({
+      label: `Lambda versioning: ${String(queryResult.rows.length)} errori nella finestra`,
     });
+
+    return {
+      success: true,
+      output: queryResult.rows,
+      // A partial read keeps its rows (positive evidence) but is not `queried`: zero errors would not be proven.
+      vars: probeVars(queryResult.coverage.length === 0 ? 'queried' : 'saturated', {
+        errorCount: queryResult.rows.length,
+        errorMessage: boundedText(scan?.message ?? ''),
+      }),
+      ...(queryResult.diagnostics !== undefined ? { diagnostics: queryResult.diagnostics } : {}),
+      ...(queryResult.coverage.length > 0 ? { coverage: queryResult.coverage } : {}),
+    };
   }
 }
 
 /**
- * The probe runs on the shape it was built for: an API Gateway 500 with no
- * pn-delivery error.
+ * The probe runs on the shape it was built for: an API Gateway 500 whose complete pn-delivery read found no
+ * error.
  *
  * It deliberately does **not** require a query identifier. Those occurrences
  * carry no trace id precisely because nothing logged an error — which is the
@@ -153,6 +168,7 @@ export class QueryVersioningLambdaErrorsStep extends OperationalStep<Rows> imple
 function shouldQueryVersioningLambda(context: RunbookContext): boolean {
   return (
     (context.vars.get('apiGwStatusCode') ?? '').trim() === '500' &&
+    (context.vars.get('deliveryLookupState') ?? '').trim() === 'queried' &&
     (context.vars.get('deliveryLogCount') ?? '').trim() === '0'
   );
 }

@@ -124,7 +124,7 @@ describe('DailyExport queries configured sources', () => {
     assert.deepStrictEqual(invocation.output, []);
     assert.strictEqual(calls.length, 1);
   });
-  it('does not convert access failures into empty source evidence', async () => {
+  it('declares a source it cannot read unavailable and keeps the rows of the others', async () => {
     const calls: Call[] = [];
     const input = context(calls, SOURCES, (key) => {
       if (key === SOURCES[1]) throw Error('AccessDenied');
@@ -134,10 +134,14 @@ describe('DailyExport queries configured sources', () => {
       ...LAMBDA_LOG_READER,
       queryKind: 'errors',
     }).execute(input);
-    assert.strictEqual(result.success, false);
-    assert.strictEqual(result.output, undefined);
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.output?.length, 1);
+    assert.deepStrictEqual(
+      result.coverage?.map(({ source, reason }) => ({ source, reason })),
+      [{ source: SOURCES[1], reason: 'unavailable' }],
+    );
   });
-  it('rejects a saturated error scan in any configured source', async () => {
+  it('keeps a saturated error scan of any configured source, declaring the source saturated', async () => {
     for (const saturated of SOURCES) {
       const calls: Call[] = [];
       const result = await new lambda.QueryLambdaAcrossAccountsStep({
@@ -148,8 +152,13 @@ describe('DailyExport queries configured sources', () => {
           key === saturated ? Array.from({ length: 1000 }, () => row('request-1')) : [],
         ),
       );
-      assert.strictEqual(result.success, false);
-      assert.match(result.error ?? '', /1000-row limit/);
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.output?.length, 1000);
+      assert.deepStrictEqual(
+        result.coverage?.map(({ source, reason }) => ({ source, reason })),
+        [{ source: saturated, reason: 'saturated' }],
+      );
+      assert.match(result.coverage?.[0]?.detail ?? '', /1000-row limit/);
     }
   });
   it('correlates request IDs only within their configured source and deduplicates them', async () => {

@@ -10,7 +10,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'onetrust-read-timeout',
     description: '[DOWNSTREAM OneTrust] Timeout di lettura',
-    priority: 110,
     condition: stepEvidenceMatches(
       'query-pn-external-registries',
       '\\[DOWNSTREAM\\] Service OneTrust returned errors=(?:nested exception is )?' +
@@ -35,7 +34,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'onetrust-service-unavailable-503',
     description: '[DOWNSTREAM OneTrust] Servizio temporaneamente non disponibile (HTTP 503)',
-    priority: 100,
     condition: stepEvidenceMatches(
       'query-pn-external-registries',
       '\\[DOWNSTREAM\\] Service OneTrust returned errors=503 Service Unavailable from GET ' +

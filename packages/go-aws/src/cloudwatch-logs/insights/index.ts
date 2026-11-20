@@ -13,5 +13,6 @@ export type { AWSCloudWatchLogsQueryOptions } from './AWSCloudWatchLogsQueryOpti
 export type { AWSCloudWatchLogsSource } from './AWSCloudWatchLogsSource.js';
 export type { AWSCloudWatchLogsTarget } from './AWSCloudWatchLogsTarget.js';
 export type { AWSCloudWatchLogsQueryExecution } from './AWSCloudWatchLogsQueryExecution.js';
+export type { AWSCloudWatchLogsFailedRead } from './AWSCloudWatchLogsFailedRead.js';
 export type { AWSCloudWatchLogsQueryResult } from './AWSCloudWatchLogsQueryResult.js';
 export type { AWSCloudWatchLogsQueryService } from './AWSCloudWatchLogsQueryService.js';

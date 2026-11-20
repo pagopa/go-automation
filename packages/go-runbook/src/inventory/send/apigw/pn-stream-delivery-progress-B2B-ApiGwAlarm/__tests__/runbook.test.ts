@@ -67,13 +67,13 @@ describe('pn-stream delivery progress API Gateway runbook', () => {
           authorizerStatus: '500',
           authorizerRequestId: ID,
           errorMessage: '-',
-          xrayTraceId: 'Root=1-test',
+          xrayTraceId: 'Root=1-6ad1eae3-493a74b231f3e345492729e9',
         }),
       ],
       [],
       [row({ '@requestId': ID, '@message': `REPORT RequestId: ${ID} Status: timeout` })],
     );
-    assert.equal(result.matchedCases[0]?.id, 'stream-authorizer-runtime-timeout');
+    assert.equal(result.detections[0]?.knownCase.id, 'stream-authorizer-runtime-timeout');
     assert.equal(calls.filter((g) => g === API_GW_LOG_GROUP).length, 1);
   });
   it('confirms the documented runtime timeout with correlated authorizer REPORT evidence', async () => {
@@ -85,15 +85,18 @@ describe('pn-stream delivery progress API Gateway runbook', () => {
           authorizerLatency: '10011',
           authorizerRequestId: ID,
           errorMessage: '-',
-          xrayTraceId: 'Root=1-test',
+          xrayTraceId: 'Root=1-6ad1eae3-493a74b231f3e345492729e9',
         }),
       ],
       [],
       [row({ '@requestId': ID, '@message': `REPORT RequestId: ${ID}\tDuration: 10000.00 ms\tStatus: timeout` })],
     );
-    assert.equal(result.matchedCases[0]?.id, 'stream-authorizer-runtime-timeout');
-    assert.equal(result.resolvedAtStep, 'query-stream-authorizer-lambda');
-    assert.deepEqual(calls, [API_GW_LOG_GROUP, AUTHORIZER_LOG_GROUP]);
+    assert.deepEqual(
+      result.detections.map(({ knownCase }) => knownCase.id),
+      ['stream-authorizer-runtime-timeout'],
+    );
+    // A known case does not end the traversal: the service is still read, and finds nothing for this request.
+    assert.deepEqual(calls, [API_GW_LOG_GROUP, AUTHORIZER_LOG_GROUP, ENTRY_SERVICE.logGroup]);
   });
 
   it('recognises invocation 504 without calling it a Lambda runtime timeout', async () => {
@@ -105,13 +108,13 @@ describe('pn-stream delivery progress API Gateway runbook', () => {
           authorizerLatency: '29000',
           requestId: ID,
           errorMessage: 'Internal server error',
-          xrayTraceId: 'Root=1-test',
+          xrayTraceId: 'Root=1-6ad1eae3-493a74b231f3e345492729e9',
         }),
       ],
       [row({ '@message': `(${ID}) Lambda invocation failed with status: 504. Lambda request id: N/A` })],
     );
-    assert.equal(result.matchedCases[0]?.id, 'stream-lambda-invocation-504');
-    assert.ok(!result.matchedCases.some((c) => c.id === 'stream-authorizer-runtime-timeout'));
+    assert.equal(result.detections[0]?.knownCase.id, 'stream-lambda-invocation-504');
+    assert.ok(!result.detections.some((c) => c.knownCase.id === 'stream-authorizer-runtime-timeout'));
   });
 
   it('does not infer runtime timeout, recovery or OOM from latency and empty logs', async () => {
@@ -121,11 +124,11 @@ describe('pn-stream delivery progress API Gateway runbook', () => {
         authorizerStatus: '500',
         authorizerLatency: '29000',
         authorizerRequestId: '-',
-        xrayTraceId: 'Root=1-test',
+        xrayTraceId: 'Root=1-6ad1eae3-493a74b231f3e345492729e9',
         errorMessage: '-',
       }),
     ]);
-    assert.deepEqual(result.matchedCases, []);
+    assert.deepEqual(result.detections, []);
   });
 
   it('continues beyond unavailable execution logs and checks versioning client errors', async () => {
@@ -138,7 +141,7 @@ describe('pn-stream delivery progress API Gateway runbook', () => {
           path: '/delivery-progresses/v2.3/streams/test/events',
           requestId: ID,
           errorMessage: 'Forbidden',
-          xrayTraceId: 'Root=1-test',
+          xrayTraceId: 'Root=1-6ad1eae3-493a74b231f3e345492729e9',
         }),
       ],
       [],
@@ -146,7 +149,7 @@ describe('pn-stream delivery progress API Gateway runbook', () => {
       [row({ '@requestId': ID, '@message': 'INFO PN_GENERIC_ERROR AxiosError: Request failed with status code 403' })],
       true,
     );
-    assert.equal(result.matchedCases[0]?.id, 'stream-versioning-client-403');
+    assert.equal(result.detections[0]?.knownCase.id, 'stream-versioning-client-403');
     assert.ok(calls.includes(VERSIONING_LOG_GROUP));
   });
 
@@ -157,14 +160,14 @@ describe('pn-stream delivery progress API Gateway runbook', () => {
           status: '500',
           authorizerStatus: '500',
           authorizerRequestId: ID,
-          xrayTraceId: 'Root=1-test',
+          xrayTraceId: 'Root=1-6ad1eae3-493a74b231f3e345492729e9',
           errorMessage: '-',
         }),
       ],
       [],
       [row({ '@requestId': 'unrelated', '@message': 'REPORT RequestId: unrelated Status: timeout' })],
     );
-    assert.deepEqual(result.matchedCases, []);
+    assert.deepEqual(result.detections, []);
   });
 
   it('requires pn-stream inspection for endpoint timeout and does not invent a backend cause', async () => {
@@ -173,12 +176,12 @@ describe('pn-stream delivery progress API Gateway runbook', () => {
         status: '504',
         authorizerStatus: '200',
         requestId: ID,
-        xrayTraceId: 'Root=1-test',
+        xrayTraceId: 'Root=1-6ad1eae3-493a74b231f3e345492729e9',
         errorMessage: 'Endpoint request timed out',
       }),
     ]);
     assert.ok(calls.includes('/aws/ecs/pn-stream'));
-    assert.equal(result.matchedCases[0]?.id, 'stream-endpoint-timeout');
+    assert.equal(result.detections[0]?.knownCase.id, 'stream-endpoint-timeout');
   });
 
   it('matches each documented gateway signature', () => {

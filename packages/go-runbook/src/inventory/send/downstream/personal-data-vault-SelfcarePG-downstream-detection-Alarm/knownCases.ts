@@ -10,7 +10,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'selfcarepg-institutions-add-http-500',
     description: '[DOWNSTREAM SelfcarePG] HTTP 500 durante l’aggiunta di un’istituzione',
-    priority: 120,
     condition: stepEvidenceMatches(
       'query-pn-data-vault',
       '\\[DOWNSTREAM\\] Service SelfcarePG returned errors=500 Internal Server Error from POST ' +
@@ -34,7 +33,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'selfcarepg-read-timeout-with-empty-error',
     description: '[DOWNSTREAM SelfcarePG] Timeout di lettura con dettaglio errore vuoto',
-    priority: 110,
     condition: all(
       varEquals('dataVaultErrorMsg', '[DOWNSTREAM] Service SelfcarePG returned errors='),
       stepEvidenceMatches('query-pn-data-vault-trace', 'io\\.netty\\.handler\\.timeout\\.ReadTimeoutException'),
@@ -60,7 +58,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'selfcarepg-subject-alternative-name-mismatch',
     description: '[DOWNSTREAM SelfcarePG] Certificato non valido per api.selfcare.pagopa.it',
-    priority: 100,
     condition: stepEvidenceMatches(
       'query-pn-data-vault',
       '\\[DOWNSTREAM\\] Service SelfcarePG returned errors=No subject alternative DNS name matching ' +

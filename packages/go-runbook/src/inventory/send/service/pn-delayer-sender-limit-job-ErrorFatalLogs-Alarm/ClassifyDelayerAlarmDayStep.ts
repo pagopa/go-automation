@@ -29,7 +29,6 @@ export class ClassifyDelayerAlarmDayStep implements Step<{ includesMonday: boole
       success: true,
       output: { includesMonday },
       vars: { delayerAlarmIncludesMonday: String(includesMonday) },
-      next: 'resolve',
     };
   }
 }

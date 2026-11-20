@@ -61,6 +61,6 @@ describe('go-runbook reorganization baseline', () => {
     // Inherited public members are listed too, so losing a base class changes the surface.
     const send = surface['./toolkits/send'] ?? [];
     assert.ok(send.includes('apigw.ApiGwServiceChainReporter#apiGwResult'));
-    assert.ok(send.includes('apigw.ApiGwServiceChainReporter#stopSummary'));
+    assert.ok(send.includes('apigw.ApiGwServiceChainReporter#queryResult'));
   });
 });

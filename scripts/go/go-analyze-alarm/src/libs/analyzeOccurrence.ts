@@ -9,6 +9,7 @@ import {
 } from '@pagopa/go-runbook/runtime';
 import { OperationalRunbookEngine, type AwsExecutionEnvironment } from '@pagopa/go-runbook/toolkits/common';
 import type { RunbookExecutionResult } from '@pagopa/go-runbook';
+import { buildCoverageLines, buildErrorChains, renderErrorChainLines } from '@pagopa/go-runbook/output';
 
 import type { AnalyzableAlarmConfig } from '../types/AnalyzableAlarmConfig.js';
 import { saveExecutionTrace } from './saveExecutionTrace.js';
@@ -84,8 +85,10 @@ export async function analyzeOccurrence(
   renderFinalSummary(script.logger, runbook, result);
   renderRunbookResult(script, result);
 
-  const traceFile = await saveExecutionTrace(script, result, config.alarmName, input.outputSuffix);
-  await saveExecutionOutput(script, runbook, result, traceFile, input.outputSuffix);
+  // Both the configured entries (`reader:fallback`) and the effective names the AWS clients use (`reader`).
+  const profileNames = [...config.awsProfiles, ...script.aws.clients.profileNames];
+  const traceFile = await saveExecutionTrace(script, result, config.alarmName, profileNames, input.outputSuffix);
+  await saveExecutionOutput(script, runbook, result, profileNames, traceFile, input.outputSuffix);
 }
 
 function renderRunbookResult(script: GOScript, result: RunbookExecutionResult): void {
@@ -94,17 +97,15 @@ function renderRunbookResult(script: GOScript, result: RunbookExecutionResult): 
   script.logger.info(`Steps executed: ${result.stepsExecuted}`);
   script.logger.info(`Duration: ${result.durationMs}ms`);
 
-  const [primary, ...rest] = result.matchedCases;
-  if (primary === undefined) {
+  // Every error found, oldest first, then what the runbook could not see.
+  const chains = renderErrorChainLines(buildErrorChains(result));
+  if (chains.length === 0) {
     script.logger.warning('No known case matched');
-  } else if (rest.length === 0) {
-    script.logger.info(`Matched case: ${primary.description}`);
   } else {
-    script.logger.info(`Matched cases (${result.matchedCases.length}):`);
-    for (const c of result.matchedCases) {
-      script.logger.info(`  - ${c.id} (priority ${c.priority}): ${c.description}`);
-    }
+    script.logger.info('Trovati gli errori noti:');
+    for (const line of chains) script.logger.info(`  - ${line}`);
   }
+  for (const line of buildCoverageLines(result)) script.logger.warning(line);
 
   if (result.recoveredErrors.length > 0) {
     script.logger.info(`Recovered errors: ${result.recoveredErrors.length}`);

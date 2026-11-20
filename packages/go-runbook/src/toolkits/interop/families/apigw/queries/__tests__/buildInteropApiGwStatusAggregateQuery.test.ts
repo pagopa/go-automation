@@ -12,7 +12,8 @@ describe('buildInteropApiGwStatusAggregateQuery', () => {
     assert.match(query4xx, /status >= 400 and status < 500/u);
     assert.match(query5xx, /status >= 500 and status < 600/u);
     assert.match(query4xx, /httpMethod, requestPath, sourceIp/u);
-    assert.match(query4xx, /sort count desc/u);
+    assert.match(query4xx, /earliest\(@timestamp\) as firstTimestamp, latest\(@timestamp\) as latestTimestamp/u);
+    assert.match(query4xx, /sort latestTimestamp desc/u);
   });
 
   it('escapes an API Gateway id before interpolating it', () => {

@@ -100,11 +100,10 @@ describe('lambda runbook known cases', () => {
     }
   });
 
-  it('classifies BE IO as AppIO ahead of the runtime timeout', () => {
+  it('classifies BE IO as AppIO', () => {
     const appIoCase = LOLLIPOP_AUTHORIZER_CASES.find(({ id }) => id === 'app-io-backend-idp-keys-unavailable');
     const runtimeTimeout = LOLLIPOP_AUTHORIZER_CASES.find(({ id }) => id === 'lambda-timeout');
     assert.ok(appIoCase !== undefined && runtimeTimeout !== undefined);
-    assert.ok(appIoCase.priority > runtimeTimeout.priority);
     assert.strictEqual(
       caseMatches(knownCaseById(LOLLIPOP_AUTHORIZER_CASES, appIoCase.id), invocationContext([CIE_KEYS_TIMEOUT])),
       true,

@@ -5,7 +5,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'purpose-outbound-writer-kafka-member-rejoin',
     description: 'Il coordinator Kafka non riconosce il member del consumer group',
-    priority: 100,
     condition: {
       type: 'and',
       conditions: [
@@ -42,7 +41,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'purpose-outbound-writer-kafka-connection-refused',
     description: 'Connessione al broker rifiutata durante l’esecuzione del purpose outbound writer',
-    priority: 120,
     condition: {
       type: 'and',
       conditions: [
@@ -79,7 +77,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'purpose-outbound-writer-kafka-wrong-coordinator',
     description: 'Il broker contattato non è il coordinator corretto del consumer group',
-    priority: 110,
     condition: {
       type: 'and',
       conditions: [
@@ -117,7 +114,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'purpose-outbound-writer-kafka-retries-exhausted',
     description: 'Consumer del purpose outbound writer in crash con retry Kafka esauriti',
-    priority: 200,
     condition: {
       type: 'and',
       conditions: [

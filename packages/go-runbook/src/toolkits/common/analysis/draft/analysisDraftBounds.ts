@@ -2,10 +2,10 @@
  * Bounds of the Watchtower analysis draft contract (§5.1).
  *
  * They live in one place because two independent guards enforce them:
- * `assertAnalysisAnnotations` at registration time, and `toCompleteAnalysisDraft`
- * on the worker before the completion callback. Two copies of the same numbers
- * would drift apart, and a draft that passes one guard but not the other is the
- * exact failure the double check exists to prevent.
+ * `assertAnalysisAnnotations` at registration time, and `fitAnalysisDraft` when
+ * the draft of a run is composed. Two copies of the same numbers would drift
+ * apart, and a draft that passes one guard but not the other is the exact
+ * failure the double check exists to prevent.
  */
 export const ANALYSIS_DRAFT_BOUNDS = {
   /** Watchtower registry names (resources, downstreams, final actions, runbook). */

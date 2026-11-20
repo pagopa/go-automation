@@ -2,11 +2,11 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { ExecutionEnvironment } from '../ExecutionEnvironment.js';
-import type { CaseEvaluationTrace } from '../CaseEvaluationTrace.js';
 import type { StepDiagnostics } from '../StepDiagnostics.js';
 import { TraceBuilder } from '../TraceBuilder.js';
 import { createTestContext } from '../../../__tests__/helpers/createTestContext.js';
 import { createTestRunbook } from '../../../__tests__/helpers/createTestRunbook.js';
+import type { KnownCase } from '../../types/KnownCase.js';
 
 const RUNBOOK = createTestRunbook();
 
@@ -16,7 +16,7 @@ const ENV: ExecutionEnvironment = {
   invokedBy: 'manual',
 };
 
-/** A TraceBuilder primed with one step, so an early resolution can attach to it. */
+/** A TraceBuilder primed with one step. */
 function builderWithOneStep(diagnostics?: StepDiagnostics): TraceBuilder {
   const builder = new TraceBuilder('exec', RUNBOOK, new Map());
   builder.traceStep(
@@ -32,22 +32,10 @@ function builderWithOneStep(diagnostics?: StepDiagnostics): TraceBuilder {
     {},
     null,
     {},
-    'resolve',
+    'continue',
     diagnostics,
   );
   return builder;
-}
-
-/** The trace of a `vars.x` case evaluation. */
-function evaluation(caseId: string, matched: boolean): CaseEvaluationTrace {
-  return {
-    caseId,
-    description: caseId,
-    priority: 1,
-    condition: { type: 'exists', ref: 'vars.x' },
-    matched,
-    resolvedValues: { 'vars.x': 'foo' },
-  };
 }
 
 describe('TraceBuilder', () => {
@@ -66,60 +54,51 @@ describe('TraceBuilder', () => {
     assert.strictEqual(trace.pipeline[0]?.diagnostics?.cloudWatchLogs?.queryExecutions[0]?.queryId, 'qid-1');
   });
 
-  describe('traceEarlyResolution', () => {
-    it('promotes evaluations into caseEvaluations when the early resolution matched', () => {
-      const evaluations = [evaluation('pdv-404', true), evaluation('other-case', false)];
-
-      const builder = builderWithOneStep();
-      builder.traceEarlyResolution({
-        resolved: true,
-        matchedCaseIds: ['pdv-404'],
-        evaluations,
-      });
-      const trace = builder.build(createTestContext(), 'completed', ENV);
-
-      // Top-level caseMatching reflects the early resolution.
-      assert.strictEqual(trace.caseMatching.casesEvaluated, 2);
-      assert.deepStrictEqual(trace.caseMatching.matchedCaseIds, ['pdv-404']);
-      // Summary outcome must NOT be `no-match` when a case actually matched.
-      assert.notStrictEqual(trace.summary.description.includes('no known case matched'), true);
-      // Step trace still carries the full early-resolution detail.
-      assert.strictEqual(trace.pipeline[0]?.earlyResolution?.resolved, true);
-      assert.deepStrictEqual(trace.pipeline[0]?.earlyResolution?.matchedCaseIds, ['pdv-404']);
+  describe('detections and coverage', () => {
+    const knownCase = (id: string): KnownCase => ({
+      id,
+      description: `Case ${id}`,
+      condition: { type: 'exists', ref: 'vars.x' },
+      action: { type: 'log', level: 'info', title: id },
     });
 
-    it('does NOT promote evaluations when the early resolution had no match', () => {
-      const evaluations = [evaluation('pdv-404', false)];
-
+    it('reports the detections in the order recorded, with every evaluation in declaration order', () => {
       const builder = builderWithOneStep();
-      builder.traceEarlyResolution({
-        resolved: false,
-        matchedCaseIds: [],
-        evaluations,
-      });
+      builder.traceCaseEvaluation(
+        knownCase('a'),
+        true,
+        {},
+        { firstSeenAt: '2026-05-13T10:05:00.000Z', evidenceRows: 1 },
+      );
+      builder.traceCaseEvaluation(
+        knownCase('b'),
+        true,
+        {},
+        { firstSeenAt: '2026-05-13T10:01:00.000Z', evidenceRows: 2 },
+      );
+      builder.traceCaseEvaluation(knownCase('c'), true, {}, { supersededBy: 'a', evidenceRows: 1 });
+      builder.traceDetections(['b', 'a']);
       const trace = builder.build(createTestContext(), 'completed', ENV);
 
-      // No promotion: caseEvaluations stays empty, ready for a later
-      // matchKnownCases pass to populate it.
-      assert.strictEqual(trace.caseMatching.casesEvaluated, 0);
-      assert.deepStrictEqual(trace.caseMatching.matchedCaseIds, []);
-      // Step still carries the failed early-resolve detail.
-      assert.strictEqual(trace.pipeline[0]?.earlyResolution?.resolved, false);
+      assert.deepStrictEqual(trace.caseMatching.matchedCaseIds, ['b', 'a']);
+      assert.deepStrictEqual(
+        trace.caseMatching.evaluations.map((e) => e.caseId),
+        ['a', 'b', 'c'],
+      );
+      assert.strictEqual(trace.caseMatching.evaluations[2]?.supersededBy, 'a');
+      assert.strictEqual(
+        trace.summary.description,
+        'Runbook "Test runbook" completed: identified 2 cases "Case b", "Case a"',
+      );
     });
 
-    it('is a no-op when there is no step trace to attach to', () => {
-      // Brand-new builder, no step yet.
-      const builder = new TraceBuilder('exec', RUNBOOK, new Map());
-      builder.traceEarlyResolution({
-        resolved: true,
-        matchedCaseIds: ['x'],
-        evaluations: [evaluation('x', true)],
-      });
+    it('records the coverage of the execution', () => {
+      const builder = builderWithOneStep();
+      builder.traceCoverage([{ stepId: 'analyze-x', complete: false, reason: 'saturated' }]);
       const trace = builder.build(createTestContext(), 'completed', ENV);
 
-      // No step trace, no promotion, no crash.
-      assert.strictEqual(trace.pipeline.length, 0);
-      assert.deepStrictEqual(trace.caseMatching.matchedCaseIds, []);
+      assert.deepStrictEqual(trace.coverage, [{ stepId: 'analyze-x', complete: false, reason: 'saturated' }]);
+      assert.strictEqual(trace.schemaVersion, '2.0.0');
     });
   });
 });

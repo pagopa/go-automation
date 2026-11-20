@@ -31,7 +31,7 @@ export type { RunbookOutput } from '../common/output/RunbookOutput.js';
 export { createTestServiceRegistry } from '../common/testing/createTestServiceRegistry.js';
 export type { ServiceRegistry } from '../common/services/ServiceRegistry.js';
 export { SEND_SERVICE_PROFILE } from './families/service/profiles/SEND_SERVICE_PROFILE.js';
-export type { ExecutedCloudWatchLogsQuery } from '../common/steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
+export type { ExecutedCloudWatchLogsQuery } from '../common/steps/aws/cloudwatch-logs/ExecutedCloudWatchLogsQuery.js';
 export { executeCloudWatchLogsQuery } from '../common/steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
 export { mergeCloudWatchLogsDiagnostics } from '../common/steps/aws/cloudwatch-logs/mergeCloudWatchLogsDiagnostics.js';
 export type { AwsLogicalAccount } from '../common/accounts/AwsLogicalAccount.js';

@@ -108,6 +108,7 @@ export class QueryInteropApplicationLogsStep
       success: true,
       output: result.rows,
       ...(result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics }),
+      ...(result.coverage.length > 0 ? { coverage: result.coverage } : {}),
     };
   }
 }

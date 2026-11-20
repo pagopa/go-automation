@@ -4,7 +4,10 @@ export type InteropApiGwStatusClass = 4 | 5;
 /** Maximum number of distinct rows returned by an INTEROP API Gateway aggregate query. */
 export const INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT = 10_000;
 
-/** Builds the common aggregate query for one API Gateway HTTP status family. */
+/**
+ * Builds the common aggregate query for one API Gateway HTTP status family: one row per distinct request shape,
+ * with its count and its first and latest time, the most recent first.
+ */
 export function buildInteropApiGwStatusAggregateQuery(apiGwId: string, statusClass: InteropApiGwStatusClass): string {
   assertInteropApiGwStatusClass(statusClass);
   const lowerBound = statusClass * 100;
@@ -13,10 +16,10 @@ export function buildInteropApiGwStatusAggregateQuery(apiGwId: string, statusCla
   return `
 filter apigwId = "${escapedApiGwId}"
 | filter status >= ${lowerBound} and status < ${upperBound}
-| stats count(*) as count, latest(@timestamp) as latestTimestamp
+| stats count(*) as count, earliest(@timestamp) as firstTimestamp, latest(@timestamp) as latestTimestamp
   by status, integrationStatus, integrationError, httpMethod, requestPath, sourceIp
-| display latestTimestamp, count, status, integrationStatus, integrationError, httpMethod, requestPath, sourceIp
-| sort count desc
+| display firstTimestamp, latestTimestamp, count, status, integrationStatus, integrationError, httpMethod, requestPath, sourceIp
+| sort latestTimestamp desc
 | limit ${String(INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT)}
 `.trim();
 }

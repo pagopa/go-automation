@@ -2,6 +2,7 @@ import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/i
 
 import {
   executeStep,
+  isStepEvidenceComplete,
   readStepOutput,
   type RunbookContext,
   type Step,
@@ -115,6 +116,9 @@ export class VerifyPostelBatchesStep extends OperationalStep<PostelBatchRecovery
       if (!upstream.ok) return upstream.failure;
 
       const impactedBatchIds = extractImpactedBatchIds(upstream.value);
+      // Only a complete scan proves that every impacted batch was seen.
+      const unverifiedRows = countRowsWithoutBatch(upstream.value);
+      const scanComplete = isStepEvidenceComplete(context, this.fromStep) && unverifiedRows === 0;
       const timeRange = this.resolveLookupTimeRange(context);
 
       if (impactedBatchIds.length === 0) {
@@ -125,8 +129,10 @@ export class VerifyPostelBatchesStep extends OperationalStep<PostelBatchRecovery
         return {
           success: true,
           output,
-          vars: recoveryVars(output, this.recoveryAfterMinutes),
-          next: 'resolve' as const,
+          vars: {
+            ...recoveryVars(output, this.recoveryAfterMinutes, scanComplete),
+            postelUnverifiedRowCount: String(unverifiedRows),
+          },
         };
       }
 
@@ -152,9 +158,12 @@ export class VerifyPostelBatchesStep extends OperationalStep<PostelBatchRecovery
       return {
         success: true,
         output,
-        vars: recoveryVars(output, this.recoveryAfterMinutes),
+        vars: {
+          ...recoveryVars(output, this.recoveryAfterMinutes, scanComplete),
+          postelUnverifiedRowCount: String(unverifiedRows),
+        },
         ...(queryResult.diagnostics !== undefined ? { diagnostics: queryResult.diagnostics } : {}),
-        next: 'resolve' as const,
+        ...(queryResult.coverage.length > 0 ? { coverage: queryResult.coverage } : {}),
       };
     });
   }
@@ -184,6 +193,15 @@ function extractImpactedBatchIds(rows: CloudWatchRows): ReadonlyArray<string> {
     if (id !== undefined) ids.add(id.toLowerCase());
   }
   return [...ids];
+}
+
+function countRowsWithoutBatch(rows: CloudWatchRows): number {
+  let count = 0;
+  for (const row of rows) {
+    const traceId = fieldValue(row, ['trace_id', '@trace_id']);
+    if (traceId === undefined || BATCH_TRACE_ID_PATTERN.exec(traceId.trim()) === null) count += 1;
+  }
+  return count;
 }
 
 function extractWorkedBatchIds(rows: CloudWatchRows): ReadonlySet<string> {
@@ -216,12 +234,16 @@ function buildRecovery(
   };
 }
 
-function recoveryVars(output: PostelBatchRecovery, recoveryAfterMinutes: number): Readonly<Record<string, string>> {
+function recoveryVars(
+  output: PostelBatchRecovery,
+  recoveryAfterMinutes: number,
+  scanComplete: boolean,
+): Readonly<Record<string, string>> {
   return {
     postelImpactedBatchCount: String(output.impactedBatchIds.length),
     postelWorkedBatchCount: String(output.workedBatchIds.length),
     postelPendingBatchCount: String(output.pendingBatchIds.length),
-    postelAllBatchesWorked: String(output.allWorked),
+    postelAllBatchesWorked: output.allWorked && !scanComplete ? 'unknown' : String(output.allWorked),
     postelImpactedBatchIds: formatBatchIdSamples(output.impactedBatchIds),
     postelPendingBatchIds: formatBatchIdSamples(output.pendingBatchIds),
     postelRecoveryAfterMinutes: String(recoveryAfterMinutes),

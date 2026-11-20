@@ -3,14 +3,19 @@ import { CloudWatchLogsQueryStep } from '../../../steps/aws/cloudwatch-logs/Clou
 import type { Runbook } from '../../../../../engine/types/Runbook.js';
 import type { ServiceAlarmConfig } from '../types/ServiceAlarmConfig.js';
 import { PrepareServiceSectionStep } from '../steps/PrepareServiceSectionStep.js';
-import { AnalyzeApplicationLogsStep } from '../steps/AnalyzeApplicationLogsStep.js';
-import { QueryServiceTraceLogsStep } from '../steps/QueryServiceTraceLogsStep.js';
+import { DescendToTraceStep } from '../tree/DescendToTraceStep.js';
+import { ServiceTraceLevelReader, readsTraceBatches } from '../tree/ServiceTraceLevelReader.js';
+import { applicationRowIdentity } from '../tree/applicationRowIdentity.js';
+import { attributeTraceRow } from '../tree/attributeTraceRow.js';
+import { enumerateServiceRootErrors } from '../tree/enumerateServiceRootErrors.js';
+import { enumerateTraceErrors } from '../tree/enumerateTraceErrors.js';
 import { defaultServiceUnknownCaseFallback } from './defaultServiceUnknownCaseFallback.js';
-import { applyPipelineHooks } from '../../../../../engine/builders/applyPipelineHooks.js';
 import { finishAlarmRunbook } from '../../../builders/finishAlarmRunbook.js';
 import type { ServicePipelineAnchor } from '../types/ServicePipelineAnchor.js';
 
 const TIME_RANGE = { start: 'startTime', end: 'endTime' } as const;
+
+const TRACE_BATCH_SIZE = 50;
 
 /**
  * Allowed characters for the service slug used to build step ids
@@ -67,33 +72,54 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
     { silent: true },
   );
 
-  builder.step(
-    new AnalyzeApplicationLogsStep({
-      id: `analyze-${service.name}`,
-      label: `Analisi log ${service.name}`,
-      fromStep: `query-${service.name}`,
-      varPrefix: service.varPrefix,
-      schema: profile.schema,
-      ...(profile.extractFallbackUuid !== undefined ? { extractFallbackUuid: profile.extractFallbackUuid } : {}),
-    }),
-    { silent: true },
-  );
-
-  applyPipelineHooks(builder, config.hooks ?? [], 'after-service-analysis', reachedAnchors);
-
-  builder.step(
-    new QueryServiceTraceLogsStep({
-      id: `query-${service.name}-trace`,
-      label: `Query log ${service.name} per trace_id`,
-      serviceName: service.name,
-      varPrefix: service.varPrefix,
-      logGroups: [service.logGroup],
-      queryTemplate: traceQuery,
-      queryProfileId: profile.id,
-      timeRangeFromParams: TIME_RANGE,
-    }),
-    { silent: true },
-  );
+  // Window steps over every error of the scan, then the steps of each error.
+  for (const hook of (config.hooks ?? []).filter(({ at }) => at === 'after-service-scan'))
+    builder.step(hook.step, hook);
+  reachedAnchors.add('after-service-scan');
+  reachedAnchors.add('after-service-analysis');
+  const traceTarget = `${service.name}-trace`;
+  const traceReadId = `query-${service.name}-trace`;
+  const traceErrorVar = `${service.varPrefix}TraceErrorMsg`;
+  builder.errorTree({
+    root: {
+      target: service.name,
+      scopedSteps: [`query-${service.name}`],
+      rowIdentity: applicationRowIdentity,
+      enumerate: enumerateServiceRootErrors({
+        stepId: `query-${service.name}`,
+        varPrefix: service.varPrefix,
+        schema: profile.schema,
+        ...(profile.extractFallbackUuid !== undefined ? { extractFallbackUuid: profile.extractFallbackUuid } : {}),
+      }),
+      perNode: [
+        ...(config.hooks ?? []).filter((hook) => hook.at === 'after-service-analysis'),
+        {
+          step: new DescendToTraceStep(`descend-${service.name}`, traceTarget, `${service.varPrefix}TraceId`),
+          silent: true,
+        },
+      ],
+    },
+    levels: [
+      {
+        target: traceTarget,
+        varPrefix: `${service.varPrefix}Trace`,
+        read: new ServiceTraceLevelReader({
+          id: traceReadId,
+          label: `Query log ${service.name} per trace_id`,
+          serviceName: service.name,
+          logGroups: [service.logGroup],
+          queryTemplate: traceQuery,
+          queryProfileId: profile.id,
+          timeRangeFromParams: TIME_RANGE,
+        }),
+        batchSize: readsTraceBatches(traceQuery) ? TRACE_BATCH_SIZE : 1,
+        attribute: attributeTraceRow,
+        rowIdentity: applicationRowIdentity,
+        enumerate: enumerateTraceErrors(traceReadId, `${service.varPrefix}Trace`, profile.schema),
+        ownsVar: (name) => name === traceErrorVar,
+      },
+    ],
+  });
 
   return finishAlarmRunbook(builder, config, {
     builderName: 'createServiceAlarmRunbook',

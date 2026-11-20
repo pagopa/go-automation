@@ -61,7 +61,6 @@ export function buildRunbook(): Runbook {
             return {
               success: true,
               output: { requests: [...byRequestId].map(([requestId, messages]) => ({ requestId, messages })) },
-              next: 'resolve' as const,
             };
           },
         },

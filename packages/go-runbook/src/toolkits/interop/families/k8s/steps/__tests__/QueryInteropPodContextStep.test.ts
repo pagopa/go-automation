@@ -8,6 +8,7 @@ import { TEST_TIME_RANGE_PARAMS } from '../../../../../../__tests__/helpers/TEST
 import type { OperationalContext } from '../../../../../common/services/OperationalContext.js';
 import type { QueryInteropPodContextConfig } from '../../types/QueryInteropPodContextConfig.js';
 import { QueryInteropPodContextStep } from '../QueryInteropPodContextStep.js';
+import type { StepResult } from '../../../../../../engine/types/StepResult.js';
 
 const CONFIG: QueryInteropPodContextConfig = {
   id: 'query-example-context',
@@ -78,12 +79,18 @@ describe('QueryInteropPodContextStep', () => {
     assert.deepEqual(queries, []);
   });
 
-  it('applies the configured completeness check', async () => {
+  it('applies the configured completeness check, keeping the rows of an incomplete context', async () => {
+    const saturated = (result: StepResult<unknown>): boolean =>
+      result.coverage?.some(
+        ({ reason, detail }) => reason === 'saturated' && /incomplete context/u.test(detail ?? ''),
+      ) === true;
     const atLimit = await new QueryInteropPodContextStep(CONFIG).execute(context(RESOLVED, [], 1000));
-    assert.match(atLimit.error ?? '', /incomplete context/u);
+    assert.equal(atLimit.success, true);
+    assert.equal(atLimit.output?.length, 1000);
+    assert.ok(saturated(atLimit));
     const unreturned = context(RESOLVED, [], 3, 5);
-    assert.equal((await new QueryInteropPodContextStep(CONFIG).execute(unreturned)).success, true);
+    assert.ok(!saturated(await new QueryInteropPodContextStep(CONFIG).execute(unreturned)));
     const strict = new QueryInteropPodContextStep({ ...CONFIG, completeness: 'row-limit-or-unreturned-matches' });
-    assert.match((await strict.execute(unreturned)).error ?? '', /incomplete context/u);
+    assert.ok(saturated(await strict.execute(unreturned)));
   });
 });

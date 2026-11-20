@@ -5,7 +5,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'notification-scheduler-kafka-member-rejoin',
     description: 'Il coordinator Kafka non riconosce il consumer dello scheduled notification scheduler',
-    priority: 100,
     condition: all(
       varEquals('interopEnvironment', 'prod'),
       // Only the scheduler error scan is evidence; the CID tracker spans other services.

@@ -12,6 +12,7 @@ const MAX_URL_LENGTH = ANALYSIS_DRAFT_BOUNDS.URL_LENGTH;
 const MAX_LINK_TYPE_LENGTH = ANALYSIS_DRAFT_BOUNDS.LINK_TYPE_LENGTH;
 const MAX_IGNORE_REASON_CODE_LENGTH = ANALYSIS_DRAFT_BOUNDS.IGNORE_REASON_CODE_LENGTH;
 const MAX_DRAFT_BYTES = ANALYSIS_DRAFT_BOUNDS.DRAFT_BYTES;
+const MAX_ARRAY_ITEMS = ANALYSIS_DRAFT_BOUNDS.ARRAY_ITEMS;
 
 type AnalysisReferences = Pick<KnownCaseAnalysis, 'resources' | 'downstreams' | 'finalActions' | 'links'>;
 
@@ -236,9 +237,29 @@ function sameLink(left: AnalysisLinkRef, right: AnalysisLinkRef): boolean {
   return left.name === right.name && left.type === right.type;
 }
 
-/** Bounds the largest real draft envelope statically representable by the runbook. */
+/**
+ * Bounds the largest real draft envelope statically representable by the runbook: its bytes, and the items of the
+ * lists the draft never shortens (`resources`, `downstreams`) in the union of every annotated case.
+ */
 function assertDraftBudget(runbookId: string, runbook: Runbook): void {
-  const largestBytes = buildPotentialAnalysisDrafts(runbook).reduce(
+  let drafts: ReturnType<typeof buildPotentialAnalysisDrafts>;
+  try {
+    drafts = buildPotentialAnalysisDrafts(runbook);
+  } catch (error: unknown) {
+    throw new Error(`Runbook "${runbookId}": ${error instanceof Error ? error.message : String(error)}`, {
+      cause: error,
+    });
+  }
+  for (const draft of drafts) {
+    for (const list of ['resources', 'downstreams'] as const) {
+      if (draft[list].length > MAX_ARRAY_ITEMS) {
+        throw new Error(
+          `Runbook "${runbookId}": potential analysis draft has ${String(draft[list].length)} ${list}, over the ${String(MAX_ARRAY_ITEMS)} items of the contract`,
+        );
+      }
+    }
+  }
+  const largestBytes = drafts.reduce(
     (largest, draft) => Math.max(largest, Buffer.byteLength(JSON.stringify(draft), 'utf8')),
     0,
   );
