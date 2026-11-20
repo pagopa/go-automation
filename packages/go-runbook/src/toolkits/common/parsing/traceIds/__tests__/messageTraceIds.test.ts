@@ -4,10 +4,10 @@ import assert from 'node:assert/strict';
 import { messageTraceIds } from '../messageTraceIds.js';
 
 describe('messageTraceIds', () => {
-  it('reads the X-Ray and the compact forms, in lowercase and uppercase, as canonical ids', () => {
+  it('reads the X-Ray and the compact forms, in lowercase and uppercase, as one canonical id', () => {
     assert.deepEqual(
       [...messageTraceIds('a 1-6789abcd-0123456789abcdef01234567 b 6789ABCD0123456789ABCDEF01234567 c')],
-      ['1-6789abcd-0123456789abcdef01234567', '1-6789ABCD-0123456789ABCDEF01234567'],
+      ['1-6789abcd-0123456789abcdef01234567'],
     );
   });
 
