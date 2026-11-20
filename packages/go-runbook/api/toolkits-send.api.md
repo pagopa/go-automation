@@ -894,6 +894,12 @@ export type AwsLogicalAccount = string & {
 export declare function awsLogicalAccountName(account: AwsLogicalAccount): string;
 ```
 
+### `boundedText` (value)
+
+```ts
+export declare function boundedText(text: string, max?: number): string;
+```
+
 ### `buildAnalysisDraft` (value)
 
 ```ts

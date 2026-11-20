@@ -8,6 +8,7 @@ import {
   type StepResult,
 } from '../../../../engine/index.js';
 import {
+  boundedText,
   DEFAULT_LAMBDA_ERROR_QUERY,
   executeCloudWatchLogsQuery,
   type ExecutedCloudWatchLogsQuery,
@@ -27,7 +28,6 @@ import {
   VERSIONING_LAMBDA_UNAVAILABLE_REASON_VAR,
   type VersioningLambdaProbeState,
 } from './versioningLambdaProbe.js';
-import { boundedText } from '../../../../toolkits/common/parsing/correlation/boundedText.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 

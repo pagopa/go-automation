@@ -21,6 +21,7 @@ export type { RunbookRegistration } from '../common/registration/RunbookRegistra
 export { lambdaLogEvidenceMatches } from '../common/families/lambda/conditions/lambdaLogEvidenceMatches.js';
 export { extractLambdaRequestId } from '../common/families/lambda/helpers/extractLambdaRequestId.js';
 export { scanLambdaLogs } from '../common/families/lambda/helpers/scanLambdaLogs.js';
+export { boundedText } from '../common/parsing/correlation/boundedText.js';
 export { DEFAULT_LAMBDA_ERROR_QUERY } from '../common/families/lambda/queries/DEFAULT_LAMBDA_ERROR_QUERY.js';
 export { LambdaReporter } from '../common/families/lambda/reporting/LambdaReporter.js';
 export type { AnalysisDraftV1 } from '../common/analysis/draft/AnalysisDraft.js';

@@ -889,6 +889,7 @@
     "assertAnalysisAnnotations (value)",
     "assertCloudExecutableRunbook (value)",
     "awsLogicalAccountName (value)",
+    "boundedText (value)",
     "buildAnalysisDraft (value)",
     "buildRunbookOutput (value)",
     "createTestServiceRegistry (value)",
