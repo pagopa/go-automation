@@ -2662,7 +2662,6 @@ packages/go-runbook/src/
     commands/               #   comandi (export dei descrittori)
     execution/              #   executeRunbookForOccurrence
     services/               #   createServiceRegistry, bindServicesToOccurrence
-  __baseline__/             # baseline di digest, impronte e superficie (non pubblicate)
 ```
 
 Ogni runbook concreto sta in `inventory/<prodotto>/<famiglia>/<alarm-name>/`, con `runbook.ts` (`buildRunbook()`), `registration.ts` e di solito `knownCases.ts` e `knownServices.ts`. I dati condivisi tra runbook dello stesso prodotto stanno in `inventory/<prodotto>/shared/`.
