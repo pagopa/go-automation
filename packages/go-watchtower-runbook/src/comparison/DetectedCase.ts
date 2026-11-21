@@ -5,4 +5,5 @@ export interface DetectedCase {
   readonly message: string;
   /** Identifiers observed for this case (its chain), or those of the output context. */
   readonly identifiers: ReadonlyArray<string>;
+  readonly traceIds: ReadonlyArray<string>;
 }

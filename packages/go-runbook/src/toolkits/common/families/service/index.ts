@@ -7,7 +7,7 @@ export { createServiceAlarmRunbook } from './builders/createServiceAlarmRunbook.
 export { defaultServiceUnknownCaseFallback } from './builders/defaultServiceUnknownCaseFallback.js';
 export { scanApplicationLogs } from '../../parsing/applicationLogs/scanApplicationLogs.js';
 export type { ApplicationLogsScan } from '../../parsing/applicationLogs/scanApplicationLogs.js';
-export type { TraceIdCandidateMatch } from '../../parsing/applicationLogs/TraceIdCandidateMatch.js';
+export type { TraceIdCandidateMatch } from '../../parsing/traceIds/TraceIdCandidateMatch.js';
 export { buildServiceOutputContext } from './output/buildServiceOutputContext.js';
 export type { BuildServiceOutputContextOptions } from './output/buildServiceOutputContext.js';
 export type { ServiceOutputContext } from './output/ServiceOutputContext.js';

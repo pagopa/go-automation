@@ -4,7 +4,7 @@ import type { ErrorNodeSpec } from '../../../../../engine/types/ErrorNodeSpec.js
 import type { TreeEnumeratorFn } from '../../../../../engine/types/TreeEnumeratorFn.js';
 import type { ReadIdentifier } from '../../../../../engine/types/ReadIdentifier.js';
 import { readServiceLogRow } from '../../../../common/parsing/applicationLogs/readServiceLogRow.js';
-import { matchTraceIdCandidate } from '../../../../common/parsing/applicationLogs/matchTraceIdCandidate.js';
+import { matchTraceIdCandidate } from '../../../../common/parsing/traceIds/matchTraceIdCandidate.js';
 import { boundedText } from '../../../../common/parsing/correlation/boundedText.js';
 import { occurredAtOf } from '../../../../common/parsing/correlation/occurredAtOf.js';
 import { safeCorrelationValue } from '../../../../../engine/reads/safeCorrelationValue.js';

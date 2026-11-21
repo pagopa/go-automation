@@ -4,7 +4,6 @@
  */
 
 export { extractTraceId } from './accessLog/extractTraceId.js';
-export { transformRawTraceId } from '../../parsing/traceIds/transformRawTraceId.js';
 export { builtinApiGwAuthorizerKnownCases } from './knownCases/authorizerKnownCases.js';
 export { apiGwPathMatches, apiGwStatusIs } from './conditions/conditions.js';
 export type { AccessLogSchema } from './accessLog/AccessLogSchema.js';

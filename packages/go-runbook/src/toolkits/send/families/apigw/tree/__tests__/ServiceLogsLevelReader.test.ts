@@ -54,4 +54,17 @@ describe('ServiceLogsLevelReader', () => {
     ]);
     assert.deepEqual(messages(result.rows), ['Failure of the trace']);
   });
+
+  it('gives a batch of one trace the rows its attribution would give it in a larger batch', async () => {
+    const compact = TRACE.slice(2).replace('-', '');
+    const cloudWatchLogs = fakeCloudWatchLogs(() => [
+      logRow({ level: 'ERROR', trace_id: compact.toUpperCase(), '@message': 'Failure in compact form' }),
+      logRow({ level: 'ERROR', '@message': `Failure of ${TRACE}` }),
+      logRow({ level: 'ERROR', '@message': `Failure hashed x${compact}y` }),
+    ]);
+    const result = await reader.read(createTestContext({ params: PARAMS, services: { cloudWatchLogs } }), [
+      { kind: 'traceId', value: TRACE },
+    ]);
+    assert.deepEqual(messages(result.rows), ['Failure in compact form', `Failure of ${TRACE}`]);
+  });
 });

@@ -58,9 +58,57 @@ describe('QueryServiceLogsStep', () => {
 
     const result = await step().execute(context);
 
-    assert.strictEqual(result.output, ROWS);
+    assert.deepStrictEqual(result.output, ROWS);
     assert.strictEqual(queries.length, 1);
     assert.match(queries[0] ?? '', /filter @message like 'trace''1'/);
+    assert.doesNotMatch(queries[0] ?? '', /\bor\b/);
+  });
+
+  it('looks up a trace id in the given, X-Ray and compact forms, and keeps only the rows of that trace', async () => {
+    const trace = '1-6789ABCD-0123456789abcdef01234567';
+    const own = logRow({ '@message': 'Ending process', trace_id: '6789abcd0123456789abcdef01234567' });
+    const other = logRow({
+      '@message': 'Ending process 6789abcd0123456789abcdef01234567',
+      trace_id: '1-00000000-111111111111111111111111',
+    });
+    const unfielded = logRow({ '@message': 'Checking passed' });
+    const queries: string[] = [];
+    const query = async (
+      _groups: ReadonlyArray<string>,
+      text: string,
+    ): Promise<ReadonlyArray<GOLogsInsightsResultField[]>> => {
+      await Promise.resolve();
+      queries.push(text);
+      return [own, other, unfielded];
+    };
+    const context = createTestContext({
+      vars: { xRayTraceId: trace },
+      params: TEST_TIME_RANGE_PARAMS,
+      services: { cloudWatchLogs: { query } },
+    });
+
+    const result = await step().execute(context);
+
+    assert.deepStrictEqual(result.output, [own, unfielded]);
+    assert.match(
+      queries[0] ?? '',
+      new RegExp(
+        `filter \\(@message like '${trace}' or @message like '1-6789abcd-0123456789abcdef01234567' or ` +
+          `@message like '6789abcd0123456789abcdef01234567'\\)`,
+      ),
+    );
+  });
+
+  it('reads a fallback UUID with a single predicate', async () => {
+    const { context, queries } = recording({
+      xRayTraceId: '1-6789abcd-0123456789abcdef01234567',
+      fallbackUuid: 'uuid-1',
+    });
+
+    const result = await step().execute(context);
+
+    assert.deepStrictEqual(result.output, ROWS);
+    assert.match(queries[0] ?? '', /filter @message like 'uuid-1'/);
     assert.doesNotMatch(queries[0] ?? '', /\bor\b/);
   });
 

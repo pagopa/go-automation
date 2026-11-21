@@ -85,7 +85,9 @@ async function executePaymentsTrace(
     if (group === '/aws/ecs/pn-external-registries-checkout') {
       assert.ok(query.includes(ROOT));
       if (checkoutFails) throw new Error('Checkout logs unavailable');
-      return checkoutMessage === undefined ? [] : [row({ level: 'ERROR', '@message': checkoutMessage })];
+      return checkoutMessage === undefined
+        ? []
+        : [row({ level: 'ERROR', '@message': checkoutMessage, trace_id: ROOT })];
     }
     return [];
   });

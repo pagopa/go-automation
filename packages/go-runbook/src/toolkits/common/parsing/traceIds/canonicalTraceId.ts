@@ -1,9 +1,9 @@
+import { bareTraceId } from './bareTraceId.js';
 import { readXrayHeaderRoot } from './readXrayHeaderRoot.js';
-import { transformRawTraceId } from './transformRawTraceId.js';
 
 /**
- * The canonical X-Ray form of a trace id, in lowercase: a raw 32-hex id, an X-Ray id or the `Root=` of an X-Ray
- * header. The same trace written in either case gives the same id.
+ * The canonical X-Ray form of a trace id, in lowercase: a direct X-Ray or compact id, otherwise the `Root=` of an
+ * X-Ray header. The same trace written in either form or case gives the same id.
  *
  * @param raw - Trace id as found in a log
  * @returns The canonical trace id, or nothing when the value is not one
@@ -14,5 +14,6 @@ import { transformRawTraceId } from './transformRawTraceId.js';
  * ```
  */
 export function canonicalTraceId(raw: string): string | undefined {
-  return (transformRawTraceId(raw) ?? readXrayHeaderRoot(raw))?.toLowerCase();
+  const value = raw.trim();
+  return bareTraceId(value) ?? readXrayHeaderRoot(value)?.toLowerCase();
 }

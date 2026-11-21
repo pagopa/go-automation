@@ -3,9 +3,9 @@ import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/clo
 import type { ReadIdentifier } from '../../../../../engine/types/ReadIdentifier.js';
 import type { ServiceLogSchema } from '../../../../common/parsing/applicationLogs/ServiceLogSchema.js';
 import { readServiceLogRow } from '../../../../common/parsing/applicationLogs/readServiceLogRow.js';
-import { matchTraceIdCandidate } from '../../../../common/parsing/applicationLogs/matchTraceIdCandidate.js';
-import { canonicalTraceId } from '../../../../common/parsing/traceIds/canonicalTraceId.js';
-import { messageTraceIds } from '../../../../common/parsing/traceIds/messageTraceIds.js';
+import { matchTraceIdCandidate } from '../../../../common/parsing/traceIds/matchTraceIdCandidate.js';
+import { traceRowMatcher } from '../../../../common/parsing/traceIds/traceRowMatcher.js';
+import type { ServiceRowMatcherFn } from './ServiceRowMatcherFn.js';
 import { FALLBACK_UUID_GLOBAL_PATTERN } from '../correlation/extractFallbackUuid.js';
 
 type Row = ReadonlyArray<GOLogsInsightsResultField>;
@@ -26,21 +26,40 @@ type Row = ReadonlyArray<GOLogsInsightsResultField>;
  * ```
  */
 export function attributeServiceRow(row: unknown, identifier: ReadIdentifier, schema: ServiceLogSchema): boolean {
-  if (!Array.isArray(row)) return false;
-  const fields = row as Row;
-  const message = readRowField(fields, '@message') ?? readServiceLogRow(fields, schema).message;
-  if (identifier.kind === 'fallbackUuid') {
+  return serviceRowMatcher([identifier], schema)(row);
+}
+
+/**
+ * The rule {@link attributeServiceRow} applies, for a batch of identifiers at once: a row belongs to the batch when it
+ * belongs to one of its identifiers. The trace ids of the batch are put in canonical form once.
+ *
+ * @param identifiers - Identifiers of the read
+ * @param schema - Schema of the service logs
+ * @returns Whether a row belongs to one of the identifiers
+ */
+export function serviceRowMatcher(
+  identifiers: ReadonlyArray<ReadIdentifier>,
+  schema: ServiceLogSchema,
+): ServiceRowMatcherFn {
+  const uuids = new Set(identifiers.filter((id) => id.kind === 'fallbackUuid').map((id) => id.value));
+  const traces = identifiers.filter((id) => id.kind !== 'fallbackUuid').map((id) => id.value);
+  const belongsToTraces = traceRowMatcher(traces);
+  return (row) => {
+    if (!Array.isArray(row)) return false;
+    const fields = row as Row;
+    const message = readRowField(fields, '@message') ?? readServiceLogRow(fields, schema).message;
     // The exact FALLBACK-UUID token of the message, never a substring of a longer value.
-    return [...message.matchAll(FALLBACK_UUID_GLOBAL_PATTERN)].some((match) => match[1] === identifier.value);
-  }
-  const wanted = canonicalTraceId(identifier.value) ?? identifier.value;
-  const traceField = (
-    readRowField(fields, schema.traceIdField) ??
-    readRowField(fields, `@${schema.traceIdField}`) ??
-    ''
-  ).trim();
-  if (traceField === '') return messageTraceIds(message).has(wanted);
-  return (canonicalTraceId(traceField) ?? traceField) === wanted;
+    if (
+      uuids.size > 0 &&
+      [...message.matchAll(FALLBACK_UUID_GLOBAL_PATTERN)].some((match) => uuids.has(match[1] ?? ''))
+    ) {
+      return true;
+    }
+    if (traces.length === 0) return false;
+    const traceField =
+      readRowField(fields, schema.traceIdField) ?? readRowField(fields, `@${schema.traceIdField}`) ?? '';
+    return belongsToTraces(traceField, message);
+  };
 }
 
 /**

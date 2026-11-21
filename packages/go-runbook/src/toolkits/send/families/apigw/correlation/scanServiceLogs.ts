@@ -3,10 +3,10 @@ import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/i
 import type { ServiceLogSchema } from '../../../../common/parsing/applicationLogs/ServiceLogSchema.js';
 import type { KnownUrlsRegistry } from '../../../../common/parsing/knownUrls/KnownUrlsRegistry.js';
 import type { KnownUrl } from '../../../../common/parsing/knownUrls/KnownUrl.js';
-import { matchTraceIdCandidate } from '../../../../common/parsing/applicationLogs/matchTraceIdCandidate.js';
+import { matchTraceIdCandidate } from '../../../../common/parsing/traceIds/matchTraceIdCandidate.js';
 import { readServiceLogRow } from '../../../../common/parsing/applicationLogs/readServiceLogRow.js';
 import { RepresentativeErrorSelector } from '../../../../common/parsing/applicationLogs/RepresentativeErrorSelector.js';
-import type { TraceIdCandidateMatch } from '../../../../common/parsing/applicationLogs/TraceIdCandidateMatch.js';
+import type { TraceIdCandidateMatch } from '../../../../common/parsing/traceIds/TraceIdCandidateMatch.js';
 import { FALLBACK_UUID_GLOBAL_PATTERN, extractFallbackUuid } from './extractFallbackUuid.js';
 
 /** Extracts `http(s)://…` tokens up to the first whitespace/quote/bracket. */

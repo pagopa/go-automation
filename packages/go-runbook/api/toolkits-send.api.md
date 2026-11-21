@@ -723,6 +723,7 @@ export declare class QueryServiceLogsStep extends OperationalStep<ReadonlyArray<
     requiredServices(): ReadonlyArray<OperationalServiceName>;
     execute(context: OperationalContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>>;
     private buildQuery;
+    private rowsOf;
     private resolveActiveIdentifier;
 }
 ```
@@ -820,12 +821,6 @@ export interface TraceIdCandidateMatch {
     readonly raw: string;
     readonly canonical: string;
 }
-```
-
-### `apigw.transformRawTraceId` (value)
-
-```ts
-export declare function transformRawTraceId(input: string): string | undefined;
 ```
 
 ### `apigw.updateApiGwServicesVisitedChain` (value)

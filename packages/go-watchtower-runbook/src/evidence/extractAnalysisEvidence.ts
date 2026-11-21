@@ -1,6 +1,7 @@
 import type { AlarmAnalysisDto } from '@go-automation/go-watchtower-client';
 import { normalize } from '../comparison/text.js';
 import type { OccurrenceEvidenceWindow } from './OccurrenceEvidenceWindow.js';
+import { analysisTraceMatcher } from './analysisTraceMatcher.js';
 
 const OCCURRENCE_TRACKING_MAX_DISTANCE_MS = 10 * 60 * 1000;
 
@@ -137,6 +138,7 @@ export function pickOccurrenceExcerpt(
  * @param identifiers - Identifiers of the detected case
  * @param firedAt - The occurrence timestamp (ISO 8601)
  * @param window - Optional evidence window of the runbook
+ * @param traceIds - The identifiers that are trace id observations, compared also by their canonical form
  * @returns The entry's code and detail, or `undefined` when no entry refers to the identifiers
  */
 export function pickTrackingExcerpt(
@@ -144,10 +146,12 @@ export function pickTrackingExcerpt(
   identifiers: ReadonlyArray<string>,
   firedAt: string,
   window?: OccurrenceEvidenceWindow,
+  traceIds: ReadonlyArray<string> = [],
 ): string | undefined {
-  const wanted = new Set(identifiers.map((id) => id.toLowerCase()));
+  const traces = new Set(traceIds);
   for (const entry of occurrenceTrackingEntries(analysis, firedAt, window)) {
-    if (!wanted.has(entry.traceId.toLowerCase())) continue;
+    const matches = analysisTraceMatcher([entry.traceId]);
+    if (!identifiers.some((id) => matches(id, traces.has(id)))) continue;
     const detail = [entry.errorCode, entry.errorDetail]
       .filter((value): value is string => typeof value === 'string' && value.trim() !== '')
       .join(' — ');

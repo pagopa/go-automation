@@ -187,6 +187,7 @@ describe('IO_EXP diagnosis', () => {
       '/aws/ecs/pn-data-vault-sep': [
         row({
           level: 'WARN',
+          trace_id: ROOT,
           '@message':
             'WebClientResponseException$InternalServerError: 500 Internal Server Error from GET https://api.pdv.pagopa.it/user-registry/v1/users/<userId>',
         }),

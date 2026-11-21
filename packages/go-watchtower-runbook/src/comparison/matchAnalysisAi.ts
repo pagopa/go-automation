@@ -56,7 +56,13 @@ function analysisSemanticText(
   detected: DetectedCase | undefined,
 ): string {
   const window = resolveOccurrenceEvidenceWindow(output);
-  const tracked = pickTrackingExcerpt(analysis, detected?.identifiers ?? [], firedAt, window)?.trim();
+  const tracked = pickTrackingExcerpt(
+    analysis,
+    detected?.identifiers ?? [],
+    firedAt,
+    window,
+    detected?.traceIds ?? [],
+  )?.trim();
   if (tracked !== undefined && tracked !== '') return tracked;
   const excerpt = pickOccurrenceExcerpt(analysis, firedAt, window).trim();
   if (excerpt !== '') return excerpt;

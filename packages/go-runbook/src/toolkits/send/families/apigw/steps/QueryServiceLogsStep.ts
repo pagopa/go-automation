@@ -1,4 +1,4 @@
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { Step } from '../../../../../engine/types/Step.js';
 import type { StepKind } from '../../../../../engine/types/StepKind.js';
@@ -14,6 +14,8 @@ import { ApiGwServiceChainReporter } from '../reporting/ApiGwServiceChainReporte
 import type { ServiceLogSpec } from '../profiles/ServiceLogSpec.js';
 import { SEND_API_GW_PROFILE } from '../profiles/SEND_API_GW_PROFILE.js';
 import { renderQueryTemplate } from '../../../../common/queries/renderQueryTemplate.js';
+import { rowsOfTraces } from '../../../../common/parsing/traceIds/rowsOfTraces.js';
+import { traceIdForms } from '../../../../common/parsing/traceIds/traceIdForms.js';
 import { apiGwServiceVisitVars, planApiGwServiceVisit } from '../state/ApiGwAnalysisState.js';
 import { OperationalStep } from '../../../../common/steps/OperationalStep.js';
 import type { OperationalContext } from '../../../../common/services/OperationalContext.js';
@@ -191,7 +193,7 @@ export class QueryServiceLogsStep
           ...(context.signal !== undefined ? { signal: context.signal } : {}),
           logGroupResolutionMode: 'search-configured-profiles',
         });
-        results = queryResult.rows;
+        results = this.rowsOf(queryResult.rows, activeIdentifier);
         diagnostics = queryResult.diagnostics;
         coverage = queryResult.coverage;
       } catch (error: unknown) {
@@ -228,12 +230,17 @@ export class QueryServiceLogsStep
     if (activeIdentifier !== undefined) {
       const predicateTemplate =
         activeIdentifier.kind === 'fallback' ? this.spec.fallbackPredicateTemplate : this.spec.tracePredicateTemplate;
-      const predicate = renderQueryTemplate(predicateTemplate, {
-        values: { '{{VALUE}}': activeIdentifier.value },
-        escape: 'sql',
-        queryId: `${this.queryProfileId}.serviceLog.${activeIdentifier.kind}Predicate`,
-      });
-      filterClause = `filter ${predicate}`;
+      // A trace id is looked up in every form the logs write it (X-Ray and compact 32-hex).
+      const values =
+        activeIdentifier.kind === 'trace' ? traceIdForms(activeIdentifier.value) : [activeIdentifier.value];
+      const predicates = values.map((value) =>
+        renderQueryTemplate(predicateTemplate, {
+          values: { '{{VALUE}}': value },
+          escape: 'sql',
+          queryId: `${this.queryProfileId}.serviceLog.${activeIdentifier.kind}Predicate`,
+        }),
+      );
+      filterClause = `filter ${predicates.length === 1 ? (predicates[0] ?? '') : `(${predicates.join(' or ')})`}`;
     }
 
     return renderQueryTemplate(this.queryTemplate, {
@@ -241,6 +248,20 @@ export class QueryServiceLogsStep
       escape: 'none',
       queryId: `${this.queryProfileId}.serviceLog`,
     });
+  }
+
+  /** The rows of a read by trace id without those whose trace field names another trace. */
+  private rowsOf(
+    rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
+    identifier: ActiveIdentifier,
+  ): ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> {
+    if (identifier.kind !== 'trace') return rows;
+    const { traceIdField } = this.spec.schema;
+    return rowsOfTraces(
+      rows,
+      [{ kind: 'traceId', value: identifier.value }],
+      (row) => readRowField(row, traceIdField) ?? readRowField(row, `@${traceIdField}`) ?? '',
+    );
   }
 
   private resolveActiveIdentifier(traceId: string, fallback: string): ActiveIdentifier | undefined {

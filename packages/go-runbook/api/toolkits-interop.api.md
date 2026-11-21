@@ -566,12 +566,6 @@ export declare class StopApiGwExecutionLogAnalysisStep implements Step<void> {
 }
 ```
 
-### `apigw.transformRawTraceId` (value)
-
-```ts
-export declare function transformRawTraceId(input: string): string | undefined;
-```
-
 ### `assertAnalysisAnnotations` (value)
 
 ```ts

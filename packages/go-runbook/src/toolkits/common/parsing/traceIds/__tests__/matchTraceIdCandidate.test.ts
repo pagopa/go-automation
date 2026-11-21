@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { matchTraceIdCandidate } from '../matchTraceIdCandidate.js';
-import type { ServiceLogSchema } from '../ServiceLogSchema.js';
+import type { ServiceLogSchema } from '../../applicationLogs/ServiceLogSchema.js';
 
 const SCHEMA: ServiceLogSchema = {
   messageFieldCandidates: ['message', '@message'],
@@ -24,6 +24,35 @@ describe('matchTraceIdCandidate', () => {
         canonical: CANONICAL,
       });
     }
+  });
+
+  it('gives the canonical id in lowercase under both policies, also from the message', () => {
+    for (const policy of ['field', 'field-or-message'] as const) {
+      assert.deepStrictEqual(matchTraceIdCandidate(new Map([['trace_id', RAW.toUpperCase()]]), SCHEMA, policy), {
+        raw: RAW.toUpperCase(),
+        canonical: CANONICAL,
+      });
+    }
+    const upper = CANONICAL.toUpperCase();
+    assert.deepStrictEqual(
+      matchTraceIdCandidate(new Map([['message', `failed ${upper}`]]), SCHEMA, 'field-or-message'),
+      { raw: upper, canonical: CANONICAL },
+    );
+  });
+
+  it('field-or-message: a field with other fields after the id leaves the message to decide', () => {
+    const other = '1-00000000-111111111111111111111111';
+    assert.deepStrictEqual(
+      matchTraceIdCandidate(
+        new Map([
+          ['trace_id', `${CANONICAL};Sampled=1`],
+          ['message', `failed ${other}`],
+        ]),
+        SCHEMA,
+        'field-or-message',
+      ),
+      { raw: other, canonical: other },
+    );
   });
 
   it('field: ignores X-Ray headers and the message', () => {

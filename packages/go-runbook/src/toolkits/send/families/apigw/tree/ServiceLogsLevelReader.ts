@@ -1,4 +1,4 @@
-import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { StepKind } from '../../../../../engine/types/StepKind.js';
 import type { StepResult } from '../../../../../engine/types/StepResult.js';
@@ -13,8 +13,7 @@ import { renderQueryTemplate } from '../../../../common/queries/renderQueryTempl
 import { resolveTimeRange } from '../../../../common/time/resolveTimeRange.js';
 import type { ServiceLogsLevelReaderConfig } from './ServiceLogsLevelReaderConfig.js';
 import { traceIdForms } from '../../../../common/parsing/traceIds/traceIdForms.js';
-import { rowsOfTraces } from '../../../../common/parsing/traceIds/rowsOfTraces.js';
-import { attributeServiceRow } from './serviceLogRows.js';
+import { serviceRowMatcher } from './serviceLogRows.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
@@ -105,19 +104,9 @@ export class ServiceLogsLevelReader extends OperationalStep<Rows> implements Tre
     context.services.reporter.add({
       label: `${this.config.serviceName}: ${String(result.rows.length)} righe per ${String(identifiers.length)} identificatori`,
     });
-    const { traceIdField } = this.config.spec.schema;
     return {
       success: true,
-      rows: rowsOfTraces(
-        // A read by fallback UUID keeps only the rows with the exact token of one of its UUIDs.
-        identifiers.some((identifier) => identifier.kind === 'fallbackUuid')
-          ? result.rows.filter((row) =>
-              identifiers.some((identifier) => attributeServiceRow(row, identifier, this.config.spec.schema)),
-            )
-          : result.rows,
-        identifiers,
-        (row) => readRowField(row, traceIdField) ?? readRowField(row, `@${traceIdField}`) ?? '',
-      ),
+      rows: result.rows.filter(serviceRowMatcher(identifiers, this.config.spec.schema)),
       ...(result.coverage.length > 0 ? { coverage: result.coverage } : {}),
       ...(result.diagnostics !== undefined ? { diagnostics: result.diagnostics } : {}),
     };

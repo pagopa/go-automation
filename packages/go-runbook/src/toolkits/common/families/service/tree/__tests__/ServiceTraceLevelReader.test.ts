@@ -9,6 +9,16 @@ import { logRow } from '../../../../../../__tests__/helpers/logRow.js';
 const TRACE = '1-6789abcd-0123456789abcdef01234567';
 const COMPACT = '6789abcd0123456789abcdef01234567';
 const OTHER = '1-6789abcd-fedcba9876543210fedcba98';
+const PARAMS = { startTime: '2026-01-01T00:00:00.000Z', endTime: '2026-01-01T00:10:00.000Z' };
+
+function messages(rows: ReadonlyArray<unknown>): ReadonlyArray<string | undefined> {
+  return rows.map(
+    (row) =>
+      (row as ReadonlyArray<{ readonly field?: string; readonly value?: string }>).find(
+        (field) => field.field === '@message',
+      )?.value,
+  );
+}
 
 function reader(queryTemplate: string): ServiceTraceLevelReader {
   return new ServiceTraceLevelReader({
@@ -43,6 +53,31 @@ describe('ServiceTraceLevelReader', () => {
       result.rows.map((row) => (row as ReadonlyArray<{ readonly value?: string }>).at(-1)?.value),
       ['ERROR of the trace', `ERROR without field, ${TRACE}`],
     );
+  });
+
+  it('keeps a row without field only when the message names the trace as a whole token', async () => {
+    const cloudWatchLogs = fakeCloudWatchLogs(() => [
+      logRow({ '@message': `ERROR hash ab${COMPACT}cd` }),
+      logRow({ '@message': `ERROR of ${COMPACT}` }),
+    ]);
+    const result = await reader("fields @message, trace_id | filter @message like '{{TRACE_ID}}'").read(
+      createTestContext({ params: PARAMS, services: { cloudWatchLogs } }),
+      [{ kind: 'traceId', value: TRACE }],
+    );
+    assert.deepEqual(messages(result.rows), [`ERROR of ${COMPACT}`]);
+  });
+
+  it('keeps, for a query that reads one trace at a time, every row without a trace field', async () => {
+    const cloudWatchLogs = fakeCloudWatchLogs(() => [
+      logRow({ level: 'ERROR' }),
+      logRow({ level: 'ERROR', trace_id: OTHER }),
+      logRow({ level: 'ERROR', trace_id: COMPACT }),
+    ]);
+    const result = await reader("filter trace_id = '{{TRACE_ID}}' | display @timestamp, level").read(
+      createTestContext({ params: PARAMS, services: { cloudWatchLogs } }),
+      [{ kind: 'traceId', value: TRACE }],
+    );
+    assert.equal(result.rows.length, 2);
   });
 
   it('rejects a query without the trace id placeholder', () => {

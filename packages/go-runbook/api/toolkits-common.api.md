@@ -592,12 +592,6 @@ export declare class StopApiGwExecutionLogAnalysisStep implements Step<void> {
 }
 ```
 
-### `apigw.transformRawTraceId` (value)
-
-```ts
-export declare function transformRawTraceId(input: string): string | undefined;
-```
-
 ### `assertAnalysisAnnotations` (value)
 
 ```ts
@@ -737,6 +731,12 @@ export interface BuildRunbookOutputOptions {
     readonly traceFile?: string;
     readonly contextBuilder?: RunbookOutputContextBuilderFn;
 }
+```
+
+### `canonicalTraceId` (value)
+
+```ts
+export declare function canonicalTraceId(raw: string): string | undefined;
 ```
 
 ### `CloudExecutionPolicy` (type)

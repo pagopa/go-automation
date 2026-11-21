@@ -61,8 +61,7 @@ export class DescendToServiceStep implements Step<void> {
     const rawFallback = (context.vars.get('fallbackUuid') ?? '').trim();
     const fallbackUuid = UUID.test(rawFallback) ? rawFallback : '';
     const rawTrace = (context.vars.get(this.config.traceIdContextVar) ?? '').trim();
-    // The canonical trace id, without the other fields of an X-Ray header (`;Sampled=1`).
-    const traceId = canonicalTraceId(rawTrace.split(';')[0] ?? '') ?? canonicalTraceId(`Root=${rawTrace}`) ?? '';
+    const traceId = canonicalTraceId(rawTrace) ?? '';
     const descend: DescendRequest =
       fallbackUuid !== ''
         ? { target, identifier: fallbackUuid, kind: 'fallbackUuid' }

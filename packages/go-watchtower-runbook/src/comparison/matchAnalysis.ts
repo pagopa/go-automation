@@ -4,6 +4,7 @@ import type { AlarmAnalysisDto } from '@go-automation/go-watchtower-client';
 import type { AnalysisMatch, AnalysisMatchSignals, RunbookCheck, V2Status } from '../types/RtaCheckReport.js';
 import { extractAnalysisEvidence, pickOccurrenceExcerpt } from '../evidence/extractAnalysisEvidence.js';
 import { resolveOccurrenceEvidenceWindow } from '../evidence/resolveOccurrenceEvidenceWindow.js';
+import { analysisTraceMatcher } from '../evidence/analysisTraceMatcher.js';
 import { matchedKeywordCategories } from './synonyms.js';
 import { normalize, tokenDice } from './text.js';
 import type { DetectedCase } from './DetectedCase.js';
@@ -51,6 +52,14 @@ function detectedCases(output: RunbookOutput): ReadonlyArray<DetectedCase> {
   const observedByCase = output.outcome.detections.map((detection) => [
     ...new Set((detection.observations ?? []).map((observation) => observation.value)),
   ]);
+  // Only an observation typed as a trace id is compared with the analysis by its canonical form.
+  const tracesByCase = output.outcome.detections.map((detection) => [
+    ...new Set(
+      (detection.observations ?? [])
+        .filter((observation) => observation.kind === 'traceId')
+        .map((observation) => observation.value),
+    ),
+  ]);
   const contextIds = observedByCase.every((ids) => ids.length === 0) ? correlationIds(output) : [];
   return output.outcome.detections.map((detection, index) => {
     const observed = observedByCase[index] ?? [];
@@ -59,6 +68,7 @@ function detectedCases(output: RunbookOutput): ReadonlyArray<DetectedCase> {
       description: detection.description,
       message: detection.resolvedMessage ?? fallbackMessage,
       identifiers: observed.length > 0 ? observed : contextIds,
+      traceIds: observed.length > 0 ? (tracesByCase[index] ?? []) : [],
     };
   });
 }
@@ -88,10 +98,11 @@ function bestComparison(
   detected: ReadonlyArray<DetectedCase>,
   evidence: ReturnType<typeof extractAnalysisEvidence>,
 ): CaseComparison {
-  const analysisTraceLower = new Set(evidence.traceIds.map((id) => id.toLowerCase()));
+  const matches = analysisTraceMatcher(evidence.traceIds);
   let best: CaseComparison | undefined;
   for (const candidate of detected) {
-    const traceIdOverlap = candidate.identifiers.filter((id) => analysisTraceLower.has(id.toLowerCase()));
+    const traces = new Set(candidate.traceIds);
+    const traceIdOverlap = candidate.identifiers.filter((id) => matches(id, traces.has(id)));
     const comparison = compareCase(candidate, evidence, traceIdOverlap);
     if (best === undefined || comparison.score > best.score) best = comparison;
   }

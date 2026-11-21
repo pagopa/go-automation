@@ -78,6 +78,7 @@ export type { HttpPostConfig } from './steps/networking/HttpPostStep.js';
 // Parsing, queries, time
 export type { LogLine } from './parsing/aws/cloudwatch-logs/LogLine.js';
 export { readCloudWatchResultRows } from './parsing/aws/cloudwatch-logs/readCloudWatchResultRows.js';
+export { canonicalTraceId } from './parsing/traceIds/canonicalTraceId.js';
 export { escapeSqlString, extractTemplateParameters } from './queries/interpolateTemplate.js';
 export type { TimeRange } from './time/TimeRange.js';
 export type { TimeRangeFromParams } from './time/TimeRangeFromParams.js';

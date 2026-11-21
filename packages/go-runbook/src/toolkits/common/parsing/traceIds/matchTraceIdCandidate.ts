@@ -1,6 +1,6 @@
-import { canonicalTraceId } from '../traceIds/canonicalTraceId.js';
-import { transformRawTraceId } from '../traceIds/transformRawTraceId.js';
-import type { ServiceLogSchema } from './ServiceLogSchema.js';
+import type { ServiceLogSchema } from '../applicationLogs/ServiceLogSchema.js';
+import { bareTraceId } from './bareTraceId.js';
+import { canonicalTraceId } from './canonicalTraceId.js';
 import type { TraceIdCandidateMatch } from './TraceIdCandidateMatch.js';
 import type { TraceIdSearchPolicy } from './TraceIdSearchPolicy.js';
 
@@ -29,7 +29,7 @@ export function matchTraceIdCandidate(
   policy: TraceIdSearchPolicy,
 ): TraceIdCandidateMatch | undefined {
   const raw = (fields.get(schema.traceIdField) ?? fields.get(`@${schema.traceIdField}`) ?? '').trim();
-  const fromField = policy === 'field' ? transformRawTraceId(raw) : canonicalTraceId(raw);
+  const fromField = policy === 'field' ? bareTraceId(raw) : canonicalTraceId(raw);
   if (fromField !== undefined) return { raw, canonical: fromField };
   if (policy === 'field') return undefined;
 
@@ -37,7 +37,7 @@ export function matchTraceIdCandidate(
   for (const candidate of schema.messageFieldCandidates) {
     const message = fields.get(candidate) ?? '';
     const xray = XRAY_TRACE_ID_PATTERN.exec(message)?.[0];
-    if (xray !== undefined) return { raw: xray, canonical: xray };
+    if (xray !== undefined) return { raw: xray, canonical: xray.toLowerCase() };
 
     const labeled = LABELED_TRACE_ID_PATTERN.exec(message)?.[1];
     const fromMessage = labeled === undefined ? undefined : canonicalTraceId(labeled);

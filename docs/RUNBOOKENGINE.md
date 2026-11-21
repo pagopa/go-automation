@@ -3625,7 +3625,9 @@ percorso. Per ogni richiesta, in ordine:
 
 - la lettura (`ServiceLogsLevelReader`, step `query-<servizio>`) è una query per lotto di trace id o di fallback UUID
   in `OR`; la query deve contenere `{{FILTER_CLAUSE}}`;
-- l'attribuzione legge il campo trace id (il messaggio solo se il campo manca) o il token esatto del fallback UUID;
+- l'attribuzione legge il campo trace id (il messaggio solo se il campo manca, e solo un trace scritto come token
+  intero) o il token esatto del fallback UUID; il lettore tiene le stesse righe, quindi un lotto di un solo
+  identificatore dà al nodo le righe che l'attribuzione gli darebbe in un lotto più grande;
 - l'enumeratore fa un nodo per riga d'errore (livello ERROR o WARN, o parola chiave d'errore in una riga senza
   livello), con `<prefisso>ErrorMsg`, `<prefisso>NextUrl` e `<prefisso>NextUrlTarget`; le altre righe d'errore sono
   sorelle, le righe non d'errore di contesto e, se chiamano un URL noto, lo pseudo-nodo `routing`;
@@ -3634,6 +3636,15 @@ percorso. Per ogni richiesta, in ordine:
   o, senza, con il trace id. Un URL noto fuori dal runbook è un downstream: la catena finisce con `downstreamTarget`.
   Una chiamata allo stesso servizio, o nessun URL noto, chiude la catena;
 - sul servizio d'ingresso, prima della discesa, c'è l'ancora `after-entry-analysis`.
+
+**Il trace id.** Le regole stanno in `toolkits/common/parsing/traceIds/`. `canonicalTraceId` dà la forma X-Ray in
+minuscolo di un id X-Ray o compatto (32 cifre esadecimali), in qualunque maiuscolo, o del `Root=` di un header X-Ray;
+è la forma di correlazioni, variabili `…TraceId` e identificatori delle discese. `traceIdForms` dà le forme con cui le
+query lo cercano: quella data, la X-Ray e la compatta. `traceRowMatcher` dice se una riga appartiene a un trace: decide
+il campo trace, il messaggio solo senza campo. Le letture per lotti (template con `@message like '{{TRACE_ID}}'`,
+`ServiceLogsLevelReader`) tengono le righe con questa regola; una query che legge un trace per volta scarta solo le
+righe il cui campo trace nomina un altro trace (`rowsOfTraces`). Il profilo SEND estrae dall'access log il solo id
+(`Root=([^;\s]+)`); un valore che non è un trace id non dà né discesa né correlazione `traceId`.
 
 Ogni ancora (`ApiGwPipelineAnchor`) si usa con `hooks: [{ at: '<ancora>', step }]`:
 

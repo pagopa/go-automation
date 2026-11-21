@@ -63,7 +63,7 @@ export function enumerateApiGwRequests(config: ApiGwRequestLevelConfig): TreeEnu
       const first = requestRows[0] ?? [];
       const requestId = key.startsWith('row:') ? undefined : safeCorrelationValue(key);
       const rawTrace = extractTraceId(first, schema) ?? '';
-      const traceId = safeCorrelationValue(canonicalTraceId(rawTrace.split(';')[0] ?? '') ?? rawTrace);
+      const traceId = safeCorrelationValue(canonicalTraceId(rawTrace));
       const label = [
         pickPrimaryStatusCode(first, schema),
         sanitizeApiGwField(readRowField(first, schema.httpMethodField), schema),

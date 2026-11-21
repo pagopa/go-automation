@@ -353,13 +353,22 @@ describe('createSendApiGwAlarmRunbook execution', () => {
             return [
               logRow({
                 level: 'INFO',
+                trace_id: ORIGINAL_TRACE,
                 '@message': `Invoking http://internal/service-a/call FALLBACK-UUID:${FIRST_UUID}`,
               }),
-              logRow({ level: 'ERROR', '@message': `Error calling http://internal/service-b/call${uuid}` }),
+              logRow({
+                level: 'ERROR',
+                trace_id: ORIGINAL_TRACE,
+                '@message': `Error calling http://internal/service-b/call${uuid}`,
+              }),
             ];
           }
           return [
-            logRow({ level: 'ERROR', '@message': `Failure in B${useFallback ? ` FALLBACK-UUID:${SECOND_UUID}` : ''}` }),
+            logRow({
+              level: 'ERROR',
+              ...(useFallback ? {} : { trace_id: ORIGINAL_TRACE }),
+              '@message': `Failure in B${useFallback ? ` FALLBACK-UUID:${SECOND_UUID}` : ''}`,
+            }),
           ];
         },
       );
@@ -383,7 +392,13 @@ describe('createSendApiGwAlarmRunbook execution', () => {
       (group) =>
         group === ACCESS_LOG
           ? [logRow({ status: '500', xrayTraceId: 'Root=1-6ad1eae3-493a74b231f3e345492729e9' })]
-          : [logRow({ level: 'ERROR', '@message': 'boom calling http://internal/pn-b/resource' })],
+          : [
+              logRow({
+                level: 'ERROR',
+                trace_id: '1-6ad1eae3-493a74b231f3e345492729e9',
+                '@message': 'boom calling http://internal/pn-b/resource',
+              }),
+            ],
     );
 
     assert.deepStrictEqual(
@@ -432,7 +447,13 @@ describe('createSendApiGwAlarmRunbook execution', () => {
                 xrayTraceId: 'Root=1-abcdef01-234567890abcdef012345678',
               }),
             ]
-          : [logRow({ level: 'ERROR', '@message': 'application error' })],
+          : [
+              logRow({
+                level: 'ERROR',
+                trace_id: '1-abcdef01-234567890abcdef012345678',
+                '@message': 'application error',
+              }),
+            ],
     );
 
     assert.deepStrictEqual(result.detections, []);

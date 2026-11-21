@@ -1,11 +1,11 @@
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { ExtractFallbackUuidFn } from './ExtractFallbackUuidFn.js';
-import { matchTraceIdCandidate } from './matchTraceIdCandidate.js';
+import { matchTraceIdCandidate } from '../traceIds/matchTraceIdCandidate.js';
 import { readServiceLogRow } from './readServiceLogRow.js';
 import { RepresentativeErrorSelector } from './RepresentativeErrorSelector.js';
 import type { ServiceLogSchema } from './ServiceLogSchema.js';
-import type { TraceIdCandidateMatch } from './TraceIdCandidateMatch.js';
+import type { TraceIdCandidateMatch } from '../traceIds/TraceIdCandidateMatch.js';
 
 /** Result of {@link scanApplicationLogs}. */
 export interface ApplicationLogsScan {

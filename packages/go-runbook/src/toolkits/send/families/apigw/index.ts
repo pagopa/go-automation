@@ -29,7 +29,7 @@ export { API_GW_AUTHORIZER_LAMBDAS } from './authorizers/ApiGwAuthorizerLambdaRe
 export type { ApiGwAuthorizerLambdaName } from './authorizers/ApiGwAuthorizerLambdaRegistry.js';
 export { scanServiceLogs } from './correlation/scanServiceLogs.js';
 export type { KnownUrlInLogs, ServiceLogsScan } from './correlation/scanServiceLogs.js';
-export type { TraceIdCandidateMatch } from '../../../common/parsing/applicationLogs/TraceIdCandidateMatch.js';
+export type { TraceIdCandidateMatch } from '../../../common/parsing/traceIds/TraceIdCandidateMatch.js';
 export type { ServiceLogSpec } from './profiles/ServiceLogSpec.js';
 export type { ApiGwQueryProfile } from './profiles/ApiGwQueryProfile.js';
 export { SEND_API_GW_PROFILE } from './profiles/SEND_API_GW_PROFILE.js';

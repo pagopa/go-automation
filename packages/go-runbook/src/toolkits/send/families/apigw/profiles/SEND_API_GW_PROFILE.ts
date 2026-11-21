@@ -60,7 +60,7 @@ export const SEND_API_GW_PROFILE: ApiGwQueryProfile = {
       traceIdField: 'xrayTraceId',
       traceIdLabel: 'X-Ray Trace ID',
       traceIdContextVar: 'xRayTraceId',
-      traceIdExtractPattern: 'Root=([^\\s]+)',
+      traceIdExtractPattern: 'Root=([^;\\s]+)',
       errorMessageField: 'errorMessage',
       pathField: 'path',
       httpMethodField: 'httpMethod',

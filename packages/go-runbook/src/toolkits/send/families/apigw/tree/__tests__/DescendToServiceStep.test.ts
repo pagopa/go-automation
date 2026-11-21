@@ -23,11 +23,20 @@ describe('DescendToServiceStep', () => {
     assert.deepEqual(result.descend, [{ target: 'pn-b', identifier: FALLBACK, kind: 'fallbackUuid' }]);
   });
 
-  it('otherwise follows the canonical trace id, without the other X-Ray fields', async () => {
+  it('otherwise follows the canonical trace id, in lowercase and from an X-Ray header', async () => {
+    for (const raw of [TRACE, TRACE.toUpperCase(), `Self=1-00000000-111111111111111111111111;Root=${TRACE}`]) {
+      const result = await step.execute(
+        createTestContext({ vars: { pnANextUrlTarget: 'pn-b', fallbackUuid: '-', xRayTraceId: raw } }),
+      );
+      assert.deepEqual(result.descend, [{ target: 'pn-b', identifier: TRACE, kind: 'traceId' }], raw);
+    }
+  });
+
+  it('follows no trace when the variable is not a trace id', async () => {
     const result = await step.execute(
-      createTestContext({ vars: { pnANextUrlTarget: 'pn-b', fallbackUuid: '-', xRayTraceId: `${TRACE};Sampled=1` } }),
+      createTestContext({ vars: { pnANextUrlTarget: 'pn-b', fallbackUuid: '-', xRayTraceId: 'not-a-trace' } }),
     );
-    assert.deepEqual(result.descend, [{ target: 'pn-b', identifier: TRACE, kind: 'traceId' }]);
+    assert.deepEqual(result.descend, [{ target: 'pn-b', identifier: '', kind: 'traceId' }]);
   });
 
   it('names a downstream outside the runbook without descending', async () => {

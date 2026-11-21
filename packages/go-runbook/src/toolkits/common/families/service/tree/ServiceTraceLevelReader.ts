@@ -15,6 +15,7 @@ import type { ServiceTraceLevelReaderConfig } from './ServiceTraceLevelReaderCon
 import { traceIdForms } from '../../../parsing/traceIds/traceIdForms.js';
 import { readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { rowsOfTraces } from '../../../parsing/traceIds/rowsOfTraces.js';
+import { traceRowMatcher } from '../../../parsing/traceIds/traceRowMatcher.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
@@ -95,10 +96,21 @@ export class ServiceTraceLevelReader extends OperationalStep<Rows> implements Tr
     });
     return {
       success: true,
-      rows: rowsOfTraces(result.rows, identifiers, (row) => readRowField(row, 'trace_id') ?? ''),
+      rows: this.rowsOfBatch(result.rows, identifiers),
       ...(result.coverage.length > 0 ? { coverage: result.coverage } : {}),
       ...(result.diagnostics !== undefined ? { diagnostics: result.diagnostics } : {}),
     };
+  }
+
+  /**
+   * The rows of the batch: a read by batches follows the rule its attribution uses; a query that reads one trace at
+   * a time drops only the rows whose trace field names another trace.
+   */
+  private rowsOfBatch(rows: Rows, identifiers: ReadonlyArray<ReadIdentifier>): Rows {
+    const traceField = (row: ReadonlyArray<GOLogsInsightsResultField>): string => readRowField(row, 'trace_id') ?? '';
+    if (!readsTraceBatches(this.config.queryTemplate)) return rowsOfTraces(rows, identifiers, traceField);
+    const belongs = traceRowMatcher(identifiers.map((identifier) => identifier.value));
+    return rows.filter((row) => belongs(traceField(row), readRowField(row, '@message') ?? ''));
   }
 
   private buildQuery(traceIds: ReadonlyArray<string>): string {
