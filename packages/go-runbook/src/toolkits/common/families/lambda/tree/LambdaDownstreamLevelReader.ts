@@ -4,7 +4,7 @@ import type { StepKind } from '../../../../../engine/types/StepKind.js';
 import type { StepResult } from '../../../../../engine/types/StepResult.js';
 import type { TreeLevelReader } from '../../../../../engine/types/TreeLevelReader.js';
 import type { TreeLevelReadResult } from '../../../../../engine/types/TreeLevelReadResult.js';
-import type { TreeReadIdentifier } from '../../../../../engine/types/TreeReadIdentifier.js';
+import type { ReadIdentifier } from '../../../../../engine/types/ReadIdentifier.js';
 import { executeCloudWatchLogsQuery } from '../../../steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
 import { OperationalStep } from '../../../steps/OperationalStep.js';
 import type { OperationalContext } from '../../../services/OperationalContext.js';
@@ -73,10 +73,7 @@ export class LambdaDownstreamLevelReader extends OperationalStep<Rows> implement
    * @param identifiers - Request ids of the batch
    * @returns The rows, with the coverage of the query
    */
-  async read(
-    context: OperationalContext,
-    identifiers: ReadonlyArray<TreeReadIdentifier>,
-  ): Promise<TreeLevelReadResult> {
+  async read(context: OperationalContext, identifiers: ReadonlyArray<ReadIdentifier>): Promise<TreeLevelReadResult> {
     const { downstream } = this.config;
     const result = await executeCloudWatchLogsQuery(
       context,

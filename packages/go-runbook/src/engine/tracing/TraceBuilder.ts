@@ -223,7 +223,7 @@ export class TraceBuilder {
     };
 
     return {
-      schemaVersion: '2.0.0',
+      schemaVersion: '3.0.0',
       execution: {
         executionId: this.executionId,
         runbookId: this.runbook.metadata.id,

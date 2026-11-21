@@ -1,6 +1,6 @@
 import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
-import type { TreeReadIdentifier } from '../../../../../engine/types/TreeReadIdentifier.js';
+import type { ReadIdentifier } from '../../../../../engine/types/ReadIdentifier.js';
 import type { ServiceLogSchema } from '../../../../common/parsing/applicationLogs/ServiceLogSchema.js';
 import { readServiceLogRow } from '../../../../common/parsing/applicationLogs/readServiceLogRow.js';
 import { matchTraceIdCandidate } from '../../../../common/parsing/applicationLogs/matchTraceIdCandidate.js';
@@ -25,7 +25,7 @@ type Row = ReadonlyArray<GOLogsInsightsResultField>;
  * attributeServiceRow(row, { kind: 'traceId', value: '1-6789abcd-0123456789abcdef01234567' }, schema);
  * ```
  */
-export function attributeServiceRow(row: unknown, identifier: TreeReadIdentifier, schema: ServiceLogSchema): boolean {
+export function attributeServiceRow(row: unknown, identifier: ReadIdentifier, schema: ServiceLogSchema): boolean {
   if (!Array.isArray(row)) return false;
   const fields = row as Row;
   const message = readRowField(fields, '@message') ?? readServiceLogRow(fields, schema).message;
@@ -68,9 +68,9 @@ export function serviceRowIdentity(row: unknown): string {
  */
 export function traceIdOfFallbackRows(
   rows: ReadonlyArray<unknown>,
-  identifier: TreeReadIdentifier,
+  identifier: ReadIdentifier,
   schema: ServiceLogSchema,
-): TreeReadIdentifier | undefined {
+): ReadIdentifier | undefined {
   if (identifier.kind !== 'fallbackUuid') return undefined;
   for (const row of rows) {
     if (!Array.isArray(row)) continue;

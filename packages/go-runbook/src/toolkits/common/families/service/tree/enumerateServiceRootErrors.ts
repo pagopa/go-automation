@@ -2,12 +2,11 @@ import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/i
 
 import type { ErrorNodeSpec } from '../../../../../engine/types/ErrorNodeSpec.js';
 import type { TreeEnumeratorFn } from '../../../../../engine/types/TreeEnumeratorFn.js';
-import { isStepEvidenceComplete } from '../../../../../engine/context/isStepEvidenceComplete.js';
 import { readServiceLogRow } from '../../../parsing/applicationLogs/readServiceLogRow.js';
 import { scanApplicationLogs } from '../../../parsing/applicationLogs/scanApplicationLogs.js';
 import { boundedText } from '../../../parsing/correlation/boundedText.js';
 import { occurredAtOf } from '../../../parsing/correlation/occurredAtOf.js';
-import { safeCorrelationValue } from '../../../parsing/correlation/safeCorrelationValue.js';
+import { safeCorrelationValue } from '../../../../../engine/reads/safeCorrelationValue.js';
 import type { ServiceErrorRootConfig } from './ServiceErrorRootConfig.js';
 
 type Row = ReadonlyArray<GOLogsInsightsResultField>;
@@ -62,7 +61,7 @@ export function enumerateServiceRootErrors(config: ServiceErrorRootConfig): Tree
       observedErrors: {
         unit: 'errorRow',
         observed: nodes.length,
-        ...(isStepEvidenceComplete(context, config.stepId) ? {} : { lowerBound: true }),
+        ...(context.reads.isComplete(config.stepId) ? {} : { lowerBound: true }),
       },
     };
   };

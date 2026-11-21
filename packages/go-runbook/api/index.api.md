@@ -304,6 +304,12 @@ export interface DescendRequest {
 }
 ```
 
+### `EMPTY_RUNBOOK_READS` (value)
+
+```ts
+const EMPTY_RUNBOOK_READS: RunbookReads;
+```
+
 ### `ErrorChainInterruptionReason` (type)
 
 ```ts
@@ -323,7 +329,6 @@ export interface ErrorNodeSpec {
     readonly contextOutputs?: Readonly<Record<string, ReadonlyArray<unknown>>>;
     readonly siblingOutputs?: Readonly<Record<string, ReadonlyArray<unknown>>>;
     readonly rowIdentities?: ReadonlyArray<string>;
-    readonly incompleteEvidence?: boolean;
 }
 ```
 
@@ -641,12 +646,6 @@ export declare function interpolatePlaceholders(template: string, values: Templa
 export declare function interpolatePlaceholders(template: string, values: TemplatePlaceholderValues, options?: InterpolatePlaceholdersOptions): string;
 ```
 
-### `isStepEvidenceComplete` (value)
-
-```ts
-export declare function isStepEvidenceComplete(context: RunbookContext, stepId: string): boolean;
-```
-
 ### `KnownCase` (type)
 
 ```ts
@@ -914,10 +913,19 @@ export interface PipelineHook<TAnchor extends string> extends StepDescriptor {
 const PLAIN_LOG_ACTION_RENDERER: LogActionRenderer;
 ```
 
-### `readStepLookupState` (value)
+### `ReadIdentifier` (type)
 
 ```ts
-export declare function readStepLookupState(context: RunbookContext, stepId: string): StepLookupState;
+export interface ReadIdentifier {
+    readonly kind: EvidenceIdentifierKind;
+    readonly value: string;
+}
+```
+
+### `ReadState` (type)
+
+```ts
+export type ReadState = 'queried' | 'saturated' | 'unavailable' | 'skipped' | 'cycle';
 ```
 
 ### `readStepOutput` (value)
@@ -1028,7 +1036,7 @@ export interface RunbookContext<TServices extends WorkflowServices = WorkflowSer
     readonly recoveredErrors: ReadonlyArray<ErrorRecoveryInfo>;
     readonly signal?: AbortSignal;
     readonly regexCache?: GORegexCache;
-    readonly coverage?: ReadonlyArray<CoverageEntry>;
+    readonly reads: RunbookReads;
     readonly readPolicy?: 'partial' | 'strict';
     readonly sharedReads?: Map<string, Promise<unknown>>;
 }
@@ -1074,6 +1082,7 @@ export interface RunbookExecutionResult {
     readonly status: RunbookExecutionStatus;
     readonly detections: ReadonlyArray<KnownCaseDetection>;
     readonly coverage: ReadonlyArray<CoverageEntry>;
+    readonly windowIncomplete: boolean;
     readonly observedErrors?: ObservedErrors;
     readonly tree?: ReadonlyArray<ErrorTreeNode>;
     readonly nodeContexts?: ReadonlyMap<string, RunbookContext>;
@@ -1096,7 +1105,7 @@ export type RunbookExecutionStatus = 'completed' | 'failed' | 'aborted';
 
 ```ts
 export interface RunbookExecutionTrace {
-    readonly schemaVersion: '2.0.0';
+    readonly schemaVersion: '3.0.0';
     readonly execution: ExecutionInfo;
     readonly input: Readonly<Record<string, string>>;
     readonly pipeline: ReadonlyArray<StepTrace>;
@@ -1157,6 +1166,16 @@ export declare class RunbookMissingServicesError extends Error {
     readonly missing: ReadonlyArray<string>;
     readonly name = "RunbookMissingServicesError";
     constructor(runbookId: string, missing: ReadonlyArray<string>);
+}
+```
+
+### `RunbookReads` (type)
+
+```ts
+export interface RunbookReads {
+    stateOf(stepId: string, identifier?: ReadIdentifier): ReadState;
+    isComplete(stepId: string): boolean;
+    hasGapFor(stepId: string, identifier: ReadIdentifier): boolean;
 }
 ```
 
@@ -1249,7 +1268,7 @@ export interface StepCoverage {
     readonly complete: boolean;
     readonly reason?: CoverageReason;
     readonly detail?: string;
-    readonly scoped?: boolean;
+    readonly identifiers?: ReadonlyArray<ReadIdentifier>;
 }
 ```
 
@@ -1293,12 +1312,6 @@ export declare function stepEvidenceMatches(stepId: string, regex: string): Cond
 
 ```ts
 export type StepKind = 'data' | 'transform' | 'check' | 'mutation' | 'control';
-```
-
-### `StepLookupState` (type)
-
-```ts
-export type StepLookupState = 'queried' | 'saturated' | 'unavailable' | 'skipped';
 ```
 
 ### `StepResult` (type)
@@ -1504,17 +1517,11 @@ export interface TreeChainInterruption {
 
 ```ts
 export interface TreeDescent extends DescendRequest {
-    readonly state: TreeDescentState;
+    readonly state: ReadState;
     readonly childIds: ReadonlyArray<string>;
     readonly rowCount: number;
     readonly incompleteVia?: boolean;
 }
-```
-
-### `TreeDescentState` (type)
-
-```ts
-export type TreeDescentState = 'queried' | 'saturated' | 'unavailable' | 'skipped' | 'cycle';
 ```
 
 ### `TreeEnumerated` (type)
@@ -1533,8 +1540,8 @@ export interface TreeEnumerated {
 export interface TreeEnumeration {
     readonly context: RunbookContext;
     readonly rows: ReadonlyArray<unknown>;
-    readonly identifier?: TreeReadIdentifier;
-    readonly secondAttempt?: TreeReadIdentifier;
+    readonly identifier?: ReadIdentifier;
+    readonly secondAttempt?: ReadIdentifier;
 }
 ```
 
@@ -1577,7 +1584,7 @@ export interface TreeLevel {
 
 ```ts
 export interface TreeLevelReader extends Step<unknown> {
-    read(context: RunbookContext, identifiers: ReadonlyArray<TreeReadIdentifier>): Promise<TreeLevelReadResult>;
+    read(context: RunbookContext, identifiers: ReadonlyArray<ReadIdentifier>): Promise<TreeLevelReadResult>;
 }
 ```
 
@@ -1593,25 +1600,10 @@ export interface TreeLevelReadResult {
 }
 ```
 
-### `TreeReadIdentifier` (type)
-
-```ts
-export interface TreeReadIdentifier {
-    readonly kind: EvidenceIdentifierKind;
-    readonly value: string;
-}
-```
-
-### `TreeReadState` (type)
-
-```ts
-export type TreeReadState = 'queried' | 'saturated' | 'unavailable';
-```
-
 ### `TreeRowAttributionFn` (type)
 
 ```ts
-export type TreeRowAttributionFn = (row: unknown, identifier: TreeReadIdentifier) => boolean;
+export type TreeRowAttributionFn = (row: unknown, identifier: ReadIdentifier) => boolean;
 ```
 
 ### `TreeRowIdentityFn` (type)
@@ -1623,7 +1615,7 @@ export type TreeRowIdentityFn = (row: unknown) => string;
 ### `TreeSecondAttemptFn` (type)
 
 ```ts
-export type TreeSecondAttemptFn = (rows: ReadonlyArray<unknown>, identifier: TreeReadIdentifier) => TreeReadIdentifier | undefined;
+export type TreeSecondAttemptFn = (rows: ReadonlyArray<unknown>, identifier: ReadIdentifier) => ReadIdentifier | undefined;
 ```
 
 ### `TreeVarOwnershipFn` (type)

@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import type { RunbookContext, StepResult } from '../../../engine/index.js';
 import { apigw, createTestServiceRegistry, INTEROP_ENVIRONMENTS, service } from '../../../toolkits/interop/index.js';
 import { INTEROP_MANIFEST } from '../manifest.js';
+import { EMPTY_RUNBOOK_READS } from '../../../engine/reads/EMPTY_RUNBOOK_READS.js';
 
 /** API Gateway of each environment, for the runbooks of the API Gateway family. */
 const API_GW_IDS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
@@ -52,6 +53,7 @@ async function resolve(registration: Registration, alarmName: string): Promise<S
     logs: [],
     services: createTestServiceRegistry(),
     recoveredErrors: [],
+    reads: EMPTY_RUNBOOK_READS,
   };
   return step.execute(context);
 }

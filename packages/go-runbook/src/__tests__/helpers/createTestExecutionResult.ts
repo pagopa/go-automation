@@ -1,5 +1,6 @@
 import type { RunbookExecutionResult } from '../../engine/types/RunbookExecutionResult.js';
 import { createTestContext } from './createTestContext.js';
+import { createTestLedger } from './createTestLedger.js';
 import type { TestExecutionResultOptions } from './TestExecutionResultOptions.js';
 
 /**
@@ -13,18 +14,19 @@ export function createTestExecutionResult(options: TestExecutionResultOptions = 
   const status = options.status ?? 'completed';
   const matchedCases = options.matchedCases ?? [];
   const coverage = options.coverage ?? [];
-  const finalContext = createTestContext(options);
+  const finalContext = createTestContext({ gaps: coverage, ...options });
   return {
     runbookId: 'test-runbook',
     status,
     detections: matchedCases.map((knownCase) => ({ knownCase, evidenceRows: 0, observations: [] })),
     coverage,
+    windowIncomplete: createTestLedger(coverage).windowIncomplete(),
     durationMs: 0,
     stepsExecuted: 0,
     finalContext,
     recoveredErrors: finalContext.recoveredErrors,
     trace: {
-      schemaVersion: '2.0.0',
+      schemaVersion: '3.0.0',
       execution: {
         executionId: finalContext.executionId,
         runbookId: 'test-runbook',

@@ -19,6 +19,7 @@ import {
   SEND_ACCOUNT_IDS,
   sendAccountsPort,
 } from '../../../../../toolkits/send/accounts/__tests__/fixtures.js';
+import { EMPTY_RUNBOOK_READS } from '../../../../../engine/reads/EMPTY_RUNBOOK_READS.js';
 
 interface QueryCall {
   readonly account: string;
@@ -111,6 +112,7 @@ function errorlessContext(): OperationalContext {
     logs: [],
     services: createTestServiceRegistry(),
     recoveredErrors: [],
+    reads: EMPTY_RUNBOOK_READS,
   };
 }
 
@@ -169,6 +171,7 @@ async function context(
     logs: [],
     services: createTestServiceRegistry({ awsAccounts }),
     recoveredErrors: [],
+    reads: EMPTY_RUNBOOK_READS,
   };
 }
 

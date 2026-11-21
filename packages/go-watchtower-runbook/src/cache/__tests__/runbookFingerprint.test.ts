@@ -47,6 +47,15 @@ describe('runbookFingerprint', () => {
     assert.match(a, /^[0-9a-f]{64}$/);
   });
 
+  it('never reuses an entry saved before the reads carried their identifiers', () => {
+    const meta = cacheMeta();
+    assert.equal(meta.fingerprintVersion, 15);
+    assert.equal(meta.outputSchemaVersion, '3.0.0');
+    const previous = computeFingerprint({ ...meta, fingerprintVersion: 14, outputSchemaVersion: '2.0.0' });
+    assert.notEqual(computeFingerprint(meta), previous);
+    assert.notEqual(computeFingerprint(meta), computeFingerprint({ ...meta, fingerprintVersion: 14 }));
+  });
+
   it('computeFingerprint changes when any fingerprint input changes', () => {
     const base = computeFingerprint(cacheMeta());
     assert.notEqual(base, computeFingerprint(cacheMeta({ ...descriptor, hash: 'h1' })));

@@ -8,13 +8,15 @@ import type { ErrorTreeNode } from '../types/ErrorTreeNode.js';
 import type { KnownCase } from '../types/KnownCase.js';
 import type { KnownCaseDetection } from '../types/KnownCaseDetection.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
-import type { TreeDescentState } from '../types/TreeDescentState.js';
 import type { TreeLevel } from '../types/TreeLevel.js';
 import type { TreeLevelReader } from '../types/TreeLevelReader.js';
 import type { TreeLevelReadResult } from '../types/TreeLevelReadResult.js';
-import type { TreeReadIdentifier } from '../types/TreeReadIdentifier.js';
-import type { TreeReadState } from '../types/TreeReadState.js';
+import type { ReadIdentifier } from '../types/ReadIdentifier.js';
 import type { EvidenceIdentifierKind } from '../types/EvidenceIdentifierKind.js';
+import type { ReadBatch } from '../reads/ReadBatch.js';
+import type { ReadDescent } from '../reads/ReadDescent.js';
+import type { ReadLedger } from '../reads/ReadLedger.js';
+import type { ReadScope } from '../reads/ReadScope.js';
 import { sharedConditionEvaluator } from '../core/ConditionEvaluator.js';
 import { throwIfRunbookAborted } from '../context/throwIfRunbookAborted.js';
 import { createNodeContext } from './createNodeContext.js';
@@ -33,17 +35,10 @@ const DEFAULT_BATCH_SIZE = 50;
 /** Deepest node: a descent below it is closed as a cycle. */
 const MAX_DEPTH = 32;
 
-/** Severity of the read states, to combine the reads of one parent: the worst wins. */
-const STATE_SEVERITY: Readonly<Record<TreeReadState, number>> = {
-  queried: 0,
-  saturated: 1,
-  unavailable: 2,
-};
-
 /** A descent while the tree is investigated. */
 interface WorkDescent {
   readonly request: DescendRequest;
-  state?: TreeDescentState;
+  readonly read: ReadDescent;
   readonly childIds: string[];
   rowCount: number;
   readonly through?: ReadonlySet<string>;
@@ -57,6 +52,7 @@ interface WorkNode {
   readonly depth: number;
   readonly level: TreeLevel;
   readonly spec: ErrorNodeSpec;
+  readonly scope: ReadScope;
   readonly via?: ReadonlyArray<string>;
   context: RunbookContext;
   failure?: string;
@@ -67,14 +63,12 @@ interface WorkNode {
   readonly pathRows: ReadonlySet<string>;
   detections: ReadonlyArray<KnownCaseDetection>;
   branchOutcome: BranchOutcome;
-  incompleteEvidence: boolean;
-  /** The reads of each level for this node so far: state, rows, excluded diagnoses seen. */
+  /** The reads of each level for this node so far: rows, excluded diagnoses seen. */
   readonly reads: Map<string, NodeReads>;
 }
 
 /** The reads of one level for one parent. */
 interface NodeReads {
-  state: string;
   rows: number;
   readonly present: Set<string>;
 }
@@ -87,10 +81,10 @@ interface PendingDescent {
   readonly reader: TreeLevelReader;
 }
 
-/** Rows read for one identifier, with how the read ended. */
+/** Rows read for one identifier, with the batch that read them. */
 interface ReadOutcome {
-  rows: ReadonlyArray<unknown>;
-  state: TreeReadState;
+  readonly rows: ReadonlyArray<unknown>;
+  readonly batch: ReadBatch;
 }
 
 /**
@@ -99,8 +93,9 @@ interface ReadOutcome {
  * The root level enumerates the errors of the window; every node runs the steps of its level in an isolated context
  * and may ask to descend. The descents of all the nodes are grouped by level and identifier kind, and each group is
  * one read per batch, whose rows are divided among the parents by exact identifier. Every parent gets, even without
- * rows, how its read ended. Once the tree is complete, the nodes are evaluated from the deepest: the after-descent
- * steps, the outcome of the branch below, then the known cases of the level.
+ * rows, how its read ended: the read ledger keeps the state of every descent and of every level for a node. Once the
+ * tree is complete, the nodes are evaluated from the deepest: the after-descent steps, the outcome of the branch
+ * below, then the known cases of the level.
  *
  * Per-execution: create one for every run.
  *
@@ -169,10 +164,14 @@ export class ErrorTreeExecutor {
     parent: WorkNode | undefined,
     arrivedBy: WorkDescent | undefined,
   ): Promise<WorkNode> {
-    const context = createNodeContext(base, spec, parent === undefined ? [] : levelStepIds(parent.level));
+    const scope = this.ledger.createScope(parent?.scope ?? this.ledger.window);
+    const context: RunbookContext = {
+      ...createNodeContext(base, spec, parent === undefined ? [] : levelStepIds(parent.level)),
+      reads: this.ledger.view(scope),
+    };
     const run =
       level.perNode !== undefined && level.perNode.length > 0
-        ? await this.deps.runSteps(level.perNode, context)
+        ? await this.deps.runSteps(level.perNode, context, scope)
         : { context, descends: [] };
     const ownRows = spec.rowIdentities ?? rowIdentities(spec, level);
     const node: WorkNode = {
@@ -183,11 +182,12 @@ export class ErrorTreeExecutor {
       depth: parent === undefined ? 0 : parent.depth + 1,
       level,
       spec,
+      scope,
       ...(arrivedBy?.request.via !== undefined ? { via: arrivedBy.request.via } : {}),
       context: run.context,
       ...(run.failure !== undefined ? { failure: run.failure } : {}),
       // A failed node does not descend: its chain stops there, with what it collected.
-      descents: run.failure !== undefined ? [] : uniqueDescents(run.descends),
+      descents: run.failure !== undefined ? [] : this.uniqueDescents(run.descends, scope),
       pathKeys: new Set([
         ...(parent?.pathKeys ?? []),
         ...(arrivedBy?.through ?? []),
@@ -196,7 +196,6 @@ export class ErrorTreeExecutor {
       pathRows: new Set([...(parent?.pathRows ?? []), ...ownRows]),
       detections: [],
       branchOutcome: 'undiagnosed',
-      incompleteEvidence: run.incompleteEvidence === true || spec.incompleteEvidence === true,
       reads: new Map(),
     };
     this.nodes.push(node);
@@ -207,7 +206,9 @@ export class ErrorTreeExecutor {
   private pendingDescents(): ReadonlyArray<{ readonly node: WorkNode; readonly descent: WorkDescent }> {
     const pending: { readonly node: WorkNode; readonly descent: WorkDescent }[] = [];
     for (const node of this.nodes) {
-      for (const descent of node.descents) if (descent.state === undefined) pending.push({ node, descent });
+      for (const descent of node.descents) {
+        if (this.ledger.descentState(descent.read) === undefined) pending.push({ node, descent });
+      }
     }
     return pending;
   }
@@ -221,16 +222,15 @@ export class ErrorTreeExecutor {
     for (const { node, descent } of pending) {
       const level = this.levels.get(descent.request.target);
       if (descent.request.identifier.trim() === '' || level?.read === undefined) {
-        descent.state = 'skipped';
-        if (level !== undefined) this.publish(node, level, descent, []);
-        this.deps.recordSkipped(descent.request.target, level?.read?.id);
+        this.ledger.skipDescent(descent.read, level?.read?.id);
+        if (level !== undefined) this.publish(node, level, []);
         continue;
       }
       // A route back to a service it already traversed is a cycle too.
       const loops = descent.through?.has(descentKey(descent.request)) === true;
       if (loops || node.pathKeys.has(descentKey(descent.request)) || node.depth + 1 >= MAX_DEPTH) {
-        descent.state = 'cycle';
-        this.publish(node, level, descent, []);
+        this.ledger.markDescent(descent.read, 'cycle');
+        this.publish(node, level, []);
         continue;
       }
       toRead.push({ node, descent, level, reader: level.read });
@@ -242,7 +242,7 @@ export class ErrorTreeExecutor {
     );
 
     // A second attempt at the same level, with a better identifier the first one found: the rows are merged.
-    const retries: { readonly entry: PendingDescent; readonly identifier: TreeReadIdentifier }[] = [];
+    const retries: { readonly entry: PendingDescent; readonly identifier: ReadIdentifier }[] = [];
     for (const entry of toRead) {
       const outcome = first.get(entry);
       const next =
@@ -256,20 +256,20 @@ export class ErrorTreeExecutor {
 
     for (const entry of toRead) {
       throwIfRunbookAborted(window);
-      const outcome = first.get(entry) ?? { rows: [], state: 'unavailable' };
+      const outcome = first.get(entry);
       const retry = second.get(entry);
-      const merged: ReadOutcome =
-        retry === undefined
-          ? outcome
-          : { rows: mergeRows(outcome.rows, retry.rows, entry.level), state: worstState(outcome.state, retry.state) };
+      // A descent no batch answered for was not read.
+      if (outcome === undefined) this.ledger.markDescent(entry.descent.read, 'unavailable');
+      const rows =
+        retry === undefined ? (outcome?.rows ?? []) : mergeRows(outcome?.rows ?? [], retry.rows, entry.level);
       const retried = retries.find((candidate) => candidate.entry === entry)?.identifier;
-      await this.attach(entry, merged, retry === undefined ? undefined : retried);
+      await this.attach(entry, rows, retry === undefined ? undefined : retried);
     }
   }
 
   /** Reads the identifiers of the entries, one read per batch of the same level and kind. */
   private async readGroups(
-    requests: ReadonlyArray<{ readonly entry: PendingDescent; readonly identifier: TreeReadIdentifier }>,
+    requests: ReadonlyArray<{ readonly entry: PendingDescent; readonly identifier: ReadIdentifier }>,
     window: RunbookContext,
   ): Promise<ReadonlyMap<PendingDescent, ReadOutcome>> {
     const groups = new Map<
@@ -309,7 +309,7 @@ export class ErrorTreeExecutor {
           result = { success: false, error: error instanceof Error ? error.message : String(error), rows: [] };
         }
         this.deps.recordRead(group.reader, batch, result, startedAtMs);
-        const state = readState(result);
+        const read = this.ledger.recordBatch(group.reader.id, batch, result);
         const attribute = group.level.attribute;
         for (const identifier of batch) {
           // A read for one identifier returns only its rows by construction; a grouped one is divided by attribution.
@@ -319,7 +319,7 @@ export class ErrorTreeExecutor {
               : attribute === undefined
                 ? []
                 : result.rows.filter((row) => attribute(row, identifier));
-          byIdentifier.set(`${key}|${identifier.value}`, { state, rows });
+          byIdentifier.set(`${key}|${identifier.value}`, { rows, batch: read });
         }
       }
     }
@@ -327,7 +327,10 @@ export class ErrorTreeExecutor {
     const outcomes = new Map<PendingDescent, ReadOutcome>();
     for (const { entry, identifier } of requests) {
       const outcome = byIdentifier.get(`${entry.level.target}|${identifier.kind}|${identifier.value}`);
-      if (outcome !== undefined) outcomes.set(entry, outcome);
+      if (outcome === undefined) continue;
+      // Every attempt of a descent is bound to the batch that read it: the descent has the worst of them.
+      this.ledger.attemptDescent(entry.descent.read, outcome.batch, identifier);
+      outcomes.set(entry, outcome);
     }
     return outcomes;
   }
@@ -335,17 +338,15 @@ export class ErrorTreeExecutor {
   /** Publishes the read on the parent, enumerates the children, then follows the route of the context rows. */
   private async attach(
     entry: PendingDescent,
-    outcome: ReadOutcome,
-    secondAttempt: TreeReadIdentifier | undefined,
+    read: ReadonlyArray<unknown>,
+    secondAttempt: ReadIdentifier | undefined,
   ): Promise<void> {
     const { node, descent, level } = entry;
     const identity = level.rowIdentity;
     // A row an ancestor already holds (the trace read returns the root row too) is not a child.
-    const rows =
-      identity === undefined ? outcome.rows : outcome.rows.filter((row) => !node.pathRows.has(identity(row)));
-    descent.state = outcome.state;
+    const rows = identity === undefined ? read : read.filter((row) => !node.pathRows.has(identity(row)));
     descent.rowCount = rows.length;
-    this.publish(node, level, descent, rows);
+    this.publish(node, level, rows);
 
     const enumerated = level.enumerate({
       context: node.context,
@@ -366,16 +367,23 @@ export class ErrorTreeExecutor {
     if (routings.length === 0 || level.perNode === undefined || level.perNode.length === 0) return;
     const routes: DescendRequest[] = [];
     for (const routing of routings) {
+      // The steps of a routing read in a scope of their own, below the node.
+      const scope = this.ledger.createScope(node.scope);
       const run = await this.deps.runSteps(
         level.perNode,
-        createNodeContext(node.context, routing, levelStepIds(node.level)),
+        {
+          ...createNodeContext(node.context, routing, levelStepIds(node.level)),
+          reads: this.ledger.view(scope),
+        },
+        scope,
       );
       if (run.failure === undefined) routes.push(...run.descends);
       // A routing that failed or read incompletely leaves this read without a proven route: never a complete leaf.
-      if ((run.failure !== undefined || run.incompleteEvidence === true) && descent.state === 'queried') {
-        descent.state = 'unavailable';
+      const incomplete = run.failure !== undefined || this.ledger.hasOwnGaps(scope);
+      if (incomplete && this.ledger.descentState(descent.read) === 'queried') {
+        this.ledger.markDescent(descent.read, 'unavailable');
         // The parent sees the read as unavailable too: an exclusion not seen is no longer `absent`.
-        this.publish(node, level, descent, []);
+        this.publish(node, level, []);
       }
     }
     // Every route is collected first, then the ones an error branch already covers are left out.
@@ -393,6 +401,7 @@ export class ErrorTreeExecutor {
       covered.add(routeKey(route));
       node.descents.push({
         request: { ...route, via },
+        read: this.ledger.openDescent(node.scope, route.target),
         childIds: [],
         rowCount: 0,
         through,
@@ -402,18 +411,18 @@ export class ErrorTreeExecutor {
   }
 
   /** Publishes on the parent how the read of a level ended for it, with its rows and exclusions. */
-  private publish(node: WorkNode, level: TreeLevel, descent: WorkDescent, rows: ReadonlyArray<unknown>): void {
+  private publish(node: WorkNode, level: TreeLevel, rows: ReadonlyArray<unknown>): void {
     const prefix = level.varPrefix;
     if (prefix === undefined) return;
-    // Every read of this level for the parent combines: the worst state, the rows of all of them, an excluded
-    // diagnosis seen in any of them.
+    // Every read of this level for the parent combines: the worst state (from the ledger), the rows of all of them,
+    // an excluded diagnosis seen in any of them.
     // The accumulator is the node's own: the variables inherited from an ancestor never count as a read of this node.
     const vars = new Map(node.context.vars);
     const reads = node.reads.get(level.target);
-    const state = combinedState(reads?.state, descent.state ?? 'skipped');
+    const state = this.ledger.levelState(node.scope, level.target);
     const total = (reads?.rows ?? 0) + rows.length;
     const present = reads?.present ?? new Set<string>();
-    node.reads.set(level.target, { state, rows: total, present });
+    node.reads.set(level.target, { rows: total, present });
     vars.set(lookupStateVar(prefix), state);
     vars.set(logCountVar(prefix), String(total));
     vars.set(logCountAllVisitsVar(prefix), String(total));
@@ -453,12 +462,11 @@ export class ErrorTreeExecutor {
       throwIfRunbookAborted(node.context);
       const afterDescend = node.level.afterDescend ?? [];
       if (afterDescend.length > 0 && node.failure === undefined) {
-        const run = await this.deps.runSteps(afterDescend, node.context);
+        const run = await this.deps.runSteps(afterDescend, node.context, node.scope);
         node.context = run.context;
         if (run.failure !== undefined) node.failure = run.failure;
-        if (run.incompleteEvidence === true) node.incompleteEvidence = true;
       }
-      node.branchOutcome = branchOutcome(node, byId);
+      node.branchOutcome = this.branchOutcome(node, byId);
       node.context = { ...node.context, vars: new Map(node.context.vars).set(BRANCH_OUTCOME_VAR, node.branchOutcome) };
       const occurredAt = node.spec.occurredAt;
       // A case read from variables only has no evidence time: it takes the time of its node.
@@ -486,17 +494,73 @@ export class ErrorTreeExecutor {
       ...(node.via !== undefined ? { via: node.via } : {}),
       descents: node.descents.map((descent) => ({
         ...descent.request,
-        state: descent.state ?? 'skipped',
+        state: this.ledger.descentState(descent.read) ?? 'skipped',
         childIds: descent.childIds,
         rowCount: descent.rowCount,
-        ...(viaIncomplete(descent) ? { incompleteVia: true } : {}),
+        ...(this.viaIncomplete(descent) ? { incompleteVia: true } : {}),
       })),
       status: node.failure !== undefined ? 'failed' : 'ok',
       ...(node.failure !== undefined ? { failure: node.failure } : {}),
       detections: node.detections,
       branchOutcome: node.branchOutcome,
-      ...(node.incompleteEvidence ? { incompleteEvidence: true } : {}),
+      ...(this.isIncomplete(node) ? { incompleteEvidence: true } : {}),
     };
+  }
+
+  /** The read ledger of the execution. */
+  private get ledger(): ReadLedger {
+    return this.deps.ledger;
+  }
+
+  /** Whether the evidence of a node is incomplete, by the gaps of its scope and of its correlation. */
+  private isIncomplete(node: WorkNode): boolean {
+    return this.ledger.isNodeIncomplete(node.scope, node.spec.correlation ?? {});
+  }
+
+  /** The descents without repetitions of the same target, kind and identifier, opened in the scope of the node. */
+  private uniqueDescents(requests: ReadonlyArray<DescendRequest>, scope: ReadScope): WorkDescent[] {
+    const seen = new Set<string>();
+    const descents: WorkDescent[] = [];
+    for (const request of requests) {
+      const key = descentKey(request);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      descents.push({ request, read: this.ledger.openDescent(scope, request.target), childIds: [], rowCount: 0 });
+    }
+    return descents;
+  }
+
+  /**
+   * How the branch strictly below a node ended: a recognized descendant, else an interrupted or incomplete branch,
+   * else a complete branch without diagnosis.
+   */
+  private branchOutcome(node: WorkNode, byId: ReadonlyMap<string, WorkNode>): BranchOutcome {
+    let incomplete = node.failure !== undefined;
+    const stack = [node];
+    let diagnosed = false;
+    while (stack.length > 0) {
+      const current = stack.pop();
+      if (current === undefined) continue;
+      if (current !== node && current.detections.length > 0) diagnosed = true;
+      if (current !== node && (current.failure !== undefined || this.isIncomplete(current))) incomplete = true;
+      for (const descent of current.descents) {
+        if (this.ledger.descentState(descent.read) !== 'queried') incomplete = true;
+        for (const childId of descent.childIds) {
+          const child = byId.get(childId);
+          if (child !== undefined) stack.push(child);
+        }
+      }
+    }
+    if (diagnosed) return 'diagnosed';
+    return incomplete ? 'incomplete' : 'undiagnosed';
+  }
+
+  /** Whether a read traversed by context rows to reach a descent was incomplete. */
+  private viaIncomplete(descent: WorkDescent): boolean {
+    for (let from = descent.from; from !== undefined; from = from.from) {
+      if (this.ledger.descentState(from.read) !== 'queried') return true;
+    }
+    return false;
   }
 
   /** The id, made unique in the tree. */
@@ -512,49 +576,11 @@ export class ErrorTreeExecutor {
   }
 }
 
-/**
- * How the branch strictly below a node ended: a recognized descendant, else an interrupted or incomplete branch,
- * else a complete branch without diagnosis.
- */
-function branchOutcome(node: WorkNode, byId: ReadonlyMap<string, WorkNode>): BranchOutcome {
-  let incomplete = node.failure !== undefined;
-  const stack = [node];
-  let diagnosed = false;
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (current === undefined) continue;
-    if (current !== node && current.detections.length > 0) diagnosed = true;
-    if (current !== node && (current.failure !== undefined || current.incompleteEvidence)) incomplete = true;
-    for (const descent of current.descents) {
-      if (descent.state !== 'queried') incomplete = true;
-      for (const childId of descent.childIds) {
-        const child = byId.get(childId);
-        if (child !== undefined) stack.push(child);
-      }
-    }
-  }
-  if (diagnosed) return 'diagnosed';
-  return incomplete ? 'incomplete' : 'undiagnosed';
-}
-
 /** The identities of the rows a node scopes, when the level can tell them. */
 function rowIdentities(spec: ErrorNodeSpec, level: TreeLevel): ReadonlyArray<string> {
   const identity = level.rowIdentity;
   if (identity === undefined) return [];
   return Object.values(spec.scopedOutputs).flatMap((rows) => rows.map((row) => identity(row)));
-}
-
-/** The descents without repetitions of the same target, kind and identifier. */
-function uniqueDescents(requests: ReadonlyArray<DescendRequest>): WorkDescent[] {
-  const seen = new Set<string>();
-  const descents: WorkDescent[] = [];
-  for (const request of requests) {
-    const key = descentKey(request);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    descents.push({ request, childIds: [], rowCount: 0 });
-  }
-  return descents;
 }
 
 /** Identity of a descent in a chain. */
@@ -568,24 +594,8 @@ function routeKey(request: DescendRequest): string {
 }
 
 /** The identifier of a descent, as the read takes it. */
-function identifierOf(request: DescendRequest): TreeReadIdentifier {
+function identifierOf(request: DescendRequest): ReadIdentifier {
   return { kind: request.kind, value: request.identifier };
-}
-
-/** How a read ended for every identifier of its batch. */
-function readState(result: TreeLevelReadResult): TreeReadState {
-  if (!result.success) return 'unavailable';
-  let state: TreeReadState = 'queried';
-  for (const coverage of result.coverage ?? []) {
-    if (coverage.complete) continue;
-    state = worstState(state, coverage.reason === 'unavailable' ? 'unavailable' : 'saturated');
-  }
-  return state;
-}
-
-/** The worse of two read states. */
-function worstState(a: TreeReadState, b: TreeReadState): TreeReadState {
-  return STATE_SEVERITY[a] >= STATE_SEVERITY[b] ? a : b;
 }
 
 /** The rows of two attempts, a row found by both kept once. */
@@ -598,27 +608,4 @@ function mergeRows(
   if (identity === undefined) return [...first, ...second];
   const seen = new Set(first.map((row) => identity(row)));
   return [...first, ...second.filter((row) => !seen.has(identity(row)))];
-}
-
-/** Order of the descent states for a parent: a complete read only when every read of the level was complete. */
-const DESCENT_SEVERITY: Readonly<Record<string, number>> = {
-  queried: 0,
-  saturated: 1,
-  unavailable: 2,
-  skipped: 3,
-  cycle: 4,
-};
-
-/** The state of all the reads of a level for a parent so far. */
-function combinedState(previous: string | undefined, next: TreeDescentState): string {
-  if (previous === undefined) return next;
-  return (DESCENT_SEVERITY[previous] ?? 0) >= (DESCENT_SEVERITY[next] ?? 0) ? previous : next;
-}
-
-/** Whether a read traversed by context rows to reach a descent was incomplete. */
-function viaIncomplete(descent: WorkDescent): boolean {
-  for (let from = descent.from; from !== undefined; from = from.from) {
-    if (from.state !== 'queried') return true;
-  }
-  return false;
 }

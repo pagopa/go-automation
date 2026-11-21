@@ -8,7 +8,6 @@ import type { StepResult } from '../types/StepResult.js';
 import type { KnownCase } from '../types/KnownCase.js';
 import type { CaseAction } from '../types/CaseAction.js';
 import type { KnownCaseDetection } from '../types/KnownCaseDetection.js';
-import type { CoverageEntry } from '../types/CoverageEntry.js';
 import type { IdentifierObservation } from '../types/IdentifierObservation.js';
 import type { ObservedErrors } from '../types/ObservedErrors.js';
 import type { ErrorRecoveryInfo } from '../types/ErrorRecoveryInfo.js';
@@ -32,11 +31,13 @@ import type { ErrorTreeRun } from '../types/ErrorTreeRun.js';
 import type { TreeChainGroup } from '../types/TreeChainGroup.js';
 import type { TreeLevelReader } from '../types/TreeLevelReader.js';
 import type { TreeLevelReadResult } from '../types/TreeLevelReadResult.js';
-import type { TreeReadIdentifier } from '../types/TreeReadIdentifier.js';
+import type { ReadIdentifier } from '../types/ReadIdentifier.js';
 import type { TreeStepsRun } from '../types/TreeStepsRun.js';
 import { ErrorTreeExecutor } from '../tree/ErrorTreeExecutor.js';
 import { buildTreeChains } from '../tree/buildTreeChains.js';
 import { computeCaseLevels } from '../tree/computeCaseLevels.js';
+import { ReadLedger } from '../reads/ReadLedger.js';
+import type { ReadScope } from '../reads/ReadScope.js';
 import {
   createInitialContext,
   updateContextWithStepResult,
@@ -45,9 +46,6 @@ import {
 
 /** Default maximum iterations for anti-loop protection */
 const DEFAULT_MAX_ITERATIONS = 1000;
-
-/** Longest coverage detail the engine records for a failed read. */
-const MAX_COVERAGE_DETAIL = 200;
 
 /** Default execution environment when none is provided */
 const DEFAULT_ENVIRONMENT: ExecutionEnvironment = {
@@ -66,8 +64,9 @@ interface StepExecutionOutcome {
 interface ExecutionState {
   /** Every output of every visit of a step, in order: the evidence of repeated visits. */
   readonly visits: Map<string, unknown[]>;
-  /** Partial evidence declared by the steps or recorded for a failed read. */
-  readonly coverage: CoverageEntry[];
+  /** Gaps of the reads of the execution, and the scope the steps record theirs in. */
+  readonly ledger: ReadLedger;
+  readonly scope: ReadScope;
   /** Errors observed and examined, as last declared by a step. */
   observedErrors?: ObservedErrors;
   /** Whether a read (`data` step) has already succeeded: a later failure leaves partial evidence. */
@@ -161,8 +160,10 @@ export class RunbookEngine {
     signal?: AbortSignal,
   ): Promise<RunbookExecutionResult> {
     assertRequiredServices(runbook, services, this.options.serviceCapabilities);
+    const ledger = new ReadLedger();
     const context: RunbookContext = {
       ...createInitialContext(params, services, signal, this.regexCache),
+      reads: ledger.view(ledger.window),
       // Only an alarm analysis keeps partial evidence; a procedure reads strictly, as every required step needs.
       readPolicy: runbook.metadata.type === 'alarm-resolution' ? 'partial' : 'strict',
       sharedReads: new Map(),
@@ -171,7 +172,8 @@ export class RunbookEngine {
     const env = environment ?? DEFAULT_ENVIRONMENT;
     const state: ExecutionState = {
       visits: new Map(),
-      coverage: [],
+      ledger,
+      scope: ledger.window,
       evidenceCollected: false,
       descends: [],
       failures: [],
@@ -243,9 +245,9 @@ export class RunbookEngine {
     let detections: ReadonlyArray<KnownCaseDetection> = [];
     let treeRun: ErrorTreeRun | undefined;
     let chains: ReadonlyArray<TreeChainGroup> | undefined;
+    // A gap that names some identifiers is carried by their nodes, not by every chain.
+    const windowIncomplete = ledger.windowIncomplete();
     if (status === 'completed') {
-      // A gap scoped to some identifiers is carried by their nodes, not by every chain.
-      const windowIncomplete = state.coverage.some((entry) => entry.scoped !== true);
       try {
         if (runbook.tree === undefined) {
           detections = this.detectKnownCases(
@@ -313,7 +315,7 @@ export class RunbookEngine {
       detections = [];
     }
 
-    traceBuilder.traceCoverage(state.coverage);
+    traceBuilder.traceCoverage(ledger.entries());
     const trace = traceBuilder.build(finalContext, status, env, failureReason);
 
     const caseTag = detections.length === 0 ? 'none' : detections.map((d) => d.knownCase.id).join(', ');
@@ -326,7 +328,8 @@ export class RunbookEngine {
       runbookId: runbook.metadata.id,
       status,
       detections,
-      coverage: state.coverage,
+      coverage: ledger.entries(),
+      windowIncomplete,
       ...(treeRun?.observedErrors !== undefined
         ? { observedErrors: treeRun.observedErrors }
         : state.observedErrors !== undefined
@@ -404,10 +407,9 @@ export class RunbookEngine {
       recordStepEvidence(state, step.id, result);
       if (result.success && step.kind === 'data') state.evidenceCollected = true;
       if (!result.success) {
-        state.coverage.push(failedReadCoverage(step.id, result.error));
+        state.ledger.recordFailure(state.scope, step.id, result.error);
         state.failures.push(result.error ?? `Step "${step.id}" failed`);
       }
-      context = { ...context, coverage: [...state.coverage] };
       const directive = result.next ?? 'continue';
 
       if (!result.success) {
@@ -701,53 +703,49 @@ export class RunbookEngine {
     const tree = runbook.tree;
     if (tree === undefined) throw new Error(`Runbook "${runbook.metadata.id}" has no error tree.`);
     const { maxIterations, traceBuilder, state } = execution;
-    const skipped = new Set<string>();
     const executor = new ErrorTreeExecutor(tree, computeCaseLevels(runbook.knownCases, tree), runbook.knownCases, {
-      runSteps: async (steps, context) =>
-        this.runNodeSteps(steps, context, { maxIterations, runbookId: runbook.metadata.id, traceBuilder, state }),
+      runSteps: async (steps, context, scope) =>
+        this.runNodeSteps(steps, context, scope, {
+          maxIterations,
+          runbookId: runbook.metadata.id,
+          traceBuilder,
+          ledger: state.ledger,
+        }),
       recordRead: (read, identifiers, result, startedAtMs) => {
-        recordTreeRead(state, traceBuilder, read, identifiers, result, startedAtMs);
+        recordTreeRead(traceBuilder, read, identifiers, result, startedAtMs);
       },
       evaluateCases: (knownCases, context, nodeId) => this.detectKnownCases(knownCases, context, traceBuilder, nodeId),
-      recordSkipped: (target, readStepId) => {
-        if (skipped.has(target)) return;
-        skipped.add(target);
-        state.coverage.push({
-          stepId: readStepId ?? target,
-          source: target,
-          complete: false,
-          reason: 'skipped',
-          detail: 'identificatore mancante per la discesa',
-        });
-      },
+      ledger: state.ledger,
     });
     return executor.run(window);
   }
 
   /**
-   * Runs the steps of an error node in its own context: what they write stays in the node, and the coverage they
-   * declare joins the execution.
+   * Runs the steps of an error node in its own context: what they write stays in the node, and the gaps they declare
+   * are recorded in its scope.
    *
    * @param steps - Steps of the level
    * @param context - Context of the node
-   * @param execution - Iteration cap, runbook id, trace and state of the execution
+   * @param scope - Scope of the node in the read ledger
+   * @param execution - Iteration cap, runbook id, trace and read ledger of the execution
    * @returns The context reached, the failure if a step failed, and the descents the steps requested
    * @throws DOMException `AbortError` when the execution is aborted
    */
   private async runNodeSteps(
     steps: ReadonlyArray<StepDescriptor>,
     context: RunbookContext,
+    scope: ReadScope,
     execution: {
       readonly maxIterations: number;
       readonly runbookId: string;
       readonly traceBuilder: TraceBuilder;
-      readonly state: ExecutionState;
+      readonly ledger: ReadLedger;
     },
   ): Promise<TreeStepsRun> {
-    const inherited = context.coverage ?? [];
     const nodeState: ExecutionState = {
       visits: new Map(),
-      coverage: [...inherited],
+      ledger: execution.ledger,
+      scope,
       evidenceCollected: true,
       descends: [],
       failures: [],
@@ -761,13 +759,8 @@ export class RunbookEngine {
       nodeState,
       false,
     );
-    const added = nodeState.coverage.slice(inherited.length);
-    // A read shared by several nodes declares its coverage in each node, and once in the execution.
-    const declared = new Set(execution.state.coverage.map((entry) => JSON.stringify(entry)));
-    execution.state.coverage.push(...added.filter((entry) => !declared.has(JSON.stringify(entry))));
     if (outcome.aborted) throwIfRunbookAborted(outcome.context);
     return {
-      ...(added.length > 0 ? { incompleteEvidence: true } : {}),
       context: evidenceContext(outcome.context, nodeState.visits),
       // A step that failed, even one allowed to fail, leaves the analysis of the node incomplete.
       ...((outcome.failureReason ?? nodeState.failures[0]) !== undefined
@@ -909,7 +902,7 @@ function compareCaseMatches(a: CaseMatch, b: CaseMatch): number {
 }
 
 /**
- * Records what a step result adds to the evidence of the execution: its output, as one more visit, and its coverage.
+ * Records what a step result adds to the evidence of the execution: its output, as one more visit, and its gaps.
  *
  * @param state - State of the execution
  * @param stepId - Step that produced the result
@@ -921,33 +914,9 @@ function recordStepEvidence(state: ExecutionState, stepId: string, result: StepR
     visits.push(result.output);
     state.visits.set(stepId, visits);
   }
-  for (const coverage of result.coverage ?? []) {
-    if (coverage.complete) continue;
-    const { detail, ...rest } = coverage;
-    state.coverage.push({
-      stepId,
-      ...rest,
-      ...(detail !== undefined ? { detail: boundedDetail(detail) } : {}),
-    });
-  }
+  state.ledger.recordStep(state.scope, stepId, result.coverage ?? []);
   if (result.observedErrors !== undefined) state.observedErrors = result.observedErrors;
   if (result.descend !== undefined) state.descends.push(...result.descend);
-}
-
-/**
- * The coverage entry of a failed read.
- *
- * @param stepId - Step that failed
- * @param error - Error message of the failure
- * @returns An `unavailable` coverage entry with a bounded detail
- */
-function failedReadCoverage(stepId: string, error: string | undefined): CoverageEntry {
-  return {
-    stepId,
-    complete: false,
-    reason: 'unavailable',
-    ...(error !== undefined ? { detail: boundedDetail(error) } : {}),
-  };
 }
 
 /**
@@ -982,23 +951,8 @@ function isAborted(context: RunbookContext): boolean {
 }
 
 /**
- * A coverage detail within its bound, cut at a word boundary: a name cut in half (a profile, an account) would no
- * longer match the whole-token scrub applied where the output leaves the host.
+ * Records a grouped read of an error-tree level as a step of the trace; its gaps are the read ledger's.
  *
- * @param text - Detail to bound
- * @returns The text, or its longest prefix of whole words within the bound
- */
-function boundedDetail(text: string): string {
-  if (text.length <= MAX_COVERAGE_DETAIL) return text;
-  const cut = text.slice(0, MAX_COVERAGE_DETAIL);
-  const boundary = cut.search(/\s\S*$/u);
-  return boundary > 0 ? cut.slice(0, boundary) : '';
-}
-
-/**
- * Records a grouped read of an error-tree level: a step in the trace, and its coverage in the execution.
- *
- * @param state - State of the execution
  * @param traceBuilder - Trace of the execution
  * @param read - Read of the level
  * @param identifiers - Identifiers of the batch
@@ -1006,10 +960,9 @@ function boundedDetail(text: string): string {
  * @param startedAtMs - Start of the read
  */
 function recordTreeRead(
-  state: ExecutionState,
   traceBuilder: TraceBuilder,
   read: TreeLevelReader,
-  identifiers: ReadonlyArray<TreeReadIdentifier>,
+  identifiers: ReadonlyArray<ReadIdentifier>,
   result: TreeLevelReadResult,
   startedAtMs: number,
 ): void {
@@ -1031,21 +984,6 @@ function recordTreeRead(
     result.diagnostics,
     result.error,
   );
-  // The coverage of a batch applies to every identifier of the batch.
-  const scope = `${String(identifiers.length)} identificatori`;
-  if (!result.success) {
-    state.coverage.push(failedReadCoverage(read.id, `${scope}: ${result.error ?? 'lettura fallita'}`));
-    return;
-  }
-  for (const coverage of result.coverage ?? []) {
-    if (coverage.complete) continue;
-    const { detail, ...rest } = coverage;
-    state.coverage.push({
-      stepId: read.id,
-      ...rest,
-      detail: boundedDetail(detail === undefined ? scope : `${scope}: ${detail}`),
-    });
-  }
 }
 
 /**

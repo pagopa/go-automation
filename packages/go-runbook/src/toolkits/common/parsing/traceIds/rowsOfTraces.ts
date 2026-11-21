@@ -1,4 +1,4 @@
-import type { TreeReadIdentifier } from '../../../../engine/types/TreeReadIdentifier.js';
+import type { ReadIdentifier } from '../../../../engine/types/ReadIdentifier.js';
 import { canonicalTraceId } from './canonicalTraceId.js';
 import type { TraceFieldReaderFn } from './TraceFieldReaderFn.js';
 
@@ -14,7 +14,7 @@ import type { TraceFieldReaderFn } from './TraceFieldReaderFn.js';
  */
 export function rowsOfTraces<T>(
   rows: ReadonlyArray<T>,
-  identifiers: ReadonlyArray<TreeReadIdentifier>,
+  identifiers: ReadonlyArray<ReadIdentifier>,
   traceField: TraceFieldReaderFn<T>,
 ): ReadonlyArray<T> {
   if (identifiers.some((identifier) => identifier.kind !== 'traceId')) return rows;

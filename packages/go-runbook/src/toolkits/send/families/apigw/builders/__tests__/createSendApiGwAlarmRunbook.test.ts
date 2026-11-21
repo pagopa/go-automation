@@ -16,6 +16,7 @@ import type { Runbook } from '../../../../../../engine/types/Runbook.js';
 import type { TreeLevel } from '../../../../../../engine/types/TreeLevel.js';
 import { treeNodeVars } from '../../../../../../__tests__/helpers/treeNodeVars.js';
 import type { RunbookExecutionResult } from '../../../../../../engine/types/RunbookExecutionResult.js';
+import type { ErrorTreeNode } from '../../../../../../engine/types/ErrorTreeNode.js';
 import { RunbookEngine } from '../../../../../../engine/core/RunbookEngine.js';
 import { SEND_API_GW_PROFILE } from '../../profiles/SEND_API_GW_PROFILE.js';
 import { createTestServiceRegistry } from '../../../../../common/testing/createTestServiceRegistry.js';
@@ -512,5 +513,164 @@ describe('createSendApiGwAlarmRunbook execution', () => {
     assert.strictEqual(treeNodeVars(result).get('apiGwExecutionLogMode'), 'no-request-id');
     assert.strictEqual(treeNodeVars(result, 'pn-a').get('aErrorMsg'), `${trace} application error`);
     assert.deepStrictEqual(groupsOf(calls), [ACCESS_LOG, '/aws/ecs/pn-a']);
+  });
+});
+
+describe('createSendApiGwAlarmRunbook execution log per request', () => {
+  const executionStep = 'query-api-gw-execution-logs';
+
+  /** A request in error of the access log. */
+  function request(requestId: string, trace: string): GOLogsInsightsResultField[] {
+    return logRow({
+      status: '500',
+      errorMessage: 'Endpoint request timed out',
+      requestId,
+      xrayTraceId: `Root=${trace}`,
+    });
+  }
+
+  /** Answers a query with its rows and whether pages of its result were left unread; throws for a failed read. */
+  type StatisticsResponderFn = (
+    group: string,
+    query: string,
+  ) => { readonly rows: ReadonlyArray<GOLogsInsightsResultField[]>; readonly unread?: boolean };
+
+  /** Runs the runbook on fake logs that report the rows of every physical query. */
+  async function runWithStatistics(
+    config: ApiGwAlarmConfig,
+    respond: StatisticsResponderFn,
+  ): Promise<{ readonly result: RunbookExecutionResult; readonly groups: ReadonlyArray<string> }> {
+    const groups: string[] = [];
+    const statistics = { bytesScanned: 0, recordsScanned: 0, recordsMatched: 0 };
+    const services = createTestServiceRegistry({
+      cloudWatchLogs: {
+        queryWithStatistics: async (logGroups: ReadonlyArray<string>, query: string) => {
+          await Promise.resolve();
+          const group = logGroups[0] ?? '';
+          groups.push(group);
+          const { rows, unread } = respond(group, query);
+          return {
+            rows,
+            statistics,
+            queryExecutions: [
+              {
+                queryId: String(groups.length),
+                profile: 'test',
+                logGroups: [group],
+                statistics,
+                rowsReturned: rows.length,
+                ...(unread === true ? { unreadPages: 'budget' as const } : {}),
+              },
+            ],
+          };
+        },
+      },
+    });
+    const result = await new RunbookEngine(new GOLogger()).execute(
+      createSendApiGwAlarmRunbook(config),
+      new Map(Object.entries(TEST_TIME_RANGE_PARAMS)),
+      services,
+    );
+    return { result, groups };
+  }
+
+  /** The root node of a request, with its variables. */
+  function requestNode(
+    result: RunbookExecutionResult,
+    key: string,
+  ): { readonly node: ErrorTreeNode; readonly vars: ReadonlyMap<string, string> } {
+    const node = result.tree?.find((candidate) => candidate.parentId === undefined && candidate.key === key);
+    assert.ok(node, `request ${key}`);
+    return { node, vars: result.nodeContexts?.get(node.id)?.vars ?? new Map() };
+  }
+
+  it('gives each request the mode of its batch: complete, saturated, without request id', async () => {
+    const { result } = await runWithStatistics(baseConfig({ executionLogMaxRequestIds: 1 }), (group, query) => {
+      if (group === ACCESS_LOG) {
+        return {
+          rows: [
+            request('req-ok', '1-abcdef01-000000000000000000000001'),
+            request('req-sat', '1-abcdef01-000000000000000000000002'),
+            request('-', '1-abcdef01-000000000000000000000003'),
+          ],
+        };
+      }
+      if (group === EXECUTION_LOG) {
+        const id = query.includes('req-ok') ? 'req-ok' : 'req-sat';
+        const count = id === 'req-sat' ? 1000 : 1;
+        return { rows: Array.from({ length: count }, () => logRow({ '@message': `(${id}) execution detail` })) };
+      }
+      return { rows: [] };
+    });
+
+    const complete = requestNode(result, 'req-ok');
+    assert.strictEqual(complete.vars.get('apiGwExecutionLogMode'), 'queried');
+    assert.strictEqual(complete.vars.get('terminationReason'), 'api-gw-execution-log-unresolved');
+    assert.strictEqual(complete.node.incompleteEvidence, undefined);
+    const saturated = requestNode(result, 'req-sat');
+    assert.strictEqual(saturated.vars.get('apiGwExecutionLogMode'), 'incomplete');
+    assert.strictEqual(saturated.vars.get('terminationReason'), undefined);
+    assert.strictEqual(saturated.node.incompleteEvidence, true);
+    assert.strictEqual(requestNode(result, 'row:2').vars.get('apiGwExecutionLogMode'), 'no-request-id');
+    // The errors without request id leave the whole window incomplete, as before.
+    assert.strictEqual(result.windowIncomplete, true);
+    assert.deepStrictEqual(
+      result.coverage
+        .filter((entry) => entry.stepId === executionStep)
+        .map((entry) => [entry.reason, entry.identifiers]),
+      [
+        ['saturated', [{ kind: 'requestId', value: 'req-sat' }]],
+        ['skipped', undefined],
+      ],
+    );
+  });
+
+  it('names the requests of a single batch with an unread page: they are incomplete and go on', async () => {
+    const { result, groups } = await runWithStatistics(baseConfig(), (group) => {
+      if (group === ACCESS_LOG) {
+        return {
+          rows: [
+            request('req-1', '1-abcdef01-000000000000000000000001'),
+            request('req-2', '1-abcdef01-000000000000000000000002'),
+          ],
+        };
+      }
+      if (group === EXECUTION_LOG) return { rows: [logRow({ '@message': '(req-1) execution detail' })], unread: true };
+      return { rows: [] };
+    });
+
+    for (const key of ['req-1', 'req-2']) {
+      const { node, vars } = requestNode(result, key);
+      assert.strictEqual(vars.get('apiGwExecutionLogMode'), 'incomplete', key);
+      assert.strictEqual(vars.get('terminationReason'), undefined, key);
+      assert.strictEqual(node.incompleteEvidence, true, key);
+    }
+    assert.strictEqual(result.windowIncomplete, false);
+    assert.ok(groups.includes('/aws/ecs/pn-a'));
+  });
+
+  it('keeps the mode of the window when no batch answered, with the errors without request id skipped', async () => {
+    const { result } = await runWithStatistics(baseConfig(), (group) => {
+      if (group === EXECUTION_LOG) throw new Error('ThrottlingException');
+      if (group === ACCESS_LOG) {
+        return {
+          rows: [
+            request('req-1', '1-abcdef01-000000000000000000000001'),
+            request('-', '1-abcdef01-000000000000000000000002'),
+          ],
+        };
+      }
+      return { rows: [] };
+    });
+
+    const { node, vars } = requestNode(result, 'req-1');
+    assert.strictEqual(vars.get('apiGwExecutionLogMode'), 'unavailable');
+    const reads = result.nodeContexts?.get(node.id)?.reads;
+    assert.ok(reads);
+    assert.strictEqual(reads.stateOf(executionStep), 'skipped');
+    assert.strictEqual(reads.stateOf(executionStep, { kind: 'requestId', value: 'req-1' }), 'skipped');
+    assert.strictEqual(reads.hasGapFor(executionStep, { kind: 'requestId', value: 'req-1' }), false);
+    assert.strictEqual(requestNode(result, 'row:1').vars.get('apiGwExecutionLogMode'), 'no-request-id');
+    assert.strictEqual(result.windowIncomplete, true);
   });
 });

@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import { INTEROP_API_GW_APPLICATION_QUERY_LIMIT } from '../../../../../toolkits/interop/index.js';
 import { cidTrackerOutput, conditionContext, podLogRows } from '../../../shared/__tests__/helpers/knownCaseTesting.js';
 import type { LogRows } from '../../../../../__tests__/helpers/LogRows.js';
+import { createTestReads } from '../../../../../__tests__/helpers/createTestReads.js';
 import {
   AnalyzeAuditFallbackStep,
   AUDIT_FALLBACK_CONFIRMED_VAR,
@@ -73,7 +74,8 @@ describe('AnalyzeAuditFallbackStep', () => {
         [alarm.stepIds.queryApplicationLogs, []],
         [alarm.stepIds.queryCidTracker, []],
       ]);
-      const result = await STEP.execute({ ...context, coverage: [{ stepId, complete: false, reason: 'saturated' }] });
+      const reads = createTestReads([{ stepId, complete: false, reason: 'saturated' }]);
+      const result = await STEP.execute({ ...context, reads });
       assert.strictEqual(result.vars?.[AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR], 'unknown', stepId);
     }
   });

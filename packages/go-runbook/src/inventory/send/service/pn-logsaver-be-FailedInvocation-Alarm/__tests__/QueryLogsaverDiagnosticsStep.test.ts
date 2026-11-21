@@ -16,6 +16,7 @@ import {
   SEND_ACCOUNT_IDS,
   sendAccountsPort,
 } from '../../../../../toolkits/send/accounts/__tests__/fixtures.js';
+import { EMPTY_RUNBOOK_READS } from '../../../../../engine/reads/EMPTY_RUNBOOK_READS.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 type RowsForQueryFn = (account: string, queryKind: 'errors' | 'streams') => Rows;
@@ -104,6 +105,7 @@ async function context(
       },
     }),
     recoveredErrors: [],
+    reads: EMPTY_RUNBOOK_READS,
   };
 }
 

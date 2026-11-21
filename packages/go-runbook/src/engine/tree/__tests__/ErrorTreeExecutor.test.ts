@@ -15,7 +15,7 @@ import type { StepResult } from '../../types/StepResult.js';
 import type { TreeLevel } from '../../types/TreeLevel.js';
 import type { TreeLevelReader } from '../../types/TreeLevelReader.js';
 import type { TreeLevelReadResult } from '../../types/TreeLevelReadResult.js';
-import type { TreeReadIdentifier } from '../../types/TreeReadIdentifier.js';
+import type { ReadIdentifier } from '../../types/ReadIdentifier.js';
 import type { RunbookExecutionResult } from '../../types/RunbookExecutionResult.js';
 import { createTestServiceRegistry } from '../../../toolkits/common/testing/createTestServiceRegistry.js';
 import { createTestRunbook } from '../../../__tests__/helpers/createTestRunbook.js';
@@ -60,7 +60,7 @@ function fakeReader(
     label: id,
     kind: 'data',
     execute: async () => Promise.resolve({ success: true }),
-    read: async (_context: RunbookContext, identifiers: ReadonlyArray<TreeReadIdentifier>) => {
+    read: async (_context: RunbookContext, identifiers: ReadonlyArray<ReadIdentifier>) => {
       calls.push(identifiers.map((identifier) => identifier.value));
       const wanted = new Set(identifiers.map((identifier) => identifier.value));
       return Promise.resolve({
@@ -400,5 +400,191 @@ describe('ErrorTreeExecutor', () => {
     const failedChain = result.chains?.find((group) => group.members[0]?.nodeIds.includes(e1.id));
     assert.deepStrictEqual(failedChain?.members[0]?.interruption, { reason: 'failed', target: 'svc' });
     assert.strictEqual(result.status, 'completed');
+  });
+
+  it('marks incomplete only the chain of the descent that failed, and the level of the parent unavailable', async () => {
+    const reader: TreeLevelReader = {
+      ...fakeReader('read-svc', SERVICE_ROWS, []),
+      // The fallback UUIDs are read by a batch of their own, which fails.
+      read: async (context, identifiers) =>
+        identifiers[0]?.kind === 'fallbackUuid'
+          ? Promise.resolve({ success: false, error: 'boom', rows: [] })
+          : fakeReader('read-svc', SERVICE_ROWS, []).read(context, identifiers),
+    };
+    const root: TreeLevel = {
+      ...rootLevel(),
+      perNode: [
+        {
+          step: nodeStep('route-root', (context) => ({
+            success: true,
+            descend:
+              context.vars.get('traceId') === 'T1'
+                ? [
+                    { target: 'svc', identifier: 'T1', kind: 'traceId' },
+                    { target: 'svc', identifier: 'U1', kind: 'fallbackUuid' },
+                  ]
+                : [],
+          })),
+        },
+      ],
+    };
+    const result = await run({ root, levels: [serviceLevel(reader, { perNode: [] })] });
+
+    const r1 = nodeByKey(result, 'r1');
+    assert.deepStrictEqual(
+      r1.descents.map((descent) => [descent.kind, descent.state]),
+      [
+        ['traceId', 'queried'],
+        ['fallbackUuid', 'unavailable'],
+      ],
+    );
+    assert.strictEqual(result.nodeContexts?.get(r1.id)?.vars.get('svcLookupState'), 'unavailable');
+    const chains = (result.chains ?? [])
+      .flatMap((group) => group.members)
+      .filter((chain) => chain.nodeIds[0] === r1.id);
+    assert.deepStrictEqual(
+      chains.map((chain) => [chain.end, chain.interruption?.reason, chain.incompleteEvidence]),
+      [
+        ['leaf', undefined, false],
+        ['leaf', undefined, false],
+        ['interrupted', 'unavailable', true],
+      ],
+    );
+  });
+
+  it('marks the original descent incomplete when a second attempt with a new identifier saturates', async () => {
+    const reader: TreeLevelReader = {
+      ...fakeReader('read-svc', [...SERVICE_ROWS, 'T1b|e3|ERROR|late'], []),
+      read: async (context, identifiers) => {
+        const result = await fakeReader('read-svc', [...SERVICE_ROWS, 'T1b|e3|ERROR|late'], []).read(
+          context,
+          identifiers,
+        );
+        const saturated = identifiers.some((identifier) => identifier.value === 'T1b');
+        return saturated ? { ...result, coverage: [{ complete: false, reason: 'saturated' }] } : result;
+      },
+    };
+    const result = await run({
+      root: rootLevel(),
+      levels: [
+        serviceLevel(reader, {
+          perNode: [],
+          secondAttempt: (_rows, identifier) =>
+            identifier.value === 'T1' ? { kind: 'traceId', value: 'T1b' } : undefined,
+        }),
+      ],
+    });
+
+    const r1 = nodeByKey(result, 'r1');
+    assert.deepStrictEqual(
+      r1.descents.map((descent) => descent.state),
+      ['saturated'],
+    );
+    const chains = (result.chains ?? [])
+      .flatMap((group) => group.members)
+      .filter((chain) => chain.nodeIds[0] === r1.id);
+    assert.ok(chains.length > 0);
+    assert.ok(chains.every((chain) => chain.incompleteEvidence));
+  });
+
+  it('leaves the children of a skipped read incomplete even when it returned rows', async () => {
+    const result = await run({
+      root: rootLevel(),
+      levels: [
+        serviceLevel(fakeReader('read-svc', SERVICE_ROWS, [], { coverage: [{ complete: false, reason: 'skipped' }] }), {
+          perNode: [],
+        }),
+      ],
+    });
+
+    const r1 = nodeByKey(result, 'r1');
+    assert.deepStrictEqual(
+      r1.descents.map((descent) => [descent.state, descent.childIds.length]),
+      [['skipped', 2]],
+    );
+    assert.strictEqual(result.nodeContexts?.get(r1.id)?.vars.get('svcLookupState'), 'skipped');
+    const chains = (result.chains ?? [])
+      .flatMap((group) => group.members)
+      .filter((chain) => chain.nodeIds[0] === r1.id);
+    assert.ok(chains.length > 0);
+    assert.ok(chains.every((chain) => chain.incompleteEvidence));
+  });
+
+  for (const before of ['queried', 'saturated', 'skipped'] as const) {
+    it(`degrades only a complete read when a routing fails (read ${before})`, async () => {
+      const coverage = before === 'queried' ? [] : [{ complete: false, reason: before } as const];
+      const symptom = logCase('svc-undiagnosed', {
+        type: 'and',
+        conditions: [
+          { type: 'compare', ref: 'vars.svcLookupState', operator: '==', value: 'queried' },
+          { type: 'compare', ref: 'vars.branchOutcome', operator: '==', value: 'undiagnosed' },
+        ],
+      });
+      const result = await run(
+        {
+          root: rootLevel(),
+          levels: [
+            serviceLevel(fakeReader('read-svc', SERVICE_ROWS, [], { coverage }), {
+              exclusions: [
+                { name: 'npe', condition: { type: 'pattern', ref: 'steps.read-svc', regex: 'NullPointer' } },
+                { name: 'none', condition: { type: 'pattern', ref: 'steps.read-svc', regex: 'never-there' } },
+              ],
+              perNode: [
+                {
+                  // The routing of the context rows of T1 fails.
+                  step: nodeStep('route-svc', (context) =>
+                    (context.vars.get('svcErrorMsg') ?? '').includes('request received')
+                      ? { success: false, error: 'routing failed' }
+                      : { success: true },
+                  ),
+                },
+              ],
+            }),
+          ],
+        },
+        [symptom],
+      );
+
+      const r1 = nodeByKey(result, 'r1');
+      const vars = result.nodeContexts?.get(r1.id)?.vars;
+      const after = before === 'queried' ? 'unavailable' : before;
+      assert.deepStrictEqual(
+        r1.descents.map((descent) => [descent.state, descent.rowCount]),
+        [[after, 3]],
+      );
+      assert.strictEqual(vars?.get('svcLookupState'), after);
+      assert.strictEqual(vars?.get('svcLogCount'), '3');
+      assert.strictEqual(vars?.get('svcExclusion.npe'), 'present');
+      assert.strictEqual(vars?.get('svcExclusion.none'), 'unknown');
+      assert.deepStrictEqual(r1.detections, []);
+      const chains = (result.chains ?? [])
+        .flatMap((group) => group.members)
+        .filter((chain) => chain.nodeIds[0] === r1.id);
+      assert.ok(chains.every((chain) => chain.incompleteEvidence));
+      // The routing step failed in a scope of its own: the nodes of the level are not failed.
+      assert.ok(chains.every((chain) => chain.interruption === undefined));
+    });
+  }
+
+  it('makes every node that reuses a shared read incomplete, with one coverage entry', async () => {
+    const shared: StepResult<unknown> = {
+      success: true,
+      output: [],
+      coverage: [{ source: 'probe', complete: false, reason: 'saturated' }],
+    };
+    const root: TreeLevel = {
+      ...rootLevel(),
+      perNode: [{ step: nodeStep('probe', () => shared) }],
+    };
+    const result = await run({ root, levels: [] });
+
+    const roots = (result.tree ?? []).filter((node) => node.parentId === undefined);
+    assert.strictEqual(roots.length, 4);
+    assert.ok(roots.every((node) => node.incompleteEvidence === true));
+    assert.deepStrictEqual(
+      result.coverage.map((entry) => [entry.stepId, entry.source]),
+      [['probe', 'probe']],
+    );
+    assert.strictEqual(result.windowIncomplete, false);
   });
 });

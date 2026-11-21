@@ -23,6 +23,7 @@ export interface RunbookExecutionResult {
   readonly detections: ReadonlyArray<KnownCaseDetection>;
   /** Partial evidence declared by the steps, or recorded by the engine for a failed read. */
   readonly coverage: ReadonlyArray<CoverageEntry>;
+  readonly windowIncomplete: boolean;
   /** Errors observed and examined, as last declared by a step; absent when no step enumerates errors. */
   readonly observedErrors?: ObservedErrors;
   /** Nodes of the error tree, parents before children; absent for a window-level runbook. */

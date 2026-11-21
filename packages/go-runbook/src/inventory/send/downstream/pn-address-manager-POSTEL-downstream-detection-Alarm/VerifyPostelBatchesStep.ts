@@ -2,7 +2,6 @@ import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/i
 
 import {
   executeStep,
-  isStepEvidenceComplete,
   readStepOutput,
   type RunbookContext,
   type Step,
@@ -118,7 +117,7 @@ export class VerifyPostelBatchesStep extends OperationalStep<PostelBatchRecovery
       const impactedBatchIds = extractImpactedBatchIds(upstream.value);
       // Only a complete scan proves that every impacted batch was seen.
       const unverifiedRows = countRowsWithoutBatch(upstream.value);
-      const scanComplete = isStepEvidenceComplete(context, this.fromStep) && unverifiedRows === 0;
+      const scanComplete = context.reads.isComplete(this.fromStep) && unverifiedRows === 0;
       const timeRange = this.resolveLookupTimeRange(context);
 
       if (impactedBatchIds.length === 0) {

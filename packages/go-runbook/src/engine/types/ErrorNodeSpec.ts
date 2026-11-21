@@ -23,5 +23,4 @@ export interface ErrorNodeSpec {
   readonly siblingOutputs?: Readonly<Record<string, ReadonlyArray<unknown>>>;
   /** Identities of the rows of the node: a descendant never enumerates a row of an ancestor again. */
   readonly rowIdentities?: ReadonlyArray<string>;
-  readonly incompleteEvidence?: boolean;
 }

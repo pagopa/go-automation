@@ -8,5 +8,4 @@ export interface TreeStepsRun {
   /** Error of the step that failed. */
   readonly failure?: string;
   readonly descends: ReadonlyArray<DescendRequest>;
-  readonly incompleteEvidence?: boolean;
 }

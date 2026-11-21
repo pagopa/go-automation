@@ -4,6 +4,7 @@ import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/i
 import { createTestServiceRegistry, lambda } from '../../../../../toolkits/send/index.js';
 import { LAMBDA_LOG_READER } from '../lambdaLogReader.js';
 import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
+import { EMPTY_RUNBOOK_READS } from '../../../../../engine/reads/EMPTY_RUNBOOK_READS.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 interface Call {
@@ -31,6 +32,7 @@ function context(
     startedAt: new Date(),
     logs: [],
     recoveredErrors: [],
+    reads: EMPTY_RUNBOOK_READS,
     vars: new Map(),
     params: new Map([
       ['startTime', '2026-10-20T00:56:00Z'],

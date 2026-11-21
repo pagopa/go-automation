@@ -1,6 +1,6 @@
 import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
-import type { TreeReadIdentifier } from '../../../../../engine/types/TreeReadIdentifier.js';
+import type { ReadIdentifier } from '../../../../../engine/types/ReadIdentifier.js';
 import { canonicalTraceId } from '../../../parsing/traceIds/canonicalTraceId.js';
 import { messageTraceIds } from '../../../parsing/traceIds/messageTraceIds.js';
 
@@ -12,7 +12,7 @@ import { messageTraceIds } from '../../../parsing/traceIds/messageTraceIds.js';
  * @param identifier - Trace id of the read
  * @returns `true` when the row is the trace id's
  */
-export function attributeTraceRow(row: unknown, identifier: TreeReadIdentifier): boolean {
+export function attributeTraceRow(row: unknown, identifier: ReadIdentifier): boolean {
   if (!Array.isArray(row)) return false;
   const fields = row as ReadonlyArray<GOLogsInsightsResultField>;
   const field = (readRowField(fields, 'trace_id') ?? '').trim();

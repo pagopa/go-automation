@@ -4,6 +4,7 @@ import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/i
 import { QueryStreamLambdaLogsStep } from '../QueryStreamLambdaLogsStep.js';
 import { createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
 import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
+import { EMPTY_RUNBOOK_READS } from '../../../../../engine/reads/EMPTY_RUNBOOK_READS.js';
 
 const ID = 'a2240f30-32dc-407d-80d9-4fd363aeaeb4';
 const OTHER_ID = 'b2240f30-32dc-407d-80d9-4fd363aeaeb4';
@@ -29,6 +30,7 @@ function context(
     vars: new Map(),
     logs: [],
     recoveredErrors: [],
+    reads: EMPTY_RUNBOOK_READS,
     readPolicy: 'partial',
     params: new Map([
       ['startTime', '2026-10-16T08:10:00Z'],

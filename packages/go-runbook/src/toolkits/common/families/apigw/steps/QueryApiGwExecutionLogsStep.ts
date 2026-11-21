@@ -7,6 +7,8 @@ import type { StepResult } from '../../../../../engine/types/StepResult.js';
 import type { StepCoverage } from '../../../../../engine/types/StepCoverage.js';
 import type { StepDiagnostics } from '../../../../../engine/tracing/StepDiagnostics.js';
 import { readStepOutput } from '../../../../../engine/context/readStepOutput.js';
+import { isRequestId } from '../../../../../engine/reads/isRequestId.js';
+import type { ReadIdentifier } from '../../../../../engine/types/ReadIdentifier.js';
 import type { TimeRangeFromParams } from '../../../time/TimeRangeFromParams.js';
 import { resolveTimeRange } from '../../../time/resolveTimeRange.js';
 import { executeStep } from '../../../../../engine/steps/execution/executeStep.js';
@@ -24,7 +26,6 @@ import type { OperationalContext } from '../../../services/OperationalContext.js
 import type { OperationalServiceName } from '../../../services/OperationalServiceName.js';
 
 const QUERY_MODE_VAR = 'apiGwExecutionLogMode';
-const INCOMPLETE_REQUESTS_VAR = 'apiGwExecutionLogIncompleteRequestIds';
 
 interface RequestIdWithPath {
   readonly path: string;
@@ -33,9 +34,6 @@ interface RequestIdWithPath {
 
 /** Leading `(<requestId>)` of an API Gateway execution-log line. */
 const EXECUTION_LOG_REQUEST_PREFIX = /^\(([^()\s]+)\)/u;
-
-/** A request id that may enter a predicate: letters, digits and dashes. */
-const REQUEST_ID = /^[A-Za-z0-9-]{1,128}$/u;
 
 /**
  * Configuration for {@link QueryApiGwExecutionLogsStep}.
@@ -191,9 +189,13 @@ export class QueryApiGwExecutionLogsStep
       const diagnostics: (StepDiagnostics | undefined)[] = [];
       let failures = 0;
       let lastFailure = '';
-      const incomplete: string[] = [];
       for (let start = 0; start < requestIds.length; start += limit) {
         const batch = requestIds.slice(start, start + limit);
+        // Every gap of a batch that answered, or failed while another answered, names the requests of the batch.
+        const identifiers: ReadonlyArray<ReadIdentifier> = batch.map((request) => ({
+          kind: 'requestId',
+          value: request.requestId,
+        }));
         let queryResult: ExecutedCloudWatchLogsQuery;
         try {
           queryResult = await executeCloudWatchLogsQuery(
@@ -212,22 +214,18 @@ export class QueryApiGwExecutionLogsStep
           lastFailure = error instanceof Error ? error.message : String(error);
           reporter?.queryFailed([executionLogGroup], lastFailure);
           failures += 1;
-          incomplete.push(...batch.map((request) => request.requestId));
           coverage.push({
             source: executionLogGroup,
             complete: false,
             reason: 'unavailable',
             detail: lastFailure,
-            scoped: true,
+            identifiers,
           });
           continue;
         }
         diagnostics.push(queryResult.diagnostics);
-        coverage.push(...queryResult.coverage.map((entry) => ({ ...entry, scoped: true })));
         // A saturated batch keeps its rows; its requests are read incompletely too.
-        if (queryResult.coverage.some((entry) => !entry.complete)) {
-          incomplete.push(...batch.map((request) => request.requestId));
-        }
+        coverage.push(...queryResult.coverage.map((entry) => ({ ...entry, identifiers })));
         for (const row of queryResult.rows) {
           const message = readRowField(row, '@message') ?? '';
           const prefixed = EXECUTION_LOG_REQUEST_PREFIX.exec(message)?.[1];
@@ -262,7 +260,6 @@ export class QueryApiGwExecutionLogsStep
           apiGwExecutionLogRequestIds: requestIds.map((request) => request.requestId).join(','),
           apiGwExecutionLogPaths: requestIds.map((request) => request.path).join(','),
           apiGwExecutionLogCount: String(output.length),
-          ...(incomplete.length > 0 ? { [INCOMPLETE_REQUESTS_VAR]: incomplete.join(',') } : {}),
         },
       };
     });
@@ -336,7 +333,7 @@ function withSkippedRequests(
   executionLogGroup: string | undefined,
 ): Pick<StepResult<unknown>, 'coverage'> {
   const withoutId = rows.filter(
-    (row) => !REQUEST_ID.test(sanitizeApiGwField(readRowField(row, schema.requestIdField), schema)),
+    (row) => !isRequestId(sanitizeApiGwField(readRowField(row, schema.requestIdField), schema)),
   );
   const entries =
     withoutId.length === 0
@@ -360,7 +357,7 @@ function collectRequestIds(
   const byRequestId = new Map<string, RequestIdWithPath>();
   for (const row of rows) {
     const requestId = sanitizeApiGwField(readRowField(row, schema.requestIdField), schema);
-    if (!REQUEST_ID.test(requestId)) continue;
+    if (!isRequestId(requestId)) continue;
 
     const rawPath = sanitizeApiGwField(readRowField(row, schema.pathField), schema);
     const path = rawPath === '' ? requestId : rawPath;

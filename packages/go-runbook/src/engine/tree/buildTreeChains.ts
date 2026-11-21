@@ -2,7 +2,7 @@ import type { ErrorChainInterruptionReason } from '../types/ErrorChainInterrupti
 import type { ErrorTreeNode } from '../types/ErrorTreeNode.js';
 import type { TreeChain } from '../types/TreeChain.js';
 import type { TreeChainGroup } from '../types/TreeChainGroup.js';
-import type { TreeDescentState } from '../types/TreeDescentState.js';
+import type { ReadState } from '../types/ReadState.js';
 import type { TreeChainEnd } from '../types/TreeChainEnd.js';
 import type { TreeChainInterruption } from '../types/TreeChainInterruption.js';
 
@@ -32,13 +32,13 @@ interface TimedChain {
  * Complexity: O(N log N) over the nodes.
  *
  * @param nodes - Nodes of the tree, parents before children
- * @param windowIncomplete - Whether the read of the window was incomplete
+ * @param windowIncomplete - Whether the window has a gap of the whole read
  * @param caseOrder - Declaration index of each case
  * @returns The groups, in time order
  *
  * @example
  * ```typescript
- * const groups = buildTreeChains(result.tree ?? [], result.coverage.length > 0, caseOrder);
+ * const groups = buildTreeChains(result.tree ?? [], result.windowIncomplete, caseOrder);
  * ```
  */
 export function buildTreeChains(
@@ -91,8 +91,8 @@ function collectChains(
     ended = true;
   }
   for (const descent of node.descents) {
-    const readIncomplete =
-      incomplete || descent.incompleteVia === true || descent.state === 'saturated' || descent.state === 'unavailable';
+    // Any read of a descent that is not complete leaves its children incomplete, even when it returned rows.
+    const readIncomplete = incomplete || descent.incompleteVia === true || descent.state !== 'queried';
     if (descent.childIds.length > 0) {
       for (const childId of descent.childIds) {
         const child = byId.get(childId);
@@ -110,7 +110,7 @@ function collectChains(
 }
 
 /** Why a descent without children interrupts the chain; nothing for a complete read without errors. */
-function interruptionOf(state: TreeDescentState): ErrorChainInterruptionReason | undefined {
+function interruptionOf(state: ReadState): ErrorChainInterruptionReason | undefined {
   switch (state) {
     case 'queried':
       return undefined;

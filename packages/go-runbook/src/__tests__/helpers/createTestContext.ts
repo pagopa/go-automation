@@ -1,12 +1,13 @@
 import type { OperationalContext } from '../../toolkits/common/services/OperationalContext.js';
 import { createTestServiceRegistry } from '../../toolkits/common/testing/createTestServiceRegistry.js';
 import type { TestContextOptions } from './TestContextOptions.js';
+import { createTestReads } from './createTestReads.js';
 
 /**
  * Builds the context a step or a known-case condition receives, with only what
  * the test sets; also usable where a plain `RunbookContext` is expected.
  *
- * @param options - Params, vars, step outputs, stub services, recovered errors and signal of the context
+ * @param options - Params, vars, step outputs, stub services, recovered errors, signal and gaps of the reads
  * @returns The context, with a fixed execution id and start time and services from `createTestServiceRegistry`
  *
  * @example
@@ -26,6 +27,7 @@ export function createTestContext(options: TestContextOptions = {}): Operational
     // The steps under test are those of alarm analyses, which read partially.
     readPolicy: 'partial',
     recoveredErrors: options.recoveredErrors ?? [],
+    reads: createTestReads(options.gaps),
     ...(options.signal === undefined ? {} : { signal: options.signal }),
   };
 }

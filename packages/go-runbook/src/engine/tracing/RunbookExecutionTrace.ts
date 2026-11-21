@@ -19,7 +19,7 @@ import type { CoverageEntry } from '../types/CoverageEntry.js';
  */
 export interface RunbookExecutionTrace {
   /** Schema version for forward compatibility */
-  readonly schemaVersion: '2.0.0';
+  readonly schemaVersion: '3.0.0';
   /** General execution information */
   readonly execution: ExecutionInfo;
   /** Input parameters provided to the runbook */

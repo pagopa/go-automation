@@ -8,7 +8,7 @@ import type { CachedRunbookOutput } from '../CachedRunbookOutput.js';
 import type { RunbookCheckCache } from '../RunbookCheckCache.js';
 import { persistRunbookOutput, readFreshRunbookOutput } from '../RunbookCheckCacheIO.js';
 
-const output = { schemaVersion: '2.0.0' } as RunbookOutput;
+const output = { schemaVersion: '3.0.0' } as RunbookOutput;
 const entry: CachedRunbookOutput = {
   fingerprint: 'current',
   savedAt: '2026-08-06T00:00:00.000Z',

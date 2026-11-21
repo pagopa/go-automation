@@ -1,5 +1,5 @@
 import type { RunbookContext } from './RunbookContext.js';
-import type { TreeReadIdentifier } from './TreeReadIdentifier.js';
+import type { ReadIdentifier } from './ReadIdentifier.js';
 
 /** What the enumerator of a level receives. */
 export interface TreeEnumeration {
@@ -8,7 +8,7 @@ export interface TreeEnumeration {
   /** Rows the read attributed to the parent; empty for the root level, which reads its own rows from the context. */
   readonly rows: ReadonlyArray<unknown>;
   /** Identifier the parent descended with; absent for the root level. */
-  readonly identifier?: TreeReadIdentifier;
+  readonly identifier?: ReadIdentifier;
   /** Identifier of the second attempt at the same level, when the first found a better one. */
-  readonly secondAttempt?: TreeReadIdentifier;
+  readonly secondAttempt?: ReadIdentifier;
 }

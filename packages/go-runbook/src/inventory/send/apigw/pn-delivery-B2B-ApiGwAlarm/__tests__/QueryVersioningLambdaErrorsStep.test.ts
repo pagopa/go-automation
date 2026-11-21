@@ -15,6 +15,7 @@ import {
   VERSIONING_LAMBDA_UNAVAILABLE_REASON_VAR,
 } from '../versioningLambdaProbe.js';
 import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
+import { EMPTY_RUNBOOK_READS } from '../../../../../engine/reads/EMPTY_RUNBOOK_READS.js';
 
 type CloudWatchQueryFn = (
   logGroups: ReadonlyArray<string>,
@@ -42,6 +43,7 @@ function buildContext(
     logs: [],
     services: createTestServiceRegistry({ cloudWatchLogs: { query } }),
     recoveredErrors: [],
+    reads: EMPTY_RUNBOOK_READS,
     ...(sharedReads !== undefined ? { sharedReads } : {}),
   };
 }

@@ -2,7 +2,7 @@ import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/clo
 
 import type { ErrorNodeSpec } from '../../../../../engine/types/ErrorNodeSpec.js';
 import type { TreeEnumeratorFn } from '../../../../../engine/types/TreeEnumeratorFn.js';
-import { isStepEvidenceComplete } from '../../../../../engine/context/isStepEvidenceComplete.js';
+import { isRequestId } from '../../../../../engine/reads/isRequestId.js';
 import { extractTraceId } from '../../../../common/families/apigw/accessLog/extractTraceId.js';
 import {
   pickPrimaryStatusCode,
@@ -10,14 +10,11 @@ import {
   sanitizeApiGwField,
 } from '../../../../common/families/apigw/accessLog/accessLogRow.js';
 import { occurredAtOf } from '../../../../common/parsing/correlation/occurredAtOf.js';
-import { safeCorrelationValue } from '../../../../common/parsing/correlation/safeCorrelationValue.js';
+import { safeCorrelationValue } from '../../../../../engine/reads/safeCorrelationValue.js';
 import { canonicalTraceId } from '../../../../common/parsing/traceIds/canonicalTraceId.js';
 import type { ApiGwRequestLevelConfig } from './ApiGwRequestLevelConfig.js';
 
 type Row = ReadonlyArray<GOLogsInsightsResultField>;
-
-/** A usable request id: letters, digits and dashes; anything else makes the row a request of its own. */
-const REQUEST_ID = /^[A-Za-z0-9-]{1,128}$/u;
 
 /**
  * The enumerator of the root level of a SEND API Gateway runbook: one node per request in error of the access log.
@@ -44,13 +41,13 @@ export function enumerateApiGwRequests(config: ApiGwRequestLevelConfig): TreeEnu
     for (const [index, row] of rows.entries()) {
       if (!rowMeetsThreshold(row, config.minStatusCode, schema)) continue;
       const requestId = sanitizeApiGwField(readRowField(row, schema.requestIdField), schema);
-      const key = REQUEST_ID.test(requestId) ? requestId : `row:${String(index)}`;
+      // A row without a usable request id is a request of its own.
+      const key = isRequestId(requestId) ? requestId : `row:${String(index)}`;
       const group = requests.get(key) ?? [];
       group.push(row);
       requests.set(key, group);
     }
 
-    const incomplete = new Set((context.vars.get('apiGwExecutionLogIncompleteRequestIds') ?? '').split(','));
     const executionRows = new Map<string, Row[]>();
     if (config.executionLogStepId !== undefined) {
       for (const row of asRows(context.stepResults.get(config.executionLogStepId))) {
@@ -75,6 +72,11 @@ export function enumerateApiGwRequests(config: ApiGwRequestLevelConfig): TreeEnu
         .filter((part) => part !== '')
         .join(' ');
       const occurredAt = occurredAtOf(requestRows);
+      // A gap of the execution-log read that names the request leaves it incomplete; the ledger knows its node is.
+      const incomplete =
+        requestId !== undefined &&
+        config.executionLogStepId !== undefined &&
+        context.reads.hasGapFor(config.executionLogStepId, { kind: 'requestId', value: requestId });
       return {
         key,
         label: label !== '' ? label : 'richiesta in errore',
@@ -84,10 +86,9 @@ export function enumerateApiGwRequests(config: ApiGwRequestLevelConfig): TreeEnu
           ...(traceId !== undefined ? { traceId } : {}),
         },
         // A request without request id was never read in the execution logs, whatever the window did.
-        ...(config.executionLogStepId !== undefined && (requestId === undefined || incomplete.has(requestId))
+        ...(config.executionLogStepId !== undefined && (requestId === undefined || incomplete)
           ? { vars: { apiGwExecutionLogMode: requestId === undefined ? 'no-request-id' : 'incomplete' } }
           : {}),
-        ...(requestId !== undefined && incomplete.has(requestId) ? { incompleteEvidence: true } : {}),
         scopedOutputs: {
           [config.accessLogStepId]: requestRows,
           ...(config.executionLogStepId !== undefined
@@ -102,7 +103,7 @@ export function enumerateApiGwRequests(config: ApiGwRequestLevelConfig): TreeEnu
       observedErrors: {
         unit: 'request',
         observed: nodes.length,
-        ...(isStepEvidenceComplete(context, config.accessLogStepId) ? {} : { lowerBound: true }),
+        ...(context.reads.isComplete(config.accessLogStepId) ? {} : { lowerBound: true }),
       },
     };
   };

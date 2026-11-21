@@ -14,6 +14,7 @@ import {
   SEND_ACCOUNT_IDS,
   sendAccountsPort,
 } from '../../../../../toolkits/send/accounts/__tests__/fixtures.js';
+import { EMPTY_RUNBOOK_READS } from '../../../../../engine/reads/EMPTY_RUNBOOK_READS.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 type ReadQueryFn = (query: string) => Rows;
@@ -79,6 +80,7 @@ async function context(
     logs: [],
     services: createTestServiceRegistry({ awsAccounts }),
     recoveredErrors: [],
+    reads: EMPTY_RUNBOOK_READS,
     ...(signal === undefined ? {} : { signal }),
   };
 }

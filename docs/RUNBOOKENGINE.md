@@ -153,6 +153,8 @@ interface StepCoverage {
   readonly reason?: 'saturated' | 'unavailable' | 'skipped' | 'manual';
   /** Al massimo 200 caratteri, ripuliti dai nomi dei profili; mai nella bozza d'analisi */
   readonly detail?: string;
+  /** Gli identificativi a cui la lacuna si limita; assenti o vuoti = tutta la lettura (§18.6) */
+  readonly identifiers?: ReadonlyArray<ReadIdentifier>;
 }
 
 /**
@@ -235,6 +237,11 @@ interface RunbookContext {
   readonly recoveredErrors: ReadonlyArray<ErrorRecoveryInfo>;
   /** Segnale di abort per cancellare l'esecuzione. Propagato a tutte le chiamate ai servizi. */
   readonly signal?: AbortSignal;
+  /**
+   * Stato delle letture visto da questo contesto, in sola lettura: registra solo il motore (§18.6).
+   * Un contesto costruito a mano usa EMPTY_RUNBOOK_READS, in cui ogni lettura è `queried`.
+   */
+  readonly reads: RunbookReads;
   /**
    * Letture della finestra che uno step fa una volta per tutta l'esecuzione, per chiave, condivise
    * da tutti i nodi dell'albero degli errori. Create da ogni esecuzione, mai condivise fra esecuzioni (§19.11).
@@ -2020,7 +2027,7 @@ Tutte le interfacce seguono le convenzioni del progetto: `readonly` su ogni prop
  */
 interface RunbookExecutionTrace {
   /** Versione dello schema per compatibilita in avanti */
-  readonly schemaVersion: '2.0.0';
+  readonly schemaVersion: '3.0.0';
   /** Informazioni generali sull'esecuzione */
   readonly execution: ExecutionInfo;
   /** Parametri di input forniti al runbook */
@@ -2254,6 +2261,8 @@ interface RunbookExecutionResult {
   readonly detections: ReadonlyArray<KnownCaseDetection>;
   /** Evidenza parziale dichiarata dagli step, o registrata dal motore per una lettura fallita */
   readonly coverage: ReadonlyArray<CoverageEntry>;
+  /** Una lacuna di tutta la lettura della finestra: ogni catena è incompleta (§18.6) */
+  readonly windowIncomplete: boolean;
   /** Errori osservati ed esaminati, come dichiarati per ultimi da uno step; assente se nessuno step li enumera */
   readonly observedErrors?: ObservedErrors;
   /** Nodi dell'albero degli errori, padri prima dei figli; assente per un runbook di finestra */
@@ -2318,7 +2327,7 @@ fine corrispondono `rate-limiting` e `internal-error`, e il primo sostituisce il
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "execution": {
     "executionId": "exec-v7-rate-limit",
     "runbookId": "alarm-api-gw-5xx",
@@ -2517,11 +2526,11 @@ La `pipeline` è abbreviata: mostra solo alcuni dei dieci step eseguiti.
 ### 11.5 Output del runbook (`@pagopa/go-runbook/output`)
 
 Il `RunbookOutput` è l'esito sintetico versionato che gli script salvano accanto alla traccia e che Watchtower legge.
-La versione corrente è `RUNBOOK_OUTPUT_SCHEMA_VERSION` = `'2.0.0'`.
+La versione corrente è `RUNBOOK_OUTPUT_SCHEMA_VERSION` = `'3.0.0'`.
 
 ```typescript
 interface RunbookOutput {
-  readonly schemaVersion: typeof RUNBOOK_OUTPUT_SCHEMA_VERSION; // '2.0.0'
+  readonly schemaVersion: typeof RUNBOOK_OUTPUT_SCHEMA_VERSION; // '3.0.0'
   readonly generatedAt: string;
   readonly runbook: { readonly id: string; readonly name: string; readonly type: RunbookType /* … */ };
   readonly execution: { readonly executionId: string; readonly status: RunbookExecutionStatus /* … */ };
@@ -3269,7 +3278,7 @@ class QueryServiceLogsStep implements Step<ServiceLogsAnalysis> {
 | Rilevazioni                    | `RunbookExecutionResult.detections`                 | caso, `firstSeenAt`/`lastSeenAt`, `evidenceRows`, `observations`                                         |
 | Casi valutati e sostituiti     | `trace.caseMatching.evaluations`                    | ogni caso, in ordine di dichiarazione, con `supersededBy` se sostituito                                  |
 | Azioni                         | `trace.actionsExecuted`                             | una per rilevazione, nello stesso ordine (o il fallback); con l'albero una per caso e gruppo di catene   |
-| Fonti incomplete               | `RunbookExecutionResult.coverage`, `trace.coverage` | `stepId`, `source`, `reason`, `detail`                                                                   |
+| Fonti incomplete               | `RunbookExecutionResult.coverage`, `trace.coverage` | `stepId`, `source`, `reason`, `detail`, `identifiers`                                                    |
 | Errori non esaminati           | `RunbookExecutionResult.observedErrors`             | `unit`, `observed`, `examined`, `lowerBound`                                                             |
 | Catene e copertura nell'output | `RunbookOutput.chains`, `RunbookOutput.coverage`    | i gruppi di catene dell'albero, o una catena di un nodo per rilevazione; `complete`, `sources`, `errors` |
 
@@ -3282,6 +3291,34 @@ class QueryServiceLogsStep implements Step<ServiceLogsAnalysis> {
 | **Step che enumerano gli errori**         | `observedErrors` quando seguono un solo errore rappresentativo; con l'albero lo dichiara l'enumeratore della radice | L'operatore deve sapere quanti errori non sono stati seguiti |
 | **Correlazioni manuali**                  | `coverage` con `manual`                                                                                             | La correlazione richiede una persona                         |
 | **Control / Check / Mutation steps**      | Di norma niente                                                                                                     | Non leggono evidenza                                         |
+
+### 18.6 Stato delle letture: il read ledger
+
+Un'esecuzione ha un `ReadLedger`, creato da `execute`: registra le lacune delle letture e risponde allo stato di una
+lettura, di una discesa, di un livello per un nodo, di un nodo e della finestra.
+
+- **Stati.** `ReadState` è `queried` (completa) < `saturated` < `unavailable` < `skipped` < `cycle`; una lettura con più
+  lacune ha lo stato della più grave. `cycle` lo producono solo le discese e non diventa mai una voce di copertura.
+- **Dal motivo allo stato.** `saturated` → `saturated`; `unavailable`, `manual`, motivo assente e lettura fallita →
+  `unavailable`; `skipped` → `skipped`. La stessa regola vale per gli step e per i livelli dell'albero.
+- **Lacune per identificativo.** Una voce con `identifiers` riguarda solo quegli identificativi; senza, o con una lista
+  vuota, tutta la lettura. Un `requestId` segue la regola unica dei request id (`isRequestId`), gli altri tipi quella
+  della correlazione dei nodi; un identificativo non valido rende la lacuna di tutta la lettura. Oggi le dichiara
+  `QueryApiGwExecutionLogsStep`, per i request id di un lotto che non ha letto tutto mentre un altro lotto ha risposto.
+- **Vista sul contesto.** `context.reads` è in sola lettura: `stateOf(stepId)` è lo stato della lettura di uno step;
+  `stateOf(stepId, identifier)` conta solo le lacune che nominano l'identificativo e quelle di tutta la lettura;
+  `hasGapFor(stepId, identifier)` dice se una lacuna nomina l'identificativo; `isComplete(stepId)` se la lettura non ha
+  lacune.
+- **Scope.** La finestra, ogni nodo e ogni pseudo-nodo d'instradamento (§19.5) hanno uno scope; uno scope vede le
+  lacune proprie e quelle degli scope da cui discende. Una lacuna vale per ogni scope che la dichiara o la riusa: due
+  nodi che riusano una lettura condivisa sono entrambi incompleti. Un nodo è incompleto anche quando una lacuna di uno
+  scope superiore nomina un identificativo della sua correlazione.
+- **Voci esposte.** `result.coverage` e `trace.coverage` hanno ogni voce una volta per step e oggetto: la stessa voce
+  riusata da più nodi compare una volta, due letture danno sempre due voci. Una lettura nuova restituisce voci nuove.
+- **Finestra incompleta.** `RunbookExecutionResult.windowIncomplete` è vero con una lacuna senza identificativi nello
+  scope della finestra. Senza albero una rilevazione è incompleta se la finestra lo è, se una lacuna nomina un
+  identificativo che ha osservato, o se non ha osservazioni utilizzabili (dello stesso tipo delle lacune e valide)
+  mentre esiste una lacuna per identificativo. `coverage.complete` dell'output resta calcolato su tutte le voci.
 
 ---
 
@@ -3404,12 +3441,14 @@ motore procede per ondate:
    l'enumeratore del livello, che crea i figli;
 5. ricomincia finché restano discese da leggere.
 
-La copertura di una lettura raggruppata (satura, non disponibile) vale per tutti gli identificativi del lotto. Ogni
-padre riceve l'esito anche senza righe; con un `varPrefix` lo trova nelle sue variabili:
+La copertura di una lettura raggruppata (satura, non disponibile) vale per tutti gli identificativi del lotto, salvo
+le lacune che nominano i loro `identifiers`. Ogni tentativo di una discesa è legato al lotto che l'ha letta: la discesa
+ha lo stato peggiore dei suoi tentativi, il livello per un padre il peggiore delle sue discese (§18.6). Ogni padre
+riceve l'esito anche senza righe; con un `varPrefix` lo trova nelle sue variabili:
 
 | Variabile                     | Valore                                                       |
 | ----------------------------- | ------------------------------------------------------------ |
-| `<prefisso>LookupState`       | `queried`, `saturated`, `unavailable` o `skipped`            |
+| `<prefisso>LookupState`       | `queried`, `saturated`, `unavailable`, `skipped` o `cycle`   |
 | `<prefisso>LogCount`          | righe trovate dall'ultima lettura                            |
 | `<prefisso>LogCountAllVisits` | righe trovate da tutte le letture del livello per quel padre |
 | `<prefisso>Exclusion.<nome>`  | esito di un'esclusione dichiarata sul livello (§19.8)        |
@@ -3521,7 +3560,10 @@ Una **catena** (`TreeChain`) va da un nodo radice fin dove l'indagine si è ferm
 - `interrupted`, con il motivo e il livello: `skipped` (identificativo mancante), `unavailable`, `incomplete`
   (lettura satura), `cycle`, `failed` (step del nodo fallito).
 
-Una catena ha `incompleteEvidence` quando la lettura della finestra, o una lettura sul suo percorso, è incompleta. Le
+Una catena ha `incompleteEvidence` quando la finestra ha una lacuna di tutta la lettura (`windowIncomplete`), quando un
+nodo del suo percorso è incompleto o quando una discesa del suo percorso non è `queried`, anche se ha restituito righe.
+Le catene usano lo stato della propria discesa: di due discese allo stesso livello, una completa e una fallita, solo
+la catena della seconda è incompleta. Le
 catene con la stessa sequenza di `(target, casi)`, la stessa fine e lo stesso motivo d'interruzione formano un
 **gruppo** (`TreeChainGroup`); i gruppi sono in ordine di tempo, poi di dichiarazione dei casi, quelli senza tempo in
 fondo.

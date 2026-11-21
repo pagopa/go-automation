@@ -5,6 +5,7 @@ import { createTestServiceRegistry } from '../../../../../toolkits/interop/index
 import { interop } from '../../../../../toolkits/interop/index.js';
 import { POD_CONTEXT } from '../podContext.js';
 import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
+import { EMPTY_RUNBOOK_READS } from '../../../../../engine/reads/EMPTY_RUNBOOK_READS.js';
 
 interface Call {
   readonly groups: ReadonlyArray<string>;
@@ -37,6 +38,7 @@ function context(
     ]),
     logs: [],
     recoveredErrors: [],
+    reads: EMPTY_RUNBOOK_READS,
     readPolicy: 'partial',
     services: createTestServiceRegistry({
       cloudWatchLogs: {

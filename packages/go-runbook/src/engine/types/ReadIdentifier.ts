@@ -1,7 +1,7 @@
 import type { EvidenceIdentifierKind } from './EvidenceIdentifierKind.js';
 
-/** One identifier of a grouped read of a level. */
-export interface TreeReadIdentifier {
+/** An identifier a read is made for, or a gap of a read names. */
+export interface ReadIdentifier {
   readonly kind: EvidenceIdentifierKind;
   readonly value: string;
 }

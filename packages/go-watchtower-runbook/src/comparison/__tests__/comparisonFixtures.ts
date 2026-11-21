@@ -20,7 +20,7 @@ export const HIT: RunbookCheck = {
  */
 export function runbookOutputFixture(requestId: string): RunbookOutput {
   return {
-    schemaVersion: '2.0.0',
+    schemaVersion: '3.0.0',
     generatedAt: NOW,
     runbook: { id: 'r', name: 'r', type: 'alarm-resolution', version: '1.0.0', team: 'GO' },
     execution: {

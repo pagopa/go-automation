@@ -397,7 +397,7 @@ export declare function renderErrorChainLines(groups: ReadonlyArray<ErrorChainGr
 ### `RUNBOOK_OUTPUT_SCHEMA_VERSION` (value)
 
 ```ts
-const RUNBOOK_OUTPUT_SCHEMA_VERSION = "2.0.0";
+const RUNBOOK_OUTPUT_SCHEMA_VERSION = "3.0.0";
 ```
 
 ### `RunbookCheck` (type)

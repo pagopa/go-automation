@@ -2,7 +2,7 @@ import type { LogEntry } from './LogEntry.js';
 import type { ErrorRecoveryInfo } from './ErrorRecoveryInfo.js';
 import type { GORegexCache } from '@pagopa/go-common/utils';
 import type { WorkflowServices } from './WorkflowServices.js';
-import type { CoverageEntry } from './CoverageEntry.js';
+import type { RunbookReads } from './RunbookReads.js';
 
 /**
  * Immutable execution context of the runbook.
@@ -32,10 +32,10 @@ export interface RunbookContext<TServices extends WorkflowServices = WorkflowSer
   /** Compiled-regex cache of the engine running this context; absent in contexts built by hand, which compile without caching. */
   readonly regexCache?: GORegexCache;
   /**
-   * Incomplete evidence recorded so far, one entry per source, so a step that derives a value from earlier reads can
-   * tell a complete read from a partial one. Absent in contexts built by hand, which mean complete evidence.
+   * The state of the reads so far, seen from this context, so a step that derives a value from earlier reads can tell
+   * a complete read from a partial one. Only the engine records.
    */
-  readonly coverage?: ReadonlyArray<CoverageEntry>;
+  readonly reads: RunbookReads;
   /**
    * Whether a read may keep what it got when part of it fails (`partial`), as an alarm analysis does, or must fail
    * as a whole (`strict`), as a procedure needs. Absent means `strict`.

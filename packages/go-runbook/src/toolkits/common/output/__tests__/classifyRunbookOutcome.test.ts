@@ -25,7 +25,7 @@ function output(
   const recordsMatched = options.recordsMatched ?? 0;
 
   return {
-    schemaVersion: '2.0.0',
+    schemaVersion: '3.0.0',
     generatedAt: '2026-09-01T10:00:00.000Z',
     runbook: {
       id: 'test-runbook',

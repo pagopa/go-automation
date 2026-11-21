@@ -2,10 +2,9 @@ import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/clo
 
 import type { ErrorNodeSpec } from '../../../../../engine/types/ErrorNodeSpec.js';
 import type { TreeEnumeratorFn } from '../../../../../engine/types/TreeEnumeratorFn.js';
-import { isStepEvidenceComplete } from '../../../../../engine/context/isStepEvidenceComplete.js';
 import { boundedText } from '../../../parsing/correlation/boundedText.js';
 import { occurredAtOf } from '../../../parsing/correlation/occurredAtOf.js';
-import { safeCorrelationValue } from '../../../parsing/correlation/safeCorrelationValue.js';
+import { safeCorrelationValue } from '../../../../../engine/reads/safeCorrelationValue.js';
 import { LAMBDA_REQUEST_ID } from '../helpers/lambdaRequestIdFilter.js';
 import { lambdaRowRequestId } from '../helpers/lambdaRowRequestId.js';
 import { scanLambdaLogs } from '../helpers/scanLambdaLogs.js';
@@ -75,7 +74,7 @@ export function enumerateLambdaInvocations(config: LambdaInvocationLevelConfig):
       observedErrors: {
         unit: 'invocation',
         observed: nodes.length,
-        ...(isStepEvidenceComplete(context, config.errorsStepId) ? {} : { lowerBound: true }),
+        ...(context.reads.isComplete(config.errorsStepId) ? {} : { lowerBound: true }),
       },
     };
   };

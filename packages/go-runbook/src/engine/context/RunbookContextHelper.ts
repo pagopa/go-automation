@@ -5,6 +5,7 @@ import type { LogEntry } from '../types/LogEntry.js';
 import type { ErrorRecoveryInfo } from '../types/ErrorRecoveryInfo.js';
 import type { GORegexCache } from '@pagopa/go-common/utils';
 import type { WorkflowServices } from '../types/WorkflowServices.js';
+import { EMPTY_RUNBOOK_READS } from '../reads/EMPTY_RUNBOOK_READS.js';
 
 /**
  * Helper functions for immutable RunbookContext operations.
@@ -35,6 +36,7 @@ export function createInitialContext<TServices extends WorkflowServices>(
     logs: [],
     services,
     recoveredErrors: [],
+    reads: EMPTY_RUNBOOK_READS,
     ...(signal ? { signal } : {}),
     ...(regexCache ? { regexCache } : {}),
   };

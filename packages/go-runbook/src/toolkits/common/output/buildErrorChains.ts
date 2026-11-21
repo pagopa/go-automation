@@ -9,6 +9,8 @@ import type { ErrorChainInterruption } from './ErrorChainInterruption.js';
 import type { ErrorChainInterruptionReason } from '../../../engine/types/ErrorChainInterruptionReason.js';
 import type { ErrorChainMember } from './ErrorChainMember.js';
 import type { ErrorChainNode } from './ErrorChainNode.js';
+import type { CoverageEntry } from '../../../engine/types/CoverageEntry.js';
+import { canonicalReadIdentifier } from '../../../engine/reads/canonicalReadIdentifier.js';
 import type { ErrorChainRoute } from './ErrorChainRoute.js';
 
 /** Target of the single node of a window-level chain. */
@@ -31,7 +33,9 @@ const CORRELATION_KINDS: ReadonlyMap<string, EvidenceIdentifierKind> = new Map([
  *   oldest member, the interruptions and routes of all its members, every member with its key and correlation, and
  *   the identifiers of its nodes.
  * - A window-level runbook evaluates its cases on the whole window: every detection is a chain of one node, with the
- *   time of its evidence. The chains keep the order of the detections, which is already the time order.
+ *   time of its evidence. The chains keep the order of the detections, which is already the time order. A chain is
+ *   incomplete when the window has a gap of the whole read, when a gap names an identifier the detection observed,
+ *   or when the detection observed no identifier of the kinds the gaps name while some gap names identifiers.
  *
  * Complexity: O(N) over the nodes of the members, or O(D) over the detections.
  *
@@ -43,7 +47,7 @@ export function buildErrorChains(result: RunbookExecutionResult): ReadonlyArray<
     const byId = new Map(result.tree.map((node) => [node.id, node]));
     return result.chains.map((group) => treeChainGroup(group, byId));
   }
-  const incompleteEvidence = result.coverage.length > 0;
+  const named = namedIdentifiers(result.coverage);
   return result.detections.map((detection): ErrorChainGroup => ({
     nodes: [
       {
@@ -56,7 +60,7 @@ export function buildErrorChains(result: RunbookExecutionResult): ReadonlyArray<
     ],
     end: 'leaf',
     interruptions: [],
-    incompleteEvidence,
+    incompleteEvidence: result.windowIncomplete || observesGap(detection.observations, named),
     count: 1,
     ...(detection.firstSeenAt !== undefined ? { firstSeenAt: detection.firstSeenAt } : {}),
     ...(detection.lastSeenAt !== undefined ? { lastSeenAt: detection.lastSeenAt } : {}),
@@ -71,6 +75,39 @@ export function buildErrorChains(result: RunbookExecutionResult): ReadonlyArray<
     ],
     observations: detection.observations,
   }));
+}
+
+/** The keys of the identifiers the gaps name, by kind. */
+function namedIdentifiers(coverage: ReadonlyArray<CoverageEntry>): ReadonlyMap<EvidenceIdentifierKind, Set<string>> {
+  const named = new Map<EvidenceIdentifierKind, Set<string>>();
+  for (const entry of coverage) {
+    for (const identifier of entry.identifiers ?? []) {
+      const values = named.get(identifier.kind) ?? new Set<string>();
+      values.add(identifier.value);
+      named.set(identifier.kind, values);
+    }
+  }
+  return named;
+}
+
+/**
+ * Whether a detection may have missed evidence because of a gap that names identifiers: a gap names one of its
+ * usable observations, or it has none (an observation of another kind, or not valid for its kind, is not usable).
+ */
+function observesGap(
+  observations: ReadonlyArray<IdentifierObservation>,
+  named: ReadonlyMap<EvidenceIdentifierKind, ReadonlySet<string>>,
+): boolean {
+  if (named.size === 0) return false;
+  let usable = false;
+  for (const observation of observations) {
+    const values = named.get(observation.kind);
+    const identifier = values === undefined ? undefined : canonicalReadIdentifier(observation);
+    if (values === undefined || identifier === undefined) continue;
+    if (values.has(identifier.value)) return true;
+    usable = true;
+  }
+  return !usable;
 }
 
 /** A group of the error tree, as the output reports it. */

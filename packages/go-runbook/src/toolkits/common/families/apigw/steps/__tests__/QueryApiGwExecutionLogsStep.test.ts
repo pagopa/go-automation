@@ -302,9 +302,10 @@ describe('queryApiGwExecutionLogs', () => {
     assert.strictEqual(result.vars?.['apiGwExecutionLogMode'], 'queried');
     assert.strictEqual(result.output?.length, 1);
     assert.deepStrictEqual(
-      result.coverage?.map(({ reason, detail }) => ({ reason, detail })),
-      [{ reason: 'unavailable', detail: 'ThrottlingException' }],
+      result.coverage?.map(({ reason, detail, identifiers }) => ({ reason, detail, identifiers })),
+      [{ reason: 'unavailable', detail: 'ThrottlingException', identifiers: [{ kind: 'requestId', value: 'req-2' }] }],
     );
+    assert.strictEqual(result.vars?.['apiGwExecutionLogIncompleteRequestIds'], undefined);
   });
 
   it('declares both the failed lookup and the errors without request id when the query fails', async () => {
@@ -318,9 +319,13 @@ describe('queryApiGwExecutionLogs', () => {
         ],
       }),
     );
+    // No batch answered: the gap concerns the whole read, not the requests of the batch.
     assert.deepStrictEqual(
-      result.coverage?.map(({ reason }) => reason),
-      ['unavailable', 'skipped'],
+      result.coverage?.map(({ reason, identifiers }) => [reason, identifiers]),
+      [
+        ['unavailable', undefined],
+        ['skipped', undefined],
+      ],
     );
   });
 

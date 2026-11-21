@@ -1,5 +1,5 @@
 import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import { isStepEvidenceComplete, type RunbookContext, type Step, type StepResult } from '../../../../engine/index.js';
+import type { RunbookContext, Step, StepResult } from '../../../../engine/index.js';
 import {
   INTEROP_API_GW_APPLICATION_QUERY_LIMIT,
   INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT,
@@ -112,8 +112,8 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
     // A saturated or failed read (rows at the cap, unread pages, a CID left unread) may hide another fallback.
     const applicationEvidenceComplete =
       application.length < INTEROP_API_GW_APPLICATION_QUERY_LIMIT &&
-      isStepEvidenceComplete(context, AUTH_SERVER_5XX_ALARM.stepIds.queryApplicationLogs);
-    const trackerEvidenceComplete = isStepEvidenceComplete(context, AUTH_SERVER_5XX_ALARM.stepIds.queryCidTracker);
+      context.reads.isComplete(AUTH_SERVER_5XX_ALARM.stepIds.queryApplicationLogs);
+    const trackerEvidenceComplete = context.reads.isComplete(AUTH_SERVER_5XX_ALARM.stepIds.queryCidTracker);
     let apiGatewayErrorCount = 0;
     let apiGatewayIntegrationErrorCount = 0;
     let apiGatewayCountsValid = true;
@@ -128,7 +128,7 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
     const apiGatewayEvidenceComplete =
       apiGateway.length > 0 &&
       apiGateway.length < INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT &&
-      isStepEvidenceComplete(context, AUTH_SERVER_5XX_ALARM.stepIds.queryApiGwAggregates);
+      context.reads.isComplete(AUTH_SERVER_5XX_ALARM.stepIds.queryApiGwAggregates);
     const sequenceConfirmed =
       applicationEvidenceComplete &&
       trackerEvidenceComplete &&
@@ -140,7 +140,7 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
     // the API Gateway aggregates included.
     const gatewayReadComplete =
       apiGateway.length < INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT &&
-      isStepEvidenceComplete(context, AUTH_SERVER_5XX_ALARM.stepIds.queryApiGwAggregates);
+      context.reads.isComplete(AUTH_SERVER_5XX_ALARM.stepIds.queryApiGwAggregates);
     const sequenceState = sequenceConfirmed
       ? 'true'
       : applicationEvidenceComplete && trackerEvidenceComplete && gatewayReadComplete

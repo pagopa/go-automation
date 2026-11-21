@@ -98,7 +98,7 @@ describe('TraceBuilder', () => {
       const trace = builder.build(createTestContext(), 'completed', ENV);
 
       assert.deepStrictEqual(trace.coverage, [{ stepId: 'analyze-x', complete: false, reason: 'saturated' }]);
-      assert.strictEqual(trace.schemaVersion, '2.0.0');
+      assert.strictEqual(trace.schemaVersion, '3.0.0');
     });
   });
 });

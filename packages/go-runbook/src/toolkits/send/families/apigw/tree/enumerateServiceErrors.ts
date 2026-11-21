@@ -2,12 +2,12 @@ import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/i
 
 import type { ErrorNodeSpec } from '../../../../../engine/types/ErrorNodeSpec.js';
 import type { TreeEnumeratorFn } from '../../../../../engine/types/TreeEnumeratorFn.js';
-import type { TreeReadIdentifier } from '../../../../../engine/types/TreeReadIdentifier.js';
+import type { ReadIdentifier } from '../../../../../engine/types/ReadIdentifier.js';
 import { readServiceLogRow } from '../../../../common/parsing/applicationLogs/readServiceLogRow.js';
 import { matchTraceIdCandidate } from '../../../../common/parsing/applicationLogs/matchTraceIdCandidate.js';
 import { boundedText } from '../../../../common/parsing/correlation/boundedText.js';
 import { occurredAtOf } from '../../../../common/parsing/correlation/occurredAtOf.js';
-import { safeCorrelationValue } from '../../../../common/parsing/correlation/safeCorrelationValue.js';
+import { safeCorrelationValue } from '../../../../../engine/reads/safeCorrelationValue.js';
 import { scanServiceLogs } from '../correlation/scanServiceLogs.js';
 import type { ServiceErrorLevelConfig } from './ServiceErrorLevelConfig.js';
 
@@ -107,7 +107,7 @@ function nodeVars(
 
 /** The correlation of a node: the trace id it was found by or carries, the fallback UUID it was found by. */
 function correlationOf(
-  identifier: TreeReadIdentifier | undefined,
+  identifier: ReadIdentifier | undefined,
   rowTraceId: string | undefined,
 ): Readonly<Record<string, string>> {
   const traceId = safeCorrelationValue(rowTraceId ?? (identifier?.kind === 'traceId' ? identifier.value : undefined));
@@ -125,8 +125,8 @@ function correlationOf(
 function readTrace(
   config: ServiceErrorLevelConfig,
   rows: ReadonlyArray<Row>,
-  identifier: TreeReadIdentifier | undefined,
-  secondAttempt: TreeReadIdentifier | undefined,
+  identifier: ReadIdentifier | undefined,
+  secondAttempt: ReadIdentifier | undefined,
 ): Readonly<Record<string, string>> {
   if (identifier?.kind !== 'fallbackUuid') return {};
   for (const row of rows) {

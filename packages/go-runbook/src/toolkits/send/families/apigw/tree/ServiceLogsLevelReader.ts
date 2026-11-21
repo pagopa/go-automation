@@ -4,7 +4,7 @@ import type { StepKind } from '../../../../../engine/types/StepKind.js';
 import type { StepResult } from '../../../../../engine/types/StepResult.js';
 import type { TreeLevelReader } from '../../../../../engine/types/TreeLevelReader.js';
 import type { TreeLevelReadResult } from '../../../../../engine/types/TreeLevelReadResult.js';
-import type { TreeReadIdentifier } from '../../../../../engine/types/TreeReadIdentifier.js';
+import type { ReadIdentifier } from '../../../../../engine/types/ReadIdentifier.js';
 import { executeCloudWatchLogsQuery } from '../../../../common/steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
 import { OperationalStep } from '../../../../common/steps/OperationalStep.js';
 import type { OperationalContext } from '../../../../common/services/OperationalContext.js';
@@ -90,10 +90,7 @@ export class ServiceLogsLevelReader extends OperationalStep<Rows> implements Tre
    * @param identifiers - Identifiers of the batch
    * @returns The rows, with the coverage of the query
    */
-  async read(
-    context: OperationalContext,
-    identifiers: ReadonlyArray<TreeReadIdentifier>,
-  ): Promise<TreeLevelReadResult> {
+  async read(context: OperationalContext, identifiers: ReadonlyArray<ReadIdentifier>): Promise<TreeLevelReadResult> {
     const query = this.buildQuery(identifiers);
     const result = await executeCloudWatchLogsQuery(
       context,
@@ -127,7 +124,7 @@ export class ServiceLogsLevelReader extends OperationalStep<Rows> implements Tre
   }
 
   /** The query with one predicate per identifier, combined in `OR`. */
-  private buildQuery(identifiers: ReadonlyArray<TreeReadIdentifier>): string {
+  private buildQuery(identifiers: ReadonlyArray<ReadIdentifier>): string {
     // A trace id is looked up in every form the logs write it (X-Ray and compact 32-hex).
     const predicates = identifiers.flatMap((identifier) => {
       const fallback = identifier.kind === 'fallbackUuid';
