@@ -1,4 +1,5 @@
-import type { ReadIdentifier } from './ReadIdentifier.js';
+import type { EvidenceIdentifier } from './EvidenceIdentifier.js';
+import type { TreeRowPredicate } from './TreeRowPredicate.js';
 
-/** Whether a row of a grouped read belongs to the given identifier. */
-export type TreeRowAttributionFn = (row: unknown, identifier: ReadIdentifier) => boolean;
+/** The test of the rows of a grouped read that belong to an identifier, made once for each identifier of a batch. */
+export type TreeRowAttributionFn = (identifier: EvidenceIdentifier) => TreeRowPredicate;

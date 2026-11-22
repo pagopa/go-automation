@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { INTEROP_API_GW_APPLICATION_QUERY_LIMIT } from '../../../../../toolkits/interop/index.js';
+import { interop } from '../../../../../toolkits/interop/index.js';
 import { cidTrackerOutput, conditionContext, podLogRows } from '../../../shared/__tests__/helpers/knownCaseTesting.js';
 import type { LogRows } from '../../../../../__tests__/helpers/LogRows.js';
 import { createTestReads } from '../../../../../__tests__/helpers/createTestReads.js';
@@ -245,9 +245,20 @@ describe('AnalyzeAuditFallbackStep', () => {
   });
 
   it('fails closed when the application evidence reaches the query row limit', async () => {
-    const result = await analyze({
-      application: Array.from({ length: INTEROP_API_GW_APPLICATION_QUERY_LIMIT }, () => FALLBACK_ROW),
-    });
+    const application = Array.from(
+      { length: interop.apigw.INTEROP_API_GW_APPLICATION_QUERY_LIMIT },
+      () => FALLBACK_ROW,
+    );
+    const context = conditionContext([
+      [alarm.stepIds.queryApiGwAggregates, ONE_GATEWAY_ERROR],
+      [alarm.stepIds.queryApplicationLogs, application],
+      [alarm.stepIds.queryCidTracker, cidTrackerOutput(podLogRows(alarm.serviceName, SUCCESS), 'a')],
+    ]);
+    // The query step declares a read at its row limit saturated.
+    const reads = createTestReads([
+      { stepId: alarm.stepIds.queryApplicationLogs, complete: false, reason: 'saturated' },
+    ]);
+    const result = await STEP.execute({ ...context, reads });
     assert.strictEqual(result.success, true);
     assert.strictEqual(result.vars?.[AUDIT_FALLBACK_CONFIRMED_VAR], 'false');
     assert.deepStrictEqual(result.output, {

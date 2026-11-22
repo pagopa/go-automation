@@ -28,7 +28,6 @@ function context(
     executionId: 'test',
     startedAt: new Date(),
     vars: new Map(),
-    logs: [],
     recoveredErrors: [],
     reads: EMPTY_RUNBOOK_READS,
     readPolicy: 'partial',
@@ -119,19 +118,35 @@ describe('QueryStreamLambdaLogsStep', () => {
     assert.equal(result.vars?.['versioning'], 'queried');
   });
 
-  it('does not scan successful requests or silently truncate too many identifiers', async () => {
+  it('does not scan successful requests and reads more than 100 identifiers in batches', async () => {
     const success = await step.execute(
       context([row({ authorizerStatus: '200', authorizerRequestId: ID })], () => assert.fail('Unexpected query')),
     );
     assert.equal(success.vars?.['lambda'], 'no-request-id');
-    const many = Array.from({ length: 101 }, (_, index) =>
-      row({
-        authorizerStatus: '500',
-        authorizerRequestId: `${index.toString(16).padStart(8, '0')}-32dc-407d-80d9-4fd363aeaeb4`,
-      }),
+    const ids = Array.from(
+      { length: 101 },
+      (_, index) => `${index.toString(16).padStart(8, '0')}-32dc-407d-80d9-4fd363aeaeb4`,
     );
-    const result = await step.execute(context(many, () => assert.fail('Unexpected query')));
-    assert.equal(result.vars?.['lambda'], 'too-many-request-ids');
+    const queries: string[] = [];
+    const result = await step.execute(
+      context(
+        ids.map((id) => row({ authorizerStatus: '500', authorizerRequestId: id })),
+        async (_groups: unknown, query: string) => {
+          await Promise.resolve();
+          queries.push(query);
+          if (queries.length === 2) throw new Error('ThrottlingException');
+          return [row({ '@requestId': ids[0] ?? '', '@message': 'REPORT RequestId: test Status: timeout' })];
+        },
+      ),
+    );
+    assert.equal(queries.length, 2);
+    assert.equal(result.vars?.['lambda'], 'queried');
+    assert.equal(result.output?.length, 1);
+    // The batch that failed is unavailable for its identifier only.
+    assert.deepEqual(
+      result.coverage?.map(({ reason, identifiers }) => [reason, identifiers]),
+      [['unavailable', [{ kind: 'requestId', value: ids[100] }]]],
+    );
   });
 
   it('reports missing upstream output and invalid time ranges', async () => {

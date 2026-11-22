@@ -1,7 +1,7 @@
 /**
  * Generic operational toolkit: entrypoint `@pagopa/go-runbook/toolkits/common`.
  *
- * Service ports, AWS/HTTP steps, parsing, policies, analysis and known cases,
+ * Service ports, CloudWatch Logs steps, parsing, policies, analysis and known cases,
  * registration, the generic families (`apigw`, `lambda`, `service`) as
  * namespaces, and the test service registry. It knows no product: SEND and
  * INTEROP data live in `./toolkits/send` and `./toolkits/interop`.
@@ -38,12 +38,26 @@ export {
 } from './services/OPERATIONAL_SERVICE_CAPABILITIES.js';
 export { OperationalRunbookEngine } from './engine/OperationalRunbookEngine.js';
 
-// AWS and HTTP steps
+// CloudWatch Logs steps
 export { CloudWatchLogsQueryStep } from './steps/aws/cloudwatch-logs/CloudWatchLogsQueryStep.js';
 export type { CloudWatchLogsQueryConfig } from './steps/aws/cloudwatch-logs/CloudWatchLogsQueryStep.js';
 export { executeCloudWatchLogsQuery } from './steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
+export type { CloudWatchLogsRow } from './steps/aws/cloudwatch-logs/CloudWatchLogsRow.js';
+export type { CloudWatchLogsRows } from './steps/aws/cloudwatch-logs/CloudWatchLogsRows.js';
 export type { ExecutedCloudWatchLogsQuery } from './steps/aws/cloudwatch-logs/ExecutedCloudWatchLogsQuery.js';
 export { mergeCloudWatchLogsDiagnostics } from './steps/aws/cloudwatch-logs/mergeCloudWatchLogsDiagnostics.js';
+export { tryCloudWatchLogsRead } from './steps/aws/cloudwatch-logs/tryCloudWatchLogsRead.js';
+export type { CloudWatchLogsRead } from './steps/aws/cloudwatch-logs/CloudWatchLogsRead.js';
+export type { CloudWatchLogsReadAttempt } from './steps/aws/cloudwatch-logs/CloudWatchLogsReadAttempt.js';
+export { readCloudWatchLogsBatches } from './steps/aws/cloudwatch-logs/readCloudWatchLogsBatches.js';
+export type { CloudWatchLogsBatchedRead } from './steps/aws/cloudwatch-logs/CloudWatchLogsBatchedRead.js';
+export type { CloudWatchLogsBatchedReadResult } from './steps/aws/cloudwatch-logs/CloudWatchLogsBatchedReadResult.js';
+export { endsCloudWatchLogsRead } from './steps/aws/cloudwatch-logs/endsCloudWatchLogsRead.js';
+export { SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS } from './steps/aws/cloudwatch-logs/SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS.js';
+export { QueryAccountLogDiagnosticsStep } from './steps/aws/cloudwatch-logs/QueryAccountLogDiagnosticsStep.js';
+export type { AccountLogDiagnostics } from './steps/aws/cloudwatch-logs/AccountLogDiagnostics.js';
+export type { AccountLogQuery } from './steps/aws/cloudwatch-logs/AccountLogQuery.js';
+export type { AccountLogRead } from './steps/aws/cloudwatch-logs/AccountLogRead.js';
 // Logical AWS accounts
 export type { AwsLogicalAccount } from './accounts/AwsLogicalAccount.js';
 export { parseAwsLogicalAccount } from './accounts/parseAwsLogicalAccount.js';
@@ -53,36 +67,25 @@ export type { ResolvedAwsAccount } from './accounts/ResolvedAwsAccount.js';
 export type { AwsAccountErrorCode } from './accounts/AwsAccountErrorCode.js';
 export { AwsAccountError, isAwsAccountError } from './accounts/AwsAccountError.js';
 export { resolveAwsAccountSelection } from './accounts/resolveAwsAccountSelection.js';
+export { accountScopedContexts } from './accounts/accountScopedContexts.js';
+export type { AccountScopedContext } from './accounts/AccountScopedContext.js';
 export type { AwsAccountsPort } from './services/ports/AwsAccountsPort.js';
 export { InMemoryAwsAccountsPort } from './testing/InMemoryAwsAccountsPort.js';
 export type { InMemoryAwsAccountsPortOptions } from './testing/InMemoryAwsAccountsPortOptions.js';
 export type { AwsAccountsDirectoryPortOptions } from './accounts/AwsAccountsDirectoryPortOptions.js';
 export type { AwsAccountsOccurrence } from './accounts/AwsAccountsOccurrence.js';
-export { CloudWatchMetricsStep } from './steps/aws/cloudwatch-metrics/CloudWatchMetricsStep.js';
-export type { CloudWatchMetricsConfig } from './steps/aws/cloudwatch-metrics/CloudWatchMetricsStep.js';
-export { AthenaQueryStep } from './steps/aws/athena/AthenaQueryStep.js';
-export type { AthenaQueryConfig } from './steps/aws/athena/AthenaQueryStep.js';
-export { DynamoDBQueryStep } from './steps/aws/dynamodb/DynamoDBQueryStep.js';
-export type { DynamoDBQueryConfig } from './steps/aws/dynamodb/DynamoDBQueryStep.js';
-export { DynamoDBGetStep } from './steps/aws/dynamodb/DynamoDBGetStep.js';
-export type { DynamoDBGetConfig } from './steps/aws/dynamodb/DynamoDBGetStep.js';
-export { DynamoDBPutStep } from './steps/aws/dynamodb/DynamoDBPutStep.js';
-export type { DynamoDBPutConfig } from './steps/aws/dynamodb/DynamoDBPutStep.js';
-export { DynamoDBUpdateStep } from './steps/aws/dynamodb/DynamoDBUpdateStep.js';
-export type { DynamoDBUpdateConfig } from './steps/aws/dynamodb/DynamoDBUpdateStep.js';
-export { HttpRequestStep } from './steps/networking/HttpRequestStep.js';
-export type { HttpRequestConfig } from './steps/networking/HttpRequestStep.js';
-export { HttpPostStep } from './steps/networking/HttpPostStep.js';
-export type { HttpPostConfig } from './steps/networking/HttpPostStep.js';
 
 // Parsing, queries, time
 export type { LogLine } from './parsing/aws/cloudwatch-logs/LogLine.js';
 export { readCloudWatchResultRows } from './parsing/aws/cloudwatch-logs/readCloudWatchResultRows.js';
-export { canonicalTraceId } from './parsing/traceIds/canonicalTraceId.js';
+export { canonicalTraceId } from './parsing/traceIds/traceIdentity.js';
+export { CloudWatchLogsLevelReader } from './tree/CloudWatchLogsLevelReader.js';
+export type { CloudWatchLogsLevelReaderConfig } from './tree/CloudWatchLogsLevelReaderConfig.js';
 export { escapeSqlString, extractTemplateParameters } from './queries/interpolateTemplate.js';
 export type { TimeRange } from './time/TimeRange.js';
 export type { TimeRangeFromParams } from './time/TimeRangeFromParams.js';
 export { resolveTimeRange } from './time/resolveTimeRange.js';
+export { ALARM_TIME_RANGE } from './time/ALARM_TIME_RANGE.js';
 
 // Telemetry
 export type { CloudWatchLogsStepDiagnostics } from './telemetry/CloudWatchLogsStepDiagnostics.js';
@@ -96,7 +99,9 @@ export type { CloudExecutionPolicy } from './policies/CloudExecutionPolicy.js';
 
 // Output building
 export { buildRunbookOutput } from './output/buildRunbookOutput.js';
-export type { BuildRunbookOutputOptions, RunbookOutputContextBuilderFn } from './output/buildRunbookOutput.js';
+export type { BuildRunbookOutputOptions } from './output/BuildRunbookOutputOptions.js';
+export type { RunbookOutputContextBuilderFn } from './output/RunbookOutputContextBuilderFn.js';
+export type { LogSampleOptions } from './output/LogSampleOptions.js';
 
 // Analysis and known cases
 export type { RunbookAnalysisDefaults } from './analysis/RunbookAnalysisDefaults.js';

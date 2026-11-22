@@ -1,5 +1,5 @@
 import type { OccurrenceTimeWindow } from './OccurrenceTimeWindow.js';
-import type { Runbook } from '../../../../engine/types/Runbook.js';
+import type { Runbook } from '../../../../engine/index.js';
 
 import { computeTimeRange } from './computeTimeRange.js';
 import type { TimeRangeReference } from './TimeRangeReference.js';

@@ -15,7 +15,7 @@ import type { StepResult } from '../../types/StepResult.js';
 import type { TreeLevel } from '../../types/TreeLevel.js';
 import type { TreeLevelReader } from '../../types/TreeLevelReader.js';
 import type { TreeLevelReadResult } from '../../types/TreeLevelReadResult.js';
-import type { ReadIdentifier } from '../../types/ReadIdentifier.js';
+import type { EvidenceIdentifier } from '../../types/EvidenceIdentifier.js';
 import type { RunbookExecutionResult } from '../../types/RunbookExecutionResult.js';
 import { createTestServiceRegistry } from '../../../toolkits/common/testing/createTestServiceRegistry.js';
 import { createTestRunbook } from '../../../__tests__/helpers/createTestRunbook.js';
@@ -59,8 +59,7 @@ function fakeReader(
     id,
     label: id,
     kind: 'data',
-    execute: async () => Promise.resolve({ success: true }),
-    read: async (_context: RunbookContext, identifiers: ReadonlyArray<ReadIdentifier>) => {
+    read: async (_context: RunbookContext, identifiers: ReadonlyArray<EvidenceIdentifier>) => {
       calls.push(identifiers.map((identifier) => identifier.value));
       const wanted = new Set(identifiers.map((identifier) => identifier.value));
       return Promise.resolve({
@@ -95,7 +94,7 @@ function rootLevel(): TreeLevel {
       {
         step: nodeStep('route-root', (context) => ({
           success: true,
-          descend: [{ target: 'svc', identifier: context.vars.get('traceId') ?? '', kind: 'traceId' }],
+          descend: [{ target: 'svc', identifier: { kind: 'traceId', value: context.vars.get('traceId') ?? '' } }],
         })),
       },
     ],
@@ -108,7 +107,7 @@ function serviceLevel(reader: TreeLevelReader, overrides: Partial<TreeLevel> = {
     target: 'svc',
     varPrefix: 'svc',
     read: reader,
-    attribute: (row, identifier) => String(row).split('|')[0] === identifier.value,
+    attribute: (identifier) => (row) => String(row).split('|')[0] === identifier.value,
     rowIdentity: (row) => String(row).split('|')[1] ?? '',
     enumerate: ({ rows }) => {
       const errors = rows.filter((row) => String(row).split('|')[2] === 'ERROR');
@@ -140,7 +139,11 @@ function serviceLevel(reader: TreeLevelReader, overrides: Partial<TreeLevel> = {
             success: true,
             vars: { seenBy: context.vars.get('svcErrorMsg') ?? '' },
             ...(target !== undefined
-              ? { descend: [{ target, identifier: context.vars.get('traceId') ?? '', kind: 'traceId' as const }] }
+              ? {
+                  descend: [
+                    { target, identifier: { kind: 'traceId' as const, value: context.vars.get('traceId') ?? '' } },
+                  ],
+                }
               : {}),
           };
         }),
@@ -195,7 +198,7 @@ describe('ErrorTreeExecutor', () => {
         {
           target: 'down',
           read: fakeReader('read-down', [], downCalls, { success: false, error: 'access denied' }),
-          attribute: () => true,
+          attribute: () => () => true,
           enumerate: () => ({ nodes: [] }),
         },
       ],
@@ -241,7 +244,7 @@ describe('ErrorTreeExecutor', () => {
         {
           target: 'down',
           read: fakeReader('read-down', [], [], { success: false, error: 'access denied' }),
-          attribute: () => true,
+          attribute: () => () => true,
           enumerate: () => ({ nodes: [] }),
         },
       ],
@@ -276,7 +279,7 @@ describe('ErrorTreeExecutor', () => {
           {
             target: 'down',
             read: fakeReader('read-down', [], []),
-            attribute: () => true,
+            attribute: () => () => true,
             enumerate: () => ({ nodes: [] }),
           },
         ],
@@ -314,7 +317,7 @@ describe('ErrorTreeExecutor', () => {
         {
           target: 'ext',
           read: fakeReader('read-ext', ['T2|x1|ERROR|checkout timeout'], extCalls),
-          attribute: (row, identifier) => String(row).startsWith(identifier.value),
+          attribute: (identifier) => (row) => String(row).startsWith(identifier.value),
           enumerate: ({ rows }) => ({
             nodes: rows.map((row) => ({ key: 'x1', label: String(row), scopedOutputs: { 'read-ext': [row] } })),
           }),
@@ -341,7 +344,7 @@ describe('ErrorTreeExecutor', () => {
             {
               step: nodeStep('loop', (context) => ({
                 success: true,
-                descend: [{ target: 'svc', identifier: context.vars.get('traceId') ?? '', kind: 'traceId' }],
+                descend: [{ target: 'svc', identifier: { kind: 'traceId', value: context.vars.get('traceId') ?? '' } }],
               })),
             },
           ],
@@ -420,8 +423,8 @@ describe('ErrorTreeExecutor', () => {
             descend:
               context.vars.get('traceId') === 'T1'
                 ? [
-                    { target: 'svc', identifier: 'T1', kind: 'traceId' },
-                    { target: 'svc', identifier: 'U1', kind: 'fallbackUuid' },
+                    { target: 'svc', identifier: { kind: 'traceId', value: 'T1' } },
+                    { target: 'svc', identifier: { kind: 'fallbackUuid', value: 'U1' } },
                   ]
                 : [],
           })),
@@ -432,7 +435,7 @@ describe('ErrorTreeExecutor', () => {
 
     const r1 = nodeByKey(result, 'r1');
     assert.deepStrictEqual(
-      r1.descents.map((descent) => [descent.kind, descent.state]),
+      r1.descents.map((descent) => [descent.identifier.kind, descent.state]),
       [
         ['traceId', 'queried'],
         ['fallbackUuid', 'unavailable'],

@@ -1,3 +1,10 @@
+import type { EscapeTransformer } from './EscapeTransformer.js';
+import type { InterpolatePlaceholdersOptions } from './InterpolatePlaceholdersOptions.js';
+import type { TemplatePlaceholder } from './TemplatePlaceholder.js';
+import type { TemplatePlaceholderSource } from './TemplatePlaceholderSource.js';
+import type { TemplatePlaceholderTransformer } from './TemplatePlaceholderTransformer.js';
+import type { TemplatePlaceholderValues } from './TemplatePlaceholderValues.js';
+
 /**
  * Shared placeholder parser/interpolator for runbook templates.
  *
@@ -9,27 +16,6 @@
  * malformed placeholder contains another valid placeholder, scanning resumes
  * from the malformed opening delimiter so the inner one can still be resolved.
  */
-
-type TemplatePlaceholderSource = 'params' | 'vars';
-
-interface TemplatePlaceholderValues {
-  readonly params: ReadonlyMap<string, string>;
-  readonly vars: ReadonlyMap<string, string>;
-}
-
-interface TemplatePlaceholder {
-  readonly raw: string;
-  readonly source: TemplatePlaceholderSource;
-  readonly key: string;
-}
-
-type TemplatePlaceholderTransformer = (placeholder: TemplatePlaceholder) => string;
-type EscapeTransformer = (value: string) => string;
-
-interface InterpolatePlaceholdersOptions {
-  readonly escape?: EscapeTransformer;
-  readonly missingValue?: string;
-}
 
 const TEMPLATE_START = '{{';
 const TEMPLATE_END = '}}';
@@ -99,16 +85,35 @@ function replaceTemplatePlaceholders(template: string, replace: TemplatePlacehol
   return result;
 }
 
+/**
+ * Resolves the `{{params.name}}` and `{{vars.name}}` placeholders of a template; a placeholder without a value stays
+ * as it is.
+ *
+ * @param template - Template with placeholders
+ * @param values - Parameters and variables of the runbook
+ * @param escape - Escape applied to every resolved value
+ * @returns The resolved text
+ */
 export function interpolatePlaceholders(
   template: string,
   values: TemplatePlaceholderValues,
   escape?: EscapeTransformer,
 ): string;
+
+/**
+ * Resolves the `{{params.name}}` and `{{vars.name}}` placeholders of a template.
+ *
+ * @param template - Template with placeholders
+ * @param values - Parameters and variables of the runbook
+ * @param options - Escape of the resolved values and text of a placeholder without a value (default: the placeholder)
+ * @returns The resolved text
+ */
 export function interpolatePlaceholders(
   template: string,
   values: TemplatePlaceholderValues,
   options?: InterpolatePlaceholdersOptions,
 ): string;
+
 export function interpolatePlaceholders(
   template: string,
   values: TemplatePlaceholderValues,

@@ -77,7 +77,6 @@ async function context(
       ['startTime', '2026-09-18T08:47:13Z'],
       ['endTime', '2026-09-18T08:57:13Z'],
     ]),
-    logs: [],
     services: createTestServiceRegistry({ awsAccounts }),
     recoveredErrors: [],
     reads: EMPTY_RUNBOOK_READS,

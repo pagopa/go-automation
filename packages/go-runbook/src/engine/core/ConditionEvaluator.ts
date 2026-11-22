@@ -1,5 +1,6 @@
 import { valueToString } from '@pagopa/go-common/utils';
-import type { Condition, ContainsCondition } from '../types/Condition.js';
+import type { Condition } from '../types/Condition.js';
+import type { ContainsCondition } from '../types/ContainsCondition.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
 import { resolveRef } from '../context/resolveRef.js';
 import { compileContextRegex } from '../context/compileContextRegex.js';
@@ -7,62 +8,12 @@ import { compareValues } from './compareValues.js';
 import type { CompareOperator } from './CompareOperator.js';
 import type { EvidenceIndices } from './EvidenceIndices.js';
 import type { ElementPredicate } from './ElementPredicate.js';
-
-// Condition types supported by the evaluator
-type ConditionType = string | number | boolean;
-
-interface PredicateEvaluation {
-  readonly matched: boolean;
-  /** Trace payload; absent when the caller only asked for a boolean. */
-  readonly detail?: unknown;
-  /** Indices of every array element that satisfies the predicate, in detailed mode. */
-  readonly indices?: ReadonlyArray<number>;
-}
-
-export interface ConditionEvaluationDetails {
-  readonly matched: boolean;
-  readonly resolvedValues: Readonly<Record<string, unknown>>;
-  /**
-   * Evidence of the match: for each array ref, the indices of the elements that satisfied a predicate in a
-   * logically satisfied branch. An `or` contributes only its matching branches, a `not` nothing. Empty when the
-   * condition did not match or read only scalars.
-   */
-  readonly evidence: ReadonlyMap<string, ReadonlySet<number>>;
-}
-
-interface ConditionEvaluationOptions {
-  readonly withResolvedValues: true;
-}
-
-/**
- * Compact description of a match against an array element, surfaced via
- * detailed condition evaluation so the trace can show which element satisfied
- * the predicate (without dumping the entire raw collection).
- */
-interface MatchDetailSingle {
-  readonly matched: true;
-  readonly matchedIndex: number;
-  readonly matchedElement: unknown;
-  readonly totalElements: number;
-}
-
-/**
- * Multi-match variant produced by {@link ContainsCondition} with a
- * `regex` field.
- *
- * `matchedCount` always reflects the **real** number of matches across
- * the array; `matchedElements` carries up to {@link MAX_TRACE_MATCHES}
- * sample hits so a regex that matches hundreds of rows does not bloat
- * the execution trace. `truncated` is `true` whenever
- * `matchedCount > matchedElements.length`.
- */
-interface MatchDetailMulti {
-  readonly matched: boolean;
-  readonly matchedCount: number;
-  readonly matchedElements: ReadonlyArray<{ readonly index: number; readonly element: unknown }>;
-  readonly totalElements: number;
-  readonly truncated: boolean;
-}
+import type { ConditionEvaluationDetails } from './ConditionEvaluationDetails.js';
+import type { ConditionEvaluationOptions } from './ConditionEvaluationOptions.js';
+import type { ConditionType } from './ConditionType.js';
+import type { MatchDetailMulti } from './MatchDetailMulti.js';
+import type { MatchDetailSingle } from './MatchDetailSingle.js';
+import type { PredicateEvaluation } from './PredicateEvaluation.js';
 
 /**
  * Maximum number of `matchedElements` entries persisted in the trace
@@ -359,20 +310,11 @@ export class ConditionEvaluator {
       return { matched: detail.matched, detail, indices };
     }
 
-    if (condition.value === undefined) {
-      if (Array.isArray(actual)) {
-        return {
-          matched: false,
-          detail: { matched: false, matchedCount: 0, totalElements: actual.length },
-        };
-      }
-      return { matched: false, detail: actual };
-    }
     const candidates = new Set(condition.value.map((v) => valueToString(v)));
     if (!Array.isArray(actual)) {
       return { matched: candidates.has(valueToString(actual)), detail: actual };
     }
-    return scanElements(actual as ReadonlyArray<unknown>, (el) => candidates.has(valueToString(el)), true);
+    return scanElements(actual as ReadonlyArray<unknown>, (el) => candidates.has(valueToString(el)), collect);
   }
 }
 

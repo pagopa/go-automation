@@ -10,7 +10,7 @@ import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/i
 import { GOLogger } from '@pagopa/go-common/logging';
 
 import { RunbookEngine } from '../../../../../engine/index.js';
-import { createTestServiceRegistry, SEND_SERVICE_PROFILE } from '../../../../../toolkits/send/index.js';
+import { createTestServiceRegistry, service } from '../../../../../toolkits/send/index.js';
 import { buildRunbook } from '../runbook.js';
 import { POSTEL_WORKED_BATCH_QUERY, VerifyPostelBatchesStep } from '../VerifyPostelBatchesStep.js';
 import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
@@ -47,7 +47,6 @@ function context(
     stepResults: new Map([['query-pn-address-manager', errorRows]]),
     vars: new Map(),
     params: new Map(params),
-    logs: [],
     services: createTestServiceRegistry({
       cloudWatchLogs: {
         async queryWithStatistics(
@@ -85,7 +84,7 @@ describe('VerifyPostelBatchesStep', () => {
   it('uses the canonical SEND service profile in its execution trace', () => {
     const traceInfo = step().getTraceInfo(context([], [], []));
 
-    assert.strictEqual(traceInfo['queryProfileId'], SEND_SERVICE_PROFILE.id);
+    assert.strictEqual(traceInfo['queryProfileId'], service.SEND_SERVICE_PROFILE.id);
     assert.strictEqual(traceInfo['queryKind'], 'postel-batch-recovery');
   });
 

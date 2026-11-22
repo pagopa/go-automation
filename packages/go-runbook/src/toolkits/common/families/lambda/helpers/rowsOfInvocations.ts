@@ -1,6 +1,5 @@
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-
 import { lambdaRowRequestId } from './lambdaRowRequestId.js';
+import type { CloudWatchLogsRows } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRows.js';
 
 /**
  * The rows of a batch of invocations: a row of another invocation that only quotes a request id of the batch is dropped,
@@ -10,10 +9,7 @@ import { lambdaRowRequestId } from './lambdaRowRequestId.js';
  * @param requestIds - Request ids of the batch
  * @returns The rows of the invocations of the batch
  */
-export function rowsOfInvocations(
-  rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
-  requestIds: ReadonlyArray<string>,
-): ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> {
+export function rowsOfInvocations(rows: CloudWatchLogsRows, requestIds: ReadonlyArray<string>): CloudWatchLogsRows {
   const wanted = new Set(requestIds);
   return rows.filter((row) => wanted.has(lambdaRowRequestId(row) ?? ''));
 }

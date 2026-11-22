@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { traceRowMatcher } from '../traceRowMatcher.js';
+import { traceRowMatcher } from '../traceRows.js';
 
 const TRACE = '1-6789abcd-0123456789abcdef01234567';
 const COMPACT = '6789abcd0123456789abcdef01234567';

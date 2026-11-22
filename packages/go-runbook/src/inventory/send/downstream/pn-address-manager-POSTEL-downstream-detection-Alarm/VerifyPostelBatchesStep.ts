@@ -1,5 +1,4 @@
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-
+import { readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import {
   executeStep,
   readStepOutput,
@@ -10,14 +9,16 @@ import {
 } from '../../../../engine/index.js';
 import {
   executeCloudWatchLogsQuery,
-  SEND_SERVICE_PROFILE,
   type TimeRange,
   OperationalStep,
+  service,
   type OperationalContext,
   type OperationalServiceName,
+  type CloudWatchLogsRow,
+  type CloudWatchLogsRows,
 } from '../../../../toolkits/send/index.js';
-
-type CloudWatchRows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
+import type { PostelBatchRecovery } from './PostelBatchRecovery.js';
+import type { VerifyPostelBatchesConfig } from './VerifyPostelBatchesConfig.js';
 
 const BATCH_TRACE_ID_PATTERN = /^batch_id:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const MAX_BATCH_ID_SAMPLES = 10;
@@ -33,26 +34,6 @@ export const POSTEL_WORKED_BATCH_QUERY: string = [
   '| sort workedAt asc',
   '| limit 10000',
 ].join('\n');
-
-export interface PostelBatchRecovery {
-  readonly impactedBatchIds: ReadonlyArray<string>;
-  readonly workedBatchIds: ReadonlyArray<string>;
-  readonly pendingBatchIds: ReadonlyArray<string>;
-  readonly allWorked: boolean;
-  readonly statusRowsFound: number;
-  readonly lookupTimeRange: {
-    readonly start: string;
-    readonly end: string;
-  };
-}
-
-export interface VerifyPostelBatchesConfig {
-  readonly id: string;
-  readonly label: string;
-  readonly fromStep: string;
-  readonly logGroup: string;
-  readonly recoveryAfterMinutes?: number;
-}
 
 /**
  * Verifies the eventual outcome of every POSTEL batch found in the alarm
@@ -86,7 +67,7 @@ export class VerifyPostelBatchesStep extends OperationalStep<PostelBatchRecovery
   getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
     const timeRange = this.resolveLookupTimeRange(context);
     return {
-      queryProfileId: SEND_SERVICE_PROFILE.id,
+      queryProfileId: service.SEND_SERVICE_PROFILE.id,
       queryKind: 'postel-batch-recovery',
       identifierMode: 'batch-id',
       sourceStep: this.fromStep,
@@ -110,8 +91,8 @@ export class VerifyPostelBatchesStep extends OperationalStep<PostelBatchRecovery
   }
 
   override async execute(context: OperationalContext): Promise<StepResult<PostelBatchRecovery>> {
-    return executeStep('POSTEL batch recovery check', async () => {
-      const upstream = readStepOutput<CloudWatchRows>(context, this.fromStep);
+    return executeStep(context, 'POSTEL batch recovery check', async () => {
+      const upstream = readStepOutput<CloudWatchLogsRows>(context, this.fromStep);
       if (!upstream.ok) return upstream.failure;
 
       const impactedBatchIds = extractImpactedBatchIds(upstream.value);
@@ -139,7 +120,6 @@ export class VerifyPostelBatchesStep extends OperationalStep<PostelBatchRecovery
         label: `Verifica batch POSTEL: ${String(impactedBatchIds.length)} batch impattati`,
       });
       const queryResult = await executeCloudWatchLogsQuery(context, [this.logGroup], this.query, timeRange, {
-        ...(context.signal !== undefined ? { signal: context.signal } : {}),
         logGroupResolutionMode: 'search-configured-profiles',
         paginateResults: true,
       });
@@ -184,7 +164,7 @@ export class VerifyPostelBatchesStep extends OperationalStep<PostelBatchRecovery
   }
 }
 
-function extractImpactedBatchIds(rows: CloudWatchRows): ReadonlyArray<string> {
+function extractImpactedBatchIds(rows: CloudWatchLogsRows): ReadonlyArray<string> {
   const ids = new Set<string>();
   for (const row of rows) {
     const traceId = fieldValue(row, ['trace_id', '@trace_id']);
@@ -194,7 +174,7 @@ function extractImpactedBatchIds(rows: CloudWatchRows): ReadonlyArray<string> {
   return [...ids];
 }
 
-function countRowsWithoutBatch(rows: CloudWatchRows): number {
+function countRowsWithoutBatch(rows: CloudWatchLogsRows): number {
   let count = 0;
   for (const row of rows) {
     const traceId = fieldValue(row, ['trace_id', '@trace_id']);
@@ -203,7 +183,7 @@ function countRowsWithoutBatch(rows: CloudWatchRows): number {
   return count;
 }
 
-function extractWorkedBatchIds(rows: CloudWatchRows): ReadonlySet<string> {
+function extractWorkedBatchIds(rows: CloudWatchLogsRows): ReadonlySet<string> {
   const ids = new Set<string>();
   for (const row of rows) {
     const id = fieldValue(row, ['batchId']);
@@ -257,12 +237,9 @@ function formatBatchIdSamples(ids: ReadonlyArray<string>): string {
   return omitted > 0 ? `${samples} (+${String(omitted)} ulteriori)` : samples;
 }
 
-function fieldValue(
-  row: ReadonlyArray<GOLogsInsightsResultField>,
-  candidates: ReadonlyArray<string>,
-): string | undefined {
+function fieldValue(row: CloudWatchLogsRow, candidates: ReadonlyArray<string>): string | undefined {
   for (const candidate of candidates) {
-    const value = row.find((field) => field.field === candidate)?.value;
+    const value = readRowField(row, candidate);
     if (value !== undefined) return value;
   }
   return undefined;

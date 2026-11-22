@@ -1,7 +1,9 @@
-import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { LogLine } from './LogLine.js';
 import { normalizeOutputValue } from '../../../output/outputValues.js';
+import type { CloudWatchLogsRow } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRow.js';
+import type { CloudWatchLogsRows } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRows.js';
 
 /** Field names carrying the log message, in priority order. */
 const MESSAGE_FIELDS: ReadonlyArray<string> = ['@message', 'message'];
@@ -21,10 +23,7 @@ const TIMESTAMP_FIELDS: ReadonlyArray<string> = ['@timestamp', 'timestamp'];
  * @param fieldNames - Field names to try, in priority order
  * @returns The raw value of the first field that carries content
  */
-export function readFirstRowField(
-  row: ReadonlyArray<GOLogsInsightsResultField>,
-  fieldNames: ReadonlyArray<string>,
-): string | undefined {
+export function readFirstRowField(row: CloudWatchLogsRow, fieldNames: ReadonlyArray<string>): string | undefined {
   for (const fieldName of fieldNames) {
     const value = readRowField(row, fieldName);
     if (normalizeOutputValue(value) !== undefined) return value;
@@ -43,10 +42,7 @@ export function readFirstRowField(
  * @param maxLogLines - Maximum number of lines to keep
  * @returns The trailing log lines, in chronological order
  */
-export function extractRecentLogLines(
-  rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
-  maxLogLines: number,
-): ReadonlyArray<LogLine> {
+export function extractRecentLogLines(rows: CloudWatchLogsRows, maxLogLines: number): ReadonlyArray<LogLine> {
   const logLines = rows
     .map(rowToLogLine)
     .filter((line): line is LogLine => line !== undefined)
@@ -54,7 +50,7 @@ export function extractRecentLogLines(
   return logLines.slice(Math.max(0, logLines.length - maxLogLines));
 }
 
-function rowToLogLine(row: ReadonlyArray<GOLogsInsightsResultField>): LogLine | undefined {
+function rowToLogLine(row: CloudWatchLogsRow): LogLine | undefined {
   const message = normalizeOutputValue(readFirstRowField(row, MESSAGE_FIELDS));
   if (message === undefined) return undefined;
   return {

@@ -1,30 +1,29 @@
-import type { ErrorTreeNode } from '../../../engine/types/ErrorTreeNode.js';
-import type { IdentifierObservation } from '../../../engine/types/IdentifierObservation.js';
-import type { EvidenceIdentifierKind } from '../../../engine/types/EvidenceIdentifierKind.js';
-import type { RunbookExecutionResult } from '../../../engine/types/RunbookExecutionResult.js';
-import type { TreeChain } from '../../../engine/types/TreeChain.js';
-import type { TreeChainGroup } from '../../../engine/types/TreeChainGroup.js';
+import { omitUndefined } from '@pagopa/go-common/utils';
+import type {
+  CoverageEntry,
+  ErrorChainInterruptionReason,
+  ErrorTreeNode,
+  EvidenceIdentifierKind,
+  IdentifierObservation,
+  RunbookExecutionResult,
+  TreeChain,
+  TreeChainGroup,
+} from '../../../engine/index.js';
+import { canonicalReadIdentifier } from '../../../engine/internal.js';
 import type { ErrorChainGroup } from './ErrorChainGroup.js';
 import type { ErrorChainInterruption } from './ErrorChainInterruption.js';
-import type { ErrorChainInterruptionReason } from '../../../engine/types/ErrorChainInterruptionReason.js';
 import type { ErrorChainMember } from './ErrorChainMember.js';
 import type { ErrorChainNode } from './ErrorChainNode.js';
-import type { CoverageEntry } from '../../../engine/types/CoverageEntry.js';
-import { canonicalReadIdentifier } from '../../../engine/reads/canonicalReadIdentifier.js';
 import type { ErrorChainRoute } from './ErrorChainRoute.js';
+import { ErrorTreeView } from './tree/ErrorTreeView.js';
+import { mergeObservations } from './tree/mergeObservations.js';
+import { isEarlier } from './isEarlier.js';
 
 /** Target of the single node of a window-level chain. */
 const WINDOW_TARGET = 'window';
 
 /** Members shown as samples of a group. */
 const MAX_SAMPLES = 10;
-
-/** Correlation keys that are typed identifiers, with their kind. */
-const CORRELATION_KINDS: ReadonlyMap<string, EvidenceIdentifierKind> = new Map([
-  ['requestId', 'requestId'],
-  ['traceId', 'traceId'],
-  ['fallbackUuid', 'fallbackUuid'],
-]);
 
 /**
  * Builds the error chains of an execution.
@@ -43,10 +42,18 @@ const CORRELATION_KINDS: ReadonlyMap<string, EvidenceIdentifierKind> = new Map([
  * @returns The chain groups, in time order; empty when there is nothing to report
  */
 export function buildErrorChains(result: RunbookExecutionResult): ReadonlyArray<ErrorChainGroup> {
-  if (result.tree !== undefined && result.chains !== undefined) {
-    const byId = new Map(result.tree.map((node) => [node.id, node]));
-    return result.chains.map((group) => treeChainGroup(group, byId));
-  }
+  return errorChainsOf(result, new ErrorTreeView(result));
+}
+
+/**
+ * {@link buildErrorChains} with the view of the tree already built.
+ *
+ * @param result - Result of the execution
+ * @param view - The view of its error tree
+ * @returns The chain groups, in time order
+ */
+export function errorChainsOf(result: RunbookExecutionResult, view: ErrorTreeView): ReadonlyArray<ErrorChainGroup> {
+  if (view.hasTree && result.chains !== undefined) return view.chains.map((group) => treeChainGroup(group, view));
   const named = namedIdentifiers(result.coverage);
   return result.detections.map((detection): ErrorChainGroup => ({
     nodes: [
@@ -62,8 +69,7 @@ export function buildErrorChains(result: RunbookExecutionResult): ReadonlyArray<
     interruptions: [],
     incompleteEvidence: result.windowIncomplete || observesGap(detection.observations, named),
     count: 1,
-    ...(detection.firstSeenAt !== undefined ? { firstSeenAt: detection.firstSeenAt } : {}),
-    ...(detection.lastSeenAt !== undefined ? { lastSeenAt: detection.lastSeenAt } : {}),
+    ...omitUndefined({ firstSeenAt: detection.firstSeenAt, lastSeenAt: detection.lastSeenAt }),
     routes: [],
     samples: [{ key: detection.knownCase.id, correlation: {} }],
     members: [
@@ -111,13 +117,10 @@ function observesGap(
 }
 
 /** A group of the error tree, as the output reports it. */
-function treeChainGroup(group: TreeChainGroup, byId: ReadonlyMap<string, ErrorTreeNode>): ErrorChainGroup {
+function treeChainGroup(group: TreeChainGroup, view: ErrorTreeView): ErrorChainGroup {
   const oldest = group.members[0];
-  const nodes = (oldest?.nodeIds ?? []).flatMap((id) => {
-    const node = byId.get(id);
-    return node === undefined ? [] : [chainNode(node)];
-  });
-  const members = group.members.map((chain) => chainMember(chain, byId));
+  const nodes = oldest === undefined ? [] : view.chainNodes(oldest).map((node) => chainNode(node, view));
+  const members = group.members.map((chain) => chainMember(chain, view));
   const firstSeenAt = earliest(group.members.map((chain) => chain.firstSeenAt));
   const lastSeenAt = latest(group.members.map((chain) => chain.lastSeenAt));
   return {
@@ -126,17 +129,16 @@ function treeChainGroup(group: TreeChainGroup, byId: ReadonlyMap<string, ErrorTr
     interruptions: interruptionsOf(group.members),
     incompleteEvidence: group.members.some((chain) => chain.incompleteEvidence),
     count: group.members.length,
-    ...(firstSeenAt !== undefined ? { firstSeenAt } : {}),
-    ...(lastSeenAt !== undefined ? { lastSeenAt } : {}),
+    ...omitUndefined({ firstSeenAt, lastSeenAt }),
     routes: routesOf(members),
     samples: members.slice(0, MAX_SAMPLES).map(({ key, correlation }) => ({ key, correlation })),
     members,
-    observations: observationsOf(group.members, byId),
+    observations: observationsOf(group.members, view),
   };
 }
 
 /** A node of the tree as a node of a chain. */
-function chainNode(node: ErrorTreeNode): ErrorChainNode {
+function chainNode(node: ErrorTreeNode, view: ErrorTreeView): ErrorChainNode {
   const caseIds = node.detections.map((detection) => detection.knownCase.id);
   const description = [...new Set(node.detections.map((detection) => detection.knownCase.description))].join(' + ');
   return {
@@ -145,16 +147,13 @@ function chainNode(node: ErrorTreeNode): ErrorChainNode {
     label: node.label,
     ...(description !== '' && description !== node.label ? { description } : {}),
     caseIds,
-    status: node.status === 'failed' ? 'failed' : caseIds.length > 0 ? 'recognized' : 'unrecognized',
+    status: view.statusOf(node),
   };
 }
 
 /** A chain of the tree as a member of its group: the keys of its nodes, their correlation and the routes taken. */
-function chainMember(chain: TreeChain, byId: ReadonlyMap<string, ErrorTreeNode>): ErrorChainMember {
-  const nodes = chain.nodeIds.flatMap((id) => {
-    const node = byId.get(id);
-    return node === undefined ? [] : [node];
-  });
+function chainMember(chain: TreeChain, view: ErrorTreeView): ErrorChainMember {
+  const nodes = view.chainNodes(chain);
   const correlation: Record<string, string> = {};
   for (const node of nodes) {
     for (const [key, value] of Object.entries(node.correlation)) correlation[key] ??= value;
@@ -203,41 +202,18 @@ function routesOf(members: ReadonlyArray<ErrorChainMember>): ReadonlyArray<Error
  * The identifiers of the members: those read from the evidence of their cases and those of the correlation of their
  * nodes, each with its earliest time.
  */
-function observationsOf(
-  chains: ReadonlyArray<TreeChain>,
-  byId: ReadonlyMap<string, ErrorTreeNode>,
-): ReadonlyArray<IdentifierObservation> {
-  const observations = new Map<string, IdentifierObservation>();
-  const offer = (observation: IdentifierObservation): void => {
-    const key = `${observation.kind}:${observation.value}`;
-    const previous = observations.get(key);
-    if (previous !== undefined && !isEarlier(observation.observedAt, previous.observedAt)) return;
-    observations.set(key, observation);
-  };
+function observationsOf(chains: ReadonlyArray<TreeChain>, view: ErrorTreeView): ReadonlyArray<IdentifierObservation> {
   const visited = new Set<string>();
+  const candidates: IdentifierObservation[] = [];
   for (const chain of chains) {
-    for (const id of chain.nodeIds) {
-      const node = byId.get(id);
-      if (node === undefined || visited.has(id)) continue;
-      visited.add(id);
-      for (const detection of node.detections) for (const observation of detection.observations) offer(observation);
-      for (const [key, value] of Object.entries(node.correlation)) {
-        const kind = CORRELATION_KINDS.get(key);
-        if (kind === undefined || value === '') continue;
-        offer({ kind, value, ...(node.occurredAt !== undefined ? { observedAt: node.occurredAt } : {}) });
-      }
+    for (const node of view.chainNodes(chain)) {
+      if (visited.has(node.id)) continue;
+      visited.add(node.id);
+      for (const detection of node.detections) candidates.push(...detection.observations);
+      candidates.push(...view.correlationObservations(node));
     }
   }
-  return [...observations.values()].sort((a, b) =>
-    isEarlier(a.observedAt, b.observedAt) ? -1 : isEarlier(b.observedAt, a.observedAt) ? 1 : 0,
-  );
-}
-
-/** Whether a time comes before another; an untimed one never does, and is preceded by any timed one. */
-function isEarlier(candidate: string | undefined, other: string | undefined): boolean {
-  if (candidate === undefined) return false;
-  if (other === undefined) return true;
-  return Date.parse(candidate) < Date.parse(other);
+  return mergeObservations(candidates);
 }
 
 /** The earliest of some ISO times. */

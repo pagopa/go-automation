@@ -1,10 +1,7 @@
 import type { RunbookProduct } from '../../../registration/RunbookProduct.js';
-import type { CaseAction } from '../../../../../engine/types/CaseAction.js';
-import type { KnownCase } from '../../../../../engine/types/KnownCase.js';
+import type { CaseAction, KnownCase, PipelineHook, RunbookMetadata } from '../../../../../engine/index.js';
 import type { OccurrenceTimeWindow } from '../../../time/occurrence/OccurrenceTimeWindow.js';
-import type { RunbookMetadata } from '../../../../../engine/types/RunbookMetadata.js';
 import type { RunbookAnalysisDefaults } from '../../../analysis/RunbookAnalysisDefaults.js';
-import type { PipelineHook } from '../../../../../engine/types/PipelineHook.js';
 import type { ServicePipelineAnchor } from './ServicePipelineAnchor.js';
 import type { ServiceLogQueryProfile } from '../profiles/ServiceLogQueryProfile.js';
 import type { ServiceDescriptor } from './ServiceDescriptor.js';

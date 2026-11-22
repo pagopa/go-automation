@@ -1,10 +1,9 @@
 import type { GOLogger } from '@pagopa/go-common/logging';
 
-import { assertRequiredServices } from '../../../engine/core/assertRequiredServices.js';
-import { RunbookEngine } from '../../../engine/core/RunbookEngine.js';
+import { assertRequiredServices } from '../../../engine/internal.js';
+import { RunbookEngine } from '../../../engine/index.js';
+import type { Runbook, RunbookExecutionResult } from '../../../engine/index.js';
 import type { AwsExecutionEnvironment } from '../telemetry/AwsExecutionEnvironment.js';
-import type { Runbook } from '../../../engine/types/Runbook.js';
-import type { RunbookExecutionResult } from '../../../engine/types/RunbookExecutionResult.js';
 import { ANALYSIS_LOG_ACTION_RENDERER } from '../analysis/reporting/ANALYSIS_LOG_ACTION_RENDERER.js';
 import { OPERATIONAL_SERVICE_CAPABILITIES } from '../services/OPERATIONAL_SERVICE_CAPABILITIES.js';
 import type { ServiceRegistry } from '../services/ServiceRegistry.js';

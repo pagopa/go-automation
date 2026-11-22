@@ -1,7 +1,7 @@
 import type { CoverageEntry } from '../types/CoverageEntry.js';
 import type { CoverageReason } from '../types/CoverageReason.js';
 import type { EvidenceIdentifierKind } from '../types/EvidenceIdentifierKind.js';
-import type { ReadIdentifier } from '../types/ReadIdentifier.js';
+import type { EvidenceIdentifier } from '../types/EvidenceIdentifier.js';
 import type { ReadState } from '../types/ReadState.js';
 import type { RunbookReads } from '../types/RunbookReads.js';
 import type { StepCoverage } from '../types/StepCoverage.js';
@@ -10,6 +10,9 @@ import type { ReadBatch } from './ReadBatch.js';
 import type { ReadDescent } from './ReadDescent.js';
 import type { ReadScope } from './ReadScope.js';
 import { canonicalReadIdentifier } from './canonicalReadIdentifier.js';
+import { identifierKey } from './identifierKey.js';
+import type { BatchRecord } from './BatchRecord.js';
+import type { Gap } from './Gap.js';
 
 /** Longest coverage detail recorded for a gap. */
 const MAX_COVERAGE_DETAIL = 200;
@@ -30,18 +33,6 @@ const IDENTIFIER_KINDS: ReadonlySet<string> = new Set<EvidenceIdentifierKind>([
   'fallbackUuid',
   'cid',
 ]);
-
-/** A gap attributed to a scope or to a batch: its state and, when it names some, the keys of its identifiers. */
-interface Gap {
-  readonly state: ReadState;
-  readonly identifiers?: ReadonlySet<string>;
-}
-
-/** A physical read of a level: failed as a whole, or with its gaps. */
-interface BatchRecord {
-  readonly failed: boolean;
-  readonly gaps: ReadonlyArray<Gap>;
-}
 
 /**
  * The gaps of the reads of one execution, and the answers about them: the state of the read of a step, with or
@@ -123,7 +114,7 @@ export class ReadLedger {
    * @param result - Result of the read
    * @returns The batch, to attach to the descents it read
    */
-  recordBatch(stepId: string, identifiers: ReadonlyArray<ReadIdentifier>, result: TreeLevelReadResult): ReadBatch {
+  recordBatch(stepId: string, identifiers: ReadonlyArray<EvidenceIdentifier>, result: TreeLevelReadResult): ReadBatch {
     const batch: ReadBatch = { stepId };
     const label = `${String(identifiers.length)} identificatori`;
     if (!result.success) {
@@ -165,13 +156,13 @@ export class ReadLedger {
    * @param batch - Batch that read it
    * @param identifier - Identifier of the descent in the batch
    */
-  attemptDescent(descent: ReadDescent, batch: ReadBatch, identifier: ReadIdentifier): void {
+  attemptDescent(descent: ReadDescent, batch: ReadBatch, identifier: EvidenceIdentifier): void {
     const record = this.batches.get(batch);
     if (record === undefined || record.failed) {
       this.markDescent(descent, 'unavailable');
       return;
     }
-    const key = keyOf(canonicalReadIdentifier(identifier) ?? identifier);
+    const key = identifierKey(canonicalReadIdentifier(identifier) ?? identifier);
     this.markDescent(descent, worstOf(record.gaps.filter((gap) => appliesTo(gap, key))));
   }
 
@@ -256,7 +247,7 @@ export class ReadLedger {
     for (const [kind, value] of Object.entries(correlation)) {
       if (!isIdentifierKind(kind)) continue;
       const identifier = canonicalReadIdentifier({ kind, value });
-      if (identifier !== undefined) keys.add(keyOf(identifier));
+      if (identifier !== undefined) keys.add(identifierKey(identifier));
     }
     if (keys.size === 0) return false;
     for (let current = scope.parent; current !== undefined; current = current.parent) {
@@ -318,8 +309,8 @@ export class ReadLedger {
     this.scopeGaps.set(scope, byStep);
   }
 
-  private stateOf(scope: ReadScope, stepId: string, identifier: ReadIdentifier | undefined): ReadState {
-    const key = identifier === undefined ? undefined : keyOf(canonicalReadIdentifier(identifier) ?? identifier);
+  private stateOf(scope: ReadScope, stepId: string, identifier: EvidenceIdentifier | undefined): ReadState {
+    const key = identifier === undefined ? undefined : identifierKey(canonicalReadIdentifier(identifier) ?? identifier);
     let state: ReadState = 'queried';
     for (let current: ReadScope | undefined = scope; current !== undefined; current = current.parent) {
       for (const gap of this.scopeGaps.get(current)?.get(stepId) ?? []) {
@@ -329,8 +320,8 @@ export class ReadLedger {
     return state;
   }
 
-  private hasGapFor(scope: ReadScope, stepId: string, identifier: ReadIdentifier): boolean {
-    const key = keyOf(canonicalReadIdentifier(identifier) ?? identifier);
+  private hasGapFor(scope: ReadScope, stepId: string, identifier: EvidenceIdentifier): boolean {
+    const key = identifierKey(canonicalReadIdentifier(identifier) ?? identifier);
     for (let current: ReadScope | undefined = scope; current !== undefined; current = current.parent) {
       for (const gap of this.scopeGaps.get(current)?.get(stepId) ?? []) {
         if (gap.identifiers?.has(key) === true) return true;
@@ -359,19 +350,19 @@ function stateOfReason(reason: CoverageReason | undefined): ReadState {
 }
 
 /** The gap of a reason, for the identifiers it names. */
-function gapOf(reason: CoverageReason | undefined, identifiers: ReadonlyArray<ReadIdentifier> | undefined): Gap {
+function gapOf(reason: CoverageReason | undefined, identifiers: ReadonlyArray<EvidenceIdentifier> | undefined): Gap {
   return {
     state: stateOfReason(reason),
-    ...(identifiers !== undefined ? { identifiers: new Set(identifiers.map(keyOf)) } : {}),
+    ...(identifiers !== undefined ? { identifiers: new Set(identifiers.map(identifierKey)) } : {}),
   };
 }
 
 /** The identifiers of a gap in their canonical form; nothing for a gap of the whole read, or with an invalid one. */
 function validIdentifiers(
-  identifiers: ReadonlyArray<ReadIdentifier> | undefined,
-): ReadonlyArray<ReadIdentifier> | undefined {
+  identifiers: ReadonlyArray<EvidenceIdentifier> | undefined,
+): ReadonlyArray<EvidenceIdentifier> | undefined {
   if (identifiers === undefined || identifiers.length === 0) return undefined;
-  const valid: ReadIdentifier[] = [];
+  const valid: EvidenceIdentifier[] = [];
   for (const identifier of identifiers) {
     const canonical = canonicalReadIdentifier(identifier);
     if (canonical === undefined) return undefined;
@@ -385,7 +376,7 @@ function entryOf(
   stepId: string,
   declared: StepCoverage,
   detail: string | undefined,
-  identifiers: ReadonlyArray<ReadIdentifier> | undefined,
+  identifiers: ReadonlyArray<EvidenceIdentifier> | undefined,
 ): CoverageEntry {
   return {
     stepId,
@@ -422,11 +413,6 @@ function worstOf(gaps: ReadonlyArray<Gap>): ReadState {
 /** The more severe of two states. */
 function worse(a: ReadState, b: ReadState): ReadState {
   return SEVERITY[a] >= SEVERITY[b] ? a : b;
-}
-
-/** The key of an identifier. */
-function keyOf(identifier: ReadIdentifier): string {
-  return `${identifier.kind}:${identifier.value}`;
 }
 
 /** Whether a correlation key is a kind of identifier. */

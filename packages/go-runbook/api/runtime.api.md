@@ -55,10 +55,10 @@ export interface BindServicesToOccurrenceOptions {
 }
 ```
 
-### `buildCatalogOutputContext` (value)
+### `buildOccurrenceParams` (value)
 
 ```ts
-const buildCatalogOutputContext: RunbookOutputContextBuilderFn;
+export declare function buildOccurrenceParams(runbook: Runbook, occurrence: OccurrenceParamsInput): ReadonlyMap<string, string>;
 ```
 
 ### `buildServiceRegistry` (value)
@@ -79,7 +79,7 @@ export declare function computeRunbookTimeRange(runbook: Pick<Runbook, 'occurren
 ### `computeTimeRange` (value)
 
 ```ts
-export declare function computeTimeRange(reference: TimeRangeReference, timeWindow: number | OccurrenceTimeWindow): {
+export declare function computeTimeRange(reference: TimeRangeReference, timeWindow: OccurrenceTimeWindow): {
     startTime: string;
     endTime: string;
 };
@@ -162,6 +162,19 @@ export interface ExecuteRunbookForOccurrenceInput {
 }
 ```
 
+### `OccurrenceParamsInput` (type)
+
+```ts
+export interface OccurrenceParamsInput {
+    readonly alarmName: string;
+    readonly alarmDatetime: string;
+    readonly alarmDatetimeEnd?: string;
+    readonly awsAccountId?: string;
+    readonly awsRegion: string;
+    readonly awsProfiles: ReadonlyArray<string>;
+}
+```
+
 ### `OccurrenceServiceBindingMode` (type)
 
 ```ts
@@ -201,9 +214,11 @@ export declare function resolveOccurrenceTimeWindow(runbook: Pick<Runbook, 'occu
 ```ts
 export declare class RuntimeAwsAccountsPort extends AwsAccountsDirectoryPort {
     private readonly runtimeOptions;
+    private readonly readerOf;
     constructor(runtimeOptions: RuntimeAwsAccountsPortOptions);
     bindToOccurrence(occurrence: AwsAccountsOccurrence, activeOperations: AWSActiveOperationRegistry): RuntimeAwsAccountsPort;
     protected createReader(account: ResolvedAwsAccount): Promise<AWSCloudWatchLogsQueryService>;
+    private accountReaderFactory;
     protected createExactReader(profileSet: AWSProfileSet, target: AWSCloudWatchLogsTarget): AWSCloudWatchLogsQueryService;
     private chooseProfile;
     private diagnose;
@@ -277,12 +292,6 @@ export declare class UnavailableAwsAccountsPort implements AwsAccountsPort {
 
 Package types used by the symbols above that no entrypoint exports. Export them or make them internal before `1.0.0`.
 
-### `ActionType` (dist/engine/tracing/ActionTrace.d.ts)
-
-```ts
-export type ActionType = 'log' | 'notify' | 'update' | 'escalate' | 'composite' | 'fallback';
-```
-
 ### `AwsAccountsDirectoryPort` (dist/toolkits/common/accounts/AwsAccountsDirectoryPort.d.ts)
 
 ```ts
@@ -304,7 +313,7 @@ export declare abstract class AwsAccountsDirectoryPort implements AwsAccountsPor
 }
 ```
 
-### `ContainsCondition` (dist/engine/types/Condition.d.ts)
+### `ContainsCondition` (dist/engine/types/ContainsCondition.d.ts)
 
 ```ts
 export type ContainsCondition = {
@@ -320,10 +329,10 @@ export type ContainsCondition = {
 };
 ```
 
-### `EvidenceRetention` (dist/toolkits/common/output/StepEvidence.d.ts)
+### `EvidenceRetention` (dist/toolkits/common/output/EvidenceRetention.d.ts)
 
 ```ts
-type EvidenceRetention = {
+export type EvidenceRetention = {
     readonly mode: 'all';
 } | {
     readonly mode: 'latest';
@@ -338,25 +347,10 @@ type EvidenceRetention = {
 export type ExecutionEnvironmentExtensionsAugmentation = 'executionEnvironment';
 ```
 
-### `FlowDirectiveString` (dist/engine/types/FlowDirective.d.ts)
-
-```ts
-export type FlowDirectiveString = 'continue' | 'stop' | (string & {});
-```
-
 ### `KnownCaseExtensionsAugmentation` (dist/toolkits/common/augmentations/KnownCaseExtensions.d.ts)
 
 ```ts
 export type KnownCaseExtensionsAugmentation = 'knownCase';
-```
-
-### `LogActionRow` (dist/engine/types/CaseAction.d.ts)
-
-```ts
-export type LogActionRow = readonly [
-    label: string,
-    template: string
-];
 ```
 
 ### `RunbookExtensionsAugmentation` (dist/toolkits/common/augmentations/RunbookExtensions.d.ts)
@@ -374,10 +368,10 @@ export interface RunbookOutputDefinition {
 }
 ```
 
-### `RunbookOutputField` (dist/toolkits/common/output/RunbookOutputDefinition.d.ts)
+### `RunbookOutputField` (dist/toolkits/common/output/RunbookOutputField.d.ts)
 
 ```ts
-interface RunbookOutputField {
+export interface RunbookOutputField {
     readonly name: string;
     readonly label: string;
     readonly ref: `vars.${string}` | `params.${string}`;
@@ -408,10 +402,10 @@ export type StepEvidence = (StepEvidenceBase & {
 });
 ```
 
-### `StepEvidenceBase` (dist/toolkits/common/output/StepEvidence.d.ts)
+### `StepEvidenceBase` (dist/toolkits/common/output/StepEvidenceBase.d.ts)
 
 ```ts
-interface StepEvidenceBase {
+export interface StepEvidenceBase {
     readonly id: string;
     readonly label: string;
     readonly retention: EvidenceRetention;

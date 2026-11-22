@@ -10,6 +10,11 @@ const RUNBOOK_URL =
 const CDC_DESIGN_URL =
   'https://pagopa.atlassian.net/wiki/spaces/SENDFE/pages/3254747173/2026+Lambda+di+Pre-processing+e+Data+Quality';
 
+/**
+ * Builds the pn-cdc-preproc-data-quality-filter-LogInvocationErrors-Alarm runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return lambda.createSendLambdaAlarmRunbook({
     id: CDC_PREPROC_DATA_QUALITY_FILTER_ALARM,

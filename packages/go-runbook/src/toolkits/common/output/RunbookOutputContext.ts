@@ -1,3 +1,6 @@
+import type { RunbookEvidence } from './RunbookEvidence.js';
+import type { RunbookResultField } from './RunbookResultField.js';
+
 /**
  * Generic context included in a runbook result output.
  *
@@ -11,23 +14,11 @@ export interface RunbookOutputContext {
   readonly details?: Readonly<Record<string, unknown>>;
 }
 
-export interface RunbookResultField {
-  readonly name: string;
-  readonly label: string;
-  readonly value: string;
-}
-
-export interface RunbookEvidence {
-  readonly id: string;
-  readonly label: string;
-  readonly type: 'summary' | 'log-sample' | 'step-output' | 'artifact';
-  readonly sourceStep?: string;
-  /** The error node the evidence belongs to (`request-id > e1`), in a runbook with an error tree. */
-  readonly node?: string;
-  readonly items?: ReadonlyArray<Readonly<Record<string, string>>>;
-  readonly truncated?: boolean;
-}
-
+/**
+ * Output context without fields and evidence.
+ *
+ * @returns An empty {@link RunbookOutputContext}
+ */
 export function emptyRunbookOutputContext(): RunbookOutputContext {
   return { fields: [], evidence: [] };
 }

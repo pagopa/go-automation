@@ -1,6 +1,7 @@
-import type { TreeNode } from '@pagopa/go-common/render';
-
-import type { RunbookReporter } from '../../../../../engine/reporting/RunbookReporter.js';
+import type { RunbookReporter } from '../../../../../engine/index.js';
+import { queryFailedNode } from '../../../reporting/queryFailedNode.js';
+import { normalizeOutputValue } from '../../../output/outputValues.js';
+import type { ApiGwAuthorizerReporterInput } from './ApiGwAuthorizerReporterInput.js';
 
 /**
  * Renders the API Gateway analysis flow as a structured, human-readable
@@ -53,16 +54,11 @@ export class ApiGwReporter {
   }): void {
     this.reporter.add({ label: `Errori HTTP individuati: ${args.errorCount} (status ${args.statusCode || 'n/a'})` });
 
-    const method =
-      args.httpMethod !== undefined && args.httpMethod !== '' && args.httpMethod !== '-' ? args.httpMethod : '';
-    const path = args.path !== undefined && args.path !== '' && args.path !== '-' ? args.path : '';
-    if (method !== '' || path !== '') {
-      const label = method !== '' && path !== '' ? `${method} ${path}` : method !== '' ? method : path;
-      this.reporter.add({ label: `Endpoint: ${label}` });
-    }
+    this.endpoint(args.httpMethod, args.path);
 
-    if (args.errorMessage !== undefined && args.errorMessage !== '' && args.errorMessage !== '-') {
-      this.reporter.add({ label: `Error message API GW: ${args.errorMessage}` });
+    const errorMessage = normalizeOutputValue(args.errorMessage);
+    if (errorMessage !== undefined) {
+      this.reporter.add({ label: `Error message API GW: ${errorMessage}` });
     }
 
     const traceLabel = args.traceIdLabel ?? 'Trace ID';
@@ -73,17 +69,7 @@ export class ApiGwReporter {
     }
   }
 
-  apiGwAuthorizerEvaluation(args: {
-    readonly lambdaName: string;
-    readonly authorizerStatus?: string;
-    readonly authorizerLatencyMs?: number;
-    readonly authorizerRequestId?: string;
-    readonly timeoutMs?: number;
-    readonly path?: string;
-    readonly httpMethod?: string;
-    readonly outcome: 'none' | 'timeout' | 'error';
-    readonly failureType?: string;
-  }): void {
+  apiGwAuthorizerEvaluation(args: ApiGwAuthorizerReporterInput): void {
     this.reporter.section('Verifica Lambda authorizer API Gateway');
     this.reporter.add({ label: `Lambda: ${args.lambdaName}` });
     this.reporter.add({ label: `authorizerStatus: ${formatOptional(args.authorizerStatus)}` });
@@ -93,12 +79,7 @@ export class ApiGwReporter {
       this.reporter.add({ label: `timeout configurato: ${args.timeoutMs} ms` });
     }
 
-    const method = args.httpMethod !== undefined && args.httpMethod !== '' ? args.httpMethod : '';
-    const path = args.path !== undefined && args.path !== '' ? args.path : '';
-    if (method !== '' || path !== '') {
-      const label = method !== '' && path !== '' ? `${method} ${path}` : method !== '' ? method : path;
-      this.reporter.add({ label: `Endpoint: ${label}` });
-    }
+    this.endpoint(args.httpMethod, args.path);
 
     const outcome =
       args.outcome === 'none'
@@ -133,14 +114,6 @@ export class ApiGwReporter {
     this.reporter.section('Verifica execution log API Gateway');
   }
 
-  /** Reports that the execution-log query was skipped before reaching AWS. */
-  apiGwExecutionLogSkipped(logGroup: string, reason: string): void {
-    this.reporter.add({
-      label: '⚠ Query execution log non eseguita',
-      children: [{ label: `Log group: ${logGroup}` }, { label: `Causa: ${reason}` }],
-    });
-  }
-
   /**
    * Reports that the latest CloudWatch query attempt **failed** — the
    * AWS call threw (typically a `ResourceNotFoundException` on a
@@ -153,18 +126,20 @@ export class ApiGwReporter {
    * runs at the end).
    */
   queryFailed(logGroups: ReadonlyArray<string>, errorMessage: string): void {
-    const children: TreeNode[] = [];
-    if (logGroups.length > 0) {
-      children.push({ label: `Log group${logGroups.length === 1 ? '' : 's'}: ${logGroups.join(', ')}` });
-    }
-    children.push({ label: `Causa: ${errorMessage}` });
-    this.reporter.add({ label: '⚠ Query fallita', children });
+    this.reporter.add(queryFailedNode(logGroups, errorMessage));
+  }
+
+  /** The endpoint line, when the request has a method or a path. */
+  private endpoint(httpMethod: string | undefined, path: string | undefined): void {
+    const label = [normalizeOutputValue(httpMethod), normalizeOutputValue(path)]
+      .filter((part) => part !== undefined)
+      .join(' ');
+    if (label !== '') this.reporter.add({ label: `Endpoint: ${label}` });
   }
 }
 
 function formatOptional(value: string | undefined): string {
-  if (value === undefined || value.trim() === '' || value.trim() === '-') return 'non disponibile';
-  return value;
+  return normalizeOutputValue(value) ?? 'non disponibile';
 }
 
 function formatLatency(value: number | undefined): string {

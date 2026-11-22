@@ -1,4 +1,4 @@
-import type { CaseAction } from '../../../../../engine/types/CaseAction.js';
+import type { CaseAction } from '../../../../../engine/index.js';
 import { unknownCaseFallback, UNKNOWN_CASE_TITLE } from '../../../../common/analysis/reporting/unknownCaseFallback.js';
 import type { InteropApiGwAlarmConfig } from '../types/InteropApiGwAlarmConfig.js';
 
@@ -10,13 +10,13 @@ import type { InteropApiGwAlarmConfig } from '../types/InteropApiGwAlarmConfig.j
  * @returns A warning {@link CaseAction}
  */
 export function defaultInteropApiGwUnknownCaseFallback(config: InteropApiGwAlarmConfig): CaseAction {
-  const { application, queryProfile } = config;
+  const { alarm, queryProfile } = config;
   return unknownCaseFallback(UNKNOWN_CASE_TITLE, [
     ['Ambiente', '{{vars.interopEnvironment}}'],
     ['API Gateway ID', '{{vars.interopApiGwId}}'],
     [`Errori ${queryProfile.errorFamilyLabel} API Gateway`, '{{vars.apiGwErrorCount}}'],
-    [`Log applicativi ${application.serviceName}`, `{{vars.${application.varPrefix}LogCount}}`],
-    ['CID estratti', `{{vars.${application.varPrefix}CidCount}}`],
+    [`Log applicativi ${alarm.serviceName}`, `{{vars.${alarm.varPrefix}LogCount}}`],
+    ['CID estratti', `{{vars.${alarm.varPrefix}CidCount}}`],
     ['Log CID tracker', '{{vars.interopCidTrackerLogCount}}'],
   ]);
 }

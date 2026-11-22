@@ -18,13 +18,32 @@ export function applyPipelineHooks<TAnchor extends string>(
   anchor: TAnchor,
   reached: Set<TAnchor>,
 ): void {
-  reached.add(anchor);
-  for (const hook of hooks) {
-    if (hook.at !== anchor) {
-      continue;
-    }
+  for (const hook of pipelineHooksAt(hooks, anchor, reached)) {
     builder.step(hook.step, hook);
   }
+}
+
+/**
+ * The hooks registered at `anchor`, in declaration order, for a builder that places them itself (the steps of a
+ * level of the error tree). Records the anchor as reached, like {@link applyPipelineHooks}.
+ *
+ * @param hooks - Hooks declared by the runbook
+ * @param anchor - Point the builder has just reached
+ * @param reached - Set of anchors emitted so far, updated in place
+ * @returns The hooks at the anchor
+ *
+ * @example
+ * ```typescript
+ * const afterDescend = pipelineHooksAt(hooks, 'after-entry-read', reachedAnchors);
+ * ```
+ */
+export function pipelineHooksAt<TAnchor extends string>(
+  hooks: ReadonlyArray<PipelineHook<TAnchor>>,
+  anchor: TAnchor,
+  reached: Set<TAnchor>,
+): ReadonlyArray<PipelineHook<TAnchor>> {
+  reached.add(anchor);
+  return hooks.filter((hook) => hook.at === anchor);
 }
 
 /**

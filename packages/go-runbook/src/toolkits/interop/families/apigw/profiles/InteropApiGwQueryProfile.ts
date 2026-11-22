@@ -1,5 +1,5 @@
 import type { BuildInteropK8sApplicationLogsQueryFn } from '../../../applicationLogs/types/BuildInteropK8sApplicationLogsQueryFn.js';
-import type { BuildInteropApiGwAggregateQueryFn } from '../steps/QueryInteropApiGwAggregatesStep.js';
+import type { BuildInteropApiGwAggregateQueryFn } from '../steps/BuildInteropApiGwAggregateQueryFn.js';
 
 /**
  * The two queries an INTEROP API Gateway runbook runs, plus the ids that

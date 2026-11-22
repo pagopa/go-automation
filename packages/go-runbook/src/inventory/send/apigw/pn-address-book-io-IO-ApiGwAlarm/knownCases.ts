@@ -1,11 +1,16 @@
 import { all, any, type KnownCase, stepEvidenceMatches, varEquals, varMatches } from '../../../../engine/index.js';
-import { apiGwStatusIs, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import {
+  downstreamMarkerPattern,
+  apiGwStatusIs,
+  knownCase,
+  SEND_DOWNSTREAMS,
+} from '../../../../toolkits/send/index.js';
 /**
  * Known cases for the pn-address-book-io-IO-ApiGwAlarm runbook.
  */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   // ── Gateway Timeout 504 senza log applicativi su pn-user-attributes ────
-  // V02 §5.4: irrigidito ad AND status==504 + userAttributesLogCount==0.
+  // Irrigidito ad AND status==504 + userAttributesLogCount==0.
   knownCase({
     id: 'gateway-timeout-504',
     description: 'Gateway Timeout 504 senza log applicativi su pn-user-attributes',
@@ -81,7 +86,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     // righe matchate finisce nel trace via `contains.regex`.
     condition: stepEvidenceMatches(
       'query-pn-external-registries',
-      '\\[DOWNSTREAM\\] Service IO returned errors=500 Internal Server Error from (POST|PUT)',
+      downstreamMarkerPattern('IO', { status: '500 Internal Server Error', method: '(POST|PUT)' }),
     ),
     title: '500 da AppIO - Internal Server Error',
     resolution: 'Risoluzione non documentata.',

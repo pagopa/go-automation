@@ -3,10 +3,8 @@ import assert from 'node:assert/strict';
 
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { EvaluateApiGwAuthorizerFailureStep } from '../EvaluateApiGwAuthorizerFailureStep.js';
-import type {
-  ApiGwAuthorizerFailureInfo,
-  EvaluateApiGwAuthorizerFailureConfig,
-} from '../EvaluateApiGwAuthorizerFailureStep.js';
+import type { ApiGwAuthorizerFailureInfo } from '../ApiGwAuthorizerFailureInfo.js';
+import type { EvaluateApiGwAuthorizerFailureConfig } from '../EvaluateApiGwAuthorizerFailureConfig.js';
 import type { StepResult } from '../../../../../../engine/types/StepResult.js';
 import { API_GW_AUTHORIZER_LAMBDAS } from '../../../../../send/families/apigw/authorizers/ApiGwAuthorizerLambdaRegistry.js';
 import { SEND_API_GW_PROFILE } from '../../../../../send/families/apigw/profiles/SEND_API_GW_PROFILE.js';

@@ -35,9 +35,4 @@ describe('LambdaDownstreamLevelReader', () => {
     assert.deepEqual(cloudWatchLogs.queries[0]?.groups, ['/aws/lambda/pn-downstream']);
     assert.ok(cloudWatchLogs.queries[0]?.query.includes(A));
   });
-
-  it('is read by the engine, never as a step', async () => {
-    const result = await reader.execute();
-    assert.equal(result.success, false);
-  });
 });

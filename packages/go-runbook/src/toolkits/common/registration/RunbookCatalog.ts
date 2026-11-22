@@ -24,7 +24,7 @@ import type { RunbookCatalogOptions } from './RunbookCatalogOptions.js';
  *
  * The validation is internal and cannot be skipped: the only input it takes
  * from the inventory is the downstream catalog of each product, a mandatory
- * option (P17).
+ * option.
  */
 export class RunbookCatalog {
   private readonly registrationsByKey = new Map<string, RunbookRegistration>();

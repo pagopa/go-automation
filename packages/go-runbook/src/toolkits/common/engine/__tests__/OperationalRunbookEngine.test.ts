@@ -5,7 +5,6 @@ import { GOLogger } from '@pagopa/go-common/logging';
 
 import { RunbookEngine } from '../../../../engine/core/RunbookEngine.js';
 import { RunbookMissingServicesError } from '../../../../engine/errors/RunbookMissingServicesError.js';
-import { IfBranchStep } from '../../../../engine/steps/control/IfBranchStep.js';
 import { createTestWorkflowServices } from '../../../../engine/testing/createTestWorkflowServices.js';
 import type { CaseAction } from '../../../../engine/types/CaseAction.js';
 import type { Runbook } from '../../../../engine/types/Runbook.js';
@@ -14,8 +13,6 @@ import type { StepKind } from '../../../../engine/types/StepKind.js';
 import type { StepResult } from '../../../../engine/types/StepResult.js';
 import { NOOP_RUNBOOK_REPORTER } from '../../../../engine/reporting/NOOP_RUNBOOK_REPORTER.js';
 import type { ServiceRegistry } from '../../services/ServiceRegistry.js';
-import { DynamoDBGetStep } from '../../steps/aws/dynamodb/DynamoDBGetStep.js';
-import { DynamoDBPutStep } from '../../steps/aws/dynamodb/DynamoDBPutStep.js';
 import { createTestServiceRegistry } from '../../testing/createTestServiceRegistry.js';
 import { OperationalRunbookEngine } from '../OperationalRunbookEngine.js';
 import { createTestRunbook } from '../../../../__tests__/helpers/createTestRunbook.js';
@@ -35,8 +32,26 @@ class SpyStep implements Step<void> {
   }
 }
 
-const dynamoGet = (): DynamoDBGetStep => new DynamoDBGetStep({ id: 'get', label: 'Get', tableName: 't', key: {} });
-const dynamoPut = (): DynamoDBPutStep => new DynamoDBPutStep({ id: 'put', label: 'Put', tableName: 't', item: {} });
+/** A step that requires DynamoDB: a read in the pipeline, or the step of an update action. */
+class DynamoStep implements Step<void> {
+  readonly label = 'DynamoDB';
+
+  constructor(
+    readonly id: string,
+    readonly kind: StepKind,
+  ) {}
+
+  requiredServices(): ReadonlyArray<string> {
+    return ['dynamodb'];
+  }
+
+  async execute(): Promise<StepResult<void>> {
+    return Promise.resolve({ success: true });
+  }
+}
+
+const dynamoGet = (): DynamoStep => new DynamoStep('get', 'data');
+const dynamoPut = (): DynamoStep => new DynamoStep('put', 'mutation');
 
 function runbook(steps: ReadonlyArray<Step>, fallbackAction: CaseAction, knownCaseAction?: CaseAction): Runbook {
   return createTestRunbook({
@@ -72,17 +87,9 @@ async function assertRejectedBeforeFirstStep(execute: ExecutionFn, spy: SpyStep)
 
 describe('service check of the engine', () => {
   it('rejects a DynamoDB step run with WorkflowServices only, wherever it is, before the first step', async () => {
-    const branch = (): IfBranchStep =>
-      new IfBranchStep({
-        id: 'branch',
-        label: 'Branch',
-        condition: { type: 'exists', ref: 'vars.x' },
-        thenSteps: [dynamoGet()],
-      });
     const composite: CaseAction = { type: 'composite', actions: [LOG, { type: 'update', step: dynamoPut() }] };
     const placements: ReadonlyArray<(spy: SpyStep) => Runbook> = [
       (spy) => runbook([spy, dynamoGet()], LOG),
-      (spy) => runbook([spy, branch()], LOG),
       (spy) => runbook([spy], { type: 'update', step: dynamoPut() }),
       (spy) => runbook([spy], LOG, composite),
     ];

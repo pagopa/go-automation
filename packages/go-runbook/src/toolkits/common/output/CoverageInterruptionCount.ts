@@ -1,4 +1,4 @@
-import type { ErrorChainInterruptionReason } from '../../../engine/types/ErrorChainInterruptionReason.js';
+import type { ErrorChainInterruptionReason } from '../../../engine/index.js';
 
 /** Chains of an error tree interrupted for one reason. */
 export interface CoverageInterruptionCount {

@@ -7,7 +7,7 @@ import type { RunbookReporter } from '../../../../../../engine/reporting/Runbook
 import type { TimeRange } from '../../../../time/TimeRange.js';
 
 import { QueryApiGwExecutionLogsStep } from '../QueryApiGwExecutionLogsStep.js';
-import type { QueryApiGwExecutionLogsConfig } from '../QueryApiGwExecutionLogsStep.js';
+import type { QueryApiGwExecutionLogsConfig } from '../QueryApiGwExecutionLogsConfig.js';
 import { SEND_API_GW_PROFILE } from '../../../../../send/families/apigw/profiles/SEND_API_GW_PROFILE.js';
 import type { OperationalContext } from '../../../../services/OperationalContext.js';
 import { captureNarrative } from '../../../../../../__tests__/helpers/captureNarrative.js';
@@ -306,6 +306,23 @@ describe('queryApiGwExecutionLogs', () => {
       [{ reason: 'unavailable', detail: 'ThrottlingException', identifiers: [{ kind: 'requestId', value: 'req-2' }] }],
     );
     assert.strictEqual(result.vars?.['apiGwExecutionLogIncompleteRequestIds'], undefined);
+  });
+
+  it('fails the step on a configuration error of the target instead of declaring the read unavailable', async () => {
+    const { service } = createFakeCwLogs(
+      [],
+      Object.assign(new Error('INVALID_OAM_TARGET: no monitoring account'), { code: 'INVALID_OAM_TARGET' }),
+    );
+    const result = await createStep().execute(
+      createContext({
+        cloudWatchLogs: service,
+        stepOutput: [
+          logRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
+        ],
+      }),
+    );
+    assert.strictEqual(result.success, false);
+    assert.match(result.error ?? '', /INVALID_OAM_TARGET/);
   });
 
   it('declares both the failed lookup and the errors without request id when the query fails', async () => {

@@ -1,4 +1,4 @@
-import { type ApiGwQueryProfile, SEND_API_GW_PROFILE } from '../../../../toolkits/send/index.js';
+import { apigw } from '../../../../toolkits/send/index.js';
 
 // Verified child alarm: GET addresses, POST/DELETE one address. Public paths may include /bff.
 const ADDRESSES_SCOPE_FILTER = `filter (
@@ -14,16 +14,16 @@ const ADDRESSES_SCOPE_FILTER = `filter (
 )`;
 
 /** Keep outgoing calls and trace fields, including non-error rows needed for correlation. */
-export const ADDRESSES_QUERY_PROFILE: ApiGwQueryProfile = {
-  ...SEND_API_GW_PROFILE,
+export const ADDRESSES_QUERY_PROFILE: apigw.ApiGwQueryProfile = {
+  ...apigw.SEND_API_GW_PROFILE,
   id: 'send-bff-addresses',
   accessLog: {
-    ...SEND_API_GW_PROFILE.accessLog,
+    ...apigw.SEND_API_GW_PROFILE.accessLog,
     query: `${ADDRESSES_SCOPE_FILTER}
-| ${SEND_API_GW_PROFILE.accessLog.query}`,
+| ${apigw.SEND_API_GW_PROFILE.accessLog.query}`,
   },
   serviceLog: {
-    ...SEND_API_GW_PROFILE.serviceLog,
+    ...apigw.SEND_API_GW_PROFILE.serviceLog,
     queryTemplate: `{{FILTER_CLAUSE}}
 | sort @timestamp asc
 | limit 1000

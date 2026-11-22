@@ -50,7 +50,6 @@ async function resolve(registration: Registration, alarmName: string): Promise<S
     stepResults: new Map(),
     vars: new Map(),
     params: new Map([['alarmName', alarmName]]),
-    logs: [],
     services: createTestServiceRegistry(),
     recoveredErrors: [],
     reads: EMPTY_RUNBOOK_READS,

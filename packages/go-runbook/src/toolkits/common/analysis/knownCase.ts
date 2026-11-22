@@ -1,6 +1,4 @@
-import type { CaseAction, LogActionRow } from '../../../engine/types/CaseAction.js';
-import type { Condition } from '../../../engine/types/Condition.js';
-import type { KnownCase } from '../../../engine/types/KnownCase.js';
+import type { CaseAction, Condition, KnownCase, LogActionLevel, LogActionRow } from '../../../engine/index.js';
 import type { KnownCaseAnalysis } from './KnownCaseAnalysis.js';
 
 /** Label of the row carrying the resolution, first among the details. */
@@ -31,7 +29,7 @@ export interface KnownCaseSpec {
   /** Evidence rows rendered after the resolution. */
   readonly details?: ReadonlyArray<LogActionRow>;
   /** Console severity. Defaults to `info`: a recognised case is not a failure. */
-  readonly level?: 'info' | 'warn' | 'error';
+  readonly level?: LogActionLevel;
   /** Analysis directives, minus the resolution this spec already carries. */
   readonly analysis: Omit<KnownCaseAnalysis, 'resolution'>;
 }

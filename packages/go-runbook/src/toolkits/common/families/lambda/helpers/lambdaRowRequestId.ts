@@ -1,6 +1,7 @@
-import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import { extractLambdaRequestId } from './extractLambdaRequestId.js';
+import type { CloudWatchLogsRow } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRow.js';
 
 /**
  * The request id of a Lambda log row: the structured `@requestId`, else the one the message names.
@@ -13,7 +14,7 @@ import { extractLambdaRequestId } from './extractLambdaRequestId.js';
  * lambdaRowRequestId([{ field: '@requestId', value: 'req-1' }]); // 'req-1'
  * ```
  */
-export function lambdaRowRequestId(row: ReadonlyArray<GOLogsInsightsResultField>): string | undefined {
+export function lambdaRowRequestId(row: CloudWatchLogsRow): string | undefined {
   const structured = (readRowField(row, '@requestId') ?? '').trim();
   if (structured !== '') return structured;
   return extractLambdaRequestId(readRowField(row, '@message') ?? '');

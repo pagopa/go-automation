@@ -1,7 +1,7 @@
 /**
  * Known cases for the pn-national-registries-AdE-downstream-detection-Alarm runbook.
  */
-import { knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import { downstreamMarkerPattern, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
 import { type KnownCase, stepEvidenceMatches } from '../../../../engine/index.js';
 const ADE_LEGAL_REPRESENTATIVE_ENDPOINT =
   'https://gatewaywebservices.agenziaentrate.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService';
@@ -12,8 +12,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: '[DOWNSTREAM AdE] HTTP 500 durante la verifica del rappresentante legale',
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service AdE returned errors=500 Internal Server Error from POST ' +
-        'https://gatewaywebservices\\.agenziaentrate\\.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService',
+      downstreamMarkerPattern('AdE', {
+        status: '500 Internal Server Error',
+        method: 'POST',
+        endpoint: 'https://gatewaywebservices.agenziaentrate.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService',
+      }),
     ),
     resolution: 'Risoluzione non documentata.',
     details: [
@@ -36,7 +39,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: '[DOWNSTREAM AdE] Timeout durante la verifica del rappresentante legale',
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service AdE returned errors=<not specified>[\\s\\S]*Request to POST ' +
+      `${downstreamMarkerPattern('AdE')}<not specified>` +
+        '[\\s\\S]*Request to POST ' +
         'https://gatewaywebservices\\.agenziaentrate\\.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService' +
         '[\\s\\S]*ReadTimeoutException',
     ),
@@ -63,8 +67,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: '[DOWNSTREAM AdE] Timeout di lettura generico',
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service AdE returned errors=nested exception is ' +
-        'io\\.netty\\.handler\\.timeout\\.ReadTimeoutException',
+      `${downstreamMarkerPattern('AdE')}nested exception is io\\.netty\\.handler\\.timeout\\.ReadTimeoutException`,
     ),
     title: '[DOWNSTREAM AdE] Timeout di lettura',
     resolution:

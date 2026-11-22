@@ -1,7 +1,4 @@
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
-import type { Step } from '../../../../../engine/types/Step.js';
-import type { StepKind } from '../../../../../engine/types/StepKind.js';
-import type { StepResult } from '../../../../../engine/types/StepResult.js';
+import type { RunbookContext, Step, StepKind, StepResult } from '../../../../../engine/index.js';
 import { LAMBDA_REQUEST_ID } from '../helpers/lambdaRequestIdFilter.js';
 
 /**
@@ -37,7 +34,7 @@ export class DescendToLambdaDownstreamStep implements Step<void> {
     if (!this.readable.has(target)) return { success: true };
     // A malformed request id is a missing one: this invocation is skipped, the others of the batch are read.
     const requestId = (context.vars.get('lambdaRequestId') ?? '').trim();
-    const identifier = LAMBDA_REQUEST_ID.test(requestId) ? requestId : '';
-    return { success: true, descend: [{ target, identifier, kind: 'requestId' }] };
+    const value = LAMBDA_REQUEST_ID.test(requestId) ? requestId : '';
+    return { success: true, descend: [{ target, identifier: { kind: 'requestId', value } }] };
   }
 }

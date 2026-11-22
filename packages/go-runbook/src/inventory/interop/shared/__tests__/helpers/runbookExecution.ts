@@ -27,7 +27,40 @@ const DEFAULT_WINDOW: Readonly<Record<string, string>> = {
  * ```
  */
 export function isCidTrackerQuery(query: string): boolean {
-  return query.includes('filter cid =');
+  return query.includes('filter cid in [');
+}
+
+/**
+ * The CIDs a CID tracker query filters on.
+ *
+ * @param query - Logs Insights query
+ * @returns The CIDs, in the order of the query; none for another query
+ *
+ * @example
+ * ```typescript
+ * trackedCids('parse @message "[CID=*]" as cid | filter cid in ["a", "b"]'); // ['a', 'b']
+ * ```
+ */
+export function trackedCids(query: string): ReadonlyArray<string> {
+  const list = /filter cid in \[([^\]]*)\]/u.exec(query)?.[1] ?? '';
+  return [...list.matchAll(/"([^"]+)"/gu)].map((match) => match[1] ?? '');
+}
+
+/**
+ * The rows a CID tracker query returns when every CID it filters on has `rows`: each copy carries the `cid` field
+ * the query extracts.
+ *
+ * @param query - CID tracker query
+ * @param rows - Rows of each CID
+ * @returns The rows of every CID of the query
+ *
+ * @example
+ * ```typescript
+ * const rows = cidTrackerRows(query, [[{ field: '@message', value: 'ERROR - boom' }]]);
+ * ```
+ */
+export function cidTrackerRows(query: string, rows: LogRows): LogRows {
+  return trackedCids(query).flatMap((cid) => rows.map((row) => [...row, { field: 'cid', value: cid }]));
 }
 
 /**
@@ -72,7 +105,10 @@ export function interopPodResponder(scenario: InteropPodLogScenario): LogsRespon
   const cidBlock = scenario.cid === undefined ? '' : `[CID=${scenario.cid}] `;
   return (query) => {
     if (isCidTrackerQuery(query)) {
-      return envelopeRows(scenario.trackerPodApp ?? 'interop-be-another-service', scenario.trackerMessages ?? [], '');
+      return cidTrackerRows(
+        query,
+        envelopeRows(scenario.trackerPodApp ?? 'interop-be-another-service', scenario.trackerMessages ?? [], ''),
+      );
     }
     if (query.includes('/ERROR/')) return envelopeRows(scenario.podApp, scenario.messages ?? [], cidBlock);
     if (scenario.failContext === true) throw new Error('AccessDenied');

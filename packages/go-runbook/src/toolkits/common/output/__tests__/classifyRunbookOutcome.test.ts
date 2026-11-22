@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { RunbookOutput } from '../RunbookOutput.js';
-import type { RunbookResultField } from '../RunbookOutputContext.js';
+import type { RunbookResultField } from '../RunbookResultField.js';
 import type { RunbookOutcome } from '../RunbookOutcome.js';
 import { classifyRunbookOutcome } from '../classifyRunbookOutcome.js';
 import type { CoverageEntry } from '../../../../engine/types/CoverageEntry.js';

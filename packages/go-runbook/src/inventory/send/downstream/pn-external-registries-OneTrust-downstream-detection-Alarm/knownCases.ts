@@ -1,7 +1,7 @@
 /**
  * Known cases for the pn-external-registries-OneTrust-downstream-detection-Alarm runbook.
  */
-import { knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import { downstreamMarkerPattern, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
 import { type KnownCase, stepEvidenceMatches } from '../../../../engine/index.js';
 const ONE_TRUST_PUBLISHED_VERSION_ENDPOINT =
   'https://app-de.onetrust.com/api/enterprise-policy/v1/privacynotices/{uuid}/published-version';
@@ -12,8 +12,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: '[DOWNSTREAM OneTrust] Timeout di lettura',
     condition: stepEvidenceMatches(
       'query-pn-external-registries',
-      '\\[DOWNSTREAM\\] Service OneTrust returned errors=(?:nested exception is )?' +
-        'io\\.netty\\.handler\\.timeout\\.ReadTimeoutException',
+      `${downstreamMarkerPattern(
+        'OneTrust',
+      )}(?:nested exception is )?io\\.netty\\.handler\\.timeout\\.ReadTimeoutException`,
     ),
     resolution:
       'Nessuna azione necessaria qualora sia solo un picco circoscritto in un intervallo di tempo limitato. Si tratterebbe di un disservizio momentaneo.',
@@ -36,8 +37,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: '[DOWNSTREAM OneTrust] Servizio temporaneamente non disponibile (HTTP 503)',
     condition: stepEvidenceMatches(
       'query-pn-external-registries',
-      '\\[DOWNSTREAM\\] Service OneTrust returned errors=503 Service Unavailable from GET ' +
-        'https://app-de\\.onetrust\\.com/api/enterprise-policy/v1/privacynotices/[^/\\s"]+/published-version',
+      `${downstreamMarkerPattern('OneTrust', {
+        status: '503 Service Unavailable',
+        method: 'GET',
+        endpoint: 'https://app-de.onetrust.com/api/enterprise-policy/v1/privacynotices/',
+      })}[^/\\s"]+/published-version`,
     ),
     resolution:
       'Nessuna azione necessaria qualora sia solo un picco circoscritto in un intervallo di tempo limitato. Si tratterebbe di un disservizio momentaneo.',

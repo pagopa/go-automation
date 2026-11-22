@@ -1,5 +1,5 @@
-import type { Condition } from '../../../../../engine/types/Condition.js';
-import { anyStepEvidenceMatches } from '../../../../../engine/conditions/evidenceConditions.js';
+import type { Condition } from '../../../../../engine/index.js';
+import { anyStepEvidenceMatches } from '../../../../../engine/index.js';
 
 /** Matches a regex against either standard Lambda log-query step. */
 export function lambdaLogEvidenceMatches(regex: string): Condition {

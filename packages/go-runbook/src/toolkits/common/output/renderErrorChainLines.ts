@@ -1,5 +1,5 @@
 import type { ErrorChainGroup } from './ErrorChainGroup.js';
-import type { ErrorChainInterruptionReason } from '../../../engine/types/ErrorChainInterruptionReason.js';
+import { ERROR_CHAIN_INTERRUPTION_WORDS } from './tree/ERROR_CHAIN_INTERRUPTION_WORDS.js';
 
 /**
  * One line per chain group, in the order of the groups (already the time order):
@@ -42,7 +42,7 @@ export function renderErrorChainLines(groups: ReadonlyArray<ErrorChainGroup>): R
       })
       .join(' → ');
     const interruption = group.interruptions
-      .map((entry) => `${entry.target ?? 'livello successivo'}: ${INTERRUPTION_WORDS[entry.reason]}`)
+      .map((entry) => `${entry.target ?? 'livello successivo'}: ${ERROR_CHAIN_INTERRUPTION_WORDS[entry.reason]}`)
       .join(', ');
     const repeated =
       group.count > 1
@@ -52,16 +52,7 @@ export function renderErrorChainLines(groups: ReadonlyArray<ErrorChainGroup>): R
   });
 }
 
-/** Why a chain stopped, in words. */
-const INTERRUPTION_WORDS: Readonly<Record<ErrorChainInterruptionReason, string>> = {
-  skipped: 'non interrogato, identificatore mancante',
-  unavailable: 'lettura non disponibile',
-  incomplete: 'evidenza incompleta',
-  failed: 'analisi fallita',
-  cycle: 'ciclo',
-};
-
-/** `HH:MM` of an ISO instant, in UTC. */
+/** The `HH:MM` of an instant. */
 function clock(instant: string): string {
   return instant.slice(11, 16);
 }

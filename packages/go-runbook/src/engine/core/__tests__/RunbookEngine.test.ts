@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { GOLogger } from '@pagopa/go-common/logging';
 
 import { RunbookEngine } from '../RunbookEngine.js';
+import { executeStep } from '../../steps/execution/executeStep.js';
 import type { ServiceRegistry } from '../../../toolkits/common/services/ServiceRegistry.js';
 import type { KnownCase } from '../../types/KnownCase.js';
 import type { Step } from '../../types/Step.js';
@@ -121,6 +122,73 @@ describe('RunbookEngine status handling', () => {
     const actionTrace = result.trace.actionsExecuted[0];
     assert.ok(actionTrace);
     assert.strictEqual(actionTrace.executed, false);
+  });
+
+  it('recovers a step with continueOnFailure whether it throws or returns its failure', async () => {
+    const executions: string[] = [];
+    const throwing: Step<void> = {
+      id: 'throwing',
+      label: 'throwing',
+      kind: 'data',
+      execute: async () => {
+        await Promise.resolve();
+        throw new Error('thrown failure');
+      },
+    };
+    const result = await createEngine().execute(
+      createTestRunbook({
+        steps: [
+          { step: throwing, continueOnFailure: true },
+          { step: recordingStep('returning', executions, PLANNED_FAILURE), continueOnFailure: true },
+          { step: recordingStep('after-failures', executions) },
+        ],
+      }),
+      new Map(),
+      createTestServiceRegistry(),
+    );
+
+    assert.strictEqual(result.status, 'completed');
+    assert.deepStrictEqual(executions, ['returning', 'after-failures']);
+    assert.deepStrictEqual(
+      result.recoveredErrors.map(({ stepId, originalError }) => [stepId, originalError]),
+      [
+        ['throwing', 'thrown failure'],
+        ['returning', 'planned failure'],
+      ],
+    );
+    assert.deepStrictEqual(
+      result.trace.pipeline.map(({ stepId, status, recovered }) => [stepId, status, recovered]),
+      [
+        ['throwing', 'failed', true],
+        ['returning', 'failed', true],
+        ['after-failures', 'success', false],
+      ],
+    );
+  });
+
+  it('ends aborted, without an unavailable read, when a step wrapped by executeStep is cancelled', async () => {
+    const controller = new AbortController();
+    const cancelled: Step<void> = {
+      id: 'cancelled',
+      label: 'cancelled',
+      kind: 'data',
+      execute: async (context) =>
+        executeStep(context, 'Cancelled read', async () => {
+          await Promise.resolve();
+          controller.abort();
+          throw new Error('read aborted');
+        }),
+    };
+    const result = await createEngine().execute(
+      createTestRunbook({ steps: [{ step: cancelled }] }),
+      new Map(),
+      createTestServiceRegistry(),
+      undefined,
+      controller.signal,
+    );
+
+    assert.strictEqual(result.status, 'aborted');
+    assert.deepStrictEqual(result.coverage, []);
   });
 
   it('runs the action of every detection, in the order of the detections', async () => {
@@ -462,34 +530,6 @@ describe('RunbookEngine detections', () => {
     );
   });
 
-  it('keeps the rows of every visit of a repeated step as evidence', async () => {
-    let visit = 0;
-    const step: Step<unknown> = {
-      id: 'logs',
-      label: 'logs',
-      kind: 'data',
-      execute: async () => {
-        visit += 1;
-        return Promise.resolve(
-          visit === 1
-            ? { success: true, output: [row('2026-11-19 10:00:00.000', 'fallback evidence')], next: { goTo: 'logs' } }
-            : { success: true, output: [], next: 'stop' as const },
-        );
-      },
-    };
-    const result = await timedEngine().execute(
-      createTestRunbook({ steps: [{ step }], knownCases: [logCase('fallback', 'fallback evidence')] }),
-      new Map(),
-      createTestServiceRegistry(),
-    );
-
-    assert.strictEqual(visit, 2);
-    assert.deepStrictEqual(
-      result.detections.map((d) => d.knownCase.id),
-      ['fallback'],
-    );
-  });
-
   it('keeps a detection and declares the read unavailable when a later step fails', async () => {
     const executions: string[] = [];
     const result = await timedEngine().execute(
@@ -500,6 +540,7 @@ describe('RunbookEngine detections', () => {
           { step: recordingStep('after', executions) },
         ],
         knownCases: [logCase('authorizer-timeout', 'authorizer timeout')],
+        readPolicy: 'partial',
       }),
       new Map(),
       createTestServiceRegistry(),
@@ -534,7 +575,7 @@ describe('RunbookEngine detections', () => {
     assert.strictEqual(result.trace.execution.failureReason, 'write failed');
   });
 
-  it('reads partially in an alarm analysis and strictly in a procedure', async () => {
+  it('reads with the policy the runbook declares, strictly without one', async () => {
     const policies: string[] = [];
     const probe: Step<void> = {
       id: 'probe',
@@ -546,12 +587,8 @@ describe('RunbookEngine detections', () => {
       },
     };
     const alarm = createTestRunbook({ steps: [{ step: probe }] });
+    await timedEngine().execute({ ...alarm, readPolicy: 'partial' }, new Map(), createTestServiceRegistry());
     await timedEngine().execute(alarm, new Map(), createTestServiceRegistry());
-    await timedEngine().execute(
-      { ...alarm, metadata: { ...alarm.metadata, type: 'data-verification' } },
-      new Map(),
-      createTestServiceRegistry(),
-    );
 
     assert.deepStrictEqual(policies, ['partial', 'strict']);
   });

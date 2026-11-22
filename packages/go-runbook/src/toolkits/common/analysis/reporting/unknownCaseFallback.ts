@@ -1,5 +1,5 @@
-import { logAction } from '../../../../engine/actions/ActionFactories.js';
-import type { CaseAction, LogActionRow } from '../../../../engine/types/CaseAction.js';
+import { logAction } from '../../../../engine/index.js';
+import type { CaseAction, LogActionRow } from '../../../../engine/index.js';
 
 /**
  * What the operator reads when no known case matched, whatever the runbook

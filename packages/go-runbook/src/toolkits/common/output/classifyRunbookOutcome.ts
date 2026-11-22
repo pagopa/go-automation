@@ -1,7 +1,9 @@
 import type { RunbookOutcome } from './RunbookOutcome.js';
 import type { RunbookOutput } from './RunbookOutput.js';
-import type { ClassifiedRunbookCheck, RunbookCheck } from './RunbookCheck.js';
-import type { CoverageReason } from '../../../engine/types/CoverageReason.js';
+import type { RunbookCheck } from './RunbookCheck.js';
+import type { ClassifiedRunbookCheck } from './ClassifiedRunbookCheck.js';
+import type { CoverageReason } from '../../../engine/index.js';
+import { countCoverageByReason } from './countCoverageByReason.js';
 
 const CONFIG_ERROR_SIGNATURES: ReadonlyArray<string> = [
   'resourcenotfound',
@@ -131,12 +133,7 @@ export function classifyRunbookOutcome(output: RunbookOutput): ClassifiedRunbook
  */
 function countIncompleteSources(output: RunbookOutput): Readonly<Partial<Record<CoverageReason, number>>> | undefined {
   if (output.coverage.sources.length === 0) return undefined;
-  const counts: Partial<Record<CoverageReason, number>> = {};
-  for (const source of output.coverage.sources) {
-    const reason = source.reason ?? 'unavailable';
-    counts[reason] = (counts[reason] ?? 0) + 1;
-  }
-  return counts;
+  return Object.fromEntries(countCoverageByReason(output.coverage.sources));
 }
 
 /** Classification used when no registered runbook exists for an occurrence. */

@@ -1,45 +1,20 @@
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-
 import type { ServiceLogSchema } from '../../../../common/parsing/applicationLogs/ServiceLogSchema.js';
 import type { KnownUrlsRegistry } from '../../../../common/parsing/knownUrls/KnownUrlsRegistry.js';
-import type { KnownUrl } from '../../../../common/parsing/knownUrls/KnownUrl.js';
 import { matchTraceIdCandidate } from '../../../../common/parsing/traceIds/matchTraceIdCandidate.js';
 import { readServiceLogRow } from '../../../../common/parsing/applicationLogs/readServiceLogRow.js';
+import type { ServiceLogRow } from '../../../../common/parsing/applicationLogs/ServiceLogRow.js';
 import { RepresentativeErrorSelector } from '../../../../common/parsing/applicationLogs/RepresentativeErrorSelector.js';
 import type { TraceIdCandidateMatch } from '../../../../common/parsing/traceIds/TraceIdCandidateMatch.js';
 import { FALLBACK_UUID_GLOBAL_PATTERN, extractFallbackUuid } from './extractFallbackUuid.js';
+import type { CloudWatchLogsRows } from '../../../../common/steps/aws/cloudwatch-logs/CloudWatchLogsRows.js';
+import type { KnownUrlInLogs } from './KnownUrlInLogs.js';
+import type { ServiceLogsScan } from './ServiceLogsScan.js';
 
 /** Extracts `http(s)://…` tokens up to the first whitespace/quote/bracket. */
 const URL_PATTERN = /https?:\/\/[^\s'"<>`]+/g;
 
 /** Trailing punctuation trimmed from an observed URL before registry match. */
 const TRAILING_TRIM = /[).,;:\]]+$/;
-
-/**
- * Known URL match observed inside service logs.
- */
-export interface KnownUrlInLogs {
-  /** URL exactly as observed in the log message (already trimmed). */
-  readonly observedUrl: string;
-  /** Registry entry that matched the observed URL. */
-  readonly known: KnownUrl;
-}
-
-/**
- * Aggregated outcome of a single pass over a service's CloudWatch Logs
- * result set. Bundles the four projections the API Gateway analysis loop
- * needs so the rows are walked once instead of four-to-six times.
- */
-export interface ServiceLogsScan {
-  /** Most representative error message (empty string when none). */
-  readonly errorMessage: string;
-  /** First known URL in the strongest failure evidence, falling back to other rows. */
-  readonly knownUrl: KnownUrlInLogs | undefined;
-  /** UUID associated with the selected URL; first token when no URL is selected. */
-  readonly fallbackUuid: string | undefined;
-  /** First valid trace id candidate, or `undefined`. */
-  readonly traceIdCandidate: TraceIdCandidateMatch | undefined;
-}
 
 /**
  * Scans a service's CloudWatch Logs result set **once**, computing every
@@ -64,48 +39,65 @@ export interface ServiceLogsScan {
  * @returns The aggregated {@link ServiceLogsScan}
  */
 export function scanServiceLogs(
-  results: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
+  results: CloudWatchLogsRows,
   schema: ServiceLogSchema,
   registry?: KnownUrlsRegistry,
 ): ServiceLogsScan {
   // The longest error describes the failure best along the chain of services.
   const errorMessage = new RepresentativeErrorSelector('longest');
+  let traceIdCandidate: TraceIdCandidateMatch | undefined;
+  const rows = results.map((raw) => readServiceLogRow(raw, schema));
+  for (const row of rows) {
+    errorMessage.offer(row);
+    // Trace id candidate — first match wins, from the trace-id field only.
+    traceIdCandidate ??= matchTraceIdCandidate(row.fields, schema, 'field');
+  }
+  return { errorMessage: errorMessage.result(), ...findKnownUrlCall(rows, registry), traceIdCandidate };
+}
+
+/**
+ * The known URL that rows already read call, with the fallback UUID of the call: the projection of
+ * {@link scanServiceLogs} for rows read once by the caller.
+ *
+ * - The known URL prefers ERROR/WARN rows, then level-less error keywords, then other rows; the first match wins
+ *   within each priority.
+ * - The fallback UUID is the one of the selected URL, or the first token of the rows when no URL is selected.
+ *
+ * Complexity: O(R) over the rows.
+ *
+ * @param rows - Rows read with `readServiceLogRow`
+ * @param registry - Optional known-URL registry; when omitted no known URL is selected
+ * @returns The known URL and the fallback UUID
+ *
+ * @example
+ * ```typescript
+ * const { knownUrl } = findKnownUrlCall([readServiceLogRow(raw, schema)], registry);
+ * ```
+ */
+export function findKnownUrlCall(
+  rows: ReadonlyArray<ServiceLogRow>,
+  registry?: KnownUrlsRegistry,
+): Pick<ServiceLogsScan, 'knownUrl' | 'fallbackUuid'> {
   let knownUrl: KnownUrlInLogs | undefined;
   let knownUrlPriority = -1;
   let knownUrlFallbackUuid: string | undefined;
   let fallbackUuid: string | undefined;
-  let traceIdCandidate: TraceIdCandidateMatch | undefined;
-
-  for (const raw of results) {
-    const row = readServiceLogRow(raw, schema);
-    errorMessage.offer(row);
-
-    if (row.message !== '') {
-      // Prefer failure evidence over earlier invocation/success rows.
-      const urlPriority = row.isErrorLevel ? 2 : row.level === '' && row.hasErrorKeyword ? 1 : 0;
-      if (urlPriority > knownUrlPriority && registry !== undefined) {
-        const candidate = matchKnownUrl(row.message, registry);
-        if (candidate !== undefined) {
-          knownUrl = candidate;
-          knownUrlPriority = urlPriority;
-          knownUrlFallbackUuid = associatedFallbackUuid(row.message, registry);
-        }
+  for (const row of rows) {
+    if (row.message === '') continue;
+    // Prefer failure evidence over earlier invocation/success rows.
+    const urlPriority = row.isErrorLevel ? 2 : row.level === '' && row.hasErrorKeyword ? 1 : 0;
+    if (urlPriority > knownUrlPriority && registry !== undefined) {
+      const candidate = matchKnownUrl(row.message, registry);
+      if (candidate !== undefined) {
+        knownUrl = candidate;
+        knownUrlPriority = urlPriority;
+        knownUrlFallbackUuid = associatedFallbackUuid(row.message, registry);
       }
-
-      // Fallback UUID — first match wins.
-      fallbackUuid ??= extractFallbackUuid(row.message);
     }
-
-    // Trace id candidate — first match wins, from the trace-id field only.
-    traceIdCandidate ??= matchTraceIdCandidate(row.fields, schema, 'field');
+    // Fallback UUID — first match wins.
+    fallbackUuid ??= extractFallbackUuid(row.message);
   }
-
-  return {
-    errorMessage: errorMessage.result(),
-    knownUrl,
-    fallbackUuid: knownUrl !== undefined ? knownUrlFallbackUuid : fallbackUuid,
-    traceIdCandidate,
-  };
+  return { knownUrl, fallbackUuid: knownUrl !== undefined ? knownUrlFallbackUuid : fallbackUuid };
 }
 
 /** A message must identify one known invocation and one UUID to pair them. */

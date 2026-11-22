@@ -1,74 +1,55 @@
-import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-
-import { executeStep } from '../../../../../engine/steps/execution/executeStep.js';
-import { readStepOutput } from '../../../../../engine/context/readStepOutput.js';
-import type { StepDiagnostics } from '../../../../../engine/tracing/StepDiagnostics.js';
-import type { Step } from '../../../../../engine/types/Step.js';
-import type { StepKind } from '../../../../../engine/types/StepKind.js';
-import type { StepResult } from '../../../../../engine/types/StepResult.js';
+import { readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { executeStep, readStepOutput } from '../../../../../engine/index.js';
+import type { Step, StepCoverage, StepKind, StepResult } from '../../../../../engine/index.js';
+import { accountScopedContexts } from '../../../accounts/accountScopedContexts.js';
 import type { AwsAccountSelection } from '../../../accounts/AwsAccountSelection.js';
 import { awsLogicalAccountName } from '../../../accounts/awsLogicalAccountName.js';
-import { resolveAwsAccountSelection } from '../../../accounts/resolveAwsAccountSelection.js';
 import type { OperationalContext } from '../../../services/OperationalContext.js';
 import type { OperationalServiceName } from '../../../services/OperationalServiceName.js';
-import { executeCloudWatchLogsQuery } from '../../../steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
+import type { CloudWatchLogsReadAttempt } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsReadAttempt.js';
+import { tryCloudWatchLogsRead } from '../../../steps/aws/cloudwatch-logs/tryCloudWatchLogsRead.js';
 import { mergeCloudWatchLogsDiagnostics } from '../../../steps/aws/cloudwatch-logs/mergeCloudWatchLogsDiagnostics.js';
 import { OperationalStep } from '../../../steps/OperationalStep.js';
+import { ALARM_TIME_RANGE } from '../../../time/ALARM_TIME_RANGE.js';
 import { resolveTimeRange } from '../../../time/resolveTimeRange.js';
-import type { TimeRange } from '../../../time/TimeRange.js';
-import { extractLambdaRequestId } from '../helpers/extractLambdaRequestId.js';
-import { LAMBDA_REQUEST_ID, lambdaInvocationQuery } from '../helpers/lambdaRequestIdFilter.js';
+import {
+  INVOCATION_BATCH_SIZE,
+  lambdaInvocationQuery,
+  sampleLambdaInvocationQuery,
+} from '../helpers/lambdaRequestIdFilter.js';
+import { requestIdsOf } from '../helpers/requestIdsOf.js';
 import { rowsOfInvocations } from '../helpers/rowsOfInvocations.js';
 import { lambdaRowRequestId } from '../helpers/lambdaRowRequestId.js';
 import { DEFAULT_LAMBDA_INVOCATION_QUERY } from '../queries/DEFAULT_LAMBDA_INVOCATION_QUERY.js';
-import type { StepCoverage } from '../../../../../engine/types/StepCoverage.js';
 import type { QueryLambdaAcrossAccountsConfig } from '../types/QueryLambdaAcrossAccountsConfig.js';
+import type { CloudWatchLogsRow } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRow.js';
+import type { CloudWatchLogsRows } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRows.js';
+import type { InvocationRun } from './InvocationRun.js';
+import type { LambdaLogSource } from './LambdaLogSource.js';
 
-type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
-
-/** Request ids per invocation query: at most 80 queries for the 2,000 rows of two error scans. */
-const INVOCATION_BATCH_SIZE = 25;
 /** Extra queries that split saturated batches, over the whole execution: the initial batches never count. */
 const MAX_SPLIT_QUERIES = 100;
 /** Row limit of every query; reaching it means the result may be truncated. */
 const QUERY_ROW_LIMIT = 1000;
 const ERRORS_STEP_ID = 'query-lambda-errors';
 
-/** Time range and split queries used so far, shared by all the sources of one execution. */
-interface InvocationRun {
-  readonly timeRange: TimeRange;
-  splits: number;
-}
-
-/** A read of a source: its rows, with the telemetry and the incomplete parts of the read. */
-interface SourceRead {
-  readonly rows: Rows;
-  readonly failed?: boolean;
-  readonly diagnostics?: StepDiagnostics;
-  readonly coverage?: ReadonlyArray<StepCoverage>;
-}
-
-/** One source of the step: the tag written on its rows, how it is named in messages, its reader. */
-interface LambdaLogSource {
-  readonly key: string;
-  readonly display: string;
-  readonly context: OperationalContext;
-}
-
 /**
  * Reads a Lambda log group that exists with the same name in several accounts.
  * Replaces the per-runbook copies of the SEND
  * `pn-downstream-monitoring-lambda` and `DailyExport` alarms.
  *
- * - `errors`: one complete error scan per source; a scan at the row limit fails,
- *   because the invocation reconstruction needs every request id.
+ * - `errors`: one error scan per source; a scan at the row limit is declared
+ *   `saturated`, because the invocation reconstruction may miss request ids.
  * - `invocation`: the invocations of the request ids found by the `query-lambda-errors`
  *   step, in batches per source, splitting a saturated batch, within a query budget.
  *
  * Every row is tagged with its source (`sourceAccount` or `sourceKey`) and the
  * rows of all sources are returned in timestamp order.
  */
-export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> implements Step<Rows> {
+export class QueryLambdaAcrossAccountsStep
+  extends OperationalStep<CloudWatchLogsRows>
+  implements Step<CloudWatchLogsRows>
+{
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -101,9 +82,7 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
       ...(this.config.queryKind === 'errors'
         ? { query: this.config.errorQuery }
         : {
-            queryTemplate: lambdaInvocationQuery(DEFAULT_LAMBDA_INVOCATION_QUERY, [
-              '00000000-0000-0000-0000-000000000000',
-            ]),
+            queryTemplate: sampleLambdaInvocationQuery(DEFAULT_LAMBDA_INVOCATION_QUERY),
             correlation: `${this.sourceField()} + requestId`,
             batchSize: INVOCATION_BATCH_SIZE,
             maxSplitQueries: MAX_SPLIT_QUERIES,
@@ -135,11 +114,12 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
    * @param context - Operational context
    * @returns The tagged rows and the variables of the query kind
    */
-  override async execute(context: OperationalContext): Promise<StepResult<Rows>> {
-    const upstream = this.config.queryKind === 'invocation' ? readStepOutput<Rows>(context, ERRORS_STEP_ID) : undefined;
+  override async execute(context: OperationalContext): Promise<StepResult<CloudWatchLogsRows>> {
+    const upstream =
+      this.config.queryKind === 'invocation' ? readStepOutput<CloudWatchLogsRows>(context, ERRORS_STEP_ID) : undefined;
     if (upstream !== undefined && !upstream.ok) return upstream.failure;
 
-    return executeStep(this.config.labels.narrative, async () => {
+    return executeStep(context, this.config.labels.narrative, async () => {
       const { sources } = this.config;
       const configured = sources === 'configured-sources' ? context.services.cloudWatchLogs.getConfiguredSources() : [];
       if (sources === 'configured-sources' && configured.length === 0) {
@@ -163,10 +143,10 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
           : this.accountReaders(context, sources);
 
       const run: InvocationRun = {
-        timeRange: resolveTimeRange(context, { start: 'startTime', end: 'endTime' }),
+        timeRange: resolveTimeRange(context, ALARM_TIME_RANGE),
         splits: 0,
       };
-      const results: SourceRead[] = [];
+      const results: CloudWatchLogsReadAttempt[] = [];
       for (const source of readers) {
         if (requestIds === undefined) {
           results.push(...(await this.queryRows(context, source, undefined, run)));
@@ -180,15 +160,13 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
         }
       }
       // No read answered: the step has nothing to report.
-      const firstFailure = results.find((result) => result.failed === true)?.coverage?.[0]?.detail;
-      if (results.length > 0 && results.every((result) => result.failed === true)) {
-        throw new Error(firstFailure ?? 'Lambda logs unavailable');
-      }
+      const firstFailure = results.find((result) => result.failure !== undefined)?.failure;
+      if (firstFailure !== undefined && results.every((result) => result.failure !== undefined)) throw firstFailure;
       const rows = results
         .flatMap((result) => result.rows)
         .sort((a, b) => (readRowField(a, '@timestamp') ?? '').localeCompare(readRowField(b, '@timestamp') ?? ''));
       const diagnostics = mergeCloudWatchLogsDiagnostics(results.map((result) => result.diagnostics));
-      const coverage = results.flatMap((result) => result.coverage ?? []);
+      const coverage = results.flatMap((result) => result.coverage);
       context.services.reporter.add({ label: `${this.config.labels.report}: ${String(rows.length)} righe` });
       return {
         success: true,
@@ -207,43 +185,34 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
   }
 
   /**
-   * One query on one source. A saturated invocation batch keeps its diagnostics
-   * and is replaced by the results of its two halves.
-   */
-  /**
    * Reads a source: the error scan, or a batch of request ids. A saturated batch is split in two, within the budget of
    * the extra queries, and the halves replace it; a half that stays incomplete keeps the rows the saturated read
    * found for its request ids. A read that cannot be completed keeps its rows and declares the source `saturated`.
+   * A failed read is an `unavailable` read of the source for the request ids of its batch; a cancellation or a
+   * configuration error of the target ends the step.
    */
   private async queryRows(
     context: OperationalContext,
     source: LambdaLogSource,
     batch: ReadonlyArray<string> | undefined,
     run: InvocationRun,
-  ): Promise<ReadonlyArray<SourceRead>> {
+  ): Promise<ReadonlyArray<CloudWatchLogsReadAttempt>> {
     const query =
       batch === undefined ? this.config.errorQuery : lambdaInvocationQuery(DEFAULT_LAMBDA_INVOCATION_QUERY, batch);
-    let result: Awaited<ReturnType<typeof executeCloudWatchLogsQuery>>;
-    try {
-      result = await executeCloudWatchLogsQuery(source.context, [this.config.logGroup], query, run.timeRange, {
-        ...(context.signal === undefined ? {} : { signal: context.signal }),
-        paginateResults: true,
-      });
-    } catch (error: unknown) {
-      // An abort or a configuration error ends the step; any other failure is an unavailable read of this source.
-      if (context.signal?.aborted === true || isConfigurationError(error)) throw error;
-      const detail = error instanceof Error ? error.message : String(error);
-      return [
-        { rows: [], failed: true, coverage: [{ source: source.key, complete: false, reason: 'unavailable', detail }] },
-      ];
-    }
+    const result = await tryCloudWatchLogsRead(source.context, {
+      logGroups: [this.config.logGroup],
+      query,
+      timeRange: run.timeRange,
+      options: { paginateResults: true },
+      identifiers: (batch ?? []).map((requestId) => ({ kind: 'requestId', value: requestId })),
+      source: source.key,
+    });
+    if (result.failure !== undefined) return [{ rows: [], failure: result.failure, coverage: result.coverage }];
     const diagnostics = result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics };
     const tag = { field: this.sourceField(), value: source.key };
     const own = batch === undefined ? result.rows : rowsOfInvocations(result.rows, batch);
     const rows = own.map((row) => [...row, tag]);
-    if (result.rows.length < QUERY_ROW_LIMIT) {
-      return [{ rows, ...diagnostics, ...(result.coverage.length > 0 ? { coverage: result.coverage } : {}) }];
-    }
+    if (result.rows.length < QUERY_ROW_LIMIT) return [{ rows, ...diagnostics, coverage: result.coverage }];
     const saturated = (detail: string): StepCoverage => ({
       source: source.key,
       complete: false,
@@ -264,39 +233,39 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
     }
     run.splits += 2;
     const middle = Math.ceil(batch.length / 2);
-    const reads: SourceRead[] = [{ rows: [], ...diagnostics, coverage: unread(result.coverage) }];
+    const reads: CloudWatchLogsReadAttempt[] = [{ rows: [], ...diagnostics, coverage: unread(result.coverage) }];
     for (const half of [batch.slice(0, middle), batch.slice(middle)]) {
       const halfReads = await this.queryRows(context, source, half, run);
       reads.push(...halfReads);
-      if (!halfReads.some((read) => (read.coverage ?? []).some((entry) => !entry.complete))) continue;
+      if (!halfReads.some((read) => read.coverage.some((entry) => !entry.complete))) continue;
       // The half is still incomplete: the saturated read keeps the rows of its invocations, without duplicates.
       const ids = new Set(half);
       const seen = new Set(halfReads.flatMap((read) => read.rows.map((row) => rowIdentity(row))));
       reads.push({
         rows: rows.filter((row) => ids.has(lambdaRowRequestId(row) ?? '') && !seen.has(rowIdentity(row))),
+        coverage: [],
       });
     }
     return reads;
   }
 
-  private requestIdsBySource(rows: Rows, sourceKeys: ReadonlyArray<string>): Map<string, ReadonlyArray<string>> {
-    const idsBySource = new Map<string, Set<string>>(sourceKeys.map((key) => [key, new Set<string>()]));
+  private requestIdsBySource(
+    rows: CloudWatchLogsRows,
+    sourceKeys: ReadonlyArray<string>,
+  ): Map<string, ReadonlyArray<string>> {
+    const rowsBySource = new Map<string, CloudWatchLogsRow[]>(sourceKeys.map((key) => [key, []]));
     for (const row of rows) {
       const source = readRowField(row, this.sourceField()) ?? '';
-      const ids = idsBySource.get(source);
-      if (ids === undefined) {
+      const sourceRows = rowsBySource.get(source);
+      if (sourceRows === undefined) {
         throw new Error(`invalid error-row source ${source || '(missing)'}`);
       }
-      const requestId =
-        (readRowField(row, '@requestId') ?? '').trim() || extractLambdaRequestId(readRowField(row, '@message') ?? '');
-      // A row without a usable request id is an invocation of its own, never reconstructed.
-      if (requestId === undefined || !LAMBDA_REQUEST_ID.test(requestId)) continue;
-      ids.add(requestId);
+      sourceRows.push(row);
     }
-    return new Map([...idsBySource].map(([source, ids]) => [source, [...ids]]));
+    return new Map([...rowsBySource].map(([source, sourceRows]) => [source, requestIdsOf(sourceRows)]));
   }
 
-  private errorVars(sourceKeys: ReadonlyArray<string>, rows: Rows): Readonly<Record<string, string>> {
+  private errorVars(sourceKeys: ReadonlyArray<string>, rows: CloudWatchLogsRows): Readonly<Record<string, string>> {
     const { checked, total, bySource } = this.config.errorVars;
     const counts = new Map<string, number>();
     for (const row of rows) {
@@ -314,17 +283,11 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
 
   /** Readers of the resolved logical accounts, prepared by the pre-execution check. */
   private accountReaders(context: OperationalContext, selection: AwsAccountSelection): ReadonlyArray<LambdaLogSource> {
-    const port = context.services.awsAccounts;
-    if (port === undefined) throw new Error('the account port is required to read logical accounts');
-    return resolveAwsAccountSelection(context, selection).map((resolved) => {
-      const name = awsLogicalAccountName(resolved.account);
-      const cloudWatchLogs = port.cloudWatchLogsFor(resolved.account);
-      return {
-        key: name,
-        display: `${name} (${resolved.accountId})`,
-        context: { ...context, services: { ...context.services, cloudWatchLogs } },
-      };
-    });
+    return accountScopedContexts(context, selection).map((account) => ({
+      key: account.name,
+      display: `${account.name} (${account.account.accountId})`,
+      context: account.context,
+    }));
   }
 
   private sourceField(): 'sourceAccount' | 'sourceKey' {
@@ -333,14 +296,8 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
 }
 
 /** The identity of a row, to keep a row of two reads once. */
-function rowIdentity(row: ReadonlyArray<GOLogsInsightsResultField>): string {
+function rowIdentity(row: CloudWatchLogsRow): string {
   return row.map(({ field, value }) => `${field ?? ''}=${value ?? ''}`).join('\u0001');
-}
-
-/** A configuration error of the execution target, which no other read can recover. */
-function isConfigurationError(error: unknown): boolean {
-  const code = (error as { readonly code?: unknown } | undefined)?.code;
-  return code === 'OAM_REGION_MISMATCH' || code === 'INVALID_OAM_TARGET';
 }
 
 /** The parts of a read that failed: they stay beside the saturation the step declares. */

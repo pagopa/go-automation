@@ -1,4 +1,8 @@
-import type { LogLine } from '../../../parsing/aws/cloudwatch-logs/LogLine.js';
+import type { ApiGatewayOutput } from './ApiGatewayOutput.js';
+import type { ApiGwAlarmOutput } from './ApiGwAlarmOutput.js';
+import type { ApiGwAuthorizerOutput } from './ApiGwAuthorizerOutput.js';
+import type { ApiGwExecutionLogsOutput } from './ApiGwExecutionLogsOutput.js';
+import type { ApiGwServiceOutput } from './ApiGwServiceOutput.js';
 
 export interface ApiGwOutputContext {
   readonly alarm: ApiGwAlarmOutput;
@@ -6,63 +10,4 @@ export interface ApiGwOutputContext {
   readonly authorizer?: ApiGwAuthorizerOutput;
   readonly executionLogs?: ApiGwExecutionLogsOutput;
   readonly services: ReadonlyArray<ApiGwServiceOutput>;
-}
-
-export interface ApiGwAlarmOutput {
-  readonly name?: string;
-  readonly datetime?: string;
-  readonly datetimeEnd?: string;
-  readonly timeRange?: {
-    readonly start?: string;
-    readonly end?: string;
-  };
-}
-
-export interface ApiGatewayOutput {
-  readonly logGroup: string;
-  readonly errorCount?: number;
-  readonly statusCode?: string;
-  readonly httpMethod?: string;
-  readonly path?: string;
-  readonly sourceIp?: string;
-  readonly traceId?: string;
-  readonly traceIdField?: string;
-  readonly fallbackUuid?: string;
-  readonly errorMessage?: string;
-  readonly recentLogs: ReadonlyArray<LogLine>;
-}
-
-export interface ApiGwAuthorizerOutput {
-  readonly lambdaName?: string;
-  readonly timeoutMs?: number;
-  readonly status?: string;
-  readonly latencyMs?: number;
-  readonly requestId?: string;
-  readonly outcome?: ApiGwAuthorizerOutcome;
-}
-
-export type ApiGwAuthorizerOutcome = 'skipped' | 'no-error' | 'timeout' | 'error';
-
-export interface ApiGwExecutionLogsOutput {
-  readonly mode?: string;
-  readonly logGroup?: string;
-  readonly requestCount?: number;
-  readonly logCount?: number;
-  readonly unavailableReason?: string;
-  readonly requestIds: ReadonlyArray<ApiGwExecutionLogRequest>;
-}
-
-export interface ApiGwExecutionLogRequest {
-  readonly path?: string;
-  readonly requestId: string;
-}
-
-export interface ApiGwServiceOutput {
-  readonly name: string;
-  readonly logGroup: string;
-  readonly logCount: number;
-  readonly errorMessage?: string;
-  readonly knownUrl?: string;
-  readonly knownUrlTarget?: string;
-  readonly recentLogs: ReadonlyArray<LogLine>;
 }

@@ -1,5 +1,11 @@
 import { all, type KnownCase, stepEvidenceMatches, varEquals, varMatches } from '../../../../engine/index.js';
-import { apiGwPathMatches, apiGwStatusIs, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import {
+  downstreamMarkerPattern,
+  apiGwPathMatches,
+  apiGwStatusIs,
+  knownCase,
+  SEND_DOWNSTREAMS,
+} from '../../../../toolkits/send/index.js';
 /**
  * Known cases for the pn-national-registries-PNPG-ApiGwAlarm runbook,
  * evaluated against the resulting context in declaration order.
@@ -31,7 +37,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: 'Timeout di connessione verso INAD',
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service INAD returned errors=connection timed out after [0-9]+ ms: api\\.inad\\.gov\\.it',
+      `${downstreamMarkerPattern('INAD')}connection timed out after [0-9]+ ms: api\\.inad\\.gov\\.it`,
     ),
     resolution:
       'Da segnalare se si presenta pi\u00F9 volte in un intervallo di tempo ristretto. Vedi Thread Slack 05/03/2026',
@@ -48,7 +54,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: 'Timeout di connessione verso Agenzia Entrate',
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service AdE returned errors=connection timed out after [0-9]+ ms: gatewaywebservices\\.agenziaentrate\\.it',
+      `${downstreamMarkerPattern('AdE')}connection timed out after [0-9]+ ms: gatewaywebservices\\.agenziaentrate\\.it`,
     ),
     resolution: 'Thread Slack 21/09/2026',
     analysis: {
@@ -64,7 +70,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: 'Agenzia Entrate non disponibile durante verifica legale rappresentante',
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service AdE returned errors=500 Internal Server Error from POST https://gatewaywebservices\\.agenziaentrate\\.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService',
+      downstreamMarkerPattern('AdE', {
+        status: '500 Internal Server Error',
+        method: 'POST',
+        endpoint: 'https://gatewaywebservices.agenziaentrate.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService',
+      }),
     ),
     title: '[DOWNSTREAM] Service AdE returned errors=500 Internal Server Error',
     resolution: 'Thread Slack 23/04/2026',
@@ -87,7 +97,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       varEquals('nationalRegistriesNextUrlTarget', 'AdE'),
       stepEvidenceMatches(
         'query-pn-national-registries',
-        '\\[DOWNSTREAM\\] Service AdE returned errors=<not specified>.*Request to POST https://gatewaywebservices\\.agenziaentrate\\.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService.*ReadTimeoutException',
+        `${downstreamMarkerPattern('AdE')}<not specified>.*Request to POST ` +
+          'https://gatewaywebservices\\.agenziaentrate\\.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService.*ReadTimeoutException',
       ),
     ),
     title: 'Timeout downstream AdE - VerificaRappresentanteEnteService',
@@ -137,7 +148,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: 'Timeout InfoCamere durante authentication',
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service InfoCamere returned errors=<not specified>' +
+      `${downstreamMarkerPattern('InfoCamere')}<not specified>` +
         '[\\s\\S]*Request to POST ' +
         'https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/authentication' +
         '[\\s\\S]*io\\.netty\\.handler\\.timeout\\.ReadTimeoutException',
@@ -163,8 +174,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: 'Connessione InfoCamere chiusa durante authentication',
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service InfoCamere returned errors=recvAddress\\(\\.\\.\\) failed: ' +
-        'Connection reset by peer[\\s\\S]*Request to POST ' +
+      `${downstreamMarkerPattern('InfoCamere')}recvAddress\\(\\.\\.\\) failed: Connection reset by peer` +
+        '[\\s\\S]*Request to POST ' +
         'https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/authentication',
     ),
     title: 'Connessione downstream InfoCamere chiusa durante autenticazione',
@@ -188,7 +199,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: 'InfoCamere non disponibile durante elenco legale rappresentante',
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service InfoCamere returned errors=500 Internal Server Error from GET https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/listaLegaleRappresentante/',
+      downstreamMarkerPattern('InfoCamere', {
+        status: '500 Internal Server Error',
+        method: 'GET',
+        endpoint: 'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/listaLegaleRappresentante/',
+      }),
     ),
     title: '[DOWNSTREAM] Service InfoCamere returned errors=500 Internal Server Error',
     resolution:
@@ -207,7 +222,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: 'InfoCamere non disponibile durante authentication',
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service InfoCamere returned errors=500 Internal Server Error from POST https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/authentication(?:\\?client_id=[^\\s"]*)?',
+      `${downstreamMarkerPattern('InfoCamere', {
+        status: '500 Internal Server Error',
+        method: 'POST',
+        endpoint: 'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/authentication',
+      })}(?:\\?client_id=[^\\s"]*)?`,
     ),
     title: '[DOWNSTREAM] Service InfoCamere returned errors=500 Internal Server Error',
     resolution: 'Risoluzione non documentata.',

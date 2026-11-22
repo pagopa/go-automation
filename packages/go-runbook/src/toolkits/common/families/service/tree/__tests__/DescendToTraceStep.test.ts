@@ -10,7 +10,7 @@ const step = new DescendToTraceStep('descend-trace', 'pn-service-trace', 'pnServ
 describe('DescendToTraceStep', () => {
   it('descends to the trace of the error', async () => {
     const result = await step.execute(createTestContext({ vars: { pnServiceTraceId: TRACE } }));
-    assert.deepEqual(result.descend, [{ target: 'pn-service-trace', identifier: TRACE, kind: 'traceId' }]);
+    assert.deepEqual(result.descend, [{ target: 'pn-service-trace', identifier: { kind: 'traceId', value: TRACE } }]);
   });
 
   it('leaves an error without trace id as a leaf', async () => {

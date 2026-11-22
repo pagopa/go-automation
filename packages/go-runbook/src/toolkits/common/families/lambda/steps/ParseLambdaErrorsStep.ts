@@ -1,18 +1,16 @@
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { omitUndefined } from '@pagopa/go-common/utils';
-import type { Step } from '../../../../../engine/types/Step.js';
-import type { StepKind } from '../../../../../engine/types/StepKind.js';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
-import type { StepResult } from '../../../../../engine/types/StepResult.js';
-import { readStepOutput } from '../../../../../engine/context/readStepOutput.js';
+import type { RunbookContext, Step, StepKind, StepResult } from '../../../../../engine/index.js';
+import { readStepOutput } from '../../../../../engine/index.js';
 
 import type { DownstreamErrorPattern } from '../types/DownstreamErrorPattern.js';
 import { scanLambdaLogs } from '../helpers/scanLambdaLogs.js';
 import type { LambdaErrorScan } from '../helpers/scanLambdaLogs.js';
 import type { LambdaErrorScannerFn } from '../types/LambdaErrorScannerFn.js';
-import { findDownstreamInRows } from '../helpers/matchDownstreamErrorPattern.js';
+import { downstreamFinder } from '../helpers/matchDownstreamErrorPattern.js';
+import type { DownstreamFinderFn } from '../types/DownstreamFinderFn.js';
 import { LambdaReporter } from '../reporting/LambdaReporter.js';
 import { boundedText } from '../../../parsing/correlation/boundedText.js';
+import type { CloudWatchLogsRows } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRows.js';
 
 /**
  * Configuration for {@link ParseLambdaErrorsStep}.
@@ -47,6 +45,7 @@ export class ParseLambdaErrorsStep implements Step<LambdaErrorScan> {
    * identified by `queryProfileId` in the runbook context.
    */
   private readonly scan: LambdaErrorScannerFn;
+  private readonly findDownstream: DownstreamFinderFn;
 
   constructor(config: ParseLambdaErrorsConfig) {
     this.id = config.id;
@@ -54,11 +53,12 @@ export class ParseLambdaErrorsStep implements Step<LambdaErrorScan> {
     this.fromStep = config.fromStep;
     this.downstreamErrorPatterns = config.downstreamErrorPatterns;
     this.scan = (rows) => scanLambdaLogs(rows, config.downstreamSignatures);
+    this.findDownstream = downstreamFinder(this.downstreamErrorPatterns);
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<LambdaErrorScan>> {
-    const upstream = readStepOutput<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>(context, this.fromStep);
+    const upstream = readStepOutput<CloudWatchLogsRows>(context, this.fromStep);
     if (!upstream.ok) return upstream.failure;
 
     const scan = this.scan(upstream.value);
@@ -72,7 +72,7 @@ export class ParseLambdaErrorsStep implements Step<LambdaErrorScan> {
 
     // Match downstream patterns against ALL scan rows, not just the
     // representative message: the routing signal may be on a later row.
-    const downstreamTarget = findDownstreamInRows(upstream.value, this.downstreamErrorPatterns)?.target;
+    const downstreamTarget = this.findDownstream(upstream.value)?.target;
 
     const vars: Record<string, string> = {
       lambdaErrorCount: String(scan.errorCount),

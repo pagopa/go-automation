@@ -1,5 +1,4 @@
 import type { FlowDirective } from './FlowDirective.js';
-import type { ErrorRecoveryInfo } from './ErrorRecoveryInfo.js';
 import type { StepDiagnostics } from '../tracing/StepDiagnostics.js';
 import type { StepCoverage } from './StepCoverage.js';
 import type { ObservedErrors } from './ObservedErrors.js';
@@ -30,6 +29,4 @@ export interface StepResult<TOutput = unknown> {
   readonly observedErrors?: ObservedErrors;
   /** Descents requested by a step of an error-tree node: where to look for the errors of the same operation below. */
   readonly descend?: ReadonlyArray<DescendRequest>;
-  /** Recovery information if the step failed but execution continued thanks to continueOnFailure. */
-  readonly errorRecovery?: ErrorRecoveryInfo;
 }

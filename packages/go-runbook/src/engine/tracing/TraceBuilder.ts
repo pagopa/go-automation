@@ -1,8 +1,9 @@
 import { omitUndefined } from '@pagopa/go-common/utils';
-import type { StepKind } from '../types/StepKind.js';
 import type { StepTrace } from './StepTrace.js';
+import type { StepTraceEntry } from './StepTraceEntry.js';
 import type { CaseEvaluationTrace } from './CaseEvaluationTrace.js';
-import type { ActionTrace, ActionType } from './ActionTrace.js';
+import type { ActionTrace } from './ActionTrace.js';
+import type { ActionType } from './ActionType.js';
 import type { ExecutionSummary } from './ExecutionSummary.js';
 import type { ExecutionEnvironment } from './ExecutionEnvironment.js';
 import type { RunbookExecutionTrace } from './RunbookExecutionTrace.js';
@@ -10,10 +11,9 @@ import type { RunbookContext } from '../types/RunbookContext.js';
 import type { Runbook } from '../types/Runbook.js';
 import type { KnownCase } from '../types/KnownCase.js';
 import type { CaseAction } from '../types/CaseAction.js';
-import type { FlowDirectiveString } from '../types/FlowDirective.js';
 import type { RunbookExecutionStatus } from '../types/RunbookExecutionStatus.js';
-import type { StepDiagnostics } from './StepDiagnostics.js';
 import type { CoverageEntry } from '../types/CoverageEntry.js';
+import type { TraceStatus } from './TraceStatus.js';
 
 /**
  * Builder for the {@link RunbookExecutionTrace}.
@@ -26,7 +26,21 @@ import type { CoverageEntry } from '../types/CoverageEntry.js';
  * @example
  * ```typescript
  * const builder = new TraceBuilder('exec-123', runbook, params);
- * builder.traceStep('query-logs', 'Search errors', 'data', 'sequential', t0, t1, 1833, 'success', false, input, output, {}, 'continue');
+ * builder.traceStep({
+ *   stepId: 'query-logs',
+ *   label: 'Search errors',
+ *   kind: 'data',
+ *   reachedVia: 'sequential',
+ *   startedAt: t0,
+ *   completedAt: t1,
+ *   durationMs: 1833,
+ *   status: 'success',
+ *   recovered: false,
+ *   input,
+ *   output,
+ *   varsWritten: {},
+ *   flowDirective: 'continue',
+ * });
  * builder.traceCaseEvaluation(knownCase, true, { 'vars.statusCode': '504' });
  * builder.traceAction(action, 'notify', 'success', 120);
  *
@@ -61,46 +75,12 @@ export class TraceBuilder {
   }
 
   /**
-   * Records the trace of an executed step.
+   * Records the trace of an executed step; its execution order is the position in the trace.
    *
+   * @param entry - The step trace, without its execution order
    */
-  traceStep(
-    stepId: string,
-    label: string,
-    kind: StepKind,
-    reachedVia: 'sequential' | 'goTo' | 'subPipeline',
-    startedAt: string,
-    completedAt: string,
-    durationMs: number,
-    status: 'success' | 'failed' | 'skipped',
-    recovered: boolean,
-    input: unknown,
-    output: unknown,
-    varsWritten: Readonly<Record<string, string>>,
-    flowDirective: FlowDirectiveString,
-    diagnostics?: StepDiagnostics,
-    error?: string,
-    parentStepId?: string,
-  ): void {
-    const stepTrace: StepTrace = {
-      executionOrder: this.stepTraces.length + 1,
-      stepId,
-      label,
-      kind,
-      reachedVia,
-      startedAt,
-      completedAt,
-      durationMs,
-      status,
-      recovered,
-      input,
-      output,
-      varsWritten,
-      flowDirective,
-      ...omitUndefined({ diagnostics, error, parentStepId }),
-    };
-
-    this.stepTraces.push(stepTrace);
+  traceStep(entry: StepTraceEntry): void {
+    this.stepTraces.push({ executionOrder: this.stepTraces.length + 1, ...entry });
   }
 
   /**
@@ -148,7 +128,7 @@ export class TraceBuilder {
   traceAction(
     action: CaseAction,
     actionType: ActionType,
-    status: 'success' | 'failed',
+    status: TraceStatus,
     durationMs: number,
     resolvedMessage?: string,
     error?: string,
@@ -159,8 +139,7 @@ export class TraceBuilder {
       actionDetail: action,
       status,
       durationMs,
-      ...(resolvedMessage !== undefined ? { resolvedMessage } : {}),
-      ...(error !== undefined ? { error } : {}),
+      ...omitUndefined({ resolvedMessage, error }),
     });
   }
 
@@ -184,14 +163,11 @@ export class TraceBuilder {
 
     // Single-pass computation of summary metrics
     const totalSteps = this.runbook.steps.length;
-    let stepsExecuted = 0;
+    const stepsExecuted = this.stepTraces.length;
     let stepsFailed = 0;
     let stepsRecovered = 0;
 
     for (const step of this.stepTraces) {
-      if (step.status !== 'skipped') {
-        stepsExecuted += 1;
-      }
       if (step.status === 'failed' && !step.recovered) {
         stepsFailed += 1;
       }
@@ -203,9 +179,7 @@ export class TraceBuilder {
     // The steps of the window not executed: a step run for several nodes or batches counts once.
     const windowIds = new Set(this.runbook.steps.map((descriptor) => descriptor.step.id));
     const executedWindow = new Set(
-      this.stepTraces
-        .filter((step) => step.status !== 'skipped' && windowIds.has(step.stepId))
-        .map((step) => step.stepId),
+      this.stepTraces.filter((step) => windowIds.has(step.stepId)).map((step) => step.stepId),
     );
     const stepsSkipped = totalSteps - executedWindow.size;
     const outcomeCase = matchedCaseIds.length === 0 ? 'no-match' : matchedCaseIds.join(',');

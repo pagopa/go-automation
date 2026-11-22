@@ -10,7 +10,13 @@ import {
   varExists,
   varMatches,
 } from '../../../../engine/index.js';
-import { apiGwPathMatches, apiGwStatusIs, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import {
+  downstreamMarkerPattern,
+  apiGwPathMatches,
+  apiGwStatusIs,
+  knownCase,
+  SEND_DOWNSTREAMS,
+} from '../../../../toolkits/send/index.js';
 /**
  * Known cases for the pn-delivery-B2B-ApiGwAlarm runbook.
  */
@@ -36,7 +42,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: 'Personal Data Vault Tokenizer restituisce 404 Not Found',
     condition: stepEvidenceMatches(
       'query-pn-data-vault',
-      '\\[DOWNSTREAM\\] Service PersonalDataVault_Tokenizer returned errors=404 Not Found',
+      downstreamMarkerPattern('PersonalDataVault_Tokenizer', { status: '404 Not Found' }),
     ),
     title: '[DOWNSTREAM] PersonalDataVault_Tokenizer - 404 Not Found',
     resolution: 'Risoluzione non documentata.',
@@ -339,7 +345,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: 'SelfcarePG restituisce 500 durante l’inserimento dell’istituzione in pn-data-vault',
     condition: stepEvidenceMatches(
       'query-pn-data-vault',
-      '\\[DOWNSTREAM\\] Service SelfcarePG returned errors=500 Internal Server Error from POST https://api\\.selfcare\\.pagopa\\.it/external/data-vault/v1/pn-pg/institutions/add',
+      downstreamMarkerPattern('SelfcarePG', {
+        status: '500 Internal Server Error',
+        method: 'POST',
+        endpoint: 'https://api.selfcare.pagopa.it/external/data-vault/v1/pn-pg/institutions/add',
+      }),
     ),
     title: '[DOWNSTREAM] SelfcarePG - 500 Internal Server Error',
     resolution:

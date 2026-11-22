@@ -3,16 +3,15 @@
  */
 import { knownCase, lambda, lambdaLogEvidenceMatches, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
 import { all, any, type KnownCase } from '../../../../engine/index.js';
+import { IDP_CERT_ERROR_PATTERN, IDP_KEYS_TIMEOUT_PATTERN } from './knownErrors.js';
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'app-io-backend-idp-keys-unavailable',
     description: '[DOWNSTREAM AppIO - backend IO] Timeout o errore nel recupero delle chiavi CIE/SPID',
     condition: any(
-      lambdaLogEvidenceMatches(
-        'Errore nella chiamata idpKeys(?:CieGet|SpidTagGet):[\\s\\S]*Message:\\s*Timeout of 1000ms exceeded',
-      ),
-      lambdaLogEvidenceMatches('IDP_CERT_DATA_RETRIEVING_ERROR'),
+      lambdaLogEvidenceMatches(IDP_KEYS_TIMEOUT_PATTERN),
+      lambdaLogEvidenceMatches(IDP_CERT_ERROR_PATTERN),
     ),
     title: '[DOWNSTREAM AppIO - backend IO] Recupero chiavi CIE/SPID non disponibile',
     resolution: 'Risoluzione non documentata.',

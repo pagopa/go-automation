@@ -3,6 +3,7 @@
  */
 
 import {
+  ALARM_TIME_RANGE,
   CloudWatchLogsQueryStep,
   UNKNOWN_CASE_TITLE,
   unknownCaseFallback,
@@ -44,7 +45,7 @@ export function buildRunbook(): Runbook {
         label: 'Query access log 4xx e-services in Attestazione',
         logGroups: [API_GW_LOG_GROUP],
         query: ACCESS_LOG_QUERY,
-        timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+        timeRangeFromParams: ALARM_TIME_RANGE,
         logGroupResolutionMode: 'search-configured-profiles',
         paginateResults: true,
         traceMetadata: { queryProfileId: 'interop-att-eservices-4xx', queryKind: 'access-log', identifierMode: 'none' },

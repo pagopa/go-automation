@@ -1,5 +1,4 @@
-import type { RunbookExecutionStatus } from '../../../engine/types/RunbookExecutionStatus.js';
-import type { RunbookType } from '../../../engine/types/RunbookType.js';
+import type { RunbookExecutionStatus, RunbookType } from '../../../engine/index.js';
 import type { AnalysisDraftV1 } from '../analysis/draft/AnalysisDraft.js';
 import type { RunbookOutcome } from './RunbookOutcome.js';
 import type { RunbookOutputContext } from './RunbookOutputContext.js';

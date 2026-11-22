@@ -93,7 +93,6 @@ async function context(
       ['startTime', '2026-09-10T09:06:01Z'],
       ['endTime', '2026-09-10T10:11:01Z'],
     ]),
-    logs: [],
     services: createTestServiceRegistry({
       awsAccounts,
       reporter: {

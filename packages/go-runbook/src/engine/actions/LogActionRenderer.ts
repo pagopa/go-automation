@@ -1,6 +1,6 @@
 import type { GOLogger } from '@pagopa/go-common/logging';
 
-import type { LogAction } from '../types/CaseAction.js';
+import type { LogAction } from '../types/LogAction.js';
 import type { LogActionValues } from './LogActionValues.js';
 
 /**

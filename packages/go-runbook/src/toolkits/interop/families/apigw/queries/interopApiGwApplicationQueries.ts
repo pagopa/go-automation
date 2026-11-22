@@ -40,7 +40,7 @@ filter (@message like /ERROR/ or stream = "stderr" or @message like /(?i)Respons
  * count and its interval. The most recent messages come first.
  *
  * @param podApp - k8s pod app whose application logs are scanned
- * @param excludedMessagePatterns - Literal message markers of non-causal warnings to drop (P18)
+ * @param excludedMessagePatterns - Literal message markers of non-causal warnings to drop
  * @returns The CloudWatch Logs Insights query
  */
 export function buildInteropApiGwServiceWarningsQuery(

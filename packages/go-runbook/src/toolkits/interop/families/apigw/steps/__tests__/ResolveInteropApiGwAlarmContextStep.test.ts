@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { ResolveInteropApiGwAlarmContextFn } from '../../types/ResolveInteropApiGwAlarmContextFn.js';
+import type { ResolveInteropAlarmContextFn } from '../../../../alarms/ResolveInteropAlarmContextFn.js';
+import type { InteropApiGwAlarmContext } from '../../types/InteropApiGwAlarmContext.js';
 import { ResolveInteropApiGwAlarmContextStep } from '../ResolveInteropApiGwAlarmContextStep.js';
 import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
 
@@ -9,7 +10,7 @@ function context(alarmName?: string): ReturnType<typeof createTestContext> {
   return createTestContext({ params: alarmName === undefined ? {} : { alarmName } });
 }
 
-const RESOLVE_FIXTURE: ResolveInteropApiGwAlarmContextFn = (alarmName) => ({
+const RESOLVE_FIXTURE: ResolveInteropAlarmContextFn<InteropApiGwAlarmContext> = (alarmName) => ({
   alarmName,
   runbookKey: 'fixture',
   environment: 'prod',
@@ -20,7 +21,7 @@ const RESOLVE_FIXTURE: ResolveInteropApiGwAlarmContextFn = (alarmName) => ({
 });
 
 function step(
-  resolveAlarmContext: ResolveInteropApiGwAlarmContextFn = RESOLVE_FIXTURE,
+  resolveAlarmContext: ResolveInteropAlarmContextFn<InteropApiGwAlarmContext> = RESOLVE_FIXTURE,
 ): ResolveInteropApiGwAlarmContextStep {
   return new ResolveInteropApiGwAlarmContextStep({
     id: 'resolve',

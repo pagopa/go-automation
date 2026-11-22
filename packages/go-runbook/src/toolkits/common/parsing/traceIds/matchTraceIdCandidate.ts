@@ -1,19 +1,9 @@
 import type { ServiceLogSchema } from '../applicationLogs/ServiceLogSchema.js';
-import { bareTraceId } from './bareTraceId.js';
-import { canonicalTraceId } from './canonicalTraceId.js';
+import { traceIdFormatOf } from './traceIdFormats.js';
+import { canonicalTraceId } from './traceIdentity.js';
 import type { TraceIdCandidateMatch } from './TraceIdCandidateMatch.js';
 import type { TraceIdSearchPolicy } from './TraceIdSearchPolicy.js';
-
-/** A canonical X-Ray trace id anywhere in a message. */
-const XRAY_TRACE_ID_PATTERN = /\b1-[0-9a-fA-F]{8}-[0-9a-fA-F]{24}\b/;
-
-/**
- * A 32-hex trace id embedded in the message text, **only when explicitly
- * labeled** (e.g. `"trace_id":"<hex>"`, `traceId=<hex>`, `trace-id: <hex>`).
- * Requiring the label avoids treating any bare 32-hex token (MD5, dash-less
- * UUID, request hash) as a trace id.
- */
-const LABELED_TRACE_ID_PATTERN = /trace[_-]?id["'\s:=]+([0-9a-f]{32})(?![0-9a-f])/i;
+import { TRACE_ID_FORMATS } from './traceIdFormats.js';
 
 /**
  * Trace id candidate of a row under a declared search policy.
@@ -29,19 +19,17 @@ export function matchTraceIdCandidate(
   policy: TraceIdSearchPolicy,
 ): TraceIdCandidateMatch | undefined {
   const raw = (fields.get(schema.traceIdField) ?? fields.get(`@${schema.traceIdField}`) ?? '').trim();
-  const fromField = policy === 'field' ? bareTraceId(raw) : canonicalTraceId(raw);
+  const fromField = policy === 'field' ? traceIdFormatOf(raw)?.canonical : canonicalTraceId(raw);
   if (fromField !== undefined) return { raw, canonical: fromField };
   if (policy === 'field') return undefined;
 
   // A structured message can omit identifiers carried by the full @message.
   for (const candidate of schema.messageFieldCandidates) {
     const message = fields.get(candidate) ?? '';
-    const xray = XRAY_TRACE_ID_PATTERN.exec(message)?.[0];
-    if (xray !== undefined) return { raw: xray, canonical: xray.toLowerCase() };
-
-    const labeled = LABELED_TRACE_ID_PATTERN.exec(message)?.[1];
-    const fromMessage = labeled === undefined ? undefined : canonicalTraceId(labeled);
-    if (labeled !== undefined && fromMessage !== undefined) return { raw: labeled, canonical: fromMessage };
+    for (const format of TRACE_ID_FORMATS) {
+      const found = format.findInMessage(message);
+      if (found !== undefined) return found;
+    }
   }
   return undefined;
 }

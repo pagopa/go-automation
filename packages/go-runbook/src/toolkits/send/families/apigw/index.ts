@@ -28,7 +28,8 @@ export { isExecutionLogEnabled, getEffectiveExecutionLogGroup } from './builders
 export { API_GW_AUTHORIZER_LAMBDAS } from './authorizers/ApiGwAuthorizerLambdaRegistry.js';
 export type { ApiGwAuthorizerLambdaName } from './authorizers/ApiGwAuthorizerLambdaRegistry.js';
 export { scanServiceLogs } from './correlation/scanServiceLogs.js';
-export type { KnownUrlInLogs, ServiceLogsScan } from './correlation/scanServiceLogs.js';
+export type { KnownUrlInLogs } from './correlation/KnownUrlInLogs.js';
+export type { ServiceLogsScan } from './correlation/ServiceLogsScan.js';
 export type { TraceIdCandidateMatch } from '../../../common/parsing/traceIds/TraceIdCandidateMatch.js';
 export type { ServiceLogSpec } from './profiles/ServiceLogSpec.js';
 export type { ApiGwQueryProfile } from './profiles/ApiGwQueryProfile.js';
@@ -36,17 +37,5 @@ export { SEND_API_GW_PROFILE } from './profiles/SEND_API_GW_PROFILE.js';
 export { resolveApiGwQueryProfile } from './profiles/resolveApiGwQueryProfile.js';
 export { QueryServiceLogsStep } from './steps/QueryServiceLogsStep.js';
 export type { QueryServiceLogsConfig } from './steps/QueryServiceLogsStep.js';
-export {
-  API_GW_LAST_SERVICE_VAR,
-  API_GW_QUERY_COUNTER_VAR,
-  API_GW_VISIT_COUNTER_VAR,
-  apiGwServiceVisitVars,
-  planApiGwServiceVisit,
-  updateApiGwServicesVisitedChain,
-  type ApiGwCurrentQueryIdentifier,
-  type ApiGwQueryIdentifierMode,
-  type ApiGwServiceVisitPlan,
-} from './state/ApiGwAnalysisState.js';
 export type { ApiGwPipelineAnchor } from './types/ApiGwPipelineAnchor.js';
 export type { ApiGwAlarmConfig } from './types/ApiGwAlarmConfig.js';
-export { ApiGwServiceChainReporter } from './reporting/ApiGwServiceChainReporter.js';

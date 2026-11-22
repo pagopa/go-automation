@@ -1,11 +1,13 @@
-import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext, Step, StepResult } from '../../../../engine/index.js';
 import {
-  INTEROP_API_GW_APPLICATION_QUERY_LIMIT,
-  INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT,
   isInteropEnvironment,
   normalizeInteropApiGwAggregateValue,
+  readCidTrackerResults,
   readCloudWatchResultRows,
+  readInteropLogRow,
+  type CloudWatchLogsRow,
+  type CloudWatchLogsRows,
 } from '../../../../toolkits/interop/index.js';
 import { AUTH_SERVER_5XX_ALARM } from './alarmDefinition.js';
 
@@ -29,6 +31,9 @@ interface AuditFallbackAnalysis {
   readonly apiGatewayEvidenceComplete: boolean;
 }
 
+/** The fallback sequence of a CID, in order: started, stored in the expected bucket, succeeded, token generated. */
+const FALLBACK_SEQUENCE = ['fallback', 'stored', 'succeeded', 'token'] as const;
+
 /** Verifies fallback sequences per CID and reports the remaining application and gateway evidence. */
 export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
   readonly id = 'analyze-auth-server-audit-fallback';
@@ -41,106 +46,41 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
     if (!isInteropEnvironment(environment)) {
       return { success: false, error: 'Ambiente INTEROP mancante o non supportato per la verifica audit' };
     }
-    const expectedBucket = `interop-generated-jwt-details-fallback-${environment}-es1`;
-    const application = readCloudWatchResultRows(
-      context.stepResults.get(AUTH_SERVER_5XX_ALARM.stepIds.queryApplicationLogs),
-    );
-    const apiGateway = readCloudWatchResultRows(
-      context.stepResults.get(AUTH_SERVER_5XX_ALARM.stepIds.queryApiGwAggregates),
-    );
-    const tracker: unknown = context.stepResults.get(AUTH_SERVER_5XX_ALARM.stepIds.queryCidTracker);
-    if (application === undefined || apiGateway === undefined || !Array.isArray(tracker)) {
+    const { stepIds } = AUTH_SERVER_5XX_ALARM;
+    const application = readCloudWatchResultRows(context.stepResults.get(stepIds.queryApplicationLogs));
+    const apiGateway = readCloudWatchResultRows(context.stepResults.get(stepIds.queryApiGwAggregates));
+    const tracker = readCidTrackerResults(context.stepResults.get(stepIds.queryCidTracker));
+    if (application === undefined || apiGateway === undefined || tracker === undefined) {
       return {
         success: false,
         error: 'Aggregati API Gateway, log applicativi o CID tracker non disponibili per la verifica audit',
       };
     }
 
-    const candidates = new Set<string>();
-    let uncorrelatedErrors = 0;
-    let additionalApplicationErrors = 0;
-    let additionalTrackerErrors = 0;
-    for (const row of application) {
-      const message = readMessage(row);
-      if (!isAuditFailure(message)) {
-        additionalApplicationErrors += 1;
-        continue;
-      }
-      const explicitCid = row.find((field) => field.field === 'cid' || field.field === 'CID')?.value?.trim();
-      const cid =
-        explicitCid !== undefined && explicitCid !== '' ? explicitCid : /\bCID=([^\]\s,"']+)/u.exec(message)?.[1];
-      if (cid === undefined) uncorrelatedErrors += 1;
-      else candidates.add(cid);
-    }
-
-    const traces = new Map<string, ReadonlyArray<string>>();
-    for (const entry of tracker as unknown[]) {
-      if (typeof entry !== 'object' || entry === null || !('cid' in entry) || !('rows' in entry)) continue;
-      if (typeof entry.cid !== 'string' || entry.cid.trim() === '') continue;
-      const rows = readCloudWatchResultRows(entry.rows);
-      if (rows === undefined) continue;
-      const messages = rows.flatMap((row) => {
-        const message = readMessage(row);
-        if (isAuthServerRow(row)) {
-          // Only the fallback sequence is trusted from the auth server. Any unrelated
-          // error for the same CID makes the recovery outcome unsafe to close.
-          if (isAuditFailure(message) || isPortableFallbackEvidence(message) || message.includes('Token generated')) {
-            return [message];
-          }
-          if (isTrackerError(row, message)) additionalTrackerErrors += 1;
-          return [];
-        }
-        // The two portable fallback markers may instead come from a correlated writer service.
-        // Any other error from that service makes the recovery outcome unsafe to close.
-        if (isTrackerError(row, message)) {
-          additionalTrackerErrors += 1;
-          return [];
-        }
-        return isPortableFallbackEvidence(message) ? [message] : [];
-      });
-      traces.set(entry.cid, messages);
-      if (messages.some(isAuditFailure)) candidates.add(entry.cid);
-    }
-
+    const applicationErrors = readApplicationErrors(application);
+    const traces = readTrackerTraces(tracker);
+    const gateway = readGatewayCounts(apiGateway);
+    const expectedBucket = `interop-generated-jwt-details-fallback-${environment}-es1`;
     const confirmedCids: string[] = [];
     const unresolvedCids: string[] = [];
-    for (const cid of candidates) {
-      (hasCompletedFallback(traces.get(cid) ?? [], expectedBucket) ? confirmedCids : unresolvedCids).push(cid);
+    for (const cid of new Set([...applicationErrors.failedCids, ...traces.failedCids])) {
+      (hasCompletedFallback(traces.messages.get(cid) ?? [], expectedBucket) ? confirmedCids : unresolvedCids).push(cid);
     }
-    // Reaching the query cap means additional failures may have been omitted. Without
-    // a total count, only a result strictly below the cap proves that the evidence is complete.
+
     // A saturated or failed read (rows at the cap, unread pages, a CID left unread) may hide another fallback.
-    const applicationEvidenceComplete =
-      application.length < INTEROP_API_GW_APPLICATION_QUERY_LIMIT &&
-      context.reads.isComplete(AUTH_SERVER_5XX_ALARM.stepIds.queryApplicationLogs);
-    const trackerEvidenceComplete = context.reads.isComplete(AUTH_SERVER_5XX_ALARM.stepIds.queryCidTracker);
-    let apiGatewayErrorCount = 0;
-    let apiGatewayIntegrationErrorCount = 0;
-    let apiGatewayCountsValid = true;
-    for (const row of apiGateway) {
-      const count = readAggregateCount(row);
-      if (count === undefined) apiGatewayCountsValid = false;
-      else apiGatewayErrorCount += count;
-      if (normalizeInteropApiGwAggregateValue(readRowField(row, 'integrationError')) !== undefined) {
-        apiGatewayIntegrationErrorCount += count ?? 1;
-      }
-    }
-    const apiGatewayEvidenceComplete =
-      apiGateway.length > 0 &&
-      apiGateway.length < INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT &&
-      context.reads.isComplete(AUTH_SERVER_5XX_ALARM.stepIds.queryApiGwAggregates);
+    const applicationEvidenceComplete = context.reads.isComplete(stepIds.queryApplicationLogs);
+    const trackerEvidenceComplete = context.reads.isComplete(stepIds.queryCidTracker);
+    const gatewayReadComplete = context.reads.isComplete(stepIds.queryApiGwAggregates);
+    const apiGatewayEvidenceComplete = apiGateway.length > 0 && gatewayReadComplete;
     const sequenceConfirmed =
       applicationEvidenceComplete &&
       trackerEvidenceComplete &&
       confirmedCids.length > 0 &&
       unresolvedCids.length === 0 &&
-      uncorrelatedErrors === 0;
+      applicationErrors.uncorrelatedErrors === 0;
     // Derived from evidence: `unknown` when that evidence is incomplete, never a certain `false`.
     // A certain `false` (no fallback sequence) lets the WAF case close the alarm: every read must be complete,
     // the API Gateway aggregates included.
-    const gatewayReadComplete =
-      apiGateway.length < INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT &&
-      context.reads.isComplete(AUTH_SERVER_5XX_ALARM.stepIds.queryApiGwAggregates);
     const sequenceState = sequenceConfirmed
       ? 'true'
       : applicationEvidenceComplete && trackerEvidenceComplete && gatewayReadComplete
@@ -150,31 +90,31 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
     // compared with deduplicated application CIDs because retries may emit multiple 5xx.
     // Keep the evidence fail-closed on truncation/malformed counts and reject an explicit
     // gateway-side integration error, without pretending the two cardinalities correlate.
-    const apiGatewayEvidenceMatchesFallbacks =
-      apiGatewayEvidenceComplete && apiGatewayCountsValid && apiGatewayIntegrationErrorCount === 0;
     const confirmed =
       sequenceConfirmed &&
-      additionalApplicationErrors === 0 &&
-      additionalTrackerErrors === 0 &&
-      apiGatewayEvidenceMatchesFallbacks;
-    const output = {
+      applicationErrors.additionalApplicationErrors === 0 &&
+      traces.additionalTrackerErrors === 0 &&
+      apiGatewayEvidenceComplete &&
+      gateway.countsValid &&
+      gateway.integrationErrorCount === 0;
+    const output: AuditFallbackAnalysis = {
       confirmedCids,
       unresolvedCids,
-      uncorrelatedErrors,
-      additionalApplicationErrors,
-      additionalTrackerErrors,
+      uncorrelatedErrors: applicationErrors.uncorrelatedErrors,
+      additionalApplicationErrors: applicationErrors.additionalApplicationErrors,
+      additionalTrackerErrors: traces.additionalTrackerErrors,
       applicationEvidenceComplete,
-      apiGatewayErrorCount,
-      apiGatewayIntegrationErrorCount,
-      apiGatewayCountsValid,
+      apiGatewayErrorCount: gateway.errorCount,
+      apiGatewayIntegrationErrorCount: gateway.integrationErrorCount,
+      apiGatewayCountsValid: gateway.countsValid,
       apiGatewayEvidenceComplete,
     };
     context.services.reporter.add({
       label:
         `Fallback audit: ${confirmedCids.length} CID confermati, ${unresolvedCids.length} da verificare, ` +
-        `${uncorrelatedErrors} errori senza CID, ${additionalApplicationErrors} errori applicativi aggiuntivi, ` +
-        `${additionalTrackerErrors} errori aggiuntivi nel CID tracker, ` +
-        `${apiGatewayErrorCount} errori API Gateway (${apiGatewayIntegrationErrorCount} di integrazione), ` +
+        `${output.uncorrelatedErrors} errori senza CID, ${output.additionalApplicationErrors} errori applicativi aggiuntivi, ` +
+        `${output.additionalTrackerErrors} errori aggiuntivi nel CID tracker, ` +
+        `${output.apiGatewayErrorCount} errori API Gateway (${output.apiGatewayIntegrationErrorCount} di integrazione), ` +
         `evidenza applicativa ${applicationEvidenceComplete ? 'completa' : 'potenzialmente troncata'}, ` +
         `evidenza API Gateway ${apiGatewayEvidenceComplete ? 'completa' : 'potenzialmente troncata'}`,
     });
@@ -189,25 +129,78 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
   }
 }
 
-function readAggregateCount(row: ReadonlyArray<GOLogsInsightsResultField>): number | undefined {
+/** The audit failures of the application errors: the CIDs they carry, the ones without CID, the other errors. */
+function readApplicationErrors(application: CloudWatchLogsRows): {
+  readonly failedCids: ReadonlyArray<string>;
+  readonly uncorrelatedErrors: number;
+  readonly additionalApplicationErrors: number;
+} {
+  const failedCids: string[] = [];
+  let uncorrelatedErrors = 0;
+  let additionalApplicationErrors = 0;
+  for (const row of application) {
+    const { message, cid } = readInteropLogRow(row);
+    if (!isAuditFailure(message)) additionalApplicationErrors += 1;
+    else if (cid === undefined) uncorrelatedErrors += 1;
+    else failedCids.push(cid);
+  }
+  return { failedCids, uncorrelatedErrors, additionalApplicationErrors };
+}
+
+/**
+ * The fallback evidence the tracker holds for each CID, the CIDs whose trace shows an audit failure and the errors of
+ * the traced services outside the sequence.
+ */
+function readTrackerTraces(tracker: NonNullable<ReturnType<typeof readCidTrackerResults>>): {
+  readonly messages: ReadonlyMap<string, ReadonlyArray<string>>;
+  readonly failedCids: ReadonlyArray<string>;
+  readonly additionalTrackerErrors: number;
+} {
+  const messages = new Map<string, ReadonlyArray<string>>();
+  const failedCids: string[] = [];
+  let additionalTrackerErrors = 0;
+  for (const entry of tracker) {
+    if (entry.cid.trim() === '') continue;
+    const evidence = entry.rows.flatMap((row) => {
+      const { message, podApp } = readInteropLogRow(row);
+      // Only the fallback sequence is trusted from the auth server; the two portable fallback markers may instead
+      // come from a correlated writer service. Any other error of either makes the recovery outcome unsafe to close.
+      const trusted = podApp.startsWith('interop-be-authorization-server')
+        ? isAuditFailure(message) || isPortableFallbackEvidence(message) || message.includes('Token generated')
+        : !isTrackerError(row, message) && isPortableFallbackEvidence(message);
+      if (trusted) return [message];
+      if (isTrackerError(row, message)) additionalTrackerErrors += 1;
+      return [];
+    });
+    messages.set(entry.cid, evidence);
+    if (evidence.some(isAuditFailure)) failedCids.push(entry.cid);
+  }
+  return { messages, failedCids, additionalTrackerErrors };
+}
+
+/** The API Gateway 5xx of the aggregates, those with an integration error, and whether every count was valid. */
+function readGatewayCounts(apiGateway: CloudWatchLogsRows): {
+  readonly errorCount: number;
+  readonly integrationErrorCount: number;
+  readonly countsValid: boolean;
+} {
+  let errorCount = 0;
+  let integrationErrorCount = 0;
+  let countsValid = true;
+  for (const row of apiGateway) {
+    const count = readAggregateCount(row);
+    if (count === undefined) countsValid = false;
+    else errorCount += count;
+    if (normalizeInteropApiGwAggregateValue(readRowField(row, 'integrationError')) !== undefined) {
+      integrationErrorCount += count ?? 1;
+    }
+  }
+  return { errorCount, integrationErrorCount, countsValid };
+}
+
+function readAggregateCount(row: CloudWatchLogsRow): number | undefined {
   const count = Number(readRowField(row, 'count'));
   return Number.isSafeInteger(count) && count > 0 ? count : undefined;
-}
-
-function readMessage(row: ReadonlyArray<GOLogsInsightsResultField>): string {
-  const raw = row.find((field) => ['log', '@message', 'message'].includes(field.field ?? ''))?.value ?? '';
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed === 'object' && parsed !== null && 'log' in parsed && typeof parsed.log === 'string')
-      return parsed.log;
-  } catch {
-    /* Plain application log. */
-  }
-  return raw;
-}
-
-function isAuthServerRow(row: ReadonlyArray<GOLogsInsightsResultField>): boolean {
-  return row.find((field) => field.field === 'pod_app')?.value?.startsWith('interop-be-authorization-server') === true;
 }
 
 function isAuditFailure(message: string): boolean {
@@ -220,7 +213,7 @@ function isPortableFallbackEvidence(message: string): boolean {
   return FALLBACK_STORAGE_PATTERN.test(message) || message.includes(AUDIT_FALLBACK_SUCCEEDED_PATTERN);
 }
 
-function isTrackerError(row: ReadonlyArray<GOLogsInsightsResultField>, message: string): boolean {
+function isTrackerError(row: CloudWatchLogsRow, message: string): boolean {
   return (
     readRowField(row, 'stream') === 'stderr' ||
     message.includes('ERROR') ||
@@ -228,40 +221,65 @@ function isTrackerError(row: ReadonlyArray<GOLogsInsightsResultField>, message: 
   );
 }
 
+/**
+ * Whether the messages of a CID end with the whole fallback sequence, in order, after the last audit failure: a
+ * later failure invalidates an earlier success, and a lock timeout without fallback restarts from nothing.
+ */
 function hasCompletedFallback(messages: ReadonlyArray<string>, expectedBucket: string): boolean {
-  // CloudWatch collection timestamps can reorder application events. Use the
-  // embedded ISO time when every marker has one; equal-time markers are unordered.
-  // Without embedded times, retain the chronological order supplied by the tracker.
+  let reached = 0;
+  for (const markers of markerGroups(messages, expectedBucket)) {
+    if (markers.has('fallback')) reached = 1;
+    else if (markers.has('lock-timeout')) reached = 0;
+    if (reached === 0) continue;
+    // Markers at the same time are checked for presence together, without relying on their ingestion order.
+    for (const next of FALLBACK_SEQUENCE.slice(reached)) {
+      if (!markers.has(next)) break;
+      reached += 1;
+    }
+  }
+  return reached === FALLBACK_SEQUENCE.length;
+}
+
+/**
+ * The markers of the messages, grouped by time. CloudWatch collection timestamps can reorder application events:
+ * when every message has an embedded ISO time they are ordered by it, and messages at the same time are one group;
+ * otherwise each message is a group, in the chronological order supplied by the tracker.
+ */
+function markerGroups(
+  messages: ReadonlyArray<string>,
+  expectedBucket: string,
+): ReadonlyArray<ReadonlySet<(typeof FALLBACK_SEQUENCE)[number] | 'lock-timeout'>> {
   const timed = messages.map((message) => {
     const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\b/u.exec(message)?.[0];
-    return { message, time: timestamp === undefined ? Number.NaN : Date.parse(timestamp) };
+    return {
+      marker: markerOf(message, expectedBucket),
+      time: timestamp === undefined ? Number.NaN : Date.parse(timestamp),
+    };
   });
-  const hasApplicationTimes = timed.every(({ time }) => Number.isFinite(time));
-  if (hasApplicationTimes) timed.sort((left, right) => left.time - right.time);
-
-  let stage = 0;
-  for (let index = 0; index < timed.length; index += 1) {
-    const first = timed[index];
-    if (first === undefined) continue;
-    const group = [first.message];
-    while (hasApplicationTimes && timed[index + 1]?.time === first.time) {
-      index += 1;
-      const next = timed[index];
-      if (next !== undefined) group.push(next.message);
-    }
-    // A later failure invalidates earlier success; markers at the same precision
-    // are checked for presence together, without relying on their ingestion order.
-    const markers = new Set<number>();
-    for (const message of group) {
-      if (isAuditFailure(message)) markers.add(message.includes(AUDIT_FALLBACK_PATTERN) ? 1 : 0);
-      else if (FALLBACK_STORAGE_PATTERN.exec(message)?.[1] === expectedBucket) markers.add(2);
-      else if (message.includes(AUDIT_FALLBACK_SUCCEEDED_PATTERN)) markers.add(3);
-      else if (message.includes('Token generated')) markers.add(4);
-    }
-    if (markers.has(0) || markers.has(1)) stage = markers.has(1) ? 1 : 0;
-    if (stage === 1 && markers.has(2)) stage = 2;
-    if (stage === 2 && markers.has(3)) stage = 3;
-    if (stage === 3 && markers.has(4)) stage = 4;
+  if (!timed.every(({ time }) => Number.isFinite(time))) {
+    return timed.map(({ marker }) => new Set(marker === undefined ? [] : [marker]));
   }
-  return stage === 4;
+  timed.sort((left, right) => left.time - right.time);
+  const groups: Set<(typeof FALLBACK_SEQUENCE)[number] | 'lock-timeout'>[] = [];
+  let groupTime = Number.NaN;
+  for (const { marker, time } of timed) {
+    if (time !== groupTime || groups.length === 0) {
+      groups.push(new Set());
+      groupTime = time;
+    }
+    if (marker !== undefined) groups[groups.length - 1]?.add(marker);
+  }
+  return groups;
+}
+
+/** The fallback marker a message writes, if any. */
+function markerOf(
+  message: string,
+  expectedBucket: string,
+): (typeof FALLBACK_SEQUENCE)[number] | 'lock-timeout' | undefined {
+  if (isAuditFailure(message)) return message.includes(AUDIT_FALLBACK_PATTERN) ? 'fallback' : 'lock-timeout';
+  if (FALLBACK_STORAGE_PATTERN.exec(message)?.[1] === expectedBucket) return 'stored';
+  if (message.includes(AUDIT_FALLBACK_SUCCEEDED_PATTERN)) return 'succeeded';
+  if (message.includes('Token generated')) return 'token';
+  return undefined;
 }

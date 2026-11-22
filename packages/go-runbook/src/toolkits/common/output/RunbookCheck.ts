@@ -1,9 +1,6 @@
-import type { RunbookResultField } from './RunbookOutputContext.js';
-import type { CoverageReason } from '../../../engine/types/CoverageReason.js';
-
-/** Stable top-level classification shared by automation consumers. */
-export type RunbookCheckStatus =
-  'HIT' | 'MISS' | 'INCONCLUSIVE' | 'NO-DATA' | 'NO_RUNBOOK' | 'CONFIG-ERROR' | 'EXECUTION-ERROR';
+import type { RunbookResultField } from './RunbookResultField.js';
+import type { CoverageReason } from '../../../engine/index.js';
+import type { RunbookCheckStatus } from './RunbookCheckStatus.js';
 
 /** Classification of one runbook execution with bounded supporting fields. */
 export interface RunbookCheck {
@@ -30,8 +27,3 @@ export interface RunbookCheck {
   /** Message rendered by the unknown-case fallback, when the runbook has one. */
   readonly fallbackMessage?: string;
 }
-
-/** Classification returned after an engine run; no-runbook is decided before execution. */
-export type ClassifiedRunbookCheck = Omit<RunbookCheck, 'status'> & {
-  readonly status: Exclude<RunbookCheckStatus, 'NO_RUNBOOK'>;
-};

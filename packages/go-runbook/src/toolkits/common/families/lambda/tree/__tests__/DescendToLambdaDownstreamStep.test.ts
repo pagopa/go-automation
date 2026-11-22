@@ -12,14 +12,16 @@ describe('DescendToLambdaDownstreamStep', () => {
     const result = await step.execute(
       createTestContext({ vars: { lambdaDownstreamTarget: 'pn-downstream', lambdaRequestId: REQUEST_ID } }),
     );
-    assert.deepEqual(result.descend, [{ target: 'pn-downstream', identifier: REQUEST_ID, kind: 'requestId' }]);
+    assert.deepEqual(result.descend, [
+      { target: 'pn-downstream', identifier: { kind: 'requestId', value: REQUEST_ID } },
+    ]);
   });
 
   it('treats a malformed request id as a missing one', async () => {
     const result = await step.execute(
       createTestContext({ vars: { lambdaDownstreamTarget: 'pn-downstream', lambdaRequestId: "x' or 1=1" } }),
     );
-    assert.deepEqual(result.descend, [{ target: 'pn-downstream', identifier: '', kind: 'requestId' }]);
+    assert.deepEqual(result.descend, [{ target: 'pn-downstream', identifier: { kind: 'requestId', value: '' } }]);
   });
 
   it('does not descend to a downstream without a readable log group', async () => {

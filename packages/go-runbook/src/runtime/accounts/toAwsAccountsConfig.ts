@@ -1,3 +1,5 @@
+import { trimToUndefined } from '@pagopa/go-common/utils';
+
 import type { AwsAccountsBinding } from './AwsAccountsBinding.js';
 import type { AwsAccountsConfig } from './AwsAccountsConfig.js';
 import type { AwsAccountsSettings } from './AwsAccountsSettings.js';
@@ -19,19 +21,18 @@ const BINDINGS: ReadonlySet<string> = new Set<AwsAccountsBinding>(['profiles', '
  * ```
  */
 export function toAwsAccountsConfig(settings: AwsAccountsSettings): AwsAccountsConfig {
-  const typed = settings.binding?.trim();
-  const binding = typed === undefined || typed === '' ? settings.defaultBinding : typed;
+  const binding = trimToUndefined(settings.binding) ?? settings.defaultBinding;
   if (!BINDINGS.has(binding)) {
     throw new Error(`Invalid aws.account.binding "${binding}": expected profiles or oam`);
   }
-  const environment = settings.environment?.trim();
+  const environment = trimToUndefined(settings.environment);
   const permissionSets = (settings.permissionSets ?? []).map((value) => value.trim()).filter((value) => value !== '');
   return {
     directory: (settings.directory ?? []).map((entry) => entry.trim()).filter((entry) => entry !== ''),
     // Safe: checked against the known bindings above.
     binding: binding as AwsAccountsBinding,
     region: settings.region,
-    ...(environment === undefined || environment === '' ? {} : { environment }),
+    ...(environment === undefined ? {} : { environment }),
     ...(permissionSets.length === 0 ? {} : { permissionSets }),
   };
 }

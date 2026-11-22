@@ -1,4 +1,5 @@
-import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import type { CloudWatchLogsRows } from '../../../../toolkits/interop/index.js';
+import { readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import {
   readStepOutput,
   type RunbookContext,
@@ -32,7 +33,7 @@ export class AnalyzeAttEservicesAccessStep implements Step<AttEservicesAccessAna
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<AttEservicesAccessAnalysis>> {
-    const upstream = readStepOutput<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>(context, QUERY_STEP_ID);
+    const upstream = readStepOutput<CloudWatchLogsRows>(context, QUERY_STEP_ID);
     if (!upstream.ok) return upstream.failure;
     const rows = upstream.value;
     const paths = new Set<string>();

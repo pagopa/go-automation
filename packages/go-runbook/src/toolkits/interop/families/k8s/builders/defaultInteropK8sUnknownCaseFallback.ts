@@ -1,5 +1,5 @@
 import { unknownCaseFallback, UNKNOWN_CASE_TITLE } from '../../../../common/analysis/reporting/unknownCaseFallback.js';
-import type { CaseAction } from '../../../../../engine/types/CaseAction.js';
+import type { CaseAction } from '../../../../../engine/index.js';
 import type { InteropK8sServiceDescriptor } from '../types/InteropK8sServiceDescriptor.js';
 
 /**

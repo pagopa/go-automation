@@ -1,16 +1,12 @@
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import type { Step } from '../../../../../engine/types/Step.js';
-import type { StepKind } from '../../../../../engine/types/StepKind.js';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
-import type { StepResult } from '../../../../../engine/types/StepResult.js';
-import { readStepOutput } from '../../../../../engine/context/readStepOutput.js';
+import type { RunbookContext, Step, StepKind, StepResult } from '../../../../../engine/index.js';
+import { readStepOutput } from '../../../../../engine/index.js';
 
 import type { DownstreamErrorPattern } from '../types/DownstreamErrorPattern.js';
-import { findDownstreamInRows } from '../helpers/matchDownstreamErrorPattern.js';
+import { downstreamFinder } from '../helpers/matchDownstreamErrorPattern.js';
+import type { DownstreamFinderFn } from '../types/DownstreamFinderFn.js';
 import { scanLambdaLogs } from '../helpers/scanLambdaLogs.js';
 import { boundedText } from '../../../parsing/correlation/boundedText.js';
-
-type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
+import type { CloudWatchLogsRows } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRows.js';
 
 /**
  * Configuration for {@link AnalyzeLambdaInvocationStep}.
@@ -67,19 +63,21 @@ export class AnalyzeLambdaInvocationStep implements Step<undefined> {
 
   private readonly fromStep: string;
   private readonly downstreamErrorPatterns: ReadonlyArray<DownstreamErrorPattern>;
+  private readonly findDownstream: DownstreamFinderFn;
 
   constructor(config: AnalyzeLambdaInvocationConfig) {
     this.id = config.id;
     this.label = config.label;
     this.fromStep = config.fromStep;
     this.downstreamErrorPatterns = config.downstreamErrorPatterns;
+    this.findDownstream = downstreamFinder(this.downstreamErrorPatterns);
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<undefined>> {
     // The invocation query is a no-op without a requestId, so it may have no
     // output: treat that as "nothing to analyse" rather than an error.
-    const upstream = readStepOutput<Rows>(context, this.fromStep);
+    const upstream = readStepOutput<CloudWatchLogsRows>(context, this.fromStep);
     if (!upstream.ok || upstream.value.length === 0) {
       return { success: true };
     }
@@ -100,7 +98,7 @@ export class AnalyzeLambdaInvocationStep implements Step<undefined> {
 
     // 2. Recover downstream routing when not already routed and patterns exist.
     if ((context.vars.get('lambdaDownstreamTarget') ?? '').trim() === '' && this.downstreamErrorPatterns.length > 0) {
-      const match = findDownstreamInRows(rows, this.downstreamErrorPatterns);
+      const match = this.findDownstream(rows);
       if (match !== undefined) {
         vars['lambdaDownstreamTarget'] = match.target;
         vars['lastErrorMsg'] = boundedText(match.message);

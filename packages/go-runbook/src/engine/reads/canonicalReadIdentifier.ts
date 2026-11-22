@@ -1,4 +1,4 @@
-import type { ReadIdentifier } from '../types/ReadIdentifier.js';
+import type { EvidenceIdentifier } from '../types/EvidenceIdentifier.js';
 import { isRequestId } from './isRequestId.js';
 import { safeCorrelationValue } from './safeCorrelationValue.js';
 
@@ -15,7 +15,7 @@ import { safeCorrelationValue } from './safeCorrelationValue.js';
  * canonicalReadIdentifier({ kind: 'requestId', value: 'req.42' }); // undefined
  * ```
  */
-export function canonicalReadIdentifier(identifier: ReadIdentifier): ReadIdentifier | undefined {
+export function canonicalReadIdentifier(identifier: EvidenceIdentifier): EvidenceIdentifier | undefined {
   const value = identifier.kind === 'requestId' ? identifier.value.trim() : safeCorrelationValue(identifier.value);
   if (value === undefined || (identifier.kind === 'requestId' && !isRequestId(value))) return undefined;
   return { kind: identifier.kind, value };

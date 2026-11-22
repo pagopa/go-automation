@@ -1,4 +1,4 @@
-import type { ReadIdentifier } from './ReadIdentifier.js';
+import type { EvidenceIdentifier } from './EvidenceIdentifier.js';
 
 /**
  * A second read of the same level for the same parent (for example a trace id found by the fallback UUID read):
@@ -6,5 +6,5 @@ import type { ReadIdentifier } from './ReadIdentifier.js';
  */
 export type TreeSecondAttemptFn = (
   rows: ReadonlyArray<unknown>,
-  identifier: ReadIdentifier,
-) => ReadIdentifier | undefined;
+  identifier: EvidenceIdentifier,
+) => EvidenceIdentifier | undefined;

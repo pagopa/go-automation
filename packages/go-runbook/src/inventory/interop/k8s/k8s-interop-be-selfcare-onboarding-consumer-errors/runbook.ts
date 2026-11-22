@@ -5,9 +5,14 @@ import type { Runbook } from '../../../../engine/index.js';
 import { KNOWN_CASES } from './knownCases.js';
 import { SELFCARE_ONBOARDING_QUERY_PROFILE } from './queryProfile.js';
 
+/**
+ * Builds the k8s-interop-be-selfcare-onboarding-consumer-errors runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: SELFCARE_ONBOARDING_CONSUMER_ALARM.runbookKey,
+    alarm: SELFCARE_ONBOARDING_CONSUMER_ALARM,
     metadata: {
       name: SELFCARE_ONBOARDING_CONSUMER_ALARM.runbookKey,
       description:
@@ -17,12 +22,6 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'service', 'selfcare', 'onboarding', 'kafka'],
     },
-    service: {
-      name: SELFCARE_ONBOARDING_CONSUMER_ALARM.podApp,
-      logGroup: SELFCARE_ONBOARDING_CONSUMER_ALARM.logGroup,
-      varPrefix: SELFCARE_ONBOARDING_CONSUMER_ALARM.varPrefix,
-    },
-    resolveAlarmContext: SELFCARE_ONBOARDING_CONSUMER_ALARM.resolveContext,
     queryProfile: SELFCARE_ONBOARDING_QUERY_PROFILE,
     knownCases: KNOWN_CASES,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },

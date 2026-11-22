@@ -16,7 +16,7 @@ import { KNOWN_CASES } from './knownCases.js';
  */
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: ALARM.runbookKey,
+    alarm: ALARM,
     metadata: {
       name: ALARM.runbookKey,
       description: 'Diagnosi degli errori OneTrust del servizio interop-be-one-trust-notices in produzione',
@@ -25,8 +25,6 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'onetrust'],
     },
-    service: { name: ALARM.podApp, logGroup: ALARM.logGroup, varPrefix: ALARM.varPrefix },
-    resolveAlarmContext: ALARM.resolveContext,
     queryProfile: {
       ...interop.k8s.INTEROP_K8S_QUERY_PROFILE,
       id: 'interop-one-trust-notices-prod',

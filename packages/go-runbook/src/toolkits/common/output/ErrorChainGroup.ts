@@ -1,4 +1,4 @@
-import type { IdentifierObservation } from '../../../engine/types/IdentifierObservation.js';
+import type { IdentifierObservation } from '../../../engine/index.js';
 import type { ErrorChainInterruption } from './ErrorChainInterruption.js';
 import type { ErrorChainNode } from './ErrorChainNode.js';
 import type { ErrorChainMember } from './ErrorChainMember.js';

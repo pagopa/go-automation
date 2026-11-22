@@ -1,86 +1,60 @@
 import { NOTIFICATION_USER_LIFECYCLE_ALARM as ALARM } from './alarmDefinition.js';
-import { INTEROP_DOWNSTREAMS, knownCase } from '../../../../toolkits/interop/index.js';
+import {
+  INTEROP_DOWNSTREAMS,
+  INTEROP_KAFKA_SIGNATURES,
+  interopK8sKnownCase,
+  type InteropK8sKnownCaseRefs,
+} from '../../../../toolkits/interop/index.js';
 import { type KnownCase, stepEvidenceMatches } from '../../../../engine/index.js';
 
-const DETAILS = [
-  ['Ambiente', '{{vars.interopEnvironment}}'],
-  ['Log group', '{{vars.interopLogGroup}}'],
-  ['Servizio', '{{vars.interopPodApp}}'],
-  ['CID analizzati', `{{vars.${ALARM.varPrefix}CidCount}}`],
-] as const;
+const REFS: InteropK8sKnownCaseRefs = {
+  applicationLogsStepId: ALARM.stepIds.queryApplicationLogs,
+  cidTrackerStepId: ALARM.stepIds.queryCidTracker,
+  varPrefix: ALARM.varPrefix,
+};
 
 /** Sources: Confluence 2659549286 v1/v12/v16-v18 and production logs of 2026-10-22/23. */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
-  knownCase({
+  interopK8sKnownCase(REFS, {
     id: 'notification-kafka-no-broker',
     description: 'Nessun broker Kafka disponibile',
-    condition: {
-      type: 'and',
-      conditions: [
-        { type: 'compare', ref: 'vars.interopEnvironment', operator: '==', value: 'prod' },
-        stepEvidenceMatches(
-          ALARM.stepIds.queryApplicationLogs,
-          'Crash: KafkaJSNoBrokerAvailableError: No broker available\\b',
-        ),
-      ],
-    },
+    environments: ['prod'],
+    regex: 'Crash: KafkaJSNoBrokerAvailableError: No broker available\\b',
+    evidence: 'APPLICATION_LOGS',
     resolution: 'Risoluzione non documentata.',
-    details: DETAILS,
-    analysis: {
-      proposedStatus: 'IN_PROGRESS',
-      analysisType: 'ANALYZABLE',
-      downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-      finalActions: [],
-      links: [],
-    },
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    finalActions: [],
+    links: [],
   }),
-  knownCase({
+  interopK8sKnownCase(REFS, {
     id: 'notification-kafka-metadata-timeout',
     description: 'Timeout della richiesta Metadata al cluster Kafka',
-    condition: {
-      type: 'and',
-      conditions: [
-        { type: 'compare', ref: 'vars.interopEnvironment', operator: '==', value: 'prod' },
-        stepEvidenceMatches(
-          ALARM.stepIds.queryApplicationLogs,
-          'Crash: KafkaJSNumberOfRetriesExceeded: Request Metadata\\(key: \\d+, version: \\d+\\) timed out\\b',
-        ),
-      ],
-    },
+    environments: ['prod'],
+    regex: 'Crash: KafkaJSNumberOfRetriesExceeded: Request Metadata\\(key: \\d+, version: \\d+\\) timed out\\b',
+    evidence: 'APPLICATION_LOGS',
     resolution: 'Risoluzione non documentata.',
-    details: DETAILS,
-    analysis: {
-      proposedStatus: 'IN_PROGRESS',
-      analysisType: 'ANALYZABLE',
-      downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-      finalActions: [],
-      links: [],
-    },
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    finalActions: [],
+    links: [],
   }),
-  knownCase({
+  interopK8sKnownCase(REFS, {
     id: 'notification-kafka-replica-retries-exhausted',
     description: 'Retry Kafka esauriti per replica non disponibile',
-    condition: {
-      type: 'and',
-      conditions: [
-        { type: 'contains', ref: 'vars.interopEnvironment', value: ['prod', 'test'] },
-        stepEvidenceMatches(
-          ALARM.stepIds.queryApplicationLogs,
-          'Crash: KafkaJSNumberOfRetriesExceeded: The replica is not available for the requested topic-partition\\b',
-        ),
-      ],
-    },
+    environments: ['prod', 'test'],
+    regex: 'Crash: KafkaJSNumberOfRetriesExceeded: The replica is not available for the requested topic-partition\\b',
+    evidence: 'APPLICATION_LOGS',
     resolution: 'PIN-7325',
-    details: DETAILS,
-    analysis: {
-      proposedStatus: 'IN_PROGRESS',
-      analysisType: 'ANALYZABLE',
-      downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-      finalActions: [],
-      links: [{ url: 'https://pagopa.atlassian.net/browse/PIN-7325', name: 'PIN-7325', type: 'JIRA' }],
-    },
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    finalActions: [],
+    links: [{ url: 'https://pagopa.atlassian.net/browse/PIN-7325', name: 'PIN-7325', type: 'JIRA' }],
   }),
-  knownCase({
+  interopK8sKnownCase(REFS, {
     id: 'notification-kafka-broker-communication-errors',
     description: 'Errore di connessione verso Kafka',
     condition: {
@@ -99,7 +73,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
             { type: 'compare', ref: 'vars.interopEnvironment', operator: '==', value: 'prod' },
             stepEvidenceMatches(
               ALARM.stepIds.queryApplicationLogs,
-              'Connection error: Client network socket disconnected before secure TLS connection was established|The group coordinator is not available',
+              `${INTEROP_KAFKA_SIGNATURES.tlsDisconnected}|The group coordinator is not available`,
             ),
           ],
         },
@@ -107,129 +81,94 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     },
     // The source asks whether PIN-7325 applies to connection errors; it does not resolve that question.
     resolution: 'Risoluzione non documentata.',
-    details: DETAILS,
-    analysis: {
-      proposedStatus: 'IN_PROGRESS',
-      analysisType: 'ANALYZABLE',
-      downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-      finalActions: [],
-      links: [],
-    },
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    finalActions: [],
+    links: [],
   }),
-  knownCase({
+  interopK8sKnownCase(REFS, {
     id: 'notification-kafka-read-timeout',
     description: 'Timeout di lettura nella connessione Kafka',
-    condition: {
-      type: 'and',
-      conditions: [
-        { type: 'compare', ref: 'vars.interopEnvironment', operator: '==', value: 'prod' },
-        stepEvidenceMatches(ALARM.stepIds.queryApplicationLogs, 'Connection error: read ETIMEDOUT\\b'),
-      ],
-    },
+    environments: ['prod'],
+    regex: 'Connection error: read ETIMEDOUT\\b',
+    evidence: 'APPLICATION_LOGS',
     resolution: 'Risoluzione non documentata.',
-    details: DETAILS,
-    analysis: {
-      proposedStatus: 'IN_PROGRESS',
-      analysisType: 'ANALYZABLE',
-      downstreams: [INTEROP_DOWNSTREAMS.SELFCARE],
-      finalActions: [],
-      links: [],
-    },
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    downstreams: [INTEROP_DOWNSTREAMS.SELFCARE],
+    finalActions: [],
+    links: [],
   }),
-  knownCase({
+  interopK8sKnownCase(REFS, {
     id: 'notification-duplicate-event-stream-version',
     description: 'Evento duplicato su events_stream_id_version_key',
-    condition: stepEvidenceMatches(
-      ALARM.stepIds.queryApplicationLogs,
+    regex:
       'Error creating event: error: duplicate key value violates unique constraint[^\\n]*events_stream_id_version_key',
-    ),
+    evidence: 'APPLICATION_LOGS',
     resolution: 'Nessuna azione necessaria.',
-    details: DETAILS,
-    analysis: {
-      proposedStatus: 'COMPLETED',
-      analysisType: 'ANALYZABLE',
-      finalActions: [],
-      links: [
-        { url: 'https://pagopa.atlassian.net/browse/PIN-6474', name: 'PIN-6474', type: 'JIRA' },
-        { url: 'https://pagopa.atlassian.net/browse/PIN-7796', name: 'PIN-7796', type: 'JIRA' },
-      ],
-    },
+    proposedStatus: 'COMPLETED',
+    analysisType: 'ANALYZABLE',
+    finalActions: [],
+    links: [
+      { url: 'https://pagopa.atlassian.net/browse/PIN-6474', name: 'PIN-6474', type: 'JIRA' },
+      { url: 'https://pagopa.atlassian.net/browse/PIN-7796', name: 'PIN-7796', type: 'JIRA' },
+    ],
   }),
-  knownCase({
+  interopK8sKnownCase(REFS, {
     id: 'notification-certifier-tenant-istat-not-found',
     description: 'Tenant ISTAT del certificatore non trovato',
-    condition: stepEvidenceMatches(ALARM.stepIds.queryApplicationLogs, 'Message: Certifier tenant ISTAT not found\\b'),
+    regex: 'Message: Certifier tenant ISTAT not found\\b',
+    evidence: 'APPLICATION_LOGS',
     resolution: 'Nessuna azione necessaria',
-    details: DETAILS,
-    analysis: {
-      proposedStatus: 'COMPLETED',
-      analysisType: 'ANALYZABLE',
-      finalActions: [],
-      links: [
-        { url: 'https://pagopa.atlassian.net/browse/PIN-10543', name: 'PIN-10543', type: 'JIRA' },
-        {
-          url: 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1783335064037389',
-          name: 'Thread Slack 06/07/2026',
-          type: 'SLACK',
-        },
-      ],
-    },
+    proposedStatus: 'COMPLETED',
+    analysisType: 'ANALYZABLE',
+    finalActions: [],
+    links: [
+      { url: 'https://pagopa.atlassian.net/browse/PIN-10543', name: 'PIN-10543', type: 'JIRA' },
+      {
+        url: 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1783335064037389',
+        name: 'Thread Slack 06/07/2026',
+        type: 'SLACK',
+      },
+    ],
   }),
-  knownCase({
+  interopK8sKnownCase(REFS, {
     id: 'notification-remove-api-role-conflict',
     description: 'HTTP 409 durante la rimozione del ruolo api dalla configurazione delle notifiche',
-    condition: {
-      type: 'and',
-      conditions: [
-        { type: 'compare', ref: 'vars.interopEnvironment', operator: '==', value: 'prod' },
-        stepEvidenceMatches(
-          ALARM.stepIds.queryApplicationLogs,
-          'Error removing role api from notification config for user[^\\r\\n]*in tenant[^\\r\\n]*AxiosError: Request failed with status code 409\\b',
-        ),
-      ],
-    },
+    environments: ['prod'],
+    regex:
+      'Error removing role api from notification config for user[^\\r\\n]*in tenant[^\\r\\n]*AxiosError: Request failed with status code 409\\b',
+    evidence: 'APPLICATION_LOGS',
     resolution: 'Risoluzione non documentata.',
-    details: DETAILS,
-    analysis: {
-      proposedStatus: 'IN_PROGRESS',
-      analysisType: 'ANALYZABLE',
-      finalActions: [],
-      links: [
-        {
-          url: 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1791191514995439',
-          name: 'Thread Slack 05/10/2026',
-          type: 'SLACK',
-        },
-      ],
-    },
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    finalActions: [],
+    links: [
+      {
+        url: 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1791191514995439',
+        name: 'Thread Slack 05/10/2026',
+        type: 'SLACK',
+      },
+    ],
   }),
-  knownCase({
+  interopK8sKnownCase(REFS, {
     id: 'notification-selfcare-tenant-not-found',
     description: 'Tenant assente nel read model per il selfcareId',
-    condition: {
-      type: 'and',
-      conditions: [
-        { type: 'contains', ref: 'vars.interopEnvironment', value: ['prod', 'test', 'att'] },
-        stepEvidenceMatches(
-          ALARM.stepIds.queryApplicationLogs,
-          'Error handling Kafka message\\. Topic: sc-users\\.[^\\r\\n]*Tenant not found for selfcareId:',
-        ),
-      ],
-    },
+    environments: ['prod', 'test', 'att'],
+    regex: 'Error handling Kafka message\\. Topic: sc-users\\.[^\\r\\n]*Tenant not found for selfcareId:',
+    evidence: 'APPLICATION_LOGS',
     resolution:
       "È possibile verificare l’assenza del tenant tramite la query:\nselect * from <env>_tenant.tenant where selfcare_id = '<uuid>';",
-    details: DETAILS,
-    analysis: {
-      proposedStatus: 'IN_PROGRESS',
-      analysisType: 'ANALYZABLE',
-      finalActions: [],
-      links: [
-        {
-          url: 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1791284530634809',
-          name: 'Thread Slack 06/10/2026',
-          type: 'SLACK',
-        },
-      ],
-    },
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    finalActions: [],
+    links: [
+      {
+        url: 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1791284530634809',
+        name: 'Thread Slack 06/10/2026',
+        type: 'SLACK',
+      },
+    ],
   }),
 ];

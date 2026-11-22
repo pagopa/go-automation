@@ -25,7 +25,6 @@ function context(message: string, alarmDatetime: string, alarmDatetimeEnd?: stri
       ['alarmDatetime', alarmDatetime],
       ...(alarmDatetimeEnd === undefined ? [] : ([['alarmDatetimeEnd', alarmDatetimeEnd]] as [string, string][])),
     ]),
-    logs: [],
     services: createTestServiceRegistry(),
     recoveredErrors: [],
     reads: EMPTY_RUNBOOK_READS,

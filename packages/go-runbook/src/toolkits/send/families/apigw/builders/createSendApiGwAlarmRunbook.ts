@@ -1,6 +1,8 @@
-import { AlarmRunbookBuilder } from '../../../../common/builders/AlarmRunbookBuilder.js';
+import { startAlarmRunbook } from '../../../../common/builders/startAlarmRunbook.js';
+import { ALARM_TIME_RANGE } from '../../../../common/time/ALARM_TIME_RANGE.js';
 import { CloudWatchLogsQueryStep } from '../../../../common/steps/aws/cloudwatch-logs/CloudWatchLogsQueryStep.js';
-import type { Runbook } from '../../../../../engine/types/Runbook.js';
+import type { Runbook, StepDescriptor, TreeLevel } from '../../../../../engine/index.js';
+import { pipelineHooksAt } from '../../../../../engine/internal.js';
 import type { ApiGwPipelineAnchor } from '../types/ApiGwPipelineAnchor.js';
 import { finishAlarmRunbook } from '../../../../common/builders/finishAlarmRunbook.js';
 
@@ -12,16 +14,14 @@ import { DescendToServiceStep } from '../tree/DescendToServiceStep.js';
 import { ServiceLogsLevelReader } from '../tree/ServiceLogsLevelReader.js';
 import { enumerateApiGwRequests } from '../tree/enumerateApiGwRequests.js';
 import { enumerateServiceErrors } from '../tree/enumerateServiceErrors.js';
-import { attributeServiceRow, serviceRowIdentity, traceIdOfFallbackRows } from '../tree/serviceLogRows.js';
-import type { StepDescriptor } from '../../../../../engine/types/StepDescriptor.js';
-import type { TreeLevel } from '../../../../../engine/types/TreeLevel.js';
-import type { PipelineHook } from '../../../../../engine/types/PipelineHook.js';
+import { serviceRowIdentity, serviceRowMatcher, traceIdOfFallbackRows } from '../tree/serviceLogRows.js';
 import { QueryApiGwExecutionLogsStep } from '../../../../common/families/apigw/steps/QueryApiGwExecutionLogsStep.js';
 import { StopApiGwExecutionLogAnalysisStep } from '../../../../common/families/apigw/steps/StopApiGwExecutionLogAnalysisStep.js';
 import { EvaluateApiGwAuthorizerFailureStep } from '../../../../common/families/apigw/steps/EvaluateApiGwAuthorizerFailureStep.js';
 import { builtinApiGwAuthorizerKnownCases } from '../../../../common/families/apigw/knownCases/authorizerKnownCases.js';
 import { defaultSendApiGwUnknownCaseFallback } from './defaultSendApiGwUnknownCaseFallback.js';
 import { resolveApiGwAlarmBuildContext } from './resolveApiGwAlarmBuildContext.js';
+import { SEND_API_GW_STEP_IDS as STEP_IDS } from './SEND_API_GW_STEP_IDS.js';
 
 /**
  * Assembla un runbook API Gateway completo a partire da input dichiarativi.
@@ -35,14 +35,12 @@ export function createSendApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   const reachedAnchors = new Set<ApiGwPipelineAnchor>();
   const executionLogAnalysisMode = config.executionLogAnalysisMode ?? 'terminal';
 
-  const builder = AlarmRunbookBuilder.create(config.id)
-    .metadata(config.metadata)
-    .cloudExecutionPolicy({ sideEffects: 'NONE' });
+  const builder = startAlarmRunbook(config);
 
   // 1. Banner.
   builder.step(
     new PrepareApiGwSectionStep({
-      id: 'prepare-api-gw-section',
+      id: STEP_IDS.prepare,
       label: 'Preparazione API Gateway',
       apiGwLogGroup: config.apiGwLogGroup,
     }),
@@ -52,12 +50,12 @@ export function createSendApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   // 2. AccessLog query (con traceMetadata cross-prodotto).
   builder.step(
     new CloudWatchLogsQueryStep({
-      id: 'query-api-gw-logs',
+      id: STEP_IDS.accessLog,
       label: 'Query API Gateway AccessLog per errori HTTP',
       logGroups: [config.apiGwLogGroup],
       query: apiGwQuery,
       ...(ctx.apiGwFallbackQuery !== undefined ? { emptyResultFallbackQuery: ctx.apiGwFallbackQuery } : {}),
-      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+      timeRangeFromParams: ALARM_TIME_RANGE,
       logGroupResolutionMode: 'search-configured-profiles',
       ...(config.paginateAccessLogResults !== undefined ? { paginateResults: config.paginateAccessLogResults } : {}),
       traceMetadata: {
@@ -70,7 +68,7 @@ export function createSendApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   );
 
   // 3. ExecutionLog of every request in error, read for the window and divided among the requests by request id.
-  const executionLogStepId = 'query-api-gw-execution-logs';
+  const executionLogStepId = STEP_IDS.executionLog;
   const executionLogEnabled =
     ctx.executionLogEnabled && profile.executionLog !== undefined && ctx.effectiveExecutionLogGroup !== undefined;
   if (executionLogEnabled && profile.executionLog !== undefined && ctx.effectiveExecutionLogGroup !== undefined) {
@@ -78,9 +76,9 @@ export function createSendApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
       new QueryApiGwExecutionLogsStep({
         id: executionLogStepId,
         label: 'Query API Gateway ExecutionLog per requestId',
-        fromStep: 'query-api-gw-logs',
+        fromStep: STEP_IDS.accessLog,
         minStatusCode: minStatus,
-        timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+        timeRangeFromParams: ALARM_TIME_RANGE,
         spec: profile.executionLog,
         accessLogSchema: profile.accessLog.schema,
         queryProfileId: profile.id,
@@ -109,9 +107,9 @@ export function createSendApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   const requestSteps: StepDescriptor[] = [
     {
       step: new ParseApiGwErrorsStep({
-        id: 'parse-api-gw-errors',
+        id: STEP_IDS.parse,
         label: `Estrazione ${profile.accessLog.schema.traceIdLabel} e metadati API Gateway`,
-        fromStep: 'query-api-gw-logs',
+        fromStep: STEP_IDS.accessLog,
         minStatusCode: minStatus,
         schema: profile.accessLog.schema,
         queryProfileId: profile.id,
@@ -122,9 +120,9 @@ export function createSendApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   if (config.authorizerFailureCheck !== undefined) {
     requestSteps.push({
       step: new EvaluateApiGwAuthorizerFailureStep({
-        id: 'evaluate-api-gw-authorizer-failure',
+        id: STEP_IDS.authorizerFailure,
         label: 'Valutazione Lambda authorizer API Gateway',
-        fromStep: 'query-api-gw-logs',
+        fromStep: STEP_IDS.accessLog,
         schema: profile.accessLog.schema,
         check: config.authorizerFailureCheck,
         queryProfileId: profile.id,
@@ -135,16 +133,16 @@ export function createSendApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   if (executionLogEnabled && executionLogAnalysisMode === 'terminal') {
     requestSteps.push({
       step: new StopApiGwExecutionLogAnalysisStep({
-        id: 'stop-api-gw-execution-log-unresolved',
+        id: STEP_IDS.stopExecutionLog,
         label: 'Stop se execution log API Gateway non determinante',
       }),
       silent: true,
     });
   }
-  requestSteps.push(...hooksAt(hooks, 'before-service-traversal', reachedAnchors));
+  requestSteps.push(...pipelineHooksAt(hooks, 'before-service-traversal', reachedAnchors));
   requestSteps.push({
     step: new DescendToServiceStep({
-      id: 'descend-api-gateway',
+      id: STEP_IDS.descend,
       label: `Discesa verso ${config.entryService.name}`,
       entryService: config.entryService.name,
       servicesInRunbook,
@@ -168,10 +166,10 @@ export function createSendApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
         logGroups: [service.logGroup],
         spec: profile.serviceLog,
         queryProfileId: profile.id,
-        timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+        timeRangeFromParams: ALARM_TIME_RANGE,
         ...(service.queryOverride !== undefined ? { queryTemplateOverride: service.queryOverride } : {}),
       }),
-      attribute: (row, identifier) => attributeServiceRow(row, identifier, profile.serviceLog.schema),
+      attribute: (identifier) => serviceRowMatcher([identifier], profile.serviceLog.schema),
       rowIdentity: serviceRowIdentity,
       secondAttempt: (rows, identifier) => traceIdOfFallbackRows(rows, identifier, profile.serviceLog.schema),
       enumerate: enumerateServiceErrors({
@@ -182,7 +180,7 @@ export function createSendApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
         traceIdContextVar,
       }),
       perNode: [
-        ...(entry ? hooksAt(hooks, 'after-entry-analysis', reachedAnchors) : []),
+        ...(entry ? pipelineHooksAt(hooks, 'after-entry-analysis', reachedAnchors) : []),
         {
           step: new DescendToServiceStep({
             id: `descend-${service.name}`,
@@ -202,15 +200,15 @@ export function createSendApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   builder.errorTree({
     root: {
       target: 'api-gateway',
-      scopedSteps: ['query-api-gw-logs', ...(executionLogEnabled ? [executionLogStepId] : [])],
+      scopedSteps: [STEP_IDS.accessLog, ...(executionLogEnabled ? [executionLogStepId] : [])],
       enumerate: enumerateApiGwRequests({
-        accessLogStepId: 'query-api-gw-logs',
+        accessLogStepId: STEP_IDS.accessLog,
         ...(executionLogEnabled ? { executionLogStepId } : {}),
         minStatusCode: minStatus,
         schema: profile.accessLog.schema,
       }),
       perNode: requestSteps,
-      afterDescend: hooksAt(hooks, 'after-entry-read', reachedAnchors),
+      afterDescend: pipelineHooksAt(hooks, 'after-entry-read', reachedAnchors),
     },
     levels: serviceLevels,
   });
@@ -232,21 +230,4 @@ export function createSendApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     primaryResource: config.entryService.name,
     anchors: { hooks, reached: reachedAnchors, pipelineName: 'API Gateway' },
   });
-}
-
-/**
- * The hooks declared at an anchor, as steps of a level; the anchor counts as reached.
- *
- * @param hooks - Hooks of the runbook
- * @param anchor - Anchor of the level
- * @param reached - Anchors reached so far
- * @returns The hooks at the anchor
- */
-function hooksAt(
-  hooks: ReadonlyArray<PipelineHook<ApiGwPipelineAnchor>>,
-  anchor: ApiGwPipelineAnchor,
-  reached: Set<ApiGwPipelineAnchor>,
-): ReadonlyArray<StepDescriptor> {
-  reached.add(anchor);
-  return hooks.filter((hook) => hook.at === anchor);
 }

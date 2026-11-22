@@ -45,7 +45,9 @@ export function resolveRef(ref: string, context: RunbookContext): unknown {
       // The siblings never include the rows of the node itself.
       if (Array.isArray(related)) {
         const own = context.stepResults.get(stepId);
-        return Array.isArray(own) ? related.filter((row: unknown) => !own.includes(row)) : related;
+        if (!Array.isArray(own)) return related;
+        const ownRows = new Set<unknown>(own);
+        return related.filter((row: unknown) => !ownRows.has(row));
       }
     }
 

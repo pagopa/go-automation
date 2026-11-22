@@ -1,6 +1,7 @@
-import type { FlowDirectiveString } from '../types/FlowDirective.js';
+import type { FlowDirective } from '../types/FlowDirective.js';
 import type { StepKind } from '../types/StepKind.js';
 import type { StepDiagnostics } from './StepDiagnostics.js';
+import type { TraceStatus } from './TraceStatus.js';
 
 /**
  * Trace of a single step execution in the pipeline.
@@ -16,9 +17,7 @@ export interface StepTrace {
   /** Step category (data, transform, control, check, mutation) */
   readonly kind: StepKind;
   /** How the step was reached in the execution flow */
-  readonly reachedVia: 'sequential' | 'goTo' | 'subPipeline';
-  /** Parent step ID (only if reachedVia === 'subPipeline') */
-  readonly parentStepId?: string;
+  readonly reachedVia: 'sequential' | 'subPipeline';
   /** Step execution start timestamp (ISO 8601) */
   readonly startedAt: string;
   /** Step execution completion timestamp (ISO 8601) */
@@ -26,7 +25,7 @@ export interface StepTrace {
   /** Duration in milliseconds */
   readonly durationMs: number;
   /** Step execution status */
-  readonly status: 'success' | 'failed' | 'skipped';
+  readonly status: TraceStatus;
   /** Whether the step was recovered via continueOnFailure */
   readonly recovered: boolean;
   /** Input provided to the step */
@@ -39,6 +38,6 @@ export interface StepTrace {
   readonly varsWritten: Readonly<Record<string, string>>;
   /** Optional service/runtime diagnostics captured outside business output */
   readonly diagnostics?: StepDiagnostics;
-  /** Flow directive produced: 'continue', 'stop', or target step ID for goTo */
-  readonly flowDirective: FlowDirectiveString;
+  /** Flow directive produced: 'continue' or 'stop' */
+  readonly flowDirective: FlowDirective;
 }

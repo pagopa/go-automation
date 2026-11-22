@@ -1,12 +1,13 @@
-import type { CaseAction } from '../../../engine/types/CaseAction.js';
-import { AthenaQueryStep } from '../steps/aws/athena/AthenaQueryStep.js';
-import { CloudWatchMetricsStep } from '../steps/aws/cloudwatch-metrics/CloudWatchMetricsStep.js';
-import { DynamoDBGetStep } from '../steps/aws/dynamodb/DynamoDBGetStep.js';
-import { DynamoDBQueryStep } from '../steps/aws/dynamodb/DynamoDBQueryStep.js';
-import type { Runbook } from '../../../engine/types/Runbook.js';
-import type { Step } from '../../../engine/types/Step.js';
-import { collectRunbookSteps } from '../../../engine/core/collectRunbookSteps.js';
-import { HttpRequestStep } from '../steps/networking/HttpRequestStep.js';
+import type { CaseAction, Runbook, Step, TreeLevelReader } from '../../../engine/index.js';
+import { collectRunbookSteps } from '../../../engine/index.js';
+import type { OperationalServiceName } from '../services/OperationalServiceName.js';
+
+/** The services of {@link oamUnreachableService}, by registry name, with the name the error gives them. */
+const OAM_UNREACHABLE_SERVICES: ReadonlyMap<string, string> = new Map<OperationalServiceName, string>([
+  ['dynamodb', 'DynamoDB'],
+  ['athena', 'Athena'],
+  ['cloudWatchMetrics', 'CloudWatch Metrics'],
+]);
 
 /**
  * Data sources the cloud worker cannot read in the occurrence's account.
@@ -17,10 +18,11 @@ import { HttpRequestStep } from '../steps/networking/HttpRequestStep.js';
  * by ARN, while these services would answer from the monitoring account —
  * successfully, with the wrong data. They are refused up front.
  */
-function oamUnreachableService(step: Step): string | undefined {
-  if (step instanceof DynamoDBQueryStep || step instanceof DynamoDBGetStep) return 'DynamoDB';
-  if (step instanceof AthenaQueryStep) return 'Athena';
-  if (step instanceof CloudWatchMetricsStep) return 'CloudWatch Metrics';
+function oamUnreachableService(step: Step | TreeLevelReader): string | undefined {
+  for (const name of step.requiredServices?.() ?? []) {
+    const service = OAM_UNREACHABLE_SERVICES.get(name);
+    if (service !== undefined) return service;
+  }
   return undefined;
 }
 
@@ -30,7 +32,7 @@ export function assertCloudExecutableRunbook(runbook: Runbook): void {
     throw new Error(`Runbook "${runbook.metadata.id}" does not declare cloud sideEffects=NONE`);
   }
 
-  // Every executable step: pipeline, nested sub-pipelines and the steps of the actions (RBREORG-21).
+  // Every executable step: pipeline, error tree and the steps of the actions.
   const steps = collectRunbookSteps(runbook);
   const mutationStep = steps.find((step) => step.kind === 'mutation');
   if (mutationStep !== undefined) {
@@ -45,12 +47,6 @@ export function assertCloudExecutableRunbook(runbook: Runbook): void {
       throw new Error(
         `Runbook "${runbook.metadata.id}" reads ${service} in step "${step.id}", ` +
           'which the cloud worker cannot reach in the source account: OAM shares telemetry, not credentials',
-      );
-    }
-    if (step instanceof HttpRequestStep && !step.isReadOnly()) {
-      throw new Error(
-        `Runbook "${runbook.metadata.id}" sends a non read-only HTTP request in step "${step.id}": ` +
-          'only a literal GET or HEAD can run in cloud',
       );
     }
   }

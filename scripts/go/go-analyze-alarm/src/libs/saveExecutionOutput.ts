@@ -6,7 +6,7 @@ import type { GOScript } from '@go-automation/go-script';
 import { GOJSONFileExporter } from '@pagopa/go-common/exporters';
 import { GOPathType } from '@pagopa/go-common/files';
 import { buildRunbookOutput } from '@pagopa/go-runbook/toolkits/common';
-import { buildCatalogOutputContext, scrubAwsProfileNamesDeep } from '@pagopa/go-runbook/runtime';
+import { scrubAwsProfileNamesDeep } from '@pagopa/go-runbook/runtime';
 import type { Runbook, RunbookExecutionResult } from '@pagopa/go-runbook';
 
 import { formatOutputSuffix } from './formatOutputSuffix.js';
@@ -31,10 +31,7 @@ export async function saveExecutionOutput(
   traceFile?: string,
   outputSuffix?: string,
 ): Promise<string> {
-  const output = buildRunbookOutput(runbook, result, {
-    ...(traceFile !== undefined ? { traceFile } : {}),
-    contextBuilder: buildCatalogOutputContext,
-  });
+  const output = buildRunbookOutput(runbook, result, traceFile !== undefined ? { traceFile } : {});
 
   const fileName = `result-${runbook.metadata.id}${formatOutputSuffix(outputSuffix)}.json`;
   const resultInfoPath = script.paths.resolvePathWithInfo(fileName, GOPathType.OUTPUT);

@@ -4,7 +4,6 @@ import { describe, it } from 'node:test';
 import { GOLogger } from '@pagopa/go-common/logging';
 
 import { RunbookMissingServicesError } from '../../../../engine/errors/RunbookMissingServicesError.js';
-import { IfBranchStep } from '../../../../engine/steps/control/IfBranchStep.js';
 import type { Runbook } from '../../../../engine/types/Runbook.js';
 import type { Step } from '../../../../engine/types/Step.js';
 import type { StepKind } from '../../../../engine/types/StepKind.js';
@@ -102,21 +101,6 @@ describe('pre-execution check of the logical accounts', () => {
     await assert.rejects(
       async () => run([spy, new SelectingStep('both', BOTH)], services({ environment: 'dev' })),
       rejectsWith('AWS_ACCOUNT_NOT_CONFIGURED'),
-    );
-    assert.equal(spy.executed, false);
-  });
-
-  it('checks a selecting step nested in an IfBranchStep', async () => {
-    const spy = new SpyStep();
-    const branch = new IfBranchStep({
-      id: 'branch',
-      label: 'Branch',
-      condition: { type: 'exists', ref: 'vars.never' },
-      thenSteps: [new SelectingStep('nested', BOTH)],
-    });
-    await assert.rejects(
-      async () => run([spy, branch], services({})),
-      rejectsWith('AWS_ACCOUNT_ENVIRONMENT_NOT_CONFIGURED'),
     );
     assert.equal(spy.executed, false);
   });

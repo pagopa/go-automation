@@ -5,7 +5,12 @@ import {
   stepEvidenceMatches,
   varMatches,
 } from '../../../../engine/index.js';
-import { apiGwStatusIs, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import {
+  downstreamMarkerPattern,
+  apiGwStatusIs,
+  knownCase,
+  SEND_DOWNSTREAMS,
+} from '../../../../toolkits/send/index.js';
 /**
  * Known cases for the pn-delivery-push-B2B-ApiGwAlarm runbook.
  */
@@ -52,7 +57,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: 'SelfcarePG non disponibile durante chiamata da pn-data-vault',
     condition: anyStepEvidenceMatches(
       ['query-pn-data-vault', 'query-pn-delivery-push'],
-      '\\[DOWNSTREAM\\] Service SelfcarePG returned errors=503 Service Unavailable',
+      downstreamMarkerPattern('SelfcarePG', { status: '503 Service Unavailable' }),
     ),
     title: '[DOWNSTREAM] Service SelfcarePG returned errors=503 Service Unavailable',
     resolution:

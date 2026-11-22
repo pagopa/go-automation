@@ -40,7 +40,6 @@ function createResult(args: {
         stepId: 'recoverable',
         originalError: 'temporary error',
         failedAt: new Date('2026-01-01T00:00:01.000Z'),
-        skipped: true,
       },
     ],
   });

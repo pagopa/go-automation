@@ -5,11 +5,7 @@ import type { TreeChainGroup } from '../types/TreeChainGroup.js';
 import type { ReadState } from '../types/ReadState.js';
 import type { TreeChainEnd } from '../types/TreeChainEnd.js';
 import type { TreeChainInterruption } from '../types/TreeChainInterruption.js';
-
-/** Something ordered by its earliest time in milliseconds. */
-interface TimedEntry {
-  readonly firstMs?: number | undefined;
-}
+import { compareByFirstMs } from '../core/compareByFirstMs.js';
 
 /** A chain being built, with its time in milliseconds. */
 interface TimedChain {
@@ -62,7 +58,7 @@ export function buildTreeChains(
 
   return [...groups.entries()]
     .map(([key, members]) => {
-      const ordered = [...members].sort(compareTimes);
+      const ordered = [...members].sort(compareByFirstMs);
       return {
         key,
         members: ordered.map((member) => member.chain),
@@ -70,7 +66,7 @@ export function buildTreeChains(
         order: caseRank(ordered[0]?.chain, byId, caseOrder),
       };
     })
-    .sort((a, b) => compareTimes(a, b) || compareRanks(a.order, b.order))
+    .sort((a, b) => compareByFirstMs(a, b) || compareRanks(a.order, b.order))
     .map(({ key, members }) => ({ key, members }));
 }
 
@@ -192,14 +188,6 @@ function caseRank(
     }
   }
   return rank;
-}
-
-/** Earliest first, untimed last; `0` on ties. */
-function compareTimes(a: TimedEntry, b: TimedEntry): number {
-  if (a.firstMs !== undefined && b.firstMs !== undefined) return a.firstMs - b.firstMs;
-  if (a.firstMs !== undefined) return -1;
-  if (b.firstMs !== undefined) return 1;
-  return 0;
 }
 
 /** Lower rank first; `0` on ties, infinite ranks included. */

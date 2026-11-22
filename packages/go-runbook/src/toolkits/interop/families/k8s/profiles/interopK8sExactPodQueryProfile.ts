@@ -1,5 +1,6 @@
 import { escapeLogsInsightsString } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
+import { cidTrackerFilter } from '../../../applicationLogs/queries/cidTrackerFilter.js';
 import type { InteropK8sExactPodQueryOptions } from '../types/InteropK8sExactPodQueryOptions.js';
 import type { InteropK8sQueryProfile } from './InteropK8sQueryProfile.js';
 import { INTEROP_K8S_QUERY_PROFILE } from './INTEROP_K8S_QUERY_PROFILE.js';
@@ -69,10 +70,10 @@ function exactPodQuery(podApp: string, options: InteropK8sExactPodQueryOptions):
   ].join('\n');
 }
 
-function datedCidTrackerQuery(cid: string): string {
+function datedCidTrackerQuery(cids: ReadonlyArray<string>): string {
   return [
     'parse @message "[CID=*]" as cid',
-    `| filter cid = "${escapeLogsInsightsString(cid)}"`,
+    `| ${cidTrackerFilter(cids)}`,
     '| parse log /(?<date>^[^\\s]+)/',
     '| sort date asc',
     '| display @timestamp, date, pod_app, cid, stream, log, @message',

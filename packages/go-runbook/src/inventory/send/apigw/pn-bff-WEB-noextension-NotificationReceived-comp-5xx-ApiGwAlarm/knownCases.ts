@@ -1,4 +1,4 @@
-import { knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import { downstreamMarkerPattern, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
 import {
   all,
   any,
@@ -88,7 +88,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: 'Timeout di connessione verso Checkout pagoPA',
     condition: anyStepEvidenceMatches(
       ['query-pn-external-registries', 'query-pn-external-registries-checkout'],
-      '\\[DOWNSTREAM\\] Service Checkout returned errors=connection timed out after [0-9]+ ms: api\\.platform\\.pagopa\\.it',
+      `${downstreamMarkerPattern('Checkout')}connection timed out after [0-9]+ ms: api\\.platform\\.pagopa\\.it`,
     ),
     resolution: 'Thread Slack 21/09/2026',
     level: 'warn',

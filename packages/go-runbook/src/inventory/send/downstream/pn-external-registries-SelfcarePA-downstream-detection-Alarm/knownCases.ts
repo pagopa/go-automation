@@ -1,4 +1,4 @@
-import { knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import { downstreamMarkerPattern, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
 import { type KnownCase, stepEvidenceMatches } from '../../../../engine/index.js';
 
 /** Sources: Confluence 3414851586 v1; CloudWatch occurrences of 2026-09-01 and 2026-06-04. */
@@ -11,9 +11,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       conditions: [
         stepEvidenceMatches(
           'query-pn-external-registries',
-          '\\[DOWNSTREAM\\] Service SelfcarePA returned errors=400 Bad Request from GET ' +
-            'https://api\\.selfcare\\.pagopa\\.it/external/v2/user-groups;' +
-            '[^\\r\\n]*Invalid tenant context\\b',
+          `${downstreamMarkerPattern('SelfcarePA', {
+            status: '400 Bad Request',
+            method: 'GET',
+            endpoint: 'https://api.selfcare.pagopa.it/external/v2/user-groups',
+          })};[^\\r\\n]*Invalid tenant context\\b`,
         ),
       ],
     },
@@ -42,9 +44,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       conditions: [
         stepEvidenceMatches(
           'query-pn-external-registries',
-          '\\[DOWNSTREAM\\] Service SelfcarePA returned errors=500 Internal Server Error from GET ' +
-            'https://api\\.selfcare\\.pagopa\\.it/external/v2/user-groups;' +
-            '[^\\r\\n]*RequestRateTooLarge\\b[^\\r\\n]*TooManyRequests \\(429\\)',
+          `${downstreamMarkerPattern('SelfcarePA', {
+            status: '500 Internal Server Error',
+            method: 'GET',
+            endpoint: 'https://api.selfcare.pagopa.it/external/v2/user-groups',
+          })};[^\\r\\n]*RequestRateTooLarge\\b[^\\r\\n]*TooManyRequests \\(429\\)`,
         ),
       ],
     },
@@ -73,7 +77,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       conditions: [
         stepEvidenceMatches(
           'query-pn-external-registries',
-          '\\[DOWNSTREAM\\] Service SelfcarePA returned errors=io\\.netty\\.handler\\.timeout\\.ReadTimeoutException\\b',
+          `${downstreamMarkerPattern('SelfcarePA')}io\\.netty\\.handler\\.timeout\\.ReadTimeoutException\\b`,
         ),
       ],
     },

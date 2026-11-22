@@ -7,9 +7,14 @@ import { ESERVICE_TEMPLATE_INSTANCES_UPDATER_QUERY_PROFILE } from './queryProfil
 const CONFLUENCE_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3367141537/k8s-interop-be-eservice-template-instances-updater-errors';
 
+/**
+ * Builds the k8s-interop-be-eservice-template-instances-updater-errors runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: alarm.runbookKey,
+    alarm,
     metadata: {
       name: alarm.runbookKey,
       description:
@@ -20,8 +25,6 @@ export function buildRunbook(): Runbook {
       tags: ['interop', 'k8s', 'service', 'eservice-template', 'kafka'],
     },
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
-    service: { name: alarm.podApp, logGroup: alarm.logGroup, varPrefix: alarm.varPrefix },
-    resolveAlarmContext: alarm.resolveContext,
     queryProfile: ESERVICE_TEMPLATE_INSTANCES_UPDATER_QUERY_PROFILE,
     knownCases: KNOWN_CASES,
     analysisDefaults: {

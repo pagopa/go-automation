@@ -27,7 +27,7 @@ const SEND_SERVICE_LOG_QUERY_TEMPLATE = `{{FILTER_CLAUSE}}
 /**
  * Template della query sugli execution log API Gateway SEND.
  *
- * V04: il `{{REQUEST_ID_FILTER_CLAUSE}}` viene popolato con una clausola
+ * Il `{{REQUEST_ID_FILTER_CLAUSE}}` viene popolato con una clausola
  * OR-combinata su tutti i requestId estratti dall'AccessLog, in modo da
  * fare UNA sola chiamata AWS invece di N (una per requestId) come nella
  * versione pre-refactor.

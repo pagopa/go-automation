@@ -1,48 +1,59 @@
+import { getErrorMessage } from '@pagopa/go-common/errors';
 import type { GOLogger } from '@pagopa/go-common/logging';
 import { GORegexCache } from '@pagopa/go-common/utils';
 import type { Runbook } from '../types/Runbook.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
 import type { RunbookExecutionResult } from '../types/RunbookExecutionResult.js';
-import type { StepDescriptor } from '../types/StepDescriptor.js';
-import type { StepResult } from '../types/StepResult.js';
+
 import type { KnownCase } from '../types/KnownCase.js';
 import type { CaseAction } from '../types/CaseAction.js';
 import type { KnownCaseDetection } from '../types/KnownCaseDetection.js';
-import type { IdentifierObservation } from '../types/IdentifierObservation.js';
-import type { ObservedErrors } from '../types/ObservedErrors.js';
-import type { ErrorRecoveryInfo } from '../types/ErrorRecoveryInfo.js';
-import type { FlowDirective, FlowDirectiveString } from '../types/FlowDirective.js';
+import { caseSummary } from './caseSummary.js';
+
 import type { RunbookExecutionStatus } from '../types/RunbookExecutionStatus.js';
 import type { WorkflowServices } from '../types/WorkflowServices.js';
 import type { RunbookEngineOptions } from '../types/RunbookEngineOptions.js';
 import { assertRequiredServices } from './assertRequiredServices.js';
 import type { ExecutionEnvironment } from '../tracing/ExecutionEnvironment.js';
-import { sharedConditionEvaluator } from './ConditionEvaluator.js';
-import { resolveRef } from '../context/resolveRef.js';
-import { buildStepIndex } from './buildStepIndex.js';
-import { detectRuntimeCycle } from './detectRuntimeCycle.js';
-import { ActionExecutor, type ActionExecutionResult } from '../actions/ActionExecutor.js';
+
+import { ActionExecutor } from '../actions/ActionExecutor.js';
 import { TraceBuilder } from '../tracing/TraceBuilder.js';
-import { throwIfRunbookAborted } from '../context/throwIfRunbookAborted.js';
-import type { EvidenceIndices } from './EvidenceIndices.js';
+
+import { RUNBOOK_ABORTED_MESSAGE } from '../context/RUNBOOK_ABORTED_MESSAGE.js';
+
+import { compareByFirstMs } from './compareByFirstMs.js';
 import { RunbookMaxIterationsError } from '../errors/RunbookMaxIterationsError.js';
-import type { DescendRequest } from '../types/DescendRequest.js';
 import type { ErrorTreeRun } from '../types/ErrorTreeRun.js';
 import type { TreeChainGroup } from '../types/TreeChainGroup.js';
-import type { TreeLevelReader } from '../types/TreeLevelReader.js';
-import type { TreeLevelReadResult } from '../types/TreeLevelReadResult.js';
-import type { ReadIdentifier } from '../types/ReadIdentifier.js';
-import type { TreeStepsRun } from '../types/TreeStepsRun.js';
+
+import { ReadLedger } from '../reads/ReadLedger.js';
+import { createInitialContext } from '../context/RunbookContextHelper.js';
+import type { ExecutionState } from './ExecutionState.js';
+import type { ActionExecutionResult } from '../actions/ActionExecutor.js';
+import type { CaseMatch } from './CaseMatch.js';
 import { ErrorTreeExecutor } from '../tree/ErrorTreeExecutor.js';
+import type { EvidenceIdentifier } from '../types/EvidenceIdentifier.js';
+import type { EvidenceIndices } from './EvidenceIndices.js';
+import type { IdentifierObservation } from '../types/IdentifierObservation.js';
+import type { ReadScope } from '../reads/ReadScope.js';
+import type { StepDescriptor } from '../types/StepDescriptor.js';
+import type { StepExecutionOutcome } from './StepExecutionOutcome.js';
+import type { StepResult } from '../types/StepResult.js';
+import type { StepsOutcome } from './StepsOutcome.js';
+import type { TreeLevelReadResult } from '../types/TreeLevelReadResult.js';
+import type { TreeLevelReader } from '../types/TreeLevelReader.js';
+import type { TreeStepsRun } from '../types/TreeStepsRun.js';
+import { addRecoveredError } from '../context/RunbookContextHelper.js';
 import { buildTreeChains } from '../tree/buildTreeChains.js';
 import { computeCaseLevels } from '../tree/computeCaseLevels.js';
-import { ReadLedger } from '../reads/ReadLedger.js';
-import type { ReadScope } from '../reads/ReadScope.js';
-import {
-  createInitialContext,
-  updateContextWithStepResult,
-  addRecoveredError,
-} from '../context/RunbookContextHelper.js';
+import { failedResultUnlessAborted } from '../context/failedResultUnlessAborted.js';
+import { identifierKey } from '../reads/identifierKey.js';
+import { omitUndefined } from '@pagopa/go-common/utils';
+import { parseStepRef } from '../context/parseStepRef.js';
+import { resolveRef } from '../context/resolveRef.js';
+import { sharedConditionEvaluator } from './ConditionEvaluator.js';
+import { throwIfRunbookAborted } from '../context/throwIfRunbookAborted.js';
+import { updateContextWithStepResult } from '../context/RunbookContextHelper.js';
 
 /** Default maximum iterations for anti-loop protection */
 const DEFAULT_MAX_ITERATIONS = 1000;
@@ -52,50 +63,6 @@ const DEFAULT_ENVIRONMENT: ExecutionEnvironment = {
   invokedBy: 'manual',
 };
 
-type ReachedVia = 'sequential' | 'goTo' | 'subPipeline';
-type StepTraceStatus = 'success' | 'failed' | 'skipped';
-
-interface StepExecutionOutcome {
-  readonly context: RunbookContext;
-  readonly result: StepResult<unknown>;
-}
-
-/** Per-execution state of {@link RunbookEngine.executeSteps}: created by each `execute`, never shared. */
-interface ExecutionState {
-  /** Every output of every visit of a step, in order: the evidence of repeated visits. */
-  readonly visits: Map<string, unknown[]>;
-  /** Gaps of the reads of the execution, and the scope the steps record theirs in. */
-  readonly ledger: ReadLedger;
-  readonly scope: ReadScope;
-  /** Errors observed and examined, as last declared by a step. */
-  observedErrors?: ObservedErrors;
-  /** Whether a read (`data` step) has already succeeded: a later failure leaves partial evidence. */
-  evidenceCollected: boolean;
-  /** Descents requested by the steps of an error-tree node. */
-  readonly descends: DescendRequest[];
-  /** Errors of the steps that failed, recovered ones included. */
-  readonly failures: string[];
-}
-
-interface StepsOutcome {
-  readonly context: RunbookContext;
-  readonly aborted: boolean;
-  readonly failureReason?: string;
-}
-
-/** A matching case with its evidence, before the replaced cases are removed and the detections ordered. */
-interface CaseMatch {
-  readonly knownCase: KnownCase;
-  readonly declarationIndex: number;
-  readonly firstMs?: number;
-  readonly lastMs?: number;
-  readonly evidenceRows: number;
-  readonly observations: ReadonlyArray<IdentifierObservation>;
-  readonly resolvedValues: Readonly<Record<string, unknown>>;
-  /** Indices of the evidence elements of each array ref. */
-  readonly evidence: ReadonlyMap<string, ReadonlySet<number>>;
-}
-
 /**
  * Main runbook execution engine.
  * Orchestrates step execution, flow control, case matching, and actions.
@@ -103,7 +70,6 @@ interface CaseMatch {
  * features:
  * - Anti-loop protection with maxIterations
  * - continueOnFailure support for resilient steps
- * - Sub-pipeline execution for inline branching
  * - Detailed execution tracing with full input/output/vars
  * - Every matching known case reported as a detection, ordered by the time of its evidence
  * - Partial evidence (coverage) declared by the steps, and kept when a later step fails
@@ -116,7 +82,7 @@ interface CaseMatch {
  */
 export class RunbookEngine {
   private readonly actionExecutor: ActionExecutor;
-  /** Compiled regexes of this engine, shared by the contexts it runs (R9). */
+  /** Compiled regexes of this engine, shared by the contexts it runs. */
   private readonly regexCache = new GORegexCache();
 
   /**
@@ -135,13 +101,14 @@ export class RunbookEngine {
    *
    * Flow:
    * 1. Initialize context with input parameters
-   * 2. Execute steps in sequence (respecting FlowDirectives)
+   * 2. Execute steps in sequence, until a step stops the pipeline
    * 3. Evaluate every known case, in declaration order
    * 4. Execute the action of every detection, in the order of the detections (or the fallback)
    * 5. Build and return execution result with trace
    *
-   * A step that fails after some evidence has been collected does not fail the execution: the pipeline stops, the
-   * failed read becomes an `unavailable` coverage entry and the known cases are evaluated on the context reached.
+   * With the `partial` read policy, a step that fails after some evidence has been collected does not fail the
+   * execution: the pipeline stops, the failed read becomes an `unavailable` coverage entry and the known cases are
+   * evaluated on the context reached.
    *
    * @param runbook - Runbook definition to execute
    * @param params - Input parameters (alarmName, timeRange, etc.)
@@ -164,14 +131,13 @@ export class RunbookEngine {
     const context: RunbookContext = {
       ...createInitialContext(params, services, signal, this.regexCache),
       reads: ledger.view(ledger.window),
-      // Only an alarm analysis keeps partial evidence; a procedure reads strictly, as every required step needs.
-      readPolicy: runbook.metadata.type === 'alarm-resolution' ? 'partial' : 'strict',
+      // The policy the runbook declares; without one it reads strictly, as every required step needs.
+      readPolicy: runbook.readPolicy ?? 'strict',
       sharedReads: new Map(),
     };
     const maxIterations = runbook.maxIterations ?? DEFAULT_MAX_ITERATIONS;
     const env = environment ?? DEFAULT_ENVIRONMENT;
     const state: ExecutionState = {
-      visits: new Map(),
       ledger,
       scope: ledger.window,
       evidenceCollected: false,
@@ -194,14 +160,10 @@ export class RunbookEngine {
         runbook.metadata.id,
         traceBuilder,
         state,
-        // Only an alarm analysis keeps partial evidence: a procedure needs every required step.
-        runbook.metadata.type === 'alarm-resolution',
+        runbook.readPolicy === 'partial',
       );
       finalContext = stepsResult.context;
-      if (stepsResult.aborted) {
-        status = 'aborted';
-        failureReason = 'Execution aborted by signal';
-      } else if (stepsResult.failureReason !== undefined) {
+      if (stepsResult.failureReason !== undefined) {
         status = 'failed';
         failureReason = stepsResult.failureReason;
         this.logger.error(`Runbook execution failed: ${failureReason}`);
@@ -210,13 +172,11 @@ export class RunbookEngine {
       if (error instanceof RunbookMaxIterationsError) {
         throw error;
       }
-      if (context.signal?.aborted === true) {
-        status = 'aborted';
-        failureReason = 'Execution aborted by signal';
-        this.logger.warning('Runbook execution aborted by signal');
+      if (isAborted(context)) {
+        this.logger.warning(RUNBOOK_ABORTED_MESSAGE);
       } else {
         status = 'failed';
-        failureReason = error instanceof Error ? error.message : String(error);
+        failureReason = getErrorMessage(error);
         this.logger.error(`Runbook execution failed: ${failureReason}`);
       }
       finalContext = context;
@@ -237,26 +197,17 @@ export class RunbookEngine {
       }
     }
 
-    if (status === 'completed' && finalContext.signal?.aborted === true) {
-      status = 'aborted';
-      failureReason = 'Execution aborted by signal';
-    }
-
     let detections: ReadonlyArray<KnownCaseDetection> = [];
     let treeRun: ErrorTreeRun | undefined;
     let chains: ReadonlyArray<TreeChainGroup> | undefined;
     // A gap that names some identifiers is carried by their nodes, not by every chain.
     const windowIncomplete = ledger.windowIncomplete();
-    if (status === 'completed') {
+    if (status === 'completed' && !isAborted(finalContext)) {
       try {
         if (runbook.tree === undefined) {
-          detections = this.detectKnownCases(
-            runbook.knownCases,
-            evidenceContext(finalContext, state.visits),
-            traceBuilder,
-          );
+          detections = this.detectKnownCases(runbook.knownCases, finalContext, traceBuilder);
         } else {
-          treeRun = await this.investigateTree(runbook, evidenceContext(finalContext, state.visits), {
+          treeRun = await this.investigateTree(runbook, finalContext, {
             maxIterations,
             traceBuilder,
             state,
@@ -271,17 +222,11 @@ export class RunbookEngine {
         // collected so far.
         if (!isAborted(finalContext)) throw error;
       }
-      // An abort during the evaluation, thrown or not, ends the run aborted, with the trace collected so far.
-      if (isAborted(finalContext)) {
-        status = 'aborted';
-        failureReason = 'Execution aborted by signal';
-        detections = [];
-      }
     }
 
     // Every detection runs its action, in the order of the detections; in an error tree, once per group of chains,
     // from the node that recognized the case. The fallback runs only when nothing matched.
-    if (status === 'completed') {
+    if (status === 'completed' && !isAborted(finalContext)) {
       const actions =
         detections.length === 0
           ? [{ action: runbook.fallbackAction, context: fallbackContext(finalContext, treeRun, chains) }]
@@ -309,6 +254,8 @@ export class RunbookEngine {
       }
     }
 
+    // An abort, during the steps, the evaluation or the actions, thrown or not, ends the run aborted, with the trace
+    // collected so far.
     if (status === 'completed' && isAborted(finalContext)) {
       status = 'aborted';
       failureReason = 'Execution aborted by signal';
@@ -318,10 +265,9 @@ export class RunbookEngine {
     traceBuilder.traceCoverage(ledger.entries());
     const trace = traceBuilder.build(finalContext, status, env, failureReason);
 
-    const caseTag = detections.length === 0 ? 'none' : detections.map((d) => d.knownCase.id).join(', ');
     this.logger.info(
       `Runbook ${status}: ${runbook.metadata.id} in ${trace.execution.durationMs}ms ` +
-        `(${finalContext.stepResults.size} steps, cases: ${caseTag})`,
+        `(${trace.summary.stepsExecuted} steps, cases: ${caseSummary(detections)})`,
     );
 
     return {
@@ -347,11 +293,13 @@ export class RunbookEngine {
   }
 
   /**
-   * Executes steps in sequence respecting FlowDirectives.
+   * Executes steps in sequence, until a step stops the pipeline.
    * Includes anti-loop protection and continueOnFailure support.
    *
-   * A failing step ends the pipeline. When some evidence was already collected it is a partial read: the step becomes
-   * an `unavailable` coverage entry and the execution stays completed. Otherwise the execution fails.
+   * A step that fails, by throwing or by returning its failure, with `continueOnFailure` is recovered: the failure is
+   * recorded in `recoveredErrors` and the pipeline goes on. Any other failing step ends the pipeline. When some
+   * evidence was already collected it is a partial read: the step becomes an `unavailable` coverage entry and the
+   * execution stays completed. Otherwise the execution fails.
    */
   private async executeSteps(
     stepDescriptors: ReadonlyArray<StepDescriptor>,
@@ -363,60 +311,39 @@ export class RunbookEngine {
     partialOnFailure: boolean,
   ): Promise<StepsOutcome> {
     let context = initialContext;
-
-    const stepIndex = buildStepIndex(stepDescriptors);
-
-    let currentIndex = 0;
-    let iterations = 0;
-    let reachedVia: ReachedVia = 'sequential';
     const visitedSequence: string[] = [];
-    let aborted = false;
 
-    while (currentIndex < stepDescriptors.length) {
+    for (const descriptor of stepDescriptors) {
       // Anti-loop protection
-      iterations++;
-      if (iterations > maxIterations) {
+      if (visitedSequence.length >= maxIterations) {
         const lastStepId = visitedSequence[visitedSequence.length - 1] ?? 'unknown';
         throw new RunbookMaxIterationsError(runbookId, maxIterations, lastStepId, visitedSequence);
       }
 
       // Abort check before each step
-      if (context.signal?.aborted === true) {
-        this.logger.warning('Runbook execution aborted by signal');
-        aborted = true;
-        break;
+      if (isAborted(context)) {
+        this.logger.warning(RUNBOOK_ABORTED_MESSAGE);
+        return { context, aborted: true };
       }
 
-      const descriptor = stepDescriptors[currentIndex];
-      if (descriptor === undefined) {
-        break;
-      }
-
-      const { step, continueOnFailure } = descriptor;
+      const { step } = descriptor;
       visitedSequence.push(step.id);
 
-      // Runtime cycle detection
-      if (detectRuntimeCycle(visitedSequence)) {
-        throw new RunbookMaxIterationsError(runbookId, maxIterations, step.id, visitedSequence);
-      }
-
       const evidenceBefore = state.evidenceCollected;
-      const execution = await this.executeStepDescriptor(descriptor, context, reachedVia, traceBuilder);
+      const execution = await this.executeStepDescriptor(descriptor, context, traceBuilder);
       context = execution.context;
       const result = execution.result;
       recordStepEvidence(state, step.id, result);
       if (result.success && step.kind === 'data') state.evidenceCollected = true;
+
       if (!result.success) {
         state.ledger.recordFailure(state.scope, step.id, result.error);
         state.failures.push(result.error ?? `Step "${step.id}" failed`);
-      }
-      const directive = result.next ?? 'continue';
-
-      if (!result.success) {
-        // If step failed with continueOnFailure, proceed to next
-        if (continueOnFailure === true) {
-          reachedVia = 'sequential';
-          currentIndex++;
+        // A step allowed to fail is recovered, whether it threw or returned its failure: the pipeline goes on.
+        if (isRecovered(descriptor, result)) {
+          const originalError = result.error ?? `Step "${step.id}" failed`;
+          this.logger.warning(`[${step.id}] Step failed but continueOnFailure=true: ${originalError}`);
+          context = addRecoveredError(context, { stepId: step.id, originalError, failedAt: new Date() });
           continue;
         }
         if (evidenceBefore && partialOnFailure) {
@@ -430,33 +357,18 @@ export class RunbookEngine {
         };
       }
 
-      // Determine next step
-      if (directive === 'stop') {
-        break;
-      } else if (directive === 'continue') {
-        reachedVia = 'sequential';
-        currentIndex++;
-      } else {
-        // goTo
-        const targetIndex = stepIndex.get(directive.goTo);
-        if (targetIndex === undefined) {
-          throw new Error(`Step not found: ${directive.goTo}`);
-        }
-        reachedVia = 'goTo';
-        currentIndex = targetIndex;
-      }
+      if (result.next === 'stop') break;
     }
 
-    return { context, aborted };
+    return { context, aborted: false };
   }
 
   private async executeStepDescriptor(
     descriptor: StepDescriptor,
     context: RunbookContext,
-    reachedVia: ReachedVia,
     traceBuilder: TraceBuilder,
   ): Promise<StepExecutionOutcome> {
-    const { step, continueOnFailure } = descriptor;
+    const { step } = descriptor;
 
     if (descriptor.silent !== true) {
       this.logger.text(`[${step.id}] ${step.label}`);
@@ -465,9 +377,6 @@ export class RunbookEngine {
     const stepStartTime = Date.now();
     const stepStartedAt = new Date(stepStartTime).toISOString();
     let result: StepResult<unknown>;
-    let stepStatus: StepTraceStatus = 'success';
-    let recovered = false;
-    let updatedContext = context;
 
     const baseInput = this.captureStepInput(context);
     let traceInfo: Readonly<Record<string, unknown>> | undefined;
@@ -483,58 +392,33 @@ export class RunbookEngine {
       result = await step.execute(context);
     } catch (error: unknown) {
       // An abort stays an abort; any other throw becomes a failed result, so that the pipeline decides whether the
-      // evidence already collected makes it a partial read.
-      if (context.signal?.aborted === true) {
-        throw error;
-      }
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      if (continueOnFailure === true) {
-        this.logger.warning(`[${step.id}] Step failed but continueOnFailure=true: ${errorMessage}`);
-        const recoveryInfo: ErrorRecoveryInfo = {
-          stepId: step.id,
-          originalError: errorMessage,
-          failedAt: new Date(),
-          skipped: true,
-        };
-        result = { success: false, error: errorMessage, errorRecovery: recoveryInfo };
-        updatedContext = addRecoveredError(context, recoveryInfo);
-        recovered = true;
-      } else {
-        result = { success: false, error: errorMessage };
-      }
-      stepStatus = 'failed';
+      // step is recovered or the evidence already collected makes it a partial read.
+      result = failedResultUnlessAborted(context, error);
     }
 
     const stepCompletedAt = new Date().toISOString();
     const stepDurationMs = Date.now() - stepStartTime;
 
-    if (!result.success && !recovered) {
-      stepStatus = 'failed';
-    }
-
-    const directive = result.next ?? 'continue';
     const varsWritten: Readonly<Record<string, string>> = result.vars ?? {};
-    traceBuilder.traceStep(
-      step.id,
-      step.label,
-      step.kind,
-      reachedVia,
-      stepStartedAt,
-      stepCompletedAt,
-      stepDurationMs,
-      stepStatus,
-      recovered,
-      stepInput,
-      result.output ?? null,
+    traceBuilder.traceStep({
+      stepId: step.id,
+      label: step.label,
+      kind: step.kind,
+      reachedVia: 'sequential',
+      startedAt: stepStartedAt,
+      completedAt: stepCompletedAt,
+      durationMs: stepDurationMs,
+      status: result.success ? 'success' : 'failed',
+      recovered: isRecovered(descriptor, result),
+      input: stepInput,
+      output: result.output ?? null,
       varsWritten,
-      this.flowDirectiveToString(directive),
-      result.diagnostics,
-      result.error,
-    );
+      flowDirective: result.next ?? 'continue',
+      ...omitUndefined({ diagnostics: result.diagnostics, error: result.error }),
+    });
 
     return {
-      context: updateContextWithStepResult(updatedContext, step.id, result),
+      context: updateContextWithStepResult(context, step.id, result),
       result,
     };
   }
@@ -558,19 +442,6 @@ export class RunbookEngine {
   }
 
   /**
-   * Converts a FlowDirective to its string representation for trace.
-   *
-   * @param directive - Flow directive
-   * @returns String representation
-   */
-  private flowDirectiveToString(directive: FlowDirective): FlowDirectiveString {
-    if (directive === 'continue' || directive === 'stop') {
-      return directive;
-    }
-    return directive.goTo;
-  }
-
-  /**
    * Evaluates every known case against the final context and returns the detections.
    *
    * Cases are evaluated in declaration order and every match is kept. A case listed in the `supersedes` of another
@@ -578,7 +449,7 @@ export class RunbookEngine {
    * time of their evidence: `firstSeenAt` ascending, declaration order on ties, untimed detections last.
    *
    * @param knownCases - Known cases of the runbook
-   * @param context - Final context, with the evidence of repeated visits
+   * @param context - Final context
    * @param traceBuilder - Trace of the execution
    * @param nodeId - Error-tree node the cases are evaluated on
    * @returns The detections, in their order
@@ -658,8 +529,7 @@ export class RunbookEngine {
         ...(match?.firstMs !== undefined ? { firstSeenAt: new Date(match.firstMs).toISOString() } : {}),
         ...(match?.lastMs !== undefined ? { lastSeenAt: new Date(match.lastMs).toISOString() } : {}),
         ...(match !== undefined ? { evidenceRows: match.evidenceRows } : {}),
-        ...(replacedBy !== undefined ? { supersededBy: replacedBy } : {}),
-        ...(nodeId !== undefined ? { nodeId } : {}),
+        ...omitUndefined({ supersededBy: replacedBy, nodeId }),
       });
     }
 
@@ -691,7 +561,7 @@ export class RunbookEngine {
    * Investigates the error tree of the runbook from the context of the window, level by level.
    *
    * @param runbook - Runbook with its levels
-   * @param window - Context reached by the steps of the window, with the evidence of repeated visits
+   * @param window - Context reached by the steps of the window
    * @param execution - Iteration cap, trace and state of the execution
    * @returns The investigated tree
    */
@@ -743,7 +613,6 @@ export class RunbookEngine {
     },
   ): Promise<TreeStepsRun> {
     const nodeState: ExecutionState = {
-      visits: new Map(),
       ledger: execution.ledger,
       scope,
       evidenceCollected: true,
@@ -761,7 +630,7 @@ export class RunbookEngine {
     );
     if (outcome.aborted) throwIfRunbookAborted(outcome.context);
     return {
-      context: evidenceContext(outcome.context, nodeState.visits),
+      context: outcome.context,
       // A step that failed, even one allowed to fail, leaves the analysis of the node incomplete.
       ...((outcome.failureReason ?? nodeState.failures[0]) !== undefined
         ? { failure: outcome.failureReason ?? nodeState.failures[0] ?? '' }
@@ -801,7 +670,7 @@ export class RunbookEngine {
     let firstMs: number | undefined;
     let lastMs: number | undefined;
     let evidenceRows = 0;
-    const observations = new Map<string, IdentifierObservation & { readonly ms?: number }>();
+    const observations = new Map<string, IdentifierObservation & { readonly firstMs?: number }>();
 
     for (const [ref, indices] of evidence) {
       const elements = resolveRef(ref, context);
@@ -820,25 +689,24 @@ export class RunbookEngine {
           // Each identifier is observed at the instant of its own row; the earliest observation wins, and an
           // identifier without time is kept untimed until a timed observation arrives.
           const at = identifier.at;
-          const key = `${identifier.kind}:${identifier.value}`;
+          const key = identifierKey(identifier);
           const previous = observations.get(key);
-          if (previous !== undefined && (at === undefined || (previous.ms !== undefined && previous.ms <= at)))
-            continue;
+          const previousMs = previous?.firstMs;
+          if (previous !== undefined && (at === undefined || (previousMs !== undefined && previousMs <= at))) continue;
           observations.set(key, {
             kind: identifier.kind,
             value: identifier.value,
-            ...(at === undefined ? {} : { observedAt: new Date(at).toISOString(), ms: at }),
+            ...(at === undefined ? {} : { observedAt: new Date(at).toISOString(), firstMs: at }),
           });
         }
       }
     }
 
     return {
-      ...(firstMs !== undefined ? { firstMs } : {}),
-      ...(lastMs !== undefined ? { lastMs } : {}),
+      ...omitUndefined({ firstMs, lastMs }),
       evidenceRows,
       observations: [...observations.values()]
-        .sort((a, b) => (a.ms ?? Number.POSITIVE_INFINITY) - (b.ms ?? Number.POSITIVE_INFINITY))
+        .sort(compareByFirstMs)
         .map(({ kind, value, observedAt }) => ({ kind, value, ...(observedAt !== undefined ? { observedAt } : {}) })),
     };
   }
@@ -857,18 +725,18 @@ function withoutEvidence(context: RunbookContext, covered: ReadonlyMap<string, R
   for (const [ref, indices] of covered) {
     // The refs are canonical (`canonicalRef`): the path after the step id is the property path, `output` included
     // when it is a real property of the step output.
-    const [source, stepId, ...path] = ref.split('.');
-    if (source !== 'steps' || stepId === undefined || ref.includes('[')) continue;
-    stepResults.set(stepId, withoutElements(stepResults.get(stepId), path, indices));
+    const stepRef = parseStepRef(ref);
+    if (stepRef === undefined || ref.includes('[')) continue;
+    stepResults.set(stepRef.stepId, withoutElements(stepResults.get(stepRef.stepId), stepRef.path, indices));
   }
   return { ...context, stepResults };
 }
 
 /** The ref of an evidence array without the redundant `.output` of a step ref. */
 function canonicalRef(ref: string): string {
-  const [source, stepId, next, ...rest] = ref.split('.');
-  if (source !== 'steps' || stepId === undefined || next !== 'output') return ref;
-  return ['steps', stepId, ...rest].join('.');
+  const stepRef = parseStepRef(ref);
+  if (stepRef?.path[0] !== 'output') return ref;
+  return ['steps', stepRef.stepId, ...stepRef.path.slice(1)].join('.');
 }
 
 /** A copy of `value` with the array at `path` filtered of the given indices. */
@@ -895,49 +763,33 @@ function countEvidence(evidence: ReadonlyMap<string, ReadonlySet<number>>): numb
  * @returns A negative number when `a` comes first
  */
 function compareCaseMatches(a: CaseMatch, b: CaseMatch): number {
-  if (a.firstMs !== undefined && b.firstMs !== undefined && a.firstMs !== b.firstMs) return a.firstMs - b.firstMs;
-  if (a.firstMs !== undefined && b.firstMs === undefined) return -1;
-  if (a.firstMs === undefined && b.firstMs !== undefined) return 1;
-  return a.declarationIndex - b.declarationIndex;
+  return compareByFirstMs(a, b) || a.declarationIndex - b.declarationIndex;
 }
 
 /**
- * Records what a step result adds to the evidence of the execution: its output, as one more visit, and its gaps.
+ * Records what a step result adds to the evidence of the execution: its gaps, the errors it observed and the descents
+ * it requested.
  *
  * @param state - State of the execution
  * @param stepId - Step that produced the result
  * @param result - Result of the step
  */
 function recordStepEvidence(state: ExecutionState, stepId: string, result: StepResult<unknown>): void {
-  if (result.output !== undefined) {
-    const visits = state.visits.get(stepId) ?? [];
-    visits.push(result.output);
-    state.visits.set(stepId, visits);
-  }
   state.ledger.recordStep(state.scope, stepId, result.coverage ?? []);
   if (result.observedErrors !== undefined) state.observedErrors = result.observedErrors;
   if (result.descend !== undefined) state.descends.push(...result.descend);
 }
 
 /**
- * The context the known cases are evaluated on.
+ * Whether a step result is recovered: the step failed, by throwing or by returning its failure, and its descriptor
+ * allows it to fail.
  *
- * A step that ran more than once (for example a service read with a fallback identifier and then with the trace id)
- * contributes the rows of every visit, in order: a row found by the first visit and not by the second stays evidence.
- * Scalar variables keep the last write, as during the pipeline.
- *
- * @param context - Final context of the pipeline
- * @param visits - Every output of every step, in order
- * @returns The context with the concatenated array outputs of repeated visits
+ * @param descriptor - Descriptor of the step
+ * @param result - Result of the step
+ * @returns `true` when the pipeline goes on after the failure
  */
-function evidenceContext(context: RunbookContext, visits: ReadonlyMap<string, ReadonlyArray<unknown>>): RunbookContext {
-  let stepResults: Map<string, unknown> | undefined;
-  for (const [stepId, outputs] of visits) {
-    if (outputs.length < 2 || !outputs.every((output) => Array.isArray(output))) continue;
-    stepResults ??= new Map(context.stepResults);
-    stepResults.set(stepId, (outputs as ReadonlyArray<ReadonlyArray<unknown>>).flat());
-  }
-  return stepResults === undefined ? context : { ...context, stepResults };
+function isRecovered(descriptor: StepDescriptor, result: StepResult<unknown>): boolean {
+  return !result.success && descriptor.continueOnFailure === true;
 }
 
 /**
@@ -962,28 +814,27 @@ function isAborted(context: RunbookContext): boolean {
 function recordTreeRead(
   traceBuilder: TraceBuilder,
   read: TreeLevelReader,
-  identifiers: ReadonlyArray<ReadIdentifier>,
+  identifiers: ReadonlyArray<EvidenceIdentifier>,
   result: TreeLevelReadResult,
   startedAtMs: number,
 ): void {
   const completedAtMs = Date.now();
-  traceBuilder.traceStep(
-    read.id,
-    read.label,
-    read.kind,
-    'subPipeline',
-    new Date(startedAtMs).toISOString(),
-    new Date(completedAtMs).toISOString(),
-    completedAtMs - startedAtMs,
-    result.success ? 'success' : 'failed',
-    false,
-    { identifiers: identifiers.map((identifier) => `${identifier.kind}=${identifier.value}`) },
-    result.rows,
-    {},
-    'continue',
-    result.diagnostics,
-    result.error,
-  );
+  traceBuilder.traceStep({
+    stepId: read.id,
+    label: read.label,
+    kind: read.kind,
+    reachedVia: 'subPipeline',
+    startedAt: new Date(startedAtMs).toISOString(),
+    completedAt: new Date(completedAtMs).toISOString(),
+    durationMs: completedAtMs - startedAtMs,
+    status: result.success ? 'success' : 'failed',
+    recovered: false,
+    input: { identifiers: identifiers.map((identifier) => `${identifier.kind}=${identifier.value}`) },
+    output: result.rows,
+    varsWritten: {},
+    flowDirective: 'continue',
+    ...omitUndefined({ diagnostics: result.diagnostics, error: result.error }),
+  });
 }
 
 /**
@@ -995,13 +846,8 @@ function recordTreeRead(
 function orderedTreeDetections(run: ErrorTreeRun): ReadonlyArray<KnownCaseDetection> {
   const all = run.nodes.flatMap((node) => node.detections);
   return all
-    .map((detection, index) => ({ detection, index, ms: timeOf(detection.firstSeenAt) }))
-    .sort((a, b) => {
-      if (a.ms !== undefined && b.ms !== undefined && a.ms !== b.ms) return a.ms - b.ms;
-      if (a.ms !== undefined && b.ms === undefined) return -1;
-      if (a.ms === undefined && b.ms !== undefined) return 1;
-      return a.index - b.index;
-    })
+    .map((detection, index) => ({ detection, index, firstMs: timeOf(detection.firstSeenAt) }))
+    .sort((a, b) => compareByFirstMs(a, b) || a.index - b.index)
     .map(({ detection }) => detection);
 }
 

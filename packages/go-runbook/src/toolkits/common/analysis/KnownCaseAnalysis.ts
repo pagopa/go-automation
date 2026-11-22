@@ -1,5 +1,7 @@
 import type { AnalysisLinkRef } from './AnalysisLinkRef.js';
 import type { AnalysisResourceRef } from './AnalysisResourceRef.js';
+import type { AnalysisType } from './AnalysisType.js';
+import type { ProposedAnalysisStatus } from './ProposedAnalysisStatus.js';
 
 /**
  * Analysis directives declared by a known case.
@@ -12,8 +14,8 @@ export interface KnownCaseAnalysis {
   /** Resolution text interpolated into `conclusionNotes`; placeholders allowed. */
   readonly resolution: string;
   /** Proposed state: the apply persists IN_PROGRESS, a CONFIRMED review promotes it. */
-  readonly proposedStatus: 'IN_PROGRESS' | 'COMPLETED';
-  readonly analysisType: 'ANALYZABLE' | 'IGNORABLE';
+  readonly proposedStatus: ProposedAnalysisStatus;
+  readonly analysisType: AnalysisType;
   /** Required when `analysisType` is IGNORABLE. */
   readonly ignoreReasonCode?: string;
   /** Validated against the Watchtower `IgnoreReason.detailsSchema`. */

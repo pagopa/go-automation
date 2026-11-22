@@ -1,19 +1,17 @@
-import { escapeLogsInsightsString, type GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { escapeLogsInsightsString } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
-import { executeStep } from '../../../../../engine/steps/execution/executeStep.js';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
-import type { Step } from '../../../../../engine/types/Step.js';
-import type { StepKind } from '../../../../../engine/types/StepKind.js';
-import type { StepResult } from '../../../../../engine/types/StepResult.js';
+import { executeStep } from '../../../../../engine/index.js';
+import type { RunbookContext, Step, StepKind, StepResult } from '../../../../../engine/index.js';
 import type { OperationalContext } from '../../../../common/services/OperationalContext.js';
 import type { OperationalServiceName } from '../../../../common/services/OperationalServiceName.js';
 import { executeCloudWatchLogsQuery } from '../../../../common/steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
+import { SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS } from '../../../../common/steps/aws/cloudwatch-logs/SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS.js';
 import { OperationalStep } from '../../../../common/steps/OperationalStep.js';
+import { ALARM_TIME_RANGE } from '../../../../common/time/ALARM_TIME_RANGE.js';
 import { resolveTimeRange } from '../../../../common/time/resolveTimeRange.js';
 import type { InteropPodContextCompleteness } from '../types/InteropPodContextCompleteness.js';
 import type { QueryInteropPodContextConfig } from '../types/QueryInteropPodContextConfig.js';
-
-type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
+import type { CloudWatchLogsRows } from '../../../../common/steps/aws/cloudwatch-logs/CloudWatchLogsRows.js';
 
 /** Maximum rows of a pod context; reaching it means the context is truncated. */
 const ROW_LIMIT = 1000;
@@ -25,7 +23,10 @@ const ROW_LIMIT = 1000;
  * Reads the resolved `interopLogGroup`, `interopPodApp` and, with a namespace
  * filter, `interopEnvironment`; writes the row count to the configured variable.
  */
-export class QueryInteropPodContextStep extends OperationalStep<Rows> implements Step<Rows> {
+export class QueryInteropPodContextStep
+  extends OperationalStep<CloudWatchLogsRows>
+  implements Step<CloudWatchLogsRows>
+{
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -82,8 +83,8 @@ export class QueryInteropPodContextStep extends OperationalStep<Rows> implements
    * @param context - Operational context
    * @returns The rows and the count variable, or a failure when the context is missing or incomplete
    */
-  override async execute(context: OperationalContext): Promise<StepResult<Rows>> {
-    return executeStep(this.contextName, async () => {
+  override async execute(context: OperationalContext): Promise<StepResult<CloudWatchLogsRows>> {
+    return executeStep(context, this.contextName, async () => {
       const logGroup = context.vars.get('interopLogGroup')?.trim() ?? '';
       const podApp = context.vars.get('interopPodApp')?.trim() ?? '';
       const environment = context.vars.get('interopEnvironment')?.trim() ?? '';
@@ -94,10 +95,9 @@ export class QueryInteropPodContextStep extends OperationalStep<Rows> implements
         context,
         [logGroup],
         this.query(podApp, environment),
-        resolveTimeRange(context, { start: 'startTime', end: 'endTime' }),
+        resolveTimeRange(context, ALARM_TIME_RANGE),
         {
-          ...(context.signal === undefined ? {} : { signal: context.signal }),
-          logGroupResolutionMode: 'search-configured-profiles',
+          ...SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS,
           paginateResults: true,
         },
       );

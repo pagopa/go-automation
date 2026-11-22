@@ -14,13 +14,11 @@ Il Runbook Engine è un sistema per definire, comporre ed eseguire runbook opera
 
 1. Raccoglie dati da diverse sorgenti (CloudWatch, Athena, DynamoDB, HTTP)
 2. Esegue una sequenza di step autonomi, ognuno con input/output tipizzati
-3. Supporta branching condizionale per percorsi di esecuzione diversi
-4. Supporta **sub-pipeline annidate** per branching complesso inline
-5. Alla fine della pipeline confronta il risultato con **tutti** i **casi noti**, in ordine di dichiarazione
-6. Riporta **ogni** caso che corrisponde (una **rilevazione**), ordinato per il tempo della prima evidenza
-7. Esegue l'**azione associata** a ciascun caso rilevato, nello stesso ordine (o il fallback, se nessuno corrisponde)
-8. Dichiara la **copertura** dell'evidenza: cosa il runbook non ha potuto vedere
-9. Con un **albero degli errori**, indaga ogni errore della finestra come un nodo, livello per livello (§19)
+3. Alla fine della pipeline confronta il risultato con **tutti** i **casi noti**, in ordine di dichiarazione
+4. Riporta **ogni** caso che corrisponde (una **rilevazione**), ordinato per il tempo della prima evidenza
+5. Esegue l'**azione associata** a ciascun caso rilevato, nello stesso ordine (o il fallback, se nessuno corrisponde)
+6. Dichiara la **copertura** dell'evidenza: cosa il runbook non ha potuto vedere
+7. Con un **albero degli errori**, indaga ogni errore della finestra come un nodo, livello per livello (§19)
 
 ### Rilevazioni, tempo e copertura
 
@@ -28,7 +26,7 @@ Un allarme può nascondere più errori diversi nella stessa finestra. Il motore 
 tutta la pipeline, valuta ogni caso noto sul contesto finale e restituisce tutte le rilevazioni.
 
 - **Nessuna risoluzione anticipata.** Uno step non può fermare la pipeline perché "ha trovato qualcosa": le direttive
-  sono solo `continue`, `stop` e `goTo` (§2.4). Anche dopo `stop` i casi noti vengono valutati.
+  sono solo `continue` e `stop` (§2.4). Anche dopo `stop` i casi noti vengono valutati.
 - **Ordine di tempo.** Ogni rilevazione porta il primo e l'ultimo istante dell'evidenza che la prova
   (`firstSeenAt`/`lastSeenAt`), letti con `RunbookEngineOptions.evidenceTime` (§5.3). A pari tempo vale l'ordine di
   dichiarazione; le rilevazioni senza tempo vanno in fondo.
@@ -129,11 +127,6 @@ interface StepResult<TOutput = unknown> {
   readonly observedErrors?: ObservedErrors;
   /** Discese chieste da uno step di un nodo dell'albero degli errori (§19.3) */
   readonly descend?: ReadonlyArray<DescendRequest>;
-  /**
-   * Informazioni di recovery se lo step e fallito
-   * ma l'esecuzione e continuata grazie a continueOnFailure.
-   */
-  readonly errorRecovery?: ErrorRecoveryInfo;
 }
 
 /**
@@ -154,7 +147,7 @@ interface StepCoverage {
   /** Al massimo 200 caratteri, ripuliti dai nomi dei profili; mai nella bozza d'analisi */
   readonly detail?: string;
   /** Gli identificativi a cui la lacuna si limita; assenti o vuoti = tutta la lettura (§18.6) */
-  readonly identifiers?: ReadonlyArray<ReadIdentifier>;
+  readonly identifiers?: ReadonlyArray<EvidenceIdentifier>;
 }
 
 /**
@@ -182,8 +175,6 @@ interface ErrorRecoveryInfo {
   readonly originalError: string;
   /** Timestamp del fallimento */
   readonly failedAt: Date;
-  /** Indica che lo step è stato saltato e l'esecuzione e continuata */
-  readonly skipped: true;
 }
 ```
 
@@ -196,9 +187,8 @@ Le direttive di flusso controllano quale step eseguire dopo quello corrente.
  * Direttive di controllo del flusso di esecuzione.
  * - 'continue': procedi allo step successivo in sequenza
  * - 'stop': termina la pipeline; i casi noti vengono comunque valutati
- * - { goTo: string }: salta allo step con l'id specificato
  */
-type FlowDirective = 'continue' | 'stop' | { readonly goTo: string };
+type FlowDirective = 'continue' | 'stop';
 ```
 
 Non esiste una direttiva di risoluzione anticipata: il motore esegue sempre la pipeline fino in fondo (o fino a `stop`)
@@ -226,8 +216,6 @@ interface RunbookContext {
   readonly vars: ReadonlyMap<string, string>;
   /** Parametri di input del runbook (alarmName, timeRange, etc.) */
   readonly params: ReadonlyMap<string, string>;
-  /** Log entries raccolti durante l'esecuzione */
-  readonly logs: readonly LogEntry[];
   /** Servizi AWS e HTTP iniettati */
   readonly services: ServiceRegistry;
   /**
@@ -308,7 +296,11 @@ interface Runbook {
   readonly maxIterations?: number;
   /** Albero degli errori, indagato dopo gli step della finestra (§19); assente per un runbook di finestra */
   readonly tree?: ErrorTreeDefinition;
+  /** Come il runbook legge l'evidenza; assente significa `strict` */
+  readonly readPolicy?: ReadPolicy;
 }
+
+type ReadPolicy = 'partial' | 'strict';
 
 interface RunbookMetadata {
   /** Identificativo univoco del runbook */
@@ -330,6 +322,12 @@ interface RunbookMetadata {
 type RunbookType = 'alarm-resolution' | 'data-verification' | 'data-update' | 'health-check';
 ```
 
+La **politica di lettura** la dichiara il runbook (`RunbookBuilder.readPolicy(...)`), mai il motore dal tipo. Con
+`partial` una lettura tiene quanto ha letto quando una parte fallisce, e uno step che fallisce dopo aver raccolto
+evidenza ferma la pipeline lasciando l'esecuzione completata sull'evidenza parziale; con `strict` (il default, per
+le procedure) la lettura fallisce per intero e lo step fallito fa fallire l'esecuzione. `AlarmRunbookBuilder` dei
+toolkit imposta `partial`.
+
 ---
 
 ## 3. Catalogo Step
@@ -344,70 +342,19 @@ StepKind: 'data'
 
 Questi step raccolgono dati grezzi. Tipicamente restituiscono `'continue'` perché non analizzano i dati.
 
-| Step                      | Input (da context)                | Output                                 | Descrizione                   |
-| ------------------------- | --------------------------------- | -------------------------------------- | ----------------------------- |
-| `CloudWatchLogsQueryStep` | logGroups, query, timeRange       | `readonly ResultField[][]`             | Esegue query CW Logs Insights |
-| `CloudWatchMetricsStep`   | namespace, metricName, dimensions | `readonly MetricDatapoint[]`           | Recupera metriche CW          |
-| `AthenaQueryStep`         | database, query                   | `readonly Record<string, string>[]`    | Esegue query Athena           |
-| `DynamoDBQueryStep`       | tableName, keyCondition           | `readonly Record<string, unknown>[]`   | Query DynamoDB                |
-| `DynamoDBGetStep`         | tableName, key                    | `Record<string, unknown> \| undefined` | Get singolo item              |
-| `HttpRequestStep`         | url, method, headers, body        | `HttpResponse`                         | Chiamata HTTP                 |
+| Step                      | Input (da context)          | Output                     | Descrizione                   |
+| ------------------------- | --------------------------- | -------------------------- | ----------------------------- |
+| `CloudWatchLogsQueryStep` | logGroups, query, timeRange | `readonly ResultField[][]` | Esegue query CW Logs Insights |
 
-### 3.2 Transform Steps (Trasformazione dati)
-
-```
-StepKind: 'transform'
-```
-
-Questi step analizzano e trasformano i dati: estraggono gli elementi (un messaggio di errore, un'anomalia) su cui poi si valutano i casi noti. Restituiscono `'continue'`, oppure `'stop'` quando non c'è altro da leggere.
-
-| Step               | Input                  | Output                | Descrizione                                |
-| ------------------ | ---------------------- | --------------------- | ------------------------------------------ |
-| `ExtractFieldStep` | stepId, fieldPath      | `string`              | Estrae un campo da un risultato precedente |
-| `RegexExtractStep` | stepId, pattern, group | `string \| undefined` | Estrae con regex                           |
-| `MapStep`          | stepId, mappingFn      | `unknown[]`           | Trasforma array di risultati               |
-| `TemplateStep`     | template con `{{var}}` | `string`              | Interpola variabili nel template           |
-
-### 3.3 Check Steps (Verifica condizioni)
-
-```
-StepKind: 'check'
-```
-
-Questi step verificano condizioni. Una diagnosi confermata non ferma la pipeline: diventa evidenza per i casi noti, valutati alla fine.
-
-| Step               | Input                 | Output    | Descrizione                                |
-| ------------------ | --------------------- | --------- | ------------------------------------------ |
-| `AssertStep`       | condition             | `boolean` | Verifica una condizione, fallisce se false |
-| `CompareStep`      | left, operator, right | `boolean` | Confronto tra due valori                   |
-| `PatternMatchStep` | value, regex          | `boolean` | Verifica match regex                       |
-| `ExistsStep`       | stepId, fieldPath     | `boolean` | Verifica esistenza di un valore            |
-
-### 3.4 Mutation Steps (Modifiche)
-
-```
-StepKind: 'mutation'
-```
-
-| Step                   | Input                   | Output         | Descrizione                   |
-| ---------------------- | ----------------------- | -------------- | ----------------------------- |
-| `DynamoDBUpdateStep`   | tableName, key, updates | `void`         | Aggiorna item DynamoDB        |
-| `DynamoDBPutStep`      | tableName, item         | `void`         | Inserisce item DynamoDB       |
-| `HttpPostStep`         | url, body               | `HttpResponse` | POST HTTP                     |
-| `SendNotificationStep` | channel, message        | `void`         | Invia notifica (Slack, email) |
-
-### 3.5 Control Flow Steps (Controllo flusso)
+### 3.2 Control Flow Steps (Controllo flusso)
 
 ```
 StepKind: 'control'
 ```
 
-| Step         | Input                                             | Output | Descrizione                                        |
-| ------------ | ------------------------------------------------- | ------ | -------------------------------------------------- |
-| `IfStep`     | condition, thenGoTo/thenSteps, elseGoTo/elseSteps | `void` | Branching condizionale (con supporto sub-pipeline) |
-| `SwitchStep` | value, cases (value->goTo o value->Step[])        | `void` | Multi-way branching (con supporto sub-pipeline)    |
-| `SetVarStep` | varName, value/expression                         | `void` | Imposta una variabile nel contesto                 |
-| `LogStep`    | message, level                                    | `void` | Scrive un log entry                                |
+| Step         | Input                     | Output | Descrizione                        |
+| ------------ | ------------------------- | ------ | ---------------------------------- |
+| `SetVarStep` | varName, value/expression | `void` | Imposta una variabile nel contesto |
 
 ---
 
@@ -547,7 +494,6 @@ interface RunbookEngineOptions {
  * Funzionalità principali:
  * - Protezione anti-loop con maxIterations
  * - Supporto continueOnFailure per step resilienti
- * - Esecuzione di sub-pipeline annidate
  * - Ogni caso noto che corrisponde riportato come rilevazione, ordinata per tempo dell'evidenza
  * - Evidenza parziale (copertura) dichiarata dagli step, conservata anche se uno step successivo fallisce
  */
@@ -562,7 +508,7 @@ class RunbookEngine {
    *
    * Flusso:
    * 1. Inizializza il contesto con i parametri di input
-   * 2. Esegue gli step in sequenza (rispettando le FlowDirective)
+   * 2. Esegue gli step in sequenza, finché uno step non ferma la pipeline
    * 3. Valuta tutti i casi noti, in ordine di dichiarazione
    * 4. Esegue l'azione di ogni rilevazione, nell'ordine delle rilevazioni (o la fallbackAction)
    * 5. Costruisce e restituisce il risultato con la traccia
@@ -588,8 +534,8 @@ class RunbookEngine {
   ): Promise<RunbookExecutionResult> {
     const context = this.initContext(params, services);
     const maxIterations = runbook.maxIterations ?? DEFAULT_MAX_ITERATIONS;
-    // Uscite di ogni visita di ogni step, copertura raccolta, evidenza già letta
-    const state: ExecutionState = { visits: new Map(), coverage: [], evidenceCollected: false };
+    // Copertura raccolta, evidenza già letta
+    const state: ExecutionState = { coverage: [], evidenceCollected: false };
 
     const { context: finalContext, status } = await this.executeSteps(
       runbook.steps,
@@ -600,10 +546,7 @@ class RunbookEngine {
     );
 
     // Fase 2: rilevazione dei casi noti, solo per un'esecuzione completata
-    const detections =
-      status === 'completed'
-        ? this.detectKnownCases(runbook.knownCases, evidenceContext(finalContext, state.visits))
-        : [];
+    const detections = status === 'completed' ? this.detectKnownCases(runbook.knownCases, finalContext) : [];
 
     // Fase 3: l'azione di ogni rilevazione, in ordine; il fallback solo se nessun caso corrisponde
     if (status === 'completed') {
@@ -627,11 +570,13 @@ il peso è `count` per una riga aggregata e 1 altrimenti. Legge anche gli identi
 
 ```typescript
 /**
- * Esegue gli step in sequenza rispettando le FlowDirective.
+ * Esegue gli step in sequenza, finché uno step non ferma la pipeline.
  * Include protezione anti-loop e supporto continueOnFailure, e raccoglie l'evidenza:
- * l'uscita di ogni visita di ogni step, la copertura dichiarata e gli errori osservati.
+ * la copertura dichiarata e gli errori osservati.
  *
- * Uno step che fallisce chiude la pipeline. Se prima era già riuscita una lettura
+ * Uno step con continueOnFailure che fallisce, sia lanciando un'eccezione sia restituendo
+ * success=false, è recuperato: finisce in recoveredErrors e la pipeline prosegue.
+ * Ogni altro step che fallisce chiude la pipeline. Se prima era già riuscita una lettura
  * (uno step `kind: 'data'`), l'evidenza è parziale: lo step diventa una voce di copertura
  * 'unavailable' e l'esecuzione resta completata. Altrimenti l'esecuzione fallisce.
  *
@@ -639,7 +584,7 @@ il peso è `count` per una riga aggregata e 1 altrimenti. Legge anche gli identi
  * @param initialContext - Contesto iniziale
  * @param maxIterations - Numero massimo di iterazioni consentite
  * @param runbookId - ID del runbook (per messaggi di errore)
- * @param state - Stato dell'esecuzione: visite, copertura, evidenza già raccolta
+ * @param state - Stato dell'esecuzione: copertura, evidenza già raccolta
  * @returns Contesto finale e stato dell'esecuzione
  * @throws RunbookMaxIterationsError se viene superato il limite di iterazioni
  */
@@ -651,7 +596,6 @@ private async executeSteps(
   state: ExecutionState,
 ): Promise<StepsOutcome> {
   let context = initialContext;
-  const stepIndex = buildStepIndex(stepDescriptors); // id -> indice, per goTo
 
   let currentIndex = 0;
   let iterations = 0;
@@ -671,27 +615,24 @@ private async executeSteps(
     const { step, continueOnFailure } = descriptor;
     visitedSequence.push(step.id);
 
-    // Rilevamento ciclo a runtime: controlla se la sequenza degli ultimi N step si ripete
-    if (detectRuntimeCycle(visitedSequence)) {
-      throw new RunbookMaxIterationsError(runbookId, maxIterations, step.id, visitedSequence);
-    }
-
     const evidenceBefore = state.evidenceCollected;
-    // Un throw dello step diventa un risultato fallito; con continueOnFailure finisce in recoveredErrors
+    // Un throw dello step diventa un risultato fallito (un annullamento invece si rilancia)
     const { context: nextContext, result } = await this.executeStepDescriptor(descriptor, context);
     context = nextContext;
 
-    // Evidenza: l'uscita come visita in più, le voci di copertura incomplete, gli errori osservati
+    // Evidenza: le voci di copertura incomplete, gli errori osservati
     recordStepEvidence(state, step.id, result);
     if (result.success && step.kind === 'data') state.evidenceCollected = true;
 
     if (result.success === false) {
       state.coverage.push(failedReadCoverage(step.id, result.error)); // reason: 'unavailable'
       if (continueOnFailure === true) {
+        // Recupero deciso qui, per l'eccezione come per il fallimento restituito
+        context = addRecoveredError(context, { stepId: step.id, originalError: result.error, failedAt: new Date() });
         currentIndex++;
         continue;
       }
-      if (evidenceBefore) {
+      if (evidenceBefore && runbook.readPolicy === 'partial') {
         // Lettura parziale: la pipeline si ferma, l'esecuzione resta completata
         this.logger.warning(`[${step.id}] Step failed after evidence was collected: the evidence is partial`);
         return { context, status: 'completed' };
@@ -703,28 +644,13 @@ private async executeSteps(
     const directive = result.next ?? 'continue';
     if (directive === 'stop') {
       break; // i casi noti vengono valutati comunque
-    } else if (directive === 'continue') {
-      currentIndex++;
-    } else {
-      // goTo
-      const targetIndex = stepIndex.get(directive.goTo);
-      if (targetIndex === undefined) {
-        throw new Error(`Step not found: ${directive.goTo}`);
-      }
-      currentIndex = targetIndex;
     }
+    currentIndex++;
   }
 
   return { context, status: 'completed' };
 }
 ```
-
-`detectRuntimeCycle` cerca nella coda di `visitedSequence` un ciclo di lunghezza da 2 a 20 ripetuto almeno tre volte.
-
-**Visite ripetute.** Uno step eseguito più volte (per esempio la lettura di un servizio prima con un identificativo di
-ripiego e poi con il trace id) contribuisce ai casi noti con le righe di **tutte** le visite, concatenate in ordine:
-una riga trovata dalla prima visita e non dalla seconda resta evidenza. Le variabili scalari tengono l'ultima
-scrittura, come durante la pipeline.
 
 ### 5.3 Rilevazione dei Casi Noti
 
@@ -792,23 +718,20 @@ Il flusso di esecuzione del motore è il seguente:
 Fase 1: Esecuzione Step
   per ogni step:
     esegui step -> ottieni StepResult
-    aggiorna contesto, registra la visita, la copertura e gli errori osservati
+    aggiorna contesto, registra la copertura e gli errori osservati
     se lo step fallisce:
       registra una voce di copertura 'unavailable'
-      se continueOnFailure: prosegui
+      se continueOnFailure: registra il recupero in recoveredErrors e prosegui
       altrimenti se una lettura (kind 'data') era già riuscita: BREAK, esecuzione 'completed'
       altrimenti: BREAK, esecuzione 'failed'
     altrimenti se next === 'stop':
       BREAK
-    altrimenti se next === 'continue':
+    altrimenti:
       prosegui
-    altrimenti se next === { goTo: ... }:
-      salta allo step indicato
 
 Fase 2: Rilevazione Casi Noti (solo per un'esecuzione 'completed')
   runbook di finestra:
-    valuta tutti i casi noti, in ordine di dichiarazione,
-    sul contesto con le righe di tutte le visite
+    valuta tutti i casi noti, in ordine di dichiarazione, sul contesto finale
   runbook con albero degli errori (§19):
     enumera i nodi radice, esegue i loro step, legge le discese a lotti finché ce ne sono
     poi, dal nodo più profondo: step afterDescend, branchOutcome, casi del livello del nodo
@@ -1089,8 +1012,6 @@ interface ValidationErrorEntry {
  */
 type ValidationErrorCode =
   | 'DUPLICATE_STEP_ID'
-  | 'INVALID_GOTO_REF'
-  | 'LOOP_DETECTED'
   | 'DUPLICATE_CASE_ID'
   | 'UNKNOWN_SUPERSEDED_CASE'
   | 'SUPERSEDES_CYCLE'
@@ -1114,14 +1035,7 @@ type ValidationErrorCode =
  *     tags: ['api-gateway', '5xx', 'alarm'],
  *   })
  *   .step(new CloudWatchLogsQueryStep({ ... }))
- *   .step(extractField({ ... }), { continueOnFailure: true })
- *   .ifBranch({
- *     id: 'check-timeout',
- *     label: 'Verifica timeout',
- *     condition: { type: 'compare', ref: 'vars.statusCode', operator: '==', value: '504' },
- *     thenSteps: [new CloudWatchLogsQueryStep({ ... }), extractField({ ... })],
- *     elseSteps: [setVar({ ... })],
- *   })
+ *   .step(new SetVarStep({ ... }), { continueOnFailure: true })
  *   .knownCase({ ... })
  *   .fallback(logAction({ ... }))
  *   .maxIterations(500)
@@ -1174,32 +1088,6 @@ class RunbookBuilder {
   }
 
   /**
-   * Aggiunge un IfStep con sub-pipeline annidate.
-   * Alternativa a ifCondition con goTo: le pipeline then/else vengono
-   * eseguite inline in un contesto figlio.
-   *
-   * @param config - Configurazione dell'if branch con sub-pipeline
-   */
-  ifBranch(config: IfBranchConfig): RunbookBuilder {
-    const branchStep = new IfBranchStep(config);
-    this.stepDescriptors.push({ step: branchStep });
-    return this;
-  }
-
-  /**
-   * Aggiunge un SwitchStep con sub-pipeline annidate.
-   * Alternativa a switchOn con goTo: le pipeline per ogni caso vengono
-   * eseguite inline in un contesto figlio.
-   *
-   * @param config - Configurazione dello switch branch con sub-pipeline
-   */
-  switchBranch(config: SwitchBranchConfig): RunbookBuilder {
-    const branchStep = new SwitchBranchStep(config);
-    this.stepDescriptors.push({ step: branchStep });
-    return this;
-  }
-
-  /**
    * Aggiunge un caso noto al runbook.
    */
   knownCase(knownCase: KnownCase): RunbookBuilder {
@@ -1237,8 +1125,7 @@ class RunbookBuilder {
 
   /**
    * Esegue la validazione del runbook.
-   * Controlla: step ID duplicati, riferimenti goTo invalidi,
-   * cicli nel grafo, KnownCase con ID duplicati, supersedes verso casi
+   * Controlla: step ID duplicati, KnownCase con ID duplicati, supersedes verso casi
    * inesistenti o in ciclo.
    *
    * @returns Array di errori di validazione (vuoto se valido)
@@ -1281,29 +1168,7 @@ class RunbookBuilder {
       stepIds.add(descriptor.step.id);
     }
 
-    // 3. Verifica riferimenti goTo (analisi statica delle FlowDirective note)
-    const goToRefs = this.collectGoToReferences();
-    for (const ref of goToRefs) {
-      if (!stepIds.has(ref.targetId)) {
-        errors.push({
-          code: 'INVALID_GOTO_REF',
-          message: `Lo step "${ref.sourceId}" referenzia goTo "${ref.targetId}" che non esiste.`,
-          stepId: ref.sourceId,
-        });
-      }
-    }
-
-    // 4. Rilevamento cicli nel grafo goTo
-    const cycles = this.detectGoToCycles(stepIds, goToRefs);
-    for (const cycle of cycles) {
-      errors.push({
-        code: 'LOOP_DETECTED',
-        message: `Ciclo rilevato nel grafo goTo: ${cycle.join(' -> ')}.`,
-        stepId: cycle[0],
-      });
-    }
-
-    // 5. Verifica KnownCase ID duplicati
+    // 3. Verifica KnownCase ID duplicati
     const caseIds = new Set<string>();
     for (const knownCase of this.cases) {
       if (caseIds.has(knownCase.id)) {
@@ -1316,7 +1181,7 @@ class RunbookBuilder {
       caseIds.add(knownCase.id);
     }
 
-    // 6. Verifica supersedes: ogni caso sostituito esiste, nessun caso sostituisce se stesso,
+    // 4. Verifica supersedes: ogni caso sostituito esiste, nessun caso sostituisce se stesso,
     //    le sostituzioni non formano cicli (DFS sul grafo caso -> casi sostituiti)
     errors.push(...validateSupersedes(this.cases)); // UNKNOWN_SUPERSEDED_CASE, SUPERSEDES_CYCLE
 
@@ -1348,140 +1213,6 @@ class RunbookBuilder {
       maxIterations: this.iterationsLimit,
     };
   }
-
-  /**
-   * Raccoglie tutti i riferimenti goTo dagli step registrati.
-   * Analizza IfStep e SwitchStep per estrarre i target goTo.
-   */
-  private collectGoToReferences(): readonly GoToReference[] {
-    const refs: GoToReference[] = [];
-
-    for (const descriptor of this.stepDescriptors) {
-      const step = descriptor.step;
-
-      if (isIfStep(step)) {
-        if (step.thenGoTo !== undefined) {
-          refs.push({ sourceId: step.id, targetId: step.thenGoTo });
-        }
-        if (step.elseGoTo !== undefined) {
-          refs.push({ sourceId: step.id, targetId: step.elseGoTo });
-        }
-      }
-
-      if (isSwitchStep(step)) {
-        for (const [, targetId] of step.goToCases) {
-          refs.push({ sourceId: step.id, targetId });
-        }
-      }
-    }
-
-    return refs;
-  }
-
-  /**
-   * Rileva cicli nel grafo orientato definito dai goTo.
-   * Usa DFS (Depth-First Search) con colorazione dei nodi.
-   *
-   * @param stepIds - Set di tutti gli step ID validi
-   * @param goToRefs - Riferimenti goTo raccolti
-   * @returns Array di cicli trovati (ogni ciclo è un array di step ID)
-   */
-  private detectGoToCycles(stepIds: ReadonlySet<string>, goToRefs: readonly GoToReference[]): readonly string[][] {
-    // Costruisci grafo di adiacenza
-    const adjacency = new Map<string, string[]>();
-    for (const id of stepIds) {
-      adjacency.set(id, []);
-    }
-
-    // Aggiungi anche l'arco implicito "step[i] -> step[i+1]" per flusso sequenziale
-    for (let i = 0; i < this.stepDescriptors.length - 1; i++) {
-      const current = this.stepDescriptors[i];
-      const next = this.stepDescriptors[i + 1];
-      if (current !== undefined && next !== undefined) {
-        const edges = adjacency.get(current.step.id);
-        if (edges !== undefined) {
-          edges.push(next.step.id);
-        }
-      }
-    }
-
-    // Aggiungi archi goTo
-    for (const ref of goToRefs) {
-      const edges = adjacency.get(ref.sourceId);
-      if (edges !== undefined) {
-        edges.push(ref.targetId);
-      }
-    }
-
-    // DFS con colorazione: WHITE=non visitato, GRAY=in corso, BLACK=completato
-    const WHITE = 0;
-    const GRAY = 1;
-    const BLACK = 2;
-    const color = new Map<string, number>();
-    for (const id of stepIds) {
-      color.set(id, WHITE);
-    }
-
-    const cycles: string[][] = [];
-    const path: string[] = [];
-
-    const dfs = (nodeId: string): void => {
-      color.set(nodeId, GRAY);
-      path.push(nodeId);
-
-      const neighbors = adjacency.get(nodeId) ?? [];
-      for (const neighbor of neighbors) {
-        const neighborColor = color.get(neighbor);
-        if (neighborColor === GRAY) {
-          // Ciclo trovato: estrai il ciclo dal path
-          const cycleStart = path.indexOf(neighbor);
-          if (cycleStart !== -1) {
-            cycles.push([...path.slice(cycleStart), neighbor]);
-          }
-        } else if (neighborColor === WHITE) {
-          dfs(neighbor);
-        }
-      }
-
-      path.pop();
-      color.set(nodeId, BLACK);
-    };
-
-    for (const id of stepIds) {
-      if (color.get(id) === WHITE) {
-        dfs(id);
-      }
-    }
-
-    return cycles;
-  }
-}
-
-/**
- * Riferimento goTo per l'analisi statica del grafo.
- */
-interface GoToReference {
-  readonly sourceId: string;
-  readonly targetId: string;
-}
-
-/**
- * Type guard per verificare se uno step è un IfStep con goTo.
- */
-function isIfStep(step: Step): step is Step & {
-  readonly thenGoTo?: string;
-  readonly elseGoTo?: string;
-} {
-  return step.kind === 'control' && 'condition' in step && ('thenGoTo' in step || 'elseGoTo' in step);
-}
-
-/**
- * Type guard per verificare se uno step è un SwitchStep con goTo.
- */
-function isSwitchStep(step: Step): step is Step & {
-  readonly goToCases: ReadonlyMap<string, string>;
-} {
-  return step.kind === 'control' && 'goToCases' in step;
 }
 ````
 
@@ -1493,34 +1224,19 @@ mantengono ancora factory function dedicate.
 ```typescript
 // Data steps
 new CloudWatchLogsQueryStep(config: CloudWatchLogsQueryConfig);
-function queryDynamoDB(config: DynamoDBQueryConfig): DynamoDBQueryStep;
-function httpRequest(config: HttpRequestConfig): HttpRequestStep;
-
-// Transform steps
-function extractField(config: ExtractFieldConfig): ExtractFieldStep;
-function regexExtract(config: RegexExtractConfig): RegexExtractStep;
-
-// Check steps
-function assert(config: AssertConfig): AssertStep;
-new CompareStep(config: CompareStepConfig);
 
 // Control flow steps
-function ifCondition(config: IfStepConfig): IfStep;
-function switchOn(config: SwitchStepConfig): SwitchStep;
 function setVar(config: SetVarConfig): SetVarStep;
-function log(config: LogStepConfig): LogStep;
 
 // Actions
 function logAction(config: LogActionConfig): LogAction;
-function notifyAction(config: NotifyActionConfig): NotifyAction;
-function escalateAction(config: EscalateActionConfig): EscalateAction;
 ```
 
 ---
 
 ## 9. Esempio Concreto: Alarm Resolution per API Gateway 5xx
 
-> **Esempio didattico.** Mostra i concetti del motore (step, sub-pipeline, `stop`, casi noti, rilevazioni e `supersedes`). Alcuni helper usati qui (`extractField`, `regexExtract`, `ifCondition`, `setVar`, `log`, `stop`) e la firma semplificata di `createServiceRegistry` servono solo all'esempio e non fanno parte dell'API. I runbook reali sono in `packages/go-runbook/src/inventory/` e si costruiscono con i toolkit (`@pagopa/go-runbook/toolkits/send`, `…/toolkits/interop`); quelli SEND API Gateway indagano ogni richiesta con l'albero degli errori (§19.12).
+> **Esempio didattico.** Mostra i concetti del motore (step, `stop`, casi noti, rilevazioni e `supersedes`). Alcuni helper usati qui (`extractField`, `regexExtract`, `setVar`, `log`, `stop`) e la firma semplificata di `createServiceRegistry` servono solo all'esempio e non fanno parte dell'API. I runbook reali sono in `packages/go-runbook/src/inventory/` e si costruiscono con i toolkit (`@pagopa/go-runbook/toolkits/send`, `…/toolkits/interop`); quelli SEND API Gateway indagano ogni richiesta con l'albero degli errori (§19.12).
 
 ### Scenario
 
@@ -1528,16 +1244,16 @@ Un allarme CloudWatch `pn-address-book-io-IO-ApiGwAlarm` scatta. Il runbook deve
 
 1. Cercare nei log di CloudWatch l'errore che ha causato l'allarme
 2. Estrarre il codice di errore e il traceId
-3. Se l'errore è un timeout (`504`), verificare la latenza del downstream tramite **sub-pipeline annidata**
+3. Verificare la latenza del downstream per gli errori di timeout (`504`)
 4. Alla fine della pipeline, valutare **tutti** i casi noti e agire per ciascuno di quelli rilevati
 5. Quando due casi descrivono lo stesso errore, tenere solo il più preciso (`supersedes`)
 
 ### Definizione del Runbook
 
 ```typescript
-import { RunbookBuilder, CompareStep, logAction, notifyAction, escalateAction } from '@pagopa/go-runbook';
+import { RunbookBuilder } from '@pagopa/go-runbook';
 import { CloudWatchLogsQueryStep } from '@pagopa/go-runbook/toolkits/common';
-// extractField, regexExtract, ifCondition, setVar e log: helper illustrativi di questo esempio.
+// extractField, regexExtract, setVar, log e stop: helper illustrativi di questo esempio.
 
 // ---------------------------------------------------------------
 // Runbook: API Gateway 5xx Alarm Resolution
@@ -1570,19 +1286,6 @@ const apiGateway5xxRunbook = RunbookBuilder.create('alarm-api-gw-5xx')
       `,
       // timeRange viene dai params del runbook
       timeRangeFromParams: { start: 'alarmStartTime', end: 'alarmEndTime' },
-    }),
-  )
-
-  // -- STEP 2: Verifica che ci siano risultati --
-  .step(
-    ifCondition({
-      id: 'check-results-exist',
-      label: 'Verifica presenza errori nei log',
-      condition: {
-        type: 'exists',
-        ref: 'steps.query-5xx-errors.output[0]',
-      },
-      elseGoTo: 'no-errors-found',
     }),
   )
 
@@ -1628,48 +1331,33 @@ const apiGateway5xxRunbook = RunbookBuilder.create('alarm-api-gw-5xx')
     { continueOnFailure: true },
   )
 
-  // -- STEP 6: Se 504 (timeout), usa sub-pipeline per indagare latenza --
-  .ifBranch({
-    id: 'check-timeout',
-    label: 'Verifica se errore e timeout (504)',
-    condition: {
-      type: 'compare',
-      ref: 'vars.statusCode',
-      operator: '==',
-      value: '504',
-    },
-    thenSteps: [
-      new CloudWatchLogsQueryStep({
-        id: 'query-downstream-latency',
-        label: 'Analizza latenza downstream',
-        logGroups: ['/aws/apigateway/pn-address-book-io'],
-        query: `
-          fields @timestamp, latency, downstreamService, downstreamLatency
-          | filter status = 504
-          | stats avg(downstreamLatency) as avgLatency,
-                  max(downstreamLatency) as maxLatency
-                  by downstreamService
-          | sort maxLatency desc
-        `,
-        timeRangeFromParams: { start: 'alarmStartTime', end: 'alarmEndTime' },
-      }),
-      extractField({
-        id: 'extract-slow-service',
-        label: 'Identifica servizio più lento',
-        fromStep: 'query-downstream-latency',
-        fieldPath: '[0].downstreamService',
-        saveAs: 'slowService',
-      }),
-    ],
-    elseSteps: [
-      setVar({
-        id: 'set-diagnosis-non-timeout',
-        label: 'Imposta diagnosi per errore non-timeout',
-        varName: 'diagnosis',
-        expression: '{{vars.statusCode}} - {{vars.errorCode}}',
-      }),
-    ],
-  })
+  // -- STEP 6: Latenza dei downstream per gli errori 504 (timeout) --
+  .step(
+    new CloudWatchLogsQueryStep({
+      id: 'query-downstream-latency',
+      label: 'Analizza latenza downstream',
+      logGroups: ['/aws/apigateway/pn-address-book-io'],
+      query: `
+        fields @timestamp, latency, downstreamService, downstreamLatency
+        | filter status = 504
+        | stats avg(downstreamLatency) as avgLatency,
+                max(downstreamLatency) as maxLatency
+                by downstreamService
+        | sort maxLatency desc
+      `,
+      timeRangeFromParams: { start: 'alarmStartTime', end: 'alarmEndTime' },
+    }),
+  )
+  .step(
+    extractField({
+      id: 'extract-slow-service',
+      label: 'Identifica servizio più lento',
+      fromStep: 'query-downstream-latency',
+      fieldPath: '[0].downstreamService',
+      saveAs: 'slowService',
+    }),
+    { continueOnFailure: true },
+  )
 
   // -- STEP 7: Imposta diagnosi --
   .step(
@@ -1691,20 +1379,9 @@ const apiGateway5xxRunbook = RunbookBuilder.create('alarm-api-gw-5xx')
     }),
   )
 
-  // -- STEP 9: Fine del percorso con errori --
-  // `next: 'stop'`: chiude la pipeline prima dello step "no-errors-found".
-  // I casi noti vengono valutati comunque.
+  // -- STEP 9: Fine dell'indagine --
+  // `next: 'stop'`: chiude la pipeline. I casi noti vengono valutati comunque.
   .step(stop({ id: 'end-investigation', label: 'Fine indagine' }))
-
-  // -- STEP (label): Nessun errore trovato --
-  .step(
-    setVar({
-      id: 'no-errors-found',
-      label: 'Nessun errore trovato nei log',
-      varName: 'diagnosis',
-      expression: 'NO_ERRORS_IN_LOGS',
-    }),
-  )
 
   // ---------------------------------------------------------------
   // CASI NOTI
@@ -1787,31 +1464,13 @@ const apiGateway5xxRunbook = RunbookBuilder.create('alarm-api-gw-5xx')
     },
   })
 
-  // Caso 4: Nessun errore trovato (allarme rientrato)
-  .knownCase({
-    id: 'alarm-resolved',
-    description: 'Nessun errore nei log - allarme probabilmente rientrato',
-    condition: {
-      type: 'compare',
-      ref: 'vars.diagnosis',
-      operator: '==',
-      value: 'NO_ERRORS_IN_LOGS',
-    },
-    action: {
-      type: 'log',
-      level: 'info',
-      message: 'Allarme rientrato autonomamente. Nessuna azione necessaria.',
-    },
-  })
-
   // Fallback: caso non riconosciuto
-  .fallback(
-    escalateAction({
-      team: 'GO',
-      severity: 'high',
-      message: 'Caso non riconosciuto. Diagnosi: {{vars.diagnosis}}, TraceId: {{vars.traceId}}',
-    }),
-  )
+  .fallback({
+    type: 'escalate',
+    team: 'GO',
+    severity: 'high',
+    message: 'Caso non riconosciuto. Diagnosi: {{vars.diagnosis}}, TraceId: {{vars.traceId}}',
+  })
 
   .build();
 ```
@@ -1823,30 +1482,22 @@ Il motore esegue sempre la pipeline fino in fondo (o fino a `stop`) e solo dopo 
 **Scenario A: status `500`, errorCode = `RATE_LIMIT`**
 
 1. Step 1 (`query-5xx-errors`): query CloudWatch, trova errori 500 con `RATE_LIMIT` -> `next: 'continue'`
-2. Step 2 (`check-results-exist`): risultati trovati -> `next: 'continue'`
-3. Step 3-5: estraggono `500`, il traceId e `RATE_LIMIT` -> `next: 'continue'`
-4. Step 6 (`check-timeout`): condizione falsa, esegue il ramo `else` (diagnosi non-timeout)
-5. Step 7-8: diagnosi e log; step 9 (`end-investigation`) -> `next: 'stop'`
-6. Valutazione dei casi, in ordine di dichiarazione:
+2. Step 3-5: estraggono `500`, il traceId e `RATE_LIMIT` -> `next: 'continue'`
+3. Step 6: nessun errore 504, nessun servizio lento
+4. Step 7-8: diagnosi e log; step 9 (`end-investigation`) -> `next: 'stop'`
+5. Valutazione dei casi, in ordine di dichiarazione:
    - `downstream-timeout` non corrisponde (status non è 504)
    - `rate-limiting` corrisponde (pattern `RATE_LIMIT`)
    - `internal-error` corrisponde (status 500), ma `rate-limiting` lo sostituisce (`supersedes`): esce dalle
      rilevazioni e resta nella traccia con `supersededBy: 'rate-limiting'`
-   - `alarm-resolved` non corrisponde
-7. Una rilevazione, `rate-limiting`: si esegue la sua azione
+6. Una rilevazione, `rate-limiting`: si esegue la sua azione
 
 **Scenario B: status `504`, errorCode = `DOWNSTREAM_TIMEOUT`**
 
 1. Step 1-5: come sopra, estraggono `504` e `DOWNSTREAM_TIMEOUT`
-2. Step 6 (`check-timeout`): condizione vera, esegue la sub-pipeline downstream e imposta `vars.slowService`
+2. Step 6: la latenza dei downstream imposta `vars.slowService`
 3. Step 7-9: diagnosi, log e `stop`
 4. Al termine corrisponde solo `downstream-timeout`: una rilevazione, una azione
-
-**Scenario C: nessun errore nei log**
-
-1. Step 2 (`check-results-exist`): nessun risultato -> `goTo: 'no-errors-found'`
-2. Lo step `no-errors-found` imposta `diagnosis = NO_ERRORS_IN_LOGS`
-3. Corrisponde `alarm-resolved`
 
 Se più casi indipendenti corrispondono (nessuno sostituisce l'altro), il risultato li riporta tutti e il motore esegue
 l'azione di ciascuno. Qui le condizioni leggono solo variabili scalari, che non hanno tempo: le rilevazioni seguono
@@ -1940,18 +1591,15 @@ await script.run(async (ctx) => {
 |  +------------------------------------------------------------------+ |
 |  |  [anti-loop: iterations <= maxIterations]                         | |
 |  |                                                                   | |
-|  |  +---------+   +---------+   +-----------+   +--------+          | |
-|  |  | Step 1  |-->| Step 2  |-->| IF branch |-->| Step N |          | |
-|  |  | (data)  |   |(extract)|   +--+-----+--+   |  ...   |          | |
-|  |  |continue |   |continue |  then|     |else  +---+----+          | |
-|  |  |OnFailure|   |OnFailure|  +---v-+ +-v---+     |               | |
-|  |  +---------+   +---------+  |Sub  | |Sub  |   next='stop'        | |
-|  |                             |Pipe | |Pipe |   o fine step        | |
-|  |                             +--+--+ +--+--+     |               | |
-|  |                                +---+---+        |               | |
-|  |                                    | merge      |               | |
+|  |  +---------+   +---------+   +--------+                          | |
+|  |  | Step 1  |-->| Step 2  |-->| Step N |                          | |
+|  |  | (data)  |   |(extract)|   |  ...   |                          | |
+|  |  |continue |   |continue |   +---+----+                          | |
+|  |  |OnFailure|   |OnFailure|       |                               | |
+|  |  +---------+   +---------+   next='stop'                         | |
+|  |                              o fine step                         | |
 |  |                                                                   | |
-|  |  Per ogni step: visita (output), coverage, observedErrors         | |
+|  |  Per ogni step: coverage, observedErrors                          | |
 |  |  Step fallito -> voce di copertura 'unavailable':                 | |
 |  |    - dopo una lettura riuscita: BREAK, stato 'completed'          | |
 |  |    - prima di ogni lettura:     BREAK, stato 'failed'             | |
@@ -1959,7 +1607,7 @@ await script.run(async (ctx) => {
 |                         |                                             |
 |  3. DETECT KNOWN CASES  v   (solo se lo stato e 'completed')          |
 |  +------------------------------------------------------------------+ |
-|  |  Contesto finale + righe di tutte le visite                       | |
+|  |  Contesto finale                                                  | |
 |  |                                                                   | |
 |  |  KnownCase 1 --match?--+                                          | |
 |  |  KnownCase 2 --match?--+--> togli i casi sostituiti (supersedes)  | |
@@ -2113,9 +1761,7 @@ interface StepTrace {
   /** Categoria dello step (data, transform, control, check, mutation) */
   readonly kind: StepKind;
   /** Come lo step è stato raggiunto nel flusso di esecuzione */
-  readonly reachedVia: 'sequential' | 'goTo' | 'subPipeline';
-  /** ID dello step padre (solo se reachedVia === 'subPipeline') */
-  readonly parentStepId?: string;
+  readonly reachedVia: 'sequential' | 'subPipeline';
   /** Timestamp di inizio esecuzione dello step (ISO 8601) */
   readonly startedAt: string;
   /** Timestamp di completamento dello step (ISO 8601) */
@@ -2123,7 +1769,7 @@ interface StepTrace {
   /** Durata in millisecondi */
   readonly durationMs: number;
   /** Stato dello step */
-  readonly status: 'success' | 'failed' | 'skipped';
+  readonly status: 'success' | 'failed';
   /** Se lo step è stato recuperato tramite continueOnFailure (vedi Sezione 17.2) */
   readonly recovered: boolean;
   /** Input fornito allo step */
@@ -2136,8 +1782,8 @@ interface StepTrace {
   readonly varsWritten: Readonly<Record<string, string>>;
   /** Diagnostiche di servizio/runtime, fuori dall'output funzionale */
   readonly diagnostics?: StepDiagnostics;
-  /** Direttiva di flusso prodotta: 'continue', 'stop', o ID dello step target per goTo */
-  readonly flowDirective: 'continue' | 'stop' | string;
+  /** Direttiva di flusso prodotta: 'continue' o 'stop' */
+  readonly flowDirective: 'continue' | 'stop';
 }
 ```
 
@@ -2311,6 +1957,18 @@ risultati parziali (`partialResults`) e restituisce la copertura di ogni lettura
 - la fonte è il nome del log group, mai un ARN o un profilo;
 - se **tutte** le letture falliscono, l'errore viene rilanciato e lo step fallisce.
 
+`executeCloudWatchLogsQuery` passa da sé il segnale d'annullamento del contesto alla lettura. Due helper di
+`toolkits/common` danno a ogni step la stessa regola per le letture che possono fallire:
+
+- `tryCloudWatchLogsRead`: una lettura che, se fallisce, restituisce nessuna riga e una voce `unavailable` (con gli
+  identificatori della lettura, se ne ha) invece di far fallire lo step;
+- `readCloudWatchLogsBatches`: una query per lotto di elementi (request id, invocazioni); un lotto fallito diventa
+  `unavailable` per i suoi identificatori e gli altri tengono le righe, le lacune di un lotto che ha risposto nominano
+  i suoi identificatori, e se nessun lotto risponde si rilancia l'errore del primo fallimento.
+
+In entrambi l'annullamento e gli errori di configurazione del target (`OAM_REGION_MISMATCH`, `INVALID_OAM_TARGET`) si
+rilanciano sempre: fermano lo step invece di diventare una lettura `unavailable`.
+
 Lato go-aws (`@pagopa/go-aws/cloudwatch-logs/insights`): con l'opzione `partialResults` una lettura fallita o
 troncata non scarta quanto già letto. `AWSCloudWatchLogsQueryExecution` riporta `rowsReturned?` e `unreadPages?`
 (`'budget' | 'failed'`), e `AWSCloudWatchLogsQueryResult.failedReads?` elenca `{ logGroups, error }` delle letture
@@ -2395,12 +2053,11 @@ fine corrispondono `rate-limiting` e `internal-error`, e il primo sostituisce il
       "flowDirective": "continue"
     },
     {
-      "executionOrder": 7,
-      "stepId": "set-diagnosis-non-timeout",
-      "label": "Imposta diagnosi per errore non-timeout",
+      "executionOrder": 8,
+      "stepId": "set-diagnosis",
+      "label": "Imposta diagnosi",
       "kind": "transform",
-      "reachedVia": "subPipeline",
-      "parentStepId": "check-timeout",
+      "reachedVia": "sequential",
       "startedAt": "2026-02-16T10:30:01.854Z",
       "completedAt": "2026-02-16T10:30:01.854Z",
       "durationMs": 0,
@@ -2615,7 +2272,7 @@ Il package è `@pagopa/go-runbook` (`packages/go-runbook`). È diviso in quattro
 | ------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `@pagopa/go-runbook`                  | `src/engine/`                 | Il linguaggio e l'esecuzione di un workflow. Nessuna conoscenza di AWS, prodotti, allarmi o Watchtower.                      |
 | `@pagopa/go-runbook/output`           | `src/toolkits/common/output/` | Il contratto dell'output dei runbook verso Watchtower.                                                                       |
-| `@pagopa/go-runbook/toolkits/common`  | `src/toolkits/common/`        | Il toolkit operativo comune: servizi, step AWS e HTTP, famiglie generiche, account logici, policy, helper di test.           |
+| `@pagopa/go-runbook/toolkits/common`  | `src/toolkits/common/`        | Il toolkit operativo comune: servizi, step CloudWatch Logs, famiglie generiche, account logici, policy, helper di test.      |
 | `@pagopa/go-runbook/toolkits/send`    | `src/toolkits/send/`          | Pipeline, profili e dati di SEND.                                                                                            |
 | `@pagopa/go-runbook/toolkits/interop` | `src/toolkits/interop/`       | Pipeline, profili e dati di INTEROP.                                                                                         |
 | `@pagopa/go-runbook/inventory`        | `src/inventory/`              | I runbook concreti e il catalogo.                                                                                            |
@@ -2632,12 +2289,11 @@ packages/go-runbook/src/
     core/                   #   RunbookEngine, ConditionEvaluator, collectRunbookSteps, assertRequiredServices
     errors/                 #   errori dell'engine (RunbookMissingServicesError, …)
     reporting/              #   RunbookReporter e reporter (console, raccolta, nullo)
-    steps/                  #   step neutri: check, control (if/switch, sub-pipeline), transform; executeStep
-    testing/                #   createTestWorkflowServices
+    steps/                  #   SetVarStep, executeStep
     tracing/                #   trace dell'esecuzione
     tree/                   #   albero degli errori: ErrorTreeExecutor, catene, livello dei casi
     types/                  #   Step, StepResult, Runbook, KnownCase, Condition, …
-    validation/             #   validazione del grafo del runbook
+    validation/             #   validazione del runbook
   toolkits/
     common/                 # `./toolkits/common` (e `./output`)
       accounts/             #   account AWS logici: selezioni, rubrica, errori
@@ -2651,7 +2307,7 @@ packages/go-runbook/src/
       policies/             #   policy di esecuzione in cloud
       registration/         #   RunbookCatalog, registrazioni, prodotti, kind
       services/             #   ServiceRegistry, OperationalContext, porte (services/ports/)
-      steps/                #   OperationalStep, step AWS e HTTP
+      steps/                #   OperationalStep, step CloudWatch Logs
       telemetry/ time/      #   telemetria, finestre temporali delle occorrenze
       testing/              #   createTestServiceRegistry, InMemoryAwsAccountsPort
     send/                   # `./toolkits/send`
@@ -2680,232 +2336,12 @@ Ogni runbook concreto sta in `inventory/<prodotto>/<famiglia>/<alarm-name>/`, co
 - l'engine non importa toolkit, inventory, runtime, né go-aws o le aree di I/O di go-common;
 - solo `runtime/` usa gli SDK AWS. Gli altri strati usano solo i contratti senza SDK di go-aws (`./cloudwatch-logs/insights`, `./profiles`) e i tipi della sua root;
 - i toolkit non conoscono inventory e runtime; `toolkits/common` non conosce i prodotti;
+- toolkit e runtime importano l'engine solo dai suoi barrel: `engine/index.ts`, l'API pubblica (`.`), ed
+  `engine/internal.ts`, che nessun `exports` di `package.json` pubblica, con gli helper dell'engine che non sono API
+  pubblica (hook della pipeline, identificativi delle letture, valori di correlazione, controlli dei servizi e del
+  cablaggio) e `interpolatePlaceholders`, che serve a `./output` senza caricare tutto l'engine;
 - SEND e INTEROP non si importano a vicenda, né nei toolkit né nell'inventory;
 - un runbook usa l'API pubblica del toolkit del suo prodotto, non i suoi file interni, e non importa le cartelle degli altri runbook (la condivisione passa da `shared/`).
-
----
-
-## 14. Secondo Esempio: Data Verification Runbook
-
-Per dimostrare la flessibilità, ecco un runbook di tipo diverso: verifica consistenza dati su DynamoDB.
-Questo esempio usa `continueOnFailure`, `ifBranch` con sub-pipeline e `maxIterations`.
-
-```typescript
-const verifyUserDataRunbook = RunbookBuilder.create('verify-user-data-consistency')
-  .metadata({
-    name: 'User Data Consistency Check',
-    description: 'Verifica consistenza dati utente tra tabelle DynamoDB',
-    version: '2.0.0',
-    type: 'data-verification',
-    team: 'GO',
-    tags: ['dynamodb', 'data-consistency', 'verification'],
-  })
-
-  // Limite iterazioni
-  .maxIterations(100)
-
-  // -- STEP 1: Query tabella principale utenti --
-  .step(
-    queryDynamoDB({
-      id: 'query-users-table',
-      label: 'Query tabella utenti',
-      tableName: 'pn-Users',
-      keyCondition: 'userId = :uid',
-      expressionValues: { ':uid': '{{params.userId}}' },
-    }),
-  )
-
-  // -- STEP 2: Verifica esistenza utente con sub-pipeline --
-  .ifBranch({
-    id: 'check-user-exists',
-    label: 'Verifica esistenza utente',
-    condition: { type: 'exists', ref: 'steps.query-users-table.output[0]' },
-    thenSteps: [
-      // Sub-pipeline THEN: utente trovato, estrai dati
-      extractField({
-        id: 'extract-email',
-        label: 'Estrai email utente',
-        fromStep: 'query-users-table',
-        fieldPath: '[0].email',
-        saveAs: 'userEmail',
-      }),
-      extractField({
-        id: 'extract-fiscal-code',
-        label: 'Estrai codice fiscale utente',
-        fromStep: 'query-users-table',
-        fieldPath: '[0].fiscalCode',
-        saveAs: 'userFiscalCode',
-      }),
-    ],
-    elseSteps: [
-      // Sub-pipeline ELSE: utente non trovato
-      setVar({
-        id: 'user-not-found',
-        label: 'Utente non trovato',
-        varName: 'diagnosis',
-        expression: 'USER_NOT_FOUND',
-      }),
-      log({
-        id: 'log-user-not-found',
-        label: 'Log utente non trovato',
-        level: 'warn',
-        message: 'Utente {{params.userId}} non trovato nella tabella pn-Users',
-      }),
-    ],
-  })
-
-  // -- STEP 3: Query tabella notifiche --
-  // continueOnFailure: anche se la query fallisce, vogliamo provare la tabella indirizzi
-  .step(
-    queryDynamoDB({
-      id: 'query-notifications-table',
-      label: 'Query tabella notifiche',
-      tableName: 'pn-Notifications',
-      indexName: 'userId-index',
-      keyCondition: 'userId = :uid',
-      expressionValues: { ':uid': '{{params.userId}}' },
-    }),
-    { continueOnFailure: true },
-  )
-
-  // -- STEP 4: Query tabella indirizzi --
-  // continueOnFailure: non bloccante, la verifica può proseguire
-  .step(
-    queryDynamoDB({
-      id: 'query-addresses-table',
-      label: 'Query tabella indirizzi',
-      tableName: 'pn-Addresses',
-      keyCondition: 'userId = :uid',
-      expressionValues: { ':uid': '{{params.userId}}' },
-    }),
-    { continueOnFailure: true },
-  )
-
-  // -- STEP 5: Verifica consistenza con switch su risultati --
-  .switchBranch({
-    id: 'check-consistency-type',
-    label: 'Determina tipo di verifica consistenza',
-    ref: 'vars.diagnosis',
-    cases: new Map<string, readonly Step[]>([
-      [
-        'USER_NOT_FOUND',
-        [
-          setVar({
-            id: 'set-final-not-found',
-            label: 'Diagnosi finale: utente non trovato',
-            varName: 'finalDiagnosis',
-            expression: 'USER_NOT_FOUND_IN_PRIMARY_TABLE',
-          }),
-        ],
-      ],
-    ]),
-    defaultSteps: [
-      new CompareStep({
-        id: 'check-email-consistency',
-        label: 'Verifica consistenza email',
-        left: 'vars.userEmail',
-        operator: '==',
-        right: 'steps.query-notifications-table.output[0].recipientEmail',
-        saveAs: 'emailConsistent',
-      }),
-      setVar({
-        id: 'set-final-diagnosis',
-        label: 'Imposta diagnosi finale',
-        varName: 'finalDiagnosis',
-        expression: 'CONSISTENCY_CHECK_COMPLETE',
-      }),
-    ],
-  })
-
-  // -- Casi noti --
-  .knownCase({
-    id: 'data-consistent',
-    description: 'Dati utente consistenti tra le tabelle',
-    condition: {
-      type: 'and',
-      conditions: [
-        { type: 'compare', ref: 'vars.emailConsistent', operator: '==', value: 'true' },
-        { type: 'compare', ref: 'vars.finalDiagnosis', operator: '==', value: 'CONSISTENCY_CHECK_COMPLETE' },
-      ],
-    },
-    action: {
-      type: 'log',
-      level: 'info',
-      message: 'Dati consistenti per utente {{params.userId}}',
-    },
-  })
-
-  .knownCase({
-    id: 'data-inconsistent',
-    description: 'Email non corrispondente tra tabelle',
-    condition: {
-      type: 'and',
-      conditions: [
-        { type: 'compare', ref: 'vars.emailConsistent', operator: '==', value: 'false' },
-        { type: 'compare', ref: 'vars.finalDiagnosis', operator: '==', value: 'CONSISTENCY_CHECK_COMPLETE' },
-      ],
-    },
-    action: {
-      type: 'composite',
-      actions: [
-        {
-          type: 'notify',
-          channel: 'slack:#go-data-issues',
-          template: 'Inconsistenza email per utente {{params.userId}}: Users={{vars.userEmail}}',
-        },
-        {
-          type: 'escalate',
-          team: 'GO',
-          severity: 'medium',
-          message: 'Correzione manuale necessaria per utente {{params.userId}}',
-        },
-      ],
-    },
-  })
-
-  .knownCase({
-    id: 'user-missing',
-    description: 'Utente non trovato nella tabella principale',
-    condition: {
-      type: 'compare',
-      ref: 'vars.finalDiagnosis',
-      operator: '==',
-      value: 'USER_NOT_FOUND_IN_PRIMARY_TABLE',
-    },
-    action: {
-      type: 'escalate',
-      team: 'GO',
-      severity: 'high',
-      message: 'Utente {{params.userId}} non trovato in pn-Users',
-    },
-  })
-
-  // Caso per errori recuperati: può corrispondere insieme a uno dei casi precedenti,
-  // e in quel caso il risultato li riporta entrambi
-  .knownCase({
-    id: 'partial-check-with-errors',
-    description: 'Verifica parziale: alcune query sono fallite ma con recovery',
-    condition: {
-      type: 'exists',
-      ref: 'vars.recoveredErrorCount',
-    },
-    action: {
-      type: 'notify',
-      channel: 'slack:#go-data-issues',
-      template: 'Verifica parziale per {{params.userId}}: alcune tabelle non accessibili',
-    },
-  })
-
-  .fallback(
-    escalateAction({
-      team: 'GO',
-      severity: 'medium',
-      message: 'Verifica non conclusiva per utente {{params.userId}}',
-    }),
-  )
-
-  .build();
-```
 
 ---
 
@@ -3002,23 +2438,22 @@ Nessuna modifica al motore, ai builder o ad altri step. **Open/Closed in pratica
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Flessibilita**          | Step componibili come mattoncini. Qualsiasi combinazione e possibile.                                                                                         |
 | **Estensibilita**         | Nuovo step = nuova classe che implementa `Step<T>`. Nessuna modifica al motore.                                                                               |
-| **Controllo flusso**      | `IfStep`, `SwitchStep`, `FlowDirective.goTo` per branching condizionale. Sub-pipeline annidate per branching complesso.                                       |
 | **Rilevazioni multiple**  | Ogni caso noto che corrisponde è riportato, in ordine di tempo; `supersedes` toglie i casi meno precisi dello stesso errore.                                  |
 | **Type safety**           | Generics su `Step<TOutput>` e `StepResult<TOutput>`. Contesto tipizzato. `StepDescriptor` per opzioni runtime.                                                |
-| **Immutabilita**          | Contesto mai mutato. Ogni step produce un nuovo stato. Sub-pipeline con contesto figlio isolato.                                                              |
+| **Immutabilita**          | Contesto mai mutato. Ogni step produce un nuovo stato.                                                                                                        |
 | **Testabilita**           | `ServiceRegistry` iniettato -> facile mocking. Step testabili isolatamente.                                                                                   |
 | **Leggibilita**           | Builder fluent per definire runbook. Factory functions per gli step.                                                                                          |
-| **Domain-specific**       | Step e azioni pensati per operazioni reali (CloudWatch, DynamoDB, notifiche).                                                                                 |
+| **Domain-specific**       | Step e azioni pensati per operazioni reali (CloudWatch, notifiche).                                                                                           |
 | **Resilienza**            | `continueOnFailure` per step non critici. Uno step che fallisce dopo una lettura riuscita lascia l'evidenza raccolta e una fonte `unavailable`.               |
-| **Sicurezza**             | Validazione statica nel builder. Protezione anti-loop a runtime. Rilevamento cicli nel grafo.                                                                 |
+| **Sicurezza**             | Validazione statica nel builder. Protezione anti-loop a runtime.                                                                                              |
 | **Separazione interessi** | Lo step raccoglie l'evidenza e ne dichiara la copertura (conosce il suo dominio), il motore valuta i casi noti (conosce le regole).                           |
 | **Onestà dell'evidenza**  | Query sature, letture fallite o saltate ed errori non esaminati finiscono nella copertura: senza rilevazioni ed evidenza incompleta l'esito è `inconclusive`. |
 
 ---
 
-## 17. Validazione, Resilienza, Anti-loop e SubPipeline
+## 17. Validazione, Resilienza e Anti-loop
 
-Questa sezione documenta nel dettaglio validazione nel builder, continueOnFailure, protezione anti-loop e branching annidato.
+Questa sezione documenta nel dettaglio validazione nel builder, continueOnFailure e protezione anti-loop.
 
 ### 17.1 Validazione nel Builder
 
@@ -3070,21 +2505,23 @@ I controlli eseguiti sono:
 2. **MISSING_FALLBACK**: azione di fallback non impostata
 3. **EMPTY_STEPS**: nessuno step definito
 4. **DUPLICATE_STEP_ID**: due o più step con lo stesso ID
-5. **INVALID_GOTO_REF**: un `goTo` punta a uno step ID inesistente
-6. **LOOP_DETECTED**: il grafo dei `goTo` contiene cicli
-7. **DUPLICATE_CASE_ID**: due o più KnownCase con lo stesso ID
-8. **UNKNOWN_SUPERSEDED_CASE**: un `supersedes` nomina un id che non è un caso del runbook
-9. **SUPERSEDES_CYCLE**: un caso sostituisce se stesso, o le sostituzioni formano un ciclo
-10. **UNWIRED_CASE_STEP_REF**: un caso legge uno step che il runbook non esegue (livelli dell'albero compresi)
-11. **INVALID_ERROR_TREE**: la forma dell'albero degli errori non è valida (§19.10)
-12. **UNANCHORED_ROW_PREDICATES**: un `all(...)` legge due volte le righe della stessa lettura di livello senza righe
+5. **DUPLICATE_CASE_ID**: due o più KnownCase con lo stesso ID
+6. **UNKNOWN_SUPERSEDED_CASE**: un `supersedes` nomina un id che non è un caso del runbook
+7. **SUPERSEDES_CYCLE**: un caso sostituisce se stesso, o le sostituzioni formano un ciclo
+8. **UNWIRED_CASE_STEP_REF**: un caso legge uno step che il runbook non esegue (livelli dell'albero compresi)
+9. **INVALID_ERROR_TREE**: la forma dell'albero degli errori non è valida (§19.10)
+10. **UNANCHORED_ROW_PREDICATES**: un `all(...)` legge due volte le righe della stessa lettura di livello senza righe
     sorelle o di contesto (§19.10)
-
-Il rilevamento cicli usa **DFS con colorazione** (White/Gray/Black) sul grafo di adiacenza costruito dagli archi sequenziali (`step[i] -> step[i+1]`) e dai `goTo` espliciti. Quando un nodo GRAY viene incontrato durante il DFS, il ciclo viene estratto dallo stack del path corrente.
 
 ### 17.2 continueOnFailure per Step
 
 Il flag `continueOnFailure` permette di contrassegnare step non critici: se falliscono, l'errore viene registrato nel contesto ma l'esecuzione prosegue allo step successivo.
+
+Il recupero si decide in un punto solo, `executeSteps`, e vale allo stesso modo per uno step che lancia un'eccezione e per
+uno che restituisce `success: false` (come fanno gli step che passano da `executeStep`): in entrambi i casi l'errore
+entra in `recoveredErrors`, la traccia segna lo step `recovered` e il ledger registra la lettura `unavailable`.
+`executeStepDescriptor` converte soltanto l'eccezione in un risultato fallito. Un annullamento non è mai un fallimento:
+`executeStep` e il motore lo rilanciano e l'esecuzione finisce `aborted`.
 
 #### Interfacce aggiornate
 
@@ -3096,9 +2533,8 @@ interface StepDescriptor<TOutput = unknown> {
   /** Lo step da eseguire */
   readonly step: Step<TOutput>;
   /**
-   * Se true, un fallimento dello step non interrompe l'esecuzione.
-   * L'errore viene registrato in context.recoveredErrors e lo step
-   * produce un StepResult con success=false e errorRecovery valorizzato.
+   * Se true, un fallimento dello step (eccezione o success=false) non interrompe
+   * l'esecuzione: l'errore viene registrato in context.recoveredErrors.
    */
   readonly continueOnFailure?: boolean;
 }
@@ -3113,17 +2549,14 @@ interface ErrorRecoveryInfo {
   readonly originalError: string;
   /** Timestamp del fallimento */
   readonly failedAt: Date;
-  /** Indica che lo step è stato saltato e l'esecuzione e continuata */
-  readonly skipped: true;
 }
 ```
 
 ### 17.3 Protezione anti-loop
 
-Il motore include due meccanismi di protezione contro i loop infiniti:
+Il motore include un meccanismo di protezione contro i loop infiniti:
 
 1. **maxIterations**: contatore che limita il numero totale di iterazioni del ciclo while principale
-2. **Rilevamento cicli a runtime**: analisi della sequenza degli step visitati per identificare pattern ripetuti
 
 #### RunbookMaxIterationsError
 
@@ -3153,49 +2586,6 @@ class RunbookMaxIterationsError extends Error {
 }
 ```
 
-### 17.4 Branching annidato (SubPipeline)
-
-Le sub-pipeline permettono di definire branching complesso inline, senza usare `goTo`. Le pipeline figlie vengono eseguite in un contesto isolato che poi si fonde nel contesto padre.
-
-#### Interfacce per IfBranch
-
-```typescript
-/**
- * Configurazione per un IfBranchStep con sub-pipeline annidate.
- * Alternativa a IfStep con goTo: le pipeline then/else vengono eseguite inline.
- */
-interface IfBranchConfig {
-  /** ID univoco dello step */
-  readonly id: string;
-  /** Etichetta leggibile */
-  readonly label: string;
-  /** Condizione da valutare */
-  readonly condition: Condition;
-  /** Step da eseguire se la condizione e vera */
-  readonly thenSteps: readonly Step[];
-  /** Step da eseguire se la condizione e falsa (opzionale) */
-  readonly elseSteps?: readonly Step[];
-}
-
-/**
- * Configurazione per un SwitchBranchStep con sub-pipeline annidate.
- * Alternativa a SwitchStep con goTo: le pipeline per ogni caso
- * vengono eseguite inline.
- */
-interface SwitchBranchConfig {
-  /** ID univoco dello step */
-  readonly id: string;
-  /** Etichetta leggibile */
-  readonly label: string;
-  /** Riferimento al valore da valutare nel contesto */
-  readonly ref: string;
-  /** Mappa valore -> sub-pipeline da eseguire */
-  readonly cases: ReadonlyMap<string, readonly Step[]>;
-  /** Sub-pipeline da eseguire se nessun caso corrisponde (opzionale) */
-  readonly defaultSteps?: readonly Step[];
-}
-```
-
 ---
 
 ## 18. Rilevazioni Multiple ed Evidenza Parziale
@@ -3213,7 +2603,7 @@ visto tutto lo deve dire.
 
 ### 18.2 La Soluzione: rilevazioni, `supersedes` e copertura
 
-- **Nessuna risoluzione anticipata.** `FlowDirective` è `'continue' | 'stop' | { goTo }`: il motore esegue la pipeline
+- **Nessuna risoluzione anticipata.** `FlowDirective` è `'continue' | 'stop'`: il motore esegue la pipeline
   e poi valuta **tutti** i casi noti (§5.3). `stop` chiude un percorso, non dichiara un caso.
 - **Tutte le rilevazioni, in ordine di tempo.** `RunbookExecutionResult.detections` elenca ogni caso che corrisponde,
   ordinato per `firstSeenAt`; il motore esegue l'azione di ciascuno.
@@ -3333,25 +2723,31 @@ Oggi lo usa la famiglia SEND API Gateway (§19.12).
 
 `ErrorTreeDefinition` ha un livello radice (`root`) e i livelli in cui si può scendere (`levels`). Un `TreeLevel` è:
 
-| Campo           | Cosa fa                                                                                                                                    |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `target`        | Nome del livello (`api-gateway`, `pn-delivery`): è il bersaglio delle discese                                                              |
-| `read`          | La **lettura** del livello (`TreeLevelReader`): una query per un lotto di identificativi dello stesso tipo, in `OR`. Assente per la radice |
-| `attribute`     | A quale identificativo appartiene una riga della lettura raggruppata; obbligatorio con `read`                                              |
-| `batchSize`     | Identificativi per lettura (default 50)                                                                                                    |
-| `rowIdentity`   | Identità di una riga (`@ptr`, oppure tutti i campi): unisce due tentativi ed esclude le righe degli antenati                               |
-| `secondAttempt` | Secondo tentativo sullo stesso livello con un identificativo migliore trovato dal primo (§19.4)                                            |
-| `enumerate`     | L'**enumeratore**: divide le righe lette in nodi d'errore (`ErrorNodeSpec`) e, se servono, in uno pseudo-nodo `routing` (§19.5)            |
-| `perNode`       | Step eseguiti nel contesto di ogni nodo; decidono le sue discese                                                                           |
-| `afterDescend`  | Step eseguiti su ogni nodo quando le sue discese sono concluse, con le variabili pubblicate dai figli                                      |
-| `varPrefix`     | Prefisso delle variabili che una discesa pubblica sul padre (§19.3)                                                                        |
-| `exclusions`    | Diagnosi che un caso del padre può chiedere assenti dalla lettura di questo livello (§19.8)                                                |
-| `scopedSteps`   | Solo radice: gli step della finestra le cui righe si dividono fra i nodi (per esempio l'access log)                                        |
-| `ownsVar`       | Le variabili scritte dai nodi del livello: un caso che le legge appartiene a questo livello (§19.9)                                        |
+| Campo           | Cosa fa                                                                                                                                                              |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `target`        | Nome del livello (`api-gateway`, `pn-delivery`): è il bersaglio delle discese                                                                                        |
+| `read`          | La **lettura** del livello (`TreeLevelReader`): una query per un lotto di identificativi dello stesso tipo, in `OR`. Assente per la radice                           |
+| `attribute`     | Per un identificativo, il test delle righe della lettura raggruppata che gli appartengono: costruito una volta per identificativo del lotto; obbligatorio con `read` |
+| `batchSize`     | Identificativi per lettura (default 50)                                                                                                                              |
+| `rowIdentity`   | Identità di una riga (`@ptr`, oppure tutti i campi): unisce due tentativi ed esclude le righe degli antenati                                                         |
+| `secondAttempt` | Secondo tentativo sullo stesso livello con un identificativo migliore trovato dal primo (§19.4)                                                                      |
+| `enumerate`     | L'**enumeratore**: divide le righe lette in nodi d'errore (`ErrorNodeSpec`) e, se servono, in uno pseudo-nodo `routing` (§19.5)                                      |
+| `perNode`       | Step eseguiti nel contesto di ogni nodo; decidono le sue discese                                                                                                     |
+| `afterDescend`  | Step eseguiti su ogni nodo quando le sue discese sono concluse, con le variabili pubblicate dai figli                                                                |
+| `varPrefix`     | Prefisso delle variabili che una discesa pubblica sul padre (§19.3)                                                                                                  |
+| `exclusions`    | Diagnosi che un caso del padre può chiedere assenti dalla lettura di questo livello (§19.8)                                                                          |
+| `scopedSteps`   | Solo radice: gli step della finestra le cui righe si dividono fra i nodi (per esempio l'access log)                                                                  |
+| `ownsVar`       | Le variabili scritte dai nodi del livello: un caso che le legge appartiene a questo livello (§19.9)                                                                  |
 
 La radice legge la finestra con gli step ordinari del runbook e la enumera dal contesto: ogni errore della finestra è
 un nodo, e l'enumeratore dichiara `observedErrors` con tutti gli errori esaminati. Ogni altro livello legge, per i suoi
 padri, gli identificativi con cui sono scesi.
+
+Una lettura non è uno step: il motore chiama solo `read`, mentre id, etichetta e tipo la nominano nella traccia e i
+servizi che dichiara (`requiredServices`) sono controllati con quelli degli step prima del primo step. Le letture di
+CloudWatch Logs dei toolkit estendono `CloudWatchLogsLevelReader` (`toolkits/common`), che esegue la query del lotto
+nei profili configurati e passa al motore copertura e diagnostica; la sottoclasse dà log group, query, righe del lotto
+e riga del racconto.
 
 ```typescript
 import type { DescendRequest, RunbookContext, Step, StepKind, StepResult, TreeLevel } from '@pagopa/go-runbook';
@@ -3366,8 +2762,7 @@ class DescendToDeliveryStep implements Step<void> {
     // Un identificativo vuoto chiede comunque la discesa: la catena si interrompe come `skipped`.
     const descend: DescendRequest = {
       target: 'pn-delivery',
-      identifier: context.vars.get('traceId') ?? '',
-      kind: 'traceId',
+      identifier: { kind: 'traceId', value: context.vars.get('traceId') ?? '' },
     };
     return { success: true, descend: [descend] };
   }
@@ -3377,7 +2772,7 @@ const delivery: TreeLevel = {
   target: 'pn-delivery',
   varPrefix: 'delivery',
   read: deliveryLogsReader, // TreeLevelReader con id 'query-pn-delivery'
-  attribute: (row, identifier) => traceIdOf(row) === identifier.value,
+  attribute: (identifier) => (row) => traceIdOf(row) === identifier.value,
   rowIdentity: (row) => pointerOf(row),
   enumerate: ({ rows }) => ({
     nodes: rows.filter(isErrorRow).map((row, index) => ({
@@ -3425,13 +2820,13 @@ Accanto alle sue righe un nodo può avere le **righe correlate** dello stesso id
 | `steps.<id>.context`  | le righe che non sono errori (INFO, successi): righe **di contesto**    |
 
 Un nodo il cui step fallisce ha `status: 'failed'`, non scende, e la sua catena si interrompe lì con quanto ha raccolto.
-`stop` chiude gli step del nodo: un nodo fermato prima del suo step di discesa non scende. `goTo` resta dentro il
-blocco (`perNode` o `afterDescend`) e il limite di iterazioni vale per ogni nodo.
+`stop` chiude gli step del nodo: un nodo fermato prima del suo step di discesa non scende. Il limite di iterazioni vale
+per ogni blocco (`perNode` o `afterDescend`) di ogni nodo.
 
 ### 19.3 Discese a lotti e variabili pubblicate sul padre
 
-Uno step di nodo chiede le discese con `StepResult.descend` (`DescendRequest`: `target`, `identifier`, `kind`). Il
-motore procede per ondate:
+Uno step di nodo chiede le discese con `StepResult.descend` (`DescendRequest`: `target` e `identifier`, un
+`EvidenceIdentifier` con `kind` e `value`). Il motore procede per ondate:
 
 1. raccoglie le discese di tutti i nodi non ancora lette;
 2. le **raggruppa per livello e tipo d'identificativo** e fa una lettura per ogni lotto di `batchSize` identificativi;
@@ -3446,15 +2841,14 @@ le lacune che nominano i loro `identifiers`. Ogni tentativo di una discesa è le
 ha lo stato peggiore dei suoi tentativi, il livello per un padre il peggiore delle sue discese (§18.6). Ogni padre
 riceve l'esito anche senza righe; con un `varPrefix` lo trova nelle sue variabili:
 
-| Variabile                     | Valore                                                       |
-| ----------------------------- | ------------------------------------------------------------ |
-| `<prefisso>LookupState`       | `queried`, `saturated`, `unavailable`, `skipped` o `cycle`   |
-| `<prefisso>LogCount`          | righe trovate dall'ultima lettura                            |
-| `<prefisso>LogCountAllVisits` | righe trovate da tutte le letture del livello per quel padre |
-| `<prefisso>Exclusion.<nome>`  | esito di un'esclusione dichiarata sul livello (§19.8)        |
+| Variabile                    | Valore                                                     |
+| ---------------------------- | ---------------------------------------------------------- |
+| `<prefisso>LookupState`      | `queried`, `saturated`, `unavailable`, `skipped` o `cycle` |
+| `<prefisso>LogCount`         | righe trovate dall'ultima lettura                          |
+| `<prefisso>Exclusion.<nome>` | esito di un'esclusione dichiarata sul livello (§19.8)      |
 
 Le variabili arrivano dopo gli step `perNode` del padre: le leggono i suoi step `afterDescend` e i suoi casi. I nomi si
-costruiscono con `lookupStateVar`, `logCountVar`, `logCountAllVisitsVar` ed `exclusionVar`.
+costruiscono con `lookupStateVar`, `logCountVar` ed `exclusionVar`.
 
 ### 19.4 Secondo tentativo
 
@@ -3549,8 +2943,7 @@ nell'esempio sopra (`[STEP, STEP.siblings]`).
 Il builder rifiuta un caso con un `all(...)` che legge due volte le righe della stessa lettura di livello senza
 `.siblings` o `.context` (`UNANCHORED_ROW_PREDICATES`). Le esclusioni non hanno questo vincolo: si valutano su tutta la
 lettura. Il builder controlla anche la forma dell'albero (`INVALID_ERROR_TREE`): livelli con `target` distinti, una
-lettura con attribuzione per ogni livello sotto la radice, `scopedSteps` della finestra, id di step unici, `goTo` dentro
-il proprio blocco.
+lettura con attribuzione per ogni livello sotto la radice, `scopedSteps` della finestra, id di step unici.
 
 ### 19.11 Catene, gruppi, azioni e fallback
 
@@ -3637,10 +3030,14 @@ percorso. Per ogni richiesta, in ordine:
   Una chiamata allo stesso servizio, o nessun URL noto, chiude la catena;
 - sul servizio d'ingresso, prima della discesa, c'è l'ancora `after-entry-analysis`.
 
-**Il trace id.** Le regole stanno in `toolkits/common/parsing/traceIds/`. `canonicalTraceId` dà la forma X-Ray in
-minuscolo di un id X-Ray o compatto (32 cifre esadecimali), in qualunque maiuscolo, o del `Root=` di un header X-Ray;
-è la forma di correlazioni, variabili `…TraceId` e identificatori delle discese. `traceIdForms` dà le forme con cui le
-query lo cercano: quella data, la X-Ray e la compatta. `traceRowMatcher` dice se una riga appartiene a un trace: decide
+**Il trace id.** Le regole stanno in `toolkits/common/parsing/traceIds/`. I formati riconosciuti sono in
+`TRACE_ID_FORMATS`, uno per voce: l'X-Ray Trace ID (`1-…`), con la forma compatta a 32 cifre esadecimali che è anche il
+Trace ID di W3C; il Fallback UUID di SEND (`FALLBACK-UUID:<uuid>`); il `traceId:<uuid>` dei log applicativi. Ogni formato
+dice come si riconosce un valore e qual è la sua forma canonica, in che forme lo cercano le query, quali token lo
+nominano in un messaggio e se un messaggio ne dà uno da scoprire (il Fallback UUID no: un messaggio nomina anche quelli
+delle chiamate). `canonicalTraceId` dà la forma canonica di un valore di qualunque formato, anche dal `Root=` di un header
+X-Ray o da un header `traceparent`; è la forma di correlazioni, variabili `…TraceId` e identificatori delle discese.
+`traceIdForms` dà le forme con cui le query lo cercano: quella data e quelle del suo formato. `traceRowMatcher` dice se una riga appartiene a un trace: decide
 il campo trace, il messaggio solo senza campo. Le letture per lotti (template con `@message like '{{TRACE_ID}}'`,
 `ServiceLogsLevelReader`) tengono le righe con questa regola; una query che legge un trace per volta scarta solo le
 righe il cui campo trace nomina un altro trace (`rowsOfTraces`). Il profilo SEND estrae dall'access log il solo id

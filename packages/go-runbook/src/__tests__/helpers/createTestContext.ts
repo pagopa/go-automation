@@ -22,7 +22,6 @@ export function createTestContext(options: TestContextOptions = {}): Operational
     stepResults: new Map(Object.entries(options.stepResults ?? {})),
     vars: new Map(Object.entries(options.vars ?? {})),
     params: new Map(Object.entries(options.params ?? {})),
-    logs: [],
     services: createTestServiceRegistry(options.services),
     // The steps under test are those of alarm analyses, which read partially.
     readPolicy: 'partial',

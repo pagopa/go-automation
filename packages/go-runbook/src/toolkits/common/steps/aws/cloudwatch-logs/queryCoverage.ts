@@ -3,7 +3,7 @@ import type {
   AWSCloudWatchLogsQueryExecution,
 } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
-import type { StepCoverage } from '../../../../../engine/types/StepCoverage.js';
+import type { StepCoverage } from '../../../../../engine/index.js';
 
 /** Rows Logs Insights returns at most when the query sets no `limit`. */
 const DEFAULT_ROW_LIMIT = 10_000;

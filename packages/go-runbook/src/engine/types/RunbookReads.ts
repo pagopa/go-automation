@@ -1,4 +1,4 @@
-import type { ReadIdentifier } from './ReadIdentifier.js';
+import type { EvidenceIdentifier } from './EvidenceIdentifier.js';
 import type { ReadState } from './ReadState.js';
 
 /**
@@ -10,7 +10,7 @@ import type { ReadState } from './ReadState.js';
  * - `hasGapFor` says whether a gap of the read of a step names the identifier: a gap of the whole read does not.
  */
 export interface RunbookReads {
-  stateOf(stepId: string, identifier?: ReadIdentifier): ReadState;
+  stateOf(stepId: string, identifier?: EvidenceIdentifier): ReadState;
   isComplete(stepId: string): boolean;
-  hasGapFor(stepId: string, identifier: ReadIdentifier): boolean;
+  hasGapFor(stepId: string, identifier: EvidenceIdentifier): boolean;
 }

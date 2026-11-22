@@ -1,5 +1,5 @@
-import type { RunbookContext } from '../../../engine/types/RunbookContext.js';
-import { interpolatePlaceholders } from '../../../engine/context/templatePlaceholders.js';
+import type { RunbookContext } from '../../../engine/index.js';
+import { interpolatePlaceholders } from '../../../engine/internal.js';
 
 /**
  * Data structure for extracted query and parameters from a template string.

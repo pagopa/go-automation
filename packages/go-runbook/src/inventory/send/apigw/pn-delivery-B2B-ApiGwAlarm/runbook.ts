@@ -2,7 +2,7 @@
  * Runbook: pn-delivery-B2B-ApiGwAlarm
  */
 
-import { apigw } from '../../../../toolkits/send/index.js';
+import { ALARM_TIME_RANGE, apigw } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
 import { API_GW_LOG_GROUP, ENTRY_SERVICE, REACHABLE_SERVICES, VERSIONING_LAMBDA_LOG_GROUP } from './knownServices.js';
@@ -58,7 +58,7 @@ export function buildRunbook(): Runbook {
           id: VERSIONING_LAMBDA_PROBE_STEP_ID,
           label: 'Verifica errori Lambda versioning',
           lambdaLogGroup: VERSIONING_LAMBDA_LOG_GROUP,
-          timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+          timeRangeFromParams: ALARM_TIME_RANGE,
         }),
         silent: true,
       },

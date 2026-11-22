@@ -1,12 +1,7 @@
 import { GOHttpClient } from '@pagopa/go-common/http';
 import type { GOScript } from '@go-automation/go-script';
 import { type RunbookBuilderFn } from '@pagopa/go-runbook/inventory';
-import {
-  computeRunbookTimeRange,
-  createServiceRegistry,
-  createTimeRangeReference,
-  toAwsAccountsConfig,
-} from '@pagopa/go-runbook/runtime';
+import { buildOccurrenceParams, createServiceRegistry, toAwsAccountsConfig } from '@pagopa/go-runbook/runtime';
 import { OperationalRunbookEngine, type AwsExecutionEnvironment } from '@pagopa/go-runbook/toolkits/common';
 import type { RunbookExecutionResult } from '@pagopa/go-runbook';
 import { buildCoverageLines, buildErrorChains, renderErrorChainLines } from '@pagopa/go-runbook/output';
@@ -32,22 +27,15 @@ export async function analyzeOccurrence(
   const runbook = runbookBuilder();
   script.logger.info(`Runbook: ${runbook.metadata.name} v${runbook.metadata.version}`);
 
-  const reference = createTimeRangeReference(input.alarmDatetime, input.alarmDatetimeEnd);
-  const { startTime, endTime } = computeRunbookTimeRange(runbook, reference);
-  script.logger.info(`Time range: ${startTime} → ${endTime}`);
   const awsRegion = script.aws.clients.first.getRegion();
-
-  const params = new Map<string, string>([
-    ['alarmName', config.alarmName],
-    ['alarmDatetime', input.alarmDatetime],
-    ['awsRegion', awsRegion],
-    ['awsProfiles', config.awsProfiles.join(',')],
-    ['startTime', startTime],
-    ['endTime', endTime],
-  ]);
-  if (input.alarmDatetimeEnd !== undefined && input.alarmDatetimeEnd.trim() !== '') {
-    params.set('alarmDatetimeEnd', input.alarmDatetimeEnd);
-  }
+  const params = buildOccurrenceParams(runbook, {
+    alarmName: config.alarmName,
+    alarmDatetime: input.alarmDatetime,
+    ...(input.alarmDatetimeEnd === undefined ? {} : { alarmDatetimeEnd: input.alarmDatetimeEnd }),
+    awsRegion,
+    awsProfiles: config.awsProfiles,
+  });
+  script.logger.info(`Time range: ${params.get('startTime') ?? ''} → ${params.get('endTime') ?? ''}`);
 
   script.logger.info(`Using AWS profiles: ${script.aws.clients.profileNames.join(', ')}`);
 

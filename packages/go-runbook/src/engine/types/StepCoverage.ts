@@ -1,5 +1,5 @@
 import type { CoverageReason } from './CoverageReason.js';
-import type { ReadIdentifier } from './ReadIdentifier.js';
+import type { EvidenceIdentifier } from './EvidenceIdentifier.js';
 
 /**
  * What a step declares when it did not see all the evidence it should have.
@@ -23,5 +23,5 @@ export interface StepCoverage {
   readonly reason?: CoverageReason;
   /** At most 200 characters, scrubbed of local profile names; never part of the analysis draft. */
   readonly detail?: string;
-  readonly identifiers?: ReadonlyArray<ReadIdentifier>;
+  readonly identifiers?: ReadonlyArray<EvidenceIdentifier>;
 }

@@ -4,39 +4,15 @@ import type { RunbookMetadata } from '../types/RunbookMetadata.js';
 import type { Step } from '../types/Step.js';
 import type { StepDescriptor } from '../types/StepDescriptor.js';
 import type { KnownCase } from '../types/KnownCase.js';
-import type { IfBranchConfig } from '../types/IfBranchConfig.js';
-import type { SwitchBranchConfig } from '../types/SwitchBranchConfig.js';
 import type { CaseAction } from '../types/CaseAction.js';
 import type { ValidationErrorEntry } from '../validation/ValidationErrorEntry.js';
-import type { GoToReference } from '../validation/GoToGraphAnalyzer.js';
 import { RunbookValidationError } from '../validation/RunbookValidationError.js';
 import { findUnwiredKnownCaseStepRef } from '../validation/findUnwiredKnownCaseStepRef.js';
 import { validateErrorTree } from '../validation/validateErrorTree.js';
 import { findUnanchoredRowPredicates } from '../validation/findUnanchoredRowPredicates.js';
 import { levelStepIds } from '../tree/levelStepIds.js';
 import type { ErrorTreeDefinition } from '../types/ErrorTreeDefinition.js';
-import { GoToGraphAnalyzer } from '../validation/GoToGraphAnalyzer.js';
-import { IfBranchStep } from '../steps/control/IfBranchStep.js';
-import { SwitchBranchStep } from '../steps/control/SwitchBranchStep.js';
-
-/**
- * Type guard for IfStep with goTo references.
- */
-function isIfStepWithGoTo(step: Step): step is Step & {
-  readonly thenGoTo?: string;
-  readonly elseGoTo?: string;
-} {
-  return step.kind === 'control' && ('thenGoTo' in step || 'elseGoTo' in step);
-}
-
-/**
- * Type guard for SwitchStep with goTo cases.
- */
-function isSwitchStepWithGoTo(step: Step): step is Step & {
-  readonly goToCases: ReadonlyMap<string, string>;
-} {
-  return step.kind === 'control' && 'goToCases' in step;
-}
+import type { ReadPolicy } from '../types/ReadPolicy.js';
 
 /**
  * Fluent builder for creating validated runbook definitions.
@@ -54,7 +30,7 @@ function isSwitchStepWithGoTo(step: Step): step is Step & {
  *     tags: ['api-gateway', '5xx'],
  *   })
  *   .step(new CloudWatchLogsQueryStep({ ... }))
- *   .step(new ExtractFieldStep({ ... }), { continueOnFailure: true })
+ *   .step(new SetVarStep({ ... }), { continueOnFailure: true })
  *   .knownCase({ ... })
  *   .fallback(logAction({ ... }))
  *   .build();
@@ -69,6 +45,7 @@ export class RunbookBuilder {
   private treeDefinition: ErrorTreeDefinition | undefined;
   private fallbackAction?: CaseAction;
   private iterationsLimit?: number;
+  private policy?: ReadPolicy;
 
   /**
    * @param id - Unique runbook identifier
@@ -95,6 +72,17 @@ export class RunbookBuilder {
    */
   metadata(meta: Omit<RunbookMetadata, 'id'>): this {
     this.meta = meta;
+    return this;
+  }
+
+  /**
+   * Declares how the runbook reads its evidence; without it the runbook reads strictly.
+   *
+   * @param policy - `partial` for an analysis that keeps partial evidence, `strict` for a procedure
+   * @returns This builder for chaining
+   */
+  readPolicy(policy: ReadPolicy): this {
+    this.policy = policy;
     return this;
   }
 
@@ -175,32 +163,6 @@ export class RunbookBuilder {
   }
 
   /**
-   * Adds an IfStep with inline sub-pipelines.
-   * Alternative to ifCondition with goTo: the then/else pipelines
-   * are executed inline in a child context.
-   *
-   * @param config - If branch configuration with sub-pipelines
-   * @returns This builder for chaining
-   */
-  ifBranch(config: IfBranchConfig): this {
-    const branchStep = new IfBranchStep(config);
-    this.stepDescriptors.push({ step: branchStep });
-    return this;
-  }
-
-  /**
-   * Adds a SwitchStep with inline sub-pipelines.
-   *
-   * @param config - Switch branch configuration with sub-pipelines
-   * @returns This builder for chaining
-   */
-  switchBranch(config: SwitchBranchConfig): this {
-    const branchStep = new SwitchBranchStep(config);
-    this.stepDescriptors.push({ step: branchStep });
-    return this;
-  }
-
-  /**
    * Adds a known case to the runbook.
    *
    * @param knownCase - Known case definition
@@ -235,8 +197,8 @@ export class RunbookBuilder {
 
   /**
    * Validates the runbook configuration.
-   * Checks: duplicate step IDs, invalid goTo references,
-   * cycles in the goTo graph, duplicate KnownCase IDs, unknown or cyclic `supersedes`.
+   * Checks: duplicate step IDs, duplicate KnownCase IDs, unknown or cyclic `supersedes`,
+   * the levels of the error tree and the step references of the known cases.
    *
    * @returns Array of validation errors (empty if valid)
    */
@@ -267,7 +229,6 @@ export class RunbookBuilder {
 
     // 2. Check duplicate step IDs
     const stepIds = new Set<string>();
-    const orderedStepIds: string[] = [];
     for (const descriptor of this.stepDescriptors) {
       if (stepIds.has(descriptor.step.id)) {
         errors.push({
@@ -277,33 +238,9 @@ export class RunbookBuilder {
         });
       }
       stepIds.add(descriptor.step.id);
-      orderedStepIds.push(descriptor.step.id);
     }
 
-    // 3. Check goTo references
-    const goToRefs = this.collectGoToReferences();
-    for (const ref of goToRefs) {
-      if (!stepIds.has(ref.targetId)) {
-        errors.push({
-          code: 'INVALID_GOTO_REF',
-          message: `Step "${ref.sourceId}" references goTo "${ref.targetId}" which does not exist.`,
-          stepId: ref.sourceId,
-        });
-      }
-    }
-
-    // 4. Detect cycles in goTo graph
-    const cycles = GoToGraphAnalyzer.detectCycles(orderedStepIds, goToRefs);
-    for (const cycle of cycles) {
-      const firstStepId = cycle[0];
-      errors.push({
-        code: 'LOOP_DETECTED',
-        message: `Cycle detected in goTo graph: ${cycle.join(' -> ')}.`,
-        ...(firstStepId !== undefined ? { stepId: firstStepId } : {}),
-      });
-    }
-
-    // 5. Check duplicate KnownCase IDs
+    // 3. Check duplicate KnownCase IDs
     const caseIds = new Set<string>();
     for (const knownCase of this.cases) {
       if (caseIds.has(knownCase.id)) {
@@ -316,14 +253,12 @@ export class RunbookBuilder {
       caseIds.add(knownCase.id);
     }
 
-    // 6. Check the cases each case supersedes
+    // 4. Check the cases each case supersedes
     errors.push(...validateSupersedes(this.cases));
 
-    // 7. The levels of the error tree, and the cases that would need one row to satisfy a signature split over two
+    // 5. The levels of the error tree, and the cases that would need one row to satisfy a signature split over two
     if (this.treeDefinition !== undefined) {
-      errors.push(
-        ...validateErrorTree(this.treeDefinition, stepIds, (descriptors) => this.collectGoToReferences(descriptors)),
-      );
+      errors.push(...validateErrorTree(this.treeDefinition, stepIds));
       const levelReads = new Set(
         this.treeDefinition.levels.flatMap((level) => (level.read === undefined ? [] : [level.read.id])),
       );
@@ -339,7 +274,7 @@ export class RunbookBuilder {
       }
     }
 
-    // 8. Known cases must reference only steps the runbook wires (P10), the levels of the error tree included
+    // 6. Known cases must reference only steps the runbook wires, the levels of the error tree included
     const unwired = findUnwiredKnownCaseStepRef(this.cases, this.wiredStepIds());
     if (unwired !== undefined) {
       errors.push({
@@ -379,42 +314,13 @@ export class RunbookBuilder {
       steps: [...this.stepDescriptors],
       knownCases: [...this.cases],
       fallbackAction: this.fallbackAction, // Safe: validated in validate()
+      ...(this.policy !== undefined ? { readPolicy: this.policy } : {}),
       // After the engine fields, in the toolkit's order: the RTA fingerprint depends on key order.
       ...this.buildExtensions(),
     };
 
     const withTree = this.treeDefinition !== undefined ? { ...result, tree: this.treeDefinition } : result;
     return this.iterationsLimit !== undefined ? { ...withTree, maxIterations: this.iterationsLimit } : withTree;
-  }
-
-  /**
-   * Collects all goTo references from registered steps for static analysis.
-   */
-  private collectGoToReferences(
-    descriptors: ReadonlyArray<StepDescriptor> = this.stepDescriptors,
-  ): ReadonlyArray<GoToReference> {
-    const refs: GoToReference[] = [];
-
-    for (const descriptor of descriptors) {
-      const { step } = descriptor;
-
-      if (isIfStepWithGoTo(step)) {
-        if (step.thenGoTo !== undefined) {
-          refs.push({ sourceId: step.id, targetId: step.thenGoTo });
-        }
-        if (step.elseGoTo !== undefined) {
-          refs.push({ sourceId: step.id, targetId: step.elseGoTo });
-        }
-      }
-
-      if (isSwitchStepWithGoTo(step)) {
-        for (const [, targetId] of step.goToCases) {
-          refs.push({ sourceId: step.id, targetId });
-        }
-      }
-    }
-
-    return refs;
   }
 }
 

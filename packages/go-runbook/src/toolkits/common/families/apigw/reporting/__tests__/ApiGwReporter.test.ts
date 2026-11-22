@@ -132,20 +132,5 @@ describe('ApiGwReporter', () => {
       assert.match(joined, /\/resource-a: req-a/);
       assert.match(joined, /Execution log trovati: 12/);
     });
-
-    it('reports an execution-log query skipped before reaching AWS', () => {
-      const { reporter: narrative, lines } = captureNarrative();
-      const reporter = new ApiGwReporter(narrative);
-      reporter.sectionApiGwExecutionLog();
-      reporter.apiGwExecutionLogSkipped('API-Gateway-Execution-Logs_test/prod', 'over the limit of 1');
-
-      narrative.flush();
-
-      const joined = lines.join('\n');
-      assert.match(joined, /Verifica execution log API Gateway/);
-      assert.match(joined, /Query execution log non eseguita/);
-      assert.match(joined, /API-Gateway-Execution-Logs_test\/prod/);
-      assert.match(joined, /over the limit of 1/);
-    });
   });
 });

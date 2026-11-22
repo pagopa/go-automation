@@ -1,28 +1,21 @@
 import type { ErrorTreeDefinition } from '../types/ErrorTreeDefinition.js';
-import type { StepDescriptor } from '../types/StepDescriptor.js';
 import type { ValidationErrorEntry } from './ValidationErrorEntry.js';
-import type { GoToReference } from './GoToGraphAnalyzer.js';
-
-/** Collects the `goTo` references of a block of steps. */
-export type GoToReferencesFn = (descriptors: ReadonlyArray<StepDescriptor>) => ReadonlyArray<GoToReference>;
+import { levelSteps } from '../tree/levelSteps.js';
 
 /**
  * Validates the levels of an error tree against the steps of the window.
  *
  * - every level has a distinct target; every level but the root has a read with its attribution;
  * - the scoped steps are steps of the window;
- * - the step ids of the levels are unique in the runbook, the window included;
- * - a `goTo` of a per-node or after-descent block points inside its block, as at runtime.
+ * - the step ids of the levels are unique in the runbook, the window included.
  *
  * @param tree - Levels of the runbook
  * @param windowStepIds - Ids of the steps of the window
- * @param goToReferences - Collects the `goTo` references of a block
  * @returns The errors, empty when the tree is valid
  */
 export function validateErrorTree(
   tree: ErrorTreeDefinition,
   windowStepIds: ReadonlySet<string>,
-  goToReferences: GoToReferencesFn,
 ): ReadonlyArray<ValidationErrorEntry> {
   const errors: ValidationErrorEntry[] = [];
   const invalid = (message: string, stepId?: string): void => {
@@ -48,22 +41,11 @@ export function validateErrorTree(
     // The scoped steps are steps of the window; every step the level declares is unique in the runbook.
     const declared = [
       ...(level.read !== undefined ? [level.read.id] : []),
-      ...[...(level.perNode ?? []), ...(level.afterDescend ?? [])].map((descriptor) => descriptor.step.id),
+      ...levelSteps(level).map((descriptor) => descriptor.step.id),
     ];
     for (const stepId of declared) {
       if (seen.has(stepId)) invalid(`Duplicate step ID "${stepId}" in error tree level "${level.target}".`, stepId);
       seen.add(stepId);
-    }
-    for (const block of [level.perNode ?? [], level.afterDescend ?? []]) {
-      const ids = new Set(block.map((descriptor) => descriptor.step.id));
-      for (const reference of goToReferences(block)) {
-        if (!ids.has(reference.targetId)) {
-          invalid(
-            `Step "${reference.sourceId}" of level "${level.target}" goes to "${reference.targetId}", outside its block.`,
-            reference.sourceId,
-          );
-        }
-      }
     }
   }
   return errors;

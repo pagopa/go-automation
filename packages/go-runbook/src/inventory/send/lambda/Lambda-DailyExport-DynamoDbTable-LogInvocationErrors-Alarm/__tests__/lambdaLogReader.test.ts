@@ -30,7 +30,6 @@ function context(
   return {
     executionId: 'test',
     startedAt: new Date(),
-    logs: [],
     recoveredErrors: [],
     reads: EMPTY_RUNBOOK_READS,
     vars: new Map(),

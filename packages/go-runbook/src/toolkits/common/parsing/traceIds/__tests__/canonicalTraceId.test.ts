@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { canonicalTraceId } from '../canonicalTraceId.js';
+import { canonicalTraceId } from '../traceIdentity.js';
 
 const CANONICAL = '1-6789abcd-0123456789abcdef01234567';
 const OTHER = '1-00000000-111111111111111111111111';

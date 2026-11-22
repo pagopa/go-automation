@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { executeAlarmWithLogs, isCidTrackerQuery } from '../../../shared/__tests__/helpers/runbookExecution.js';
+import {
+  executeAlarmWithLogs,
+  isCidTrackerQuery,
+  trackedCids,
+} from '../../../shared/__tests__/helpers/runbookExecution.js';
 import type { LogRows } from '../../../../../__tests__/helpers/LogRows.js';
 import type { RunbookLogsExecution } from '../../../../../__tests__/helpers/RunbookLogsExecution.js';
 import { AUTH_SERVER_5XX_ALARM as alarm } from '../alarmDefinition.js';
@@ -53,8 +57,7 @@ async function execute(scenario: Scenario): Promise<RunbookLogsExecution> {
         ];
       }
       if (!isCidTrackerQuery(query)) return scenario.application ?? [];
-      const cid = /filter cid = "([^"]+)"/u.exec(query)?.[1] ?? '';
-      return (scenario.traces?.[cid] ?? []).map((message) => row(message));
+      return trackedCids(query).flatMap((cid) => (scenario.traces?.[cid] ?? []).map((message) => row(message, cid)));
     },
   );
 }
@@ -114,7 +117,7 @@ describe('INTEROP auth-server 5xx runbook', () => {
     const { queries } = await execute({ application: [row(FALLBACK, 'cid-1')] });
     assert.match(queries[1]?.query ?? '', /@message like \/Main auditing flow failed, going through fallback\//u);
     assert.doesNotMatch(queries[1]?.query ?? '', /not like.*Invalid claims/u);
-    assert.match(queries[2]?.query ?? '', /filter cid = "cid-1"/u);
+    assert.match(queries[2]?.query ?? '', /filter cid in \["cid-1"\]/u);
   });
 
   it('confirms the documented fallback outcome for every CID', async () => {

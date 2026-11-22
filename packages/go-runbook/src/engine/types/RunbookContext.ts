@@ -1,8 +1,8 @@
-import type { LogEntry } from './LogEntry.js';
 import type { ErrorRecoveryInfo } from './ErrorRecoveryInfo.js';
 import type { GORegexCache } from '@pagopa/go-common/utils';
 import type { WorkflowServices } from './WorkflowServices.js';
 import type { RunbookReads } from './RunbookReads.js';
+import type { ReadPolicy } from './ReadPolicy.js';
 
 /**
  * Immutable execution context of the runbook.
@@ -21,8 +21,6 @@ export interface RunbookContext<TServices extends WorkflowServices = WorkflowSer
   readonly vars: ReadonlyMap<string, string>;
   /** Runbook input parameters (alarmName, timeRange, etc.) */
   readonly params: ReadonlyMap<string, string>;
-  /** Log entries collected during execution */
-  readonly logs: ReadonlyArray<LogEntry>;
   /** Services of the execution: WorkflowServices, or an operational extension of them */
   readonly services: TServices;
   /** Errors recovered from steps with continueOnFailure enabled. Allows inspection of which steps failed without blocking execution. */
@@ -40,7 +38,7 @@ export interface RunbookContext<TServices extends WorkflowServices = WorkflowSer
    * Whether a read may keep what it got when part of it fails (`partial`), as an alarm analysis does, or must fail
    * as a whole (`strict`), as a procedure needs. Absent means `strict`.
    */
-  readonly readPolicy?: 'partial' | 'strict';
+  readonly readPolicy?: ReadPolicy;
   /**
    * Reads of the window a step makes once for the whole execution, by key, shared by every node of an error tree
    * (for example a probe every request may need). Created by each execution, never shared between executions.

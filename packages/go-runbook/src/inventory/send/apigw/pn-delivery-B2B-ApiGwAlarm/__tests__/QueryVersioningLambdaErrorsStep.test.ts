@@ -40,7 +40,6 @@ function buildContext(
       ['startTime', '2026-09-01T09:55:00.000Z'],
       ['endTime', '2026-09-01T10:05:00.000Z'],
     ]),
-    logs: [],
     services: createTestServiceRegistry({ cloudWatchLogs: { query } }),
     recoveredErrors: [],
     reads: EMPTY_RUNBOOK_READS,
@@ -65,7 +64,6 @@ describe('QueryVersioningLambdaErrorsStep', () => {
         apiGwStatusCode: '504',
         deliveryLogCount: '0',
         deliveryLookupState: 'queried',
-        apiGwCurrentQueryIdentifierMode: 'trace',
       },
       async () => {
         queryCalls += 1;
@@ -94,7 +92,6 @@ describe('QueryVersioningLambdaErrorsStep', () => {
         apiGwStatusCode: '500',
         deliveryLogCount: '0',
         deliveryLookupState: 'queried',
-        apiGwCurrentQueryIdentifierMode: 'none',
       },
       async () => {
         queryCalls += 1;
@@ -116,7 +113,6 @@ describe('QueryVersioningLambdaErrorsStep', () => {
         apiGwStatusCode: '500',
         deliveryLogCount: '0',
         deliveryLookupState: 'queried',
-        apiGwCurrentQueryIdentifierMode: 'trace',
       },
       async (logGroups, query) => {
         calls.push({ logGroups, query });
@@ -143,7 +139,6 @@ describe('QueryVersioningLambdaErrorsStep', () => {
         apiGwStatusCode: '500',
         deliveryLogCount: '0',
         deliveryLookupState: 'queried',
-        apiGwCurrentQueryIdentifierMode: 'trace',
       },
       async () => Promise.resolve([row({ '@message': message, '@requestId': 'lambda-request-id' })]),
     );
@@ -161,7 +156,6 @@ describe('QueryVersioningLambdaErrorsStep', () => {
         apiGwStatusCode: '500',
         deliveryLogCount: '0',
         deliveryLookupState: 'queried',
-        apiGwCurrentQueryIdentifierMode: 'trace',
       },
       async () => Promise.reject(new Error('CloudWatch retention unavailable')),
     );

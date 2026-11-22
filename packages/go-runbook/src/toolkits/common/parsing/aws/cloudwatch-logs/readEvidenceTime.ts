@@ -1,8 +1,7 @@
 import { GODateTokens } from '@pagopa/go-common/dates';
+import { trimToUndefined } from '@pagopa/go-common/utils';
 
-import type { TimedEvidenceIdentifier } from '../../../../../engine/types/TimedEvidenceIdentifier.js';
-import type { EvidenceTime } from '../../../../../engine/types/EvidenceTime.js';
-import type { EvidenceIdentifierKind } from '../../../../../engine/types/EvidenceIdentifierKind.js';
+import type { EvidenceIdentifierKind, EvidenceTime, TimedEvidenceIdentifier } from '../../../../../engine/index.js';
 
 /** Field names carrying the time of a plain row. */
 const TIMESTAMP_FIELDS: ReadonlyArray<string> = ['@timestamp', 'timestamp'];
@@ -58,8 +57,8 @@ export function readEvidenceTime(element: unknown): EvidenceTime | undefined {
 function readRowTime(row: ReadonlyArray<ResultField>): EvidenceTime | undefined {
   const values = new Map(row.map(({ field, value }) => [field, value]));
   const identifiers = IDENTIFIER_FIELDS.flatMap(([field, kind]) => {
-    const value = values.get(field)?.trim();
-    return value === undefined || value === '' || value === '-' ? [] : [{ kind, value }];
+    const value = trimToUndefined(values.get(field));
+    return value === undefined || value === '-' ? [] : [{ kind, value }];
   });
 
   const latest = parseTimestamp(values.get('latestTimestamp'));

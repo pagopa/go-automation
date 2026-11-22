@@ -55,6 +55,28 @@ describe('matchTraceIdCandidate', () => {
     );
   });
 
+  it('reads every kind of tracing id from the trace-id field, a traceId:<uuid> also from the message', () => {
+    const uuid = 'c84c10f5-c213-44bd-9d46-e71204834571';
+    for (const policy of ['field', 'field-or-message'] as const) {
+      assert.deepStrictEqual(matchTraceIdCandidate(new Map([['trace_id', `traceId:${uuid}`]]), SCHEMA, policy), {
+        raw: `traceId:${uuid}`,
+        canonical: `traceId:${uuid}`,
+      });
+      assert.deepStrictEqual(matchTraceIdCandidate(new Map([['trace_id', `FALLBACK-UUID:${uuid}`]]), SCHEMA, policy), {
+        raw: `FALLBACK-UUID:${uuid}`,
+        canonical: `FALLBACK-UUID:${uuid}`,
+      });
+    }
+    assert.deepStrictEqual(
+      matchTraceIdCandidate(new Map([['message', `failed traceId:${uuid}`]]), SCHEMA, 'field-or-message'),
+      { raw: `traceId:${uuid}`, canonical: `traceId:${uuid}` },
+    );
+    assert.strictEqual(
+      matchTraceIdCandidate(new Map([['message', `calling FALLBACK-UUID:${uuid}`]]), SCHEMA, 'field-or-message'),
+      undefined,
+    );
+  });
+
   it('field: ignores X-Ray headers and the message', () => {
     assert.strictEqual(
       matchTraceIdCandidate(new Map([['trace_id', `Root=${CANONICAL};Sampled=1`]]), SCHEMA, 'field'),

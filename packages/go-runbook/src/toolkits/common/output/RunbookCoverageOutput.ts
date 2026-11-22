@@ -1,5 +1,4 @@
-import type { CoverageEntry } from '../../../engine/types/CoverageEntry.js';
-import type { ObservedErrors } from '../../../engine/types/ObservedErrors.js';
+import type { CoverageEntry, ObservedErrors } from '../../../engine/index.js';
 import type { CoverageInterruptionCount } from './CoverageInterruptionCount.js';
 import type { CoverageLevelOutput } from './CoverageLevelOutput.js';
 

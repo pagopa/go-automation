@@ -4,7 +4,7 @@
  * Values replicate the Watchtower census byte for byte: the apply resolves them
  * with an exact, case-sensitive match. Keys are CONSTANT_CASE. Census data, not
  * logic — the authoritative source stays the Watchtower `downstreams` table and
- * the Fase 0 coverage check verifies every declared value against it.
+ * the coverage check verifies every declared value against it.
  */
 export const SEND_DOWNSTREAMS = {
   ADE: 'AdE',
@@ -16,7 +16,7 @@ export const SEND_DOWNSTREAMS = {
   CONSOLIDATORE_POSTALE: 'Consolidatore postale',
   CSCA: 'CSCA - Italian Country Signing Certification Authority',
   // Typo ("Rappresentate") replicated from the WT census: the match is byte for
-  // byte. If the census is corrected, correct this value too (Fase 0).
+  // byte. If the census is corrected, correct this value too.
   ELENCO_LEGALE_RAPPRESENTANTE_INFOCAMERE: 'Elenco Legale Rappresentate (InfoCamere)',
   EMD_MULTICANALITA: 'EMD (Multicanalità)',
   INAD: 'INAD',

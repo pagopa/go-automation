@@ -1,4 +1,4 @@
-import { knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import { downstreamMarkerPattern, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
 import { type KnownCase, stepEvidenceMatches } from '../../../../engine/index.js';
 
 const IO_MESSAGES_ENDPOINT = 'https://api.io.pagopa.it/api/v1/messages';
@@ -10,9 +10,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: '[DOWNSTREAM IO] HTTP 500 su activations per conflitto Cosmos DB',
     condition: stepEvidenceMatches(
       'query-pn-external-registries',
-      '\\[DOWNSTREAM\\] Service IO returned errors=500 Internal Server Error from PUT ' +
-        'https://api\\.io\\.pagopa\\.it/api/v1/activations/;[\\s\\S]*Error upserting service Activation' +
-        '[\\s\\S]*COSMOS_ERROR_RESPONSE\\b[\\s\\S]*409/Entity with the specified id already exists\\b',
+      `${downstreamMarkerPattern('IO', {
+        status: '500 Internal Server Error',
+        method: 'PUT',
+        endpoint: 'https://api.io.pagopa.it/api/v1/activations/',
+      })};` +
+        '[\\s\\S]*Error upserting service Activation' +
+        '[\\s\\S]*COSMOS_ERROR_RESPONSE\\b' +
+        '[\\s\\S]*409/Entity with the specified id already exists\\b',
     ),
     resolution: 'Segnalare a Infra e valutare se aprire una segnalazione al team APP IO.',
     level: 'warn',
@@ -36,8 +41,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: '[DOWNSTREAM IO] Attivazione non trovata',
     condition: stepEvidenceMatches(
       'query-pn-external-registries',
-      '\\[DOWNSTREAM\\] Service IO returned errors=404 Not Found from POST ' +
-        'https://api\\.io\\.pagopa\\.it/api/v1/activations/;[\\s\\S]*Activation not found for the user\\b',
+      `${downstreamMarkerPattern('IO', {
+        status: '404 Not Found',
+        method: 'POST',
+        endpoint: 'https://api.io.pagopa.it/api/v1/activations/',
+      })};[\\s\\S]*Activation not found for the user\\b`,
     ),
     resolution: 'Risoluzione non documentata.',
     level: 'warn',
@@ -61,7 +69,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: '[DOWNSTREAM IO] Timeout di rete in lettura',
     condition: stepEvidenceMatches(
       'query-pn-external-registries',
-      '\\[DOWNSTREAM\\] Service IO returned errors=io\\.netty\\.handler\\.timeout\\.ReadTimeoutException\\b',
+      `${downstreamMarkerPattern('IO')}io\\.netty\\.handler\\.timeout\\.ReadTimeoutException\\b`,
     ),
     resolution: 'Risoluzione non documentata.',
     level: 'warn',
@@ -86,11 +94,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     // on the same log row, instead of combining unrelated query results.
     condition: stepEvidenceMatches(
       'query-pn-external-registries',
-      '\\[DOWNSTREAM\\] Service IO returned errors=500 Internal Server Error from POST ' +
-        'https://api\\.io\\.pagopa\\.it/api/v1/messages;' +
+      `${downstreamMarkerPattern('IO', {
+        status: '500 Internal Server Error',
+        method: 'POST',
+        endpoint: 'https://api.io.pagopa.it/api/v1/messages',
+      })};` +
         '[^\\r\\n]*invalid json response body at ' +
-        'https://api-app\\.internal\\.io\\.pagopa\\.it/api/v1/messages-sending/remote-contents/configurations/' +
-        '[A-Za-z0-9_-]+ reason: Unexpected end of JSON input\\b',
+        'https://api-app\\.internal\\.io\\.pagopa\\.it/api/v1/messages-sending/remote-contents/configurations/[A-Za-z0-9_-]+ reason: Unexpected end of JSON input\\b',
     ),
     resolution:
       'PN-21426. La card descrive un invio Courtesy riuscito al retry senza il successivo salvataggio dell\u2019evento SEND_COURTESY_MESSAGE in timeline.',

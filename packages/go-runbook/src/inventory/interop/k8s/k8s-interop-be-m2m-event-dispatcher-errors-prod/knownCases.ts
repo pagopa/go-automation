@@ -1,98 +1,77 @@
-import { INTEROP_DOWNSTREAMS, knownCase } from '../../../../toolkits/interop/index.js';
-import { type KnownCase, stepEvidenceMatches } from '../../../../engine/index.js';
+import {
+  INTEROP_DOWNSTREAMS,
+  INTEROP_KAFKA_SIGNATURES,
+  interopK8sKnownCase,
+  type InteropK8sKnownCaseRefs,
+} from '../../../../toolkits/interop/index.js';
+import type { KnownCase } from '../../../../engine/index.js';
 
 import { M2M_EVENT_DISPATCHER_ALARM } from './alarmDefinition.js';
-const DETAILS = [
-  ['Ambiente', '{{vars.interopEnvironment}}'],
-  ['Log group', '{{vars.interopLogGroup}}'],
-  ['Servizio', '{{vars.interopPodApp}}'],
-  ['CID analizzati', `{{vars.${M2M_EVENT_DISPATCHER_ALARM.varPrefix}CidCount}}`],
-] as const;
+const REFS: InteropK8sKnownCaseRefs = {
+  applicationLogsStepId: M2M_EVENT_DISPATCHER_ALARM.stepIds.queryApplicationLogs,
+  cidTrackerStepId: M2M_EVENT_DISPATCHER_ALARM.stepIds.queryCidTracker,
+  varPrefix: M2M_EVENT_DISPATCHER_ALARM.varPrefix,
+};
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
-  knownCase({
+  interopK8sKnownCase(REFS, {
     id: 'm2m-consumer-crash',
     description: 'Crash del consumer Kafka dopo esaurimento dei tentativi',
-    condition: stepEvidenceMatches(
-      M2M_EVENT_DISPATCHER_ALARM.stepIds.queryApplicationLogs,
-      'Crash: KafkaJSNumberOfRetriesExceeded|Error Consumer crashed',
-    ),
+    regex: 'Crash: KafkaJSNumberOfRetriesExceeded|Error Consumer crashed',
+    evidence: 'APPLICATION_LOGS',
     resolution: 'Risoluzione non documentata.',
-    details: DETAILS,
-    analysis: {
-      proposedStatus: 'IN_PROGRESS',
-      analysisType: 'ANALYZABLE',
-      downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-      finalActions: [],
-      links: [],
-    },
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    finalActions: [],
+    links: [],
   }),
-  knownCase({
+  interopK8sKnownCase(REFS, {
     id: 'm2m-connection-refused',
     description: 'Connessione al broker Kafka rifiutata',
-    condition: stepEvidenceMatches(
-      M2M_EVENT_DISPATCHER_ALARM.stepIds.queryApplicationLogs,
-      'Connection error: connect ECONNREFUSED',
-    ),
+    regex: INTEROP_KAFKA_SIGNATURES.connectionRefused,
+    evidence: 'APPLICATION_LOGS',
     resolution: 'Risoluzione non documentata.',
-    details: DETAILS,
-    analysis: {
-      proposedStatus: 'IN_PROGRESS',
-      analysisType: 'ANALYZABLE',
-      downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-      finalActions: [],
-      links: [],
-    },
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    finalActions: [],
+    links: [],
   }),
-  knownCase({
+  interopK8sKnownCase(REFS, {
     id: 'm2m-wrong-coordinator',
     description: 'Coordinator Kafka non corretto per il consumer group',
-    condition: stepEvidenceMatches(
-      M2M_EVENT_DISPATCHER_ALARM.stepIds.queryApplicationLogs,
-      'This is not the correct coordinator for this group',
-    ),
+    regex: INTEROP_KAFKA_SIGNATURES.wrongCoordinator,
+    evidence: 'APPLICATION_LOGS',
     resolution: 'Risoluzione non documentata.',
-    details: DETAILS,
-    analysis: {
-      proposedStatus: 'IN_PROGRESS',
-      analysisType: 'ANALYZABLE',
-      downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-      finalActions: [],
-      links: [],
-    },
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    finalActions: [],
+    links: [],
   }),
-  knownCase({
+  interopK8sKnownCase(REFS, {
     id: 'm2m-member-rejoin',
     description: 'Il coordinator Kafka non riconosce il member del consumer group',
-    condition: stepEvidenceMatches(
-      M2M_EVENT_DISPATCHER_ALARM.stepIds.queryApplicationLogs,
-      'The coordinator is not aware of this member',
-    ),
+    regex: INTEROP_KAFKA_SIGNATURES.unknownMember,
+    evidence: 'APPLICATION_LOGS',
     resolution: 'PIN-7325',
-    details: DETAILS,
-    analysis: {
-      proposedStatus: 'IN_PROGRESS',
-      analysisType: 'ANALYZABLE',
-      downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-      finalActions: [],
-      links: [{ url: 'https://pagopa.atlassian.net/browse/PIN-7325', name: 'PIN-7325', type: 'JIRA' }],
-    },
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    finalActions: [],
+    links: [{ url: 'https://pagopa.atlassian.net/browse/PIN-7325', name: 'PIN-7325', type: 'JIRA' }],
   }),
-  knownCase({
+  interopK8sKnownCase(REFS, {
     id: 'm2m-connection-timeout-tls',
     description: 'Timeout di connessione o interruzione prima della negoziazione TLS',
-    condition: stepEvidenceMatches(
-      M2M_EVENT_DISPATCHER_ALARM.stepIds.queryApplicationLogs,
-      'Connection timeout|Connection error: Client network socket disconnected before secure TLS connection was established',
-    ),
+    regex: `(?:${INTEROP_KAFKA_SIGNATURES.connectionTimeout}|${INTEROP_KAFKA_SIGNATURES.tlsDisconnected})`,
+    evidence: 'APPLICATION_LOGS',
     resolution: 'Risoluzione non documentata.',
-    details: DETAILS,
-    analysis: {
-      proposedStatus: 'IN_PROGRESS',
-      analysisType: 'ANALYZABLE',
-      downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-      finalActions: [],
-      links: [],
-    },
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    finalActions: [],
+    links: [],
   }),
 ];

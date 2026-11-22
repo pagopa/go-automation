@@ -9,7 +9,7 @@
  * `query-api-gw-execution-logs` e `stop-api-gw-execution-log-unresolved`
  * non vengono cablati nella pipeline.
  *
- * V04: la query è eseguita **una sola volta** per tutti i requestId
+ * La query è eseguita **una sola volta** per tutti i requestId
  * raccolti (filter clause OR-combinata), invece di N chiamate AWS
  * separate. Il numero massimo di requestId combinati è limitato da
  * {@link maxRequestIds} come safety net contro query troppo lunghe.

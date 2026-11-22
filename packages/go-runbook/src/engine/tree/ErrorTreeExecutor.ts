@@ -1,91 +1,40 @@
-import type { BranchOutcome } from '../types/BranchOutcome.js';
 import type { ErrorTreeExecutorDeps } from '../types/ErrorTreeExecutorDeps.js';
 import type { ErrorTreeRun } from '../types/ErrorTreeRun.js';
 import type { DescendRequest } from '../types/DescendRequest.js';
 import type { ErrorNodeSpec } from '../types/ErrorNodeSpec.js';
 import type { ErrorTreeDefinition } from '../types/ErrorTreeDefinition.js';
-import type { ErrorTreeNode } from '../types/ErrorTreeNode.js';
 import type { KnownCase } from '../types/KnownCase.js';
-import type { KnownCaseDetection } from '../types/KnownCaseDetection.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
 import type { TreeLevel } from '../types/TreeLevel.js';
 import type { TreeLevelReader } from '../types/TreeLevelReader.js';
 import type { TreeLevelReadResult } from '../types/TreeLevelReadResult.js';
-import type { ReadIdentifier } from '../types/ReadIdentifier.js';
+import type { EvidenceIdentifier } from '../types/EvidenceIdentifier.js';
 import type { EvidenceIdentifierKind } from '../types/EvidenceIdentifierKind.js';
-import type { ReadBatch } from '../reads/ReadBatch.js';
-import type { ReadDescent } from '../reads/ReadDescent.js';
-import type { ReadLedger } from '../reads/ReadLedger.js';
-import type { ReadScope } from '../reads/ReadScope.js';
-import { sharedConditionEvaluator } from '../core/ConditionEvaluator.js';
+import { identifierKey } from '../reads/identifierKey.js';
+
 import { throwIfRunbookAborted } from '../context/throwIfRunbookAborted.js';
+import { failedResultUnlessAborted } from '../context/failedResultUnlessAborted.js';
 import { createNodeContext } from './createNodeContext.js';
 import { levelStepIds } from './levelStepIds.js';
-import {
-  BRANCH_OUTCOME_VAR,
-  exclusionVar,
-  logCountAllVisitsVar,
-  logCountVar,
-  lookupStateVar,
-} from './descentVarNames.js';
+import type { PendingDescent } from './PendingDescent.js';
+import type { ReadOutcome } from './ReadOutcome.js';
+import type { WorkDescent } from './WorkDescent.js';
+import type { WorkNode } from './WorkNode.js';
+import { BRANCH_OUTCOME_VAR } from './descentVarNames.js';
+import type { BranchOutcome } from '../types/BranchOutcome.js';
+import type { ErrorTreeNode } from '../types/ErrorTreeNode.js';
+import type { ReadLedger } from '../reads/ReadLedger.js';
+import type { ReadScope } from '../reads/ReadScope.js';
+import { exclusionVar } from './descentVarNames.js';
+import { logCountVar } from './descentVarNames.js';
+import { lookupStateVar } from './descentVarNames.js';
+import { sharedConditionEvaluator } from '../core/ConditionEvaluator.js';
 
 /** Identifiers per grouped read when the level does not say. */
 const DEFAULT_BATCH_SIZE = 50;
 
 /** Deepest node: a descent below it is closed as a cycle. */
 const MAX_DEPTH = 32;
-
-/** A descent while the tree is investigated. */
-interface WorkDescent {
-  readonly request: DescendRequest;
-  readonly read: ReadDescent;
-  readonly childIds: string[];
-  rowCount: number;
-  readonly through?: ReadonlySet<string>;
-  readonly from?: WorkDescent;
-}
-
-/** A node while the tree is investigated. */
-interface WorkNode {
-  readonly id: string;
-  readonly parentId?: string;
-  readonly depth: number;
-  readonly level: TreeLevel;
-  readonly spec: ErrorNodeSpec;
-  readonly scope: ReadScope;
-  readonly via?: ReadonlyArray<string>;
-  context: RunbookContext;
-  failure?: string;
-  readonly descents: WorkDescent[];
-  /** `target|kind|identifier` of the descents that led to this node: a chain never repeats one. */
-  readonly pathKeys: ReadonlySet<string>;
-  /** Identities of the rows of this node and of its ancestors. */
-  readonly pathRows: ReadonlySet<string>;
-  detections: ReadonlyArray<KnownCaseDetection>;
-  branchOutcome: BranchOutcome;
-  /** The reads of each level for this node so far: rows, excluded diagnoses seen. */
-  readonly reads: Map<string, NodeReads>;
-}
-
-/** The reads of one level for one parent. */
-interface NodeReads {
-  rows: number;
-  readonly present: Set<string>;
-}
-
-/** A descent waiting for its read. */
-interface PendingDescent {
-  readonly node: WorkNode;
-  readonly descent: WorkDescent;
-  readonly level: TreeLevel;
-  readonly reader: TreeLevelReader;
-}
-
-/** Rows read for one identifier, with the batch that read them. */
-interface ReadOutcome {
-  readonly rows: ReadonlyArray<unknown>;
-  readonly batch: ReadBatch;
-}
 
 /**
  * Investigates the errors of a runbook level by level.
@@ -106,6 +55,7 @@ interface ReadOutcome {
  */
 export class ErrorTreeExecutor {
   private readonly levels: ReadonlyMap<string, TreeLevel>;
+  private readonly stepIdsOfLevel: ReadonlyMap<TreeLevel, ReadonlyArray<string>>;
   private readonly nodes: WorkNode[] = [];
   private readonly nodeIds = new Set<string>();
 
@@ -122,6 +72,7 @@ export class ErrorTreeExecutor {
     private readonly deps: ErrorTreeExecutorDeps,
   ) {
     this.levels = new Map(tree.levels.map((level) => [level.target, level]));
+    this.stepIdsOfLevel = new Map([tree.root, ...tree.levels].map((level) => [level, levelStepIds(level)]));
   }
 
   /**
@@ -166,7 +117,7 @@ export class ErrorTreeExecutor {
   ): Promise<WorkNode> {
     const scope = this.ledger.createScope(parent?.scope ?? this.ledger.window);
     const context: RunbookContext = {
-      ...createNodeContext(base, spec, parent === undefined ? [] : levelStepIds(parent.level)),
+      ...createNodeContext(base, spec, parent === undefined ? [] : this.stepIdsOf(parent.level)),
       reads: this.ledger.view(scope),
     };
     const run =
@@ -202,6 +153,11 @@ export class ErrorTreeExecutor {
     return node;
   }
 
+  /** The step ids a level owns, computed once per level. */
+  private stepIdsOf(level: TreeLevel): ReadonlyArray<string> {
+    return this.stepIdsOfLevel.get(level) ?? levelStepIds(level);
+  }
+
   /** Every descent requested and not yet read. */
   private pendingDescents(): ReadonlyArray<{ readonly node: WorkNode; readonly descent: WorkDescent }> {
     const pending: { readonly node: WorkNode; readonly descent: WorkDescent }[] = [];
@@ -221,7 +177,7 @@ export class ErrorTreeExecutor {
     const toRead: PendingDescent[] = [];
     for (const { node, descent } of pending) {
       const level = this.levels.get(descent.request.target);
-      if (descent.request.identifier.trim() === '' || level?.read === undefined) {
+      if (descent.request.identifier.value.trim() === '' || level?.read === undefined) {
         this.ledger.skipDescent(descent.read, level?.read?.id);
         if (level !== undefined) this.publish(node, level, []);
         continue;
@@ -237,22 +193,24 @@ export class ErrorTreeExecutor {
     }
 
     const first = await this.readGroups(
-      toRead.map((entry) => ({ entry, identifier: identifierOf(entry.descent.request) })),
+      toRead.map((entry) => ({ entry, identifier: entry.descent.request.identifier })),
       window,
     );
 
     // A second attempt at the same level, with a better identifier the first one found: the rows are merged.
-    const retries: { readonly entry: PendingDescent; readonly identifier: ReadIdentifier }[] = [];
+    const retries = new Map<PendingDescent, EvidenceIdentifier>();
     for (const entry of toRead) {
       const outcome = first.get(entry);
       const next =
-        outcome === undefined
-          ? undefined
-          : entry.level.secondAttempt?.(outcome.rows, identifierOf(entry.descent.request));
-      if (next === undefined || next.value.trim() === '' || next.value === entry.descent.request.identifier) continue;
-      retries.push({ entry, identifier: next });
+        outcome === undefined ? undefined : entry.level.secondAttempt?.(outcome.rows, entry.descent.request.identifier);
+      if (next === undefined || next.value.trim() === '' || next.value === entry.descent.request.identifier.value)
+        continue;
+      retries.set(entry, next);
     }
-    const second = await this.readGroups(retries, window);
+    const second = await this.readGroups(
+      [...retries].map(([entry, identifier]) => ({ entry, identifier })),
+      window,
+    );
 
     for (const entry of toRead) {
       throwIfRunbookAborted(window);
@@ -262,14 +220,13 @@ export class ErrorTreeExecutor {
       if (outcome === undefined) this.ledger.markDescent(entry.descent.read, 'unavailable');
       const rows =
         retry === undefined ? (outcome?.rows ?? []) : mergeRows(outcome?.rows ?? [], retry.rows, entry.level);
-      const retried = retries.find((candidate) => candidate.entry === entry)?.identifier;
-      await this.attach(entry, rows, retry === undefined ? undefined : retried);
+      await this.attach(entry, rows, retry === undefined ? undefined : retries.get(entry));
     }
   }
 
   /** Reads the identifiers of the entries, one read per batch of the same level and kind. */
   private async readGroups(
-    requests: ReadonlyArray<{ readonly entry: PendingDescent; readonly identifier: ReadIdentifier }>,
+    requests: ReadonlyArray<{ readonly entry: PendingDescent; readonly identifier: EvidenceIdentifier }>,
     window: RunbookContext,
   ): Promise<ReadonlyMap<PendingDescent, ReadOutcome>> {
     const groups = new Map<
@@ -294,7 +251,7 @@ export class ErrorTreeExecutor {
     }
 
     const byIdentifier = new Map<string, ReadOutcome>();
-    for (const [key, group] of groups) {
+    for (const group of groups.values()) {
       const values = [...group.values];
       const size = Math.max(1, group.level.batchSize ?? DEFAULT_BATCH_SIZE);
       for (let start = 0; start < values.length; start += size) {
@@ -305,8 +262,7 @@ export class ErrorTreeExecutor {
         try {
           result = await group.reader.read(window, batch);
         } catch (error: unknown) {
-          throwIfRunbookAborted(window);
-          result = { success: false, error: error instanceof Error ? error.message : String(error), rows: [] };
+          result = { ...failedResultUnlessAborted(window, error), rows: [] };
         }
         this.deps.recordRead(group.reader, batch, result, startedAtMs);
         const read = this.ledger.recordBatch(group.reader.id, batch, result);
@@ -314,19 +270,15 @@ export class ErrorTreeExecutor {
         for (const identifier of batch) {
           // A read for one identifier returns only its rows by construction; a grouped one is divided by attribution.
           const rows =
-            batch.length === 1
-              ? result.rows
-              : attribute === undefined
-                ? []
-                : result.rows.filter((row) => attribute(row, identifier));
-          byIdentifier.set(`${key}|${identifier.value}`, { rows, batch: read });
+            batch.length === 1 ? result.rows : attribute === undefined ? [] : result.rows.filter(attribute(identifier));
+          byIdentifier.set(`${group.level.target}|${identifierKey(identifier)}`, { rows, batch: read });
         }
       }
     }
 
     const outcomes = new Map<PendingDescent, ReadOutcome>();
     for (const { entry, identifier } of requests) {
-      const outcome = byIdentifier.get(`${entry.level.target}|${identifier.kind}|${identifier.value}`);
+      const outcome = byIdentifier.get(`${entry.level.target}|${identifierKey(identifier)}`);
       if (outcome === undefined) continue;
       // Every attempt of a descent is bound to the batch that read it: the descent has the worst of them.
       this.ledger.attemptDescent(entry.descent.read, outcome.batch, identifier);
@@ -339,7 +291,7 @@ export class ErrorTreeExecutor {
   private async attach(
     entry: PendingDescent,
     read: ReadonlyArray<unknown>,
-    secondAttempt: ReadIdentifier | undefined,
+    secondAttempt: EvidenceIdentifier | undefined,
   ): Promise<void> {
     const { node, descent, level } = entry;
     const identity = level.rowIdentity;
@@ -351,7 +303,7 @@ export class ErrorTreeExecutor {
     const enumerated = level.enumerate({
       context: node.context,
       rows,
-      identifier: identifierOf(descent.request),
+      identifier: descent.request.identifier,
       ...(secondAttempt !== undefined ? { secondAttempt } : {}),
     });
     const children: WorkNode[] = [];
@@ -372,7 +324,7 @@ export class ErrorTreeExecutor {
       const run = await this.deps.runSteps(
         level.perNode,
         {
-          ...createNodeContext(node.context, routing, levelStepIds(node.level)),
+          ...createNodeContext(node.context, routing, this.stepIdsOf(node.level)),
           reads: this.ledger.view(scope),
         },
         scope,
@@ -425,7 +377,6 @@ export class ErrorTreeExecutor {
     node.reads.set(level.target, { rows: total, present });
     vars.set(lookupStateVar(prefix), state);
     vars.set(logCountVar(prefix), String(total));
-    vars.set(logCountAllVisitsVar(prefix), String(total));
     if (level.exclusions !== undefined && level.exclusions.length > 0) {
       // The exclusions are evaluated on every row read for this parent.
       const stepResults = new Map(node.context.stepResults);
@@ -585,17 +536,12 @@ function rowIdentities(spec: ErrorNodeSpec, level: TreeLevel): ReadonlyArray<str
 
 /** Identity of a descent in a chain. */
 function descentKey(request: DescendRequest): string {
-  return `${request.target}|${request.kind}|${request.identifier}`;
+  return `${request.target}|${identifierKey(request.identifier)}`;
 }
 
 /** A route is covered by a branch with the same target and identifier. */
 function routeKey(request: DescendRequest): string {
-  return `${request.target}|${request.identifier}`;
-}
-
-/** The identifier of a descent, as the read takes it. */
-function identifierOf(request: DescendRequest): ReadIdentifier {
-  return { kind: request.kind, value: request.identifier };
+  return `${request.target}|${request.identifier.value}`;
 }
 
 /** The rows of two attempts, a row found by both kept once. */

@@ -1,15 +1,4 @@
-/** How much of a successful step's collected evidence reaches the occurrence. */
-type EvidenceRetention =
-  // Use for queries that already reject incomplete/capped results.
-  { readonly mode: 'all' } | { readonly mode: 'latest'; readonly limit: number; readonly timestampField: string };
-
-interface StepEvidenceBase {
-  readonly id: string;
-  readonly label: string;
-  readonly retention: EvidenceRetention;
-  /** Split outputs containing multiple query result sets without losing provenance. */
-  readonly filter?: { readonly field: string; readonly equals: string };
-}
+import type { StepEvidenceBase } from './StepEvidenceBase.js';
 
 /** Declared on the producing step descriptor; sourceStep is derived, never repeated. */
 export type StepEvidence =

@@ -1,4 +1,5 @@
 import type { TreeLevel } from '../types/TreeLevel.js';
+import { levelSteps } from './levelSteps.js';
 
 /**
  * The step ids a level owns: its read, its scoped window steps, its per-node and after-descent steps.
@@ -15,7 +16,6 @@ export function levelStepIds(level: TreeLevel): ReadonlyArray<string> {
   return [
     ...(level.read !== undefined ? [level.read.id] : []),
     ...(level.scopedSteps ?? []),
-    ...(level.perNode ?? []).map((descriptor) => descriptor.step.id),
-    ...(level.afterDescend ?? []).map((descriptor) => descriptor.step.id),
+    ...levelSteps(level).map((descriptor) => descriptor.step.id),
   ];
 }

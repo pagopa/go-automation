@@ -1,14 +1,8 @@
 import { compileRegex } from '@pagopa/go-common/utils';
 import type { KnownUrl } from './KnownUrl.js';
 import type { KnownUrlMatch } from './KnownUrlMatch.js';
-
-/** Function shape used by {@link KnownUrlsRegistry} to test a candidate URL. */
-type UrlMatcherFn = (url: string) => boolean;
-
-interface CompiledEntry {
-  readonly known: KnownUrl;
-  readonly matcher: UrlMatcherFn;
-}
+import type { CompiledEntry } from './CompiledEntry.js';
+import type { UrlMatcherFn } from './UrlMatcherFn.js';
 
 /**
  * Immutable registry of known URLs.

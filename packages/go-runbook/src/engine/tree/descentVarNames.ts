@@ -2,7 +2,7 @@
 export const BRANCH_OUTCOME_VAR = 'branchOutcome';
 
 /** Suffixes of the variables a descent publishes on its parent, after the prefix of the level. */
-const DESCENT_SUFFIXES: ReadonlyArray<string> = ['LookupState', 'LogCountAllVisits', 'LogCount'];
+const DESCENT_SUFFIXES: ReadonlyArray<string> = ['LookupState', 'LogCount'];
 
 /** Separator of an exclusion variable: `<prefix>Exclusion.<name>`. */
 const EXCLUSION_INFIX = 'Exclusion.';
@@ -33,16 +33,6 @@ export function logCountVar(prefix: string): string {
 }
 
 /**
- * The variable, published on the parent, with the rows every read of the child level found for it.
- *
- * @param prefix - Variable prefix of the child level
- * @returns `<prefix>LogCountAllVisits`
- */
-export function logCountAllVisitsVar(prefix: string): string {
-  return `${prefix}LogCountAllVisits`;
-}
-
-/**
  * The variable, published on the parent, with whether an excluded diagnosis is in the child read.
  *
  * @param prefix - Variable prefix of the child level
@@ -58,7 +48,7 @@ export function exclusionVar(prefix: string, name: string): string {
  *
  * @param name - Variable name
  * @param prefix - Variable prefix of the child level
- * @returns `true` for `<prefix>LookupState`, `<prefix>LogCount`, `<prefix>LogCountAllVisits`, `<prefix>Exclusion.*`
+ * @returns `true` for `<prefix>LookupState`, `<prefix>LogCount`, `<prefix>Exclusion.*`
  */
 export function isDescentVar(name: string, prefix: string): boolean {
   if (!name.startsWith(prefix)) return false;

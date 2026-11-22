@@ -5,8 +5,6 @@
  */
 export interface ValidationErrorCodes {
   readonly DUPLICATE_STEP_ID: true;
-  readonly INVALID_GOTO_REF: true;
-  readonly LOOP_DETECTED: true;
   readonly DUPLICATE_CASE_ID: true;
   readonly UNKNOWN_SUPERSEDED_CASE: true;
   readonly SUPERSEDES_CYCLE: true;

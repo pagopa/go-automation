@@ -1,43 +1,25 @@
-import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { omitUndefined } from '@pagopa/go-common/utils';
-
-import type { Step } from '../../../../../engine/types/Step.js';
-import type { StepKind } from '../../../../../engine/types/StepKind.js';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
-import type { StepResult } from '../../../../../engine/types/StepResult.js';
-import { readStepOutput } from '../../../../../engine/context/readStepOutput.js';
-
+import type { RunbookContext, Step, StepKind, StepResult } from '../../../../../engine/index.js';
+import { readStepOutput } from '../../../../../engine/index.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
 import type { AccessLogSchema } from '../accessLog/AccessLogSchema.js';
+import { readAccessLogField } from '../accessLog/accessLogRow.js';
 import type { ApiGwAuthorizerFailureCheckConfig } from '../types/ApiGwAuthorizerFailureCheckConfig.js';
 import type { ApiGwAuthorizerLambdaConfig } from '../types/ApiGwAuthorizerLambdaConfig.js';
+import type { CloudWatchLogsRow } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRow.js';
+import type { CloudWatchLogsRows } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRows.js';
+import type { ApiGwAuthorizerFailureInfo } from './ApiGwAuthorizerFailureInfo.js';
+import type { ApiGwAuthorizerReporterInput } from '../reporting/ApiGwAuthorizerReporterInput.js';
+import type { AuthorizerEvidence } from './AuthorizerEvidence.js';
+import type { EvaluateApiGwAuthorizerFailureConfig } from './EvaluateApiGwAuthorizerFailureConfig.js';
 
 const DEFAULT_STATUS_THRESHOLD = 500;
 
-export type ApiGwAuthorizerFailureOutcome = 'timeout' | 'error';
-type ApiGwAuthorizerFailureType = 'timeout' | 'status-error';
-
-export interface ApiGwAuthorizerFailureInfo {
-  readonly outcome: ApiGwAuthorizerFailureOutcome;
-  readonly failureType: ApiGwAuthorizerFailureType;
-  readonly lambdaName: string;
-  readonly authorizerStatus: string;
-  readonly timeoutMs: number;
-  readonly latencyMs?: number;
-  readonly requestId?: string;
-  readonly path?: string;
-  readonly httpMethod?: string;
-}
-
-export interface EvaluateApiGwAuthorizerFailureConfig {
-  readonly id: string;
-  readonly label: string;
-  readonly fromStep: string;
-  readonly schema: AccessLogSchema;
-  readonly check: ApiGwAuthorizerFailureCheckConfig;
-  readonly queryProfileId: string;
-}
-
+/**
+ * Checks the Lambda authorizer on the access-log rows of the request: an authorizer status at or above the threshold
+ * is a timeout when the latency reaches the timeout of the authorizer, an error otherwise, and stops the chain.
+ */
 export class EvaluateApiGwAuthorizerFailureStep implements Step<ApiGwAuthorizerFailureInfo | undefined> {
   readonly id: string;
   readonly label: string;
@@ -86,7 +68,7 @@ export class EvaluateApiGwAuthorizerFailureStep implements Step<ApiGwAuthorizerF
       };
     }
 
-    const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = upstream.value;
+    const rows: CloudWatchLogsRows = upstream.value;
     const reporter = new ApiGwReporter(context.services.reporter);
     // The rows of one request: a timeout explains it best, then the first authorizer error.
     let failure: ApiGwAuthorizerFailureInfo | undefined;
@@ -100,12 +82,12 @@ export class EvaluateApiGwAuthorizerFailureStep implements Step<ApiGwAuthorizerF
       }
     }
     if (failure !== undefined) {
-      reporter?.apiGwAuthorizerEvaluation(toReporterInput(failure));
+      reporter.apiGwAuthorizerEvaluation(toReporterInput(failure));
       return this.toResolvedResult(failure);
     }
 
     const firstEvidence = this.extractEvidence(rows[0]);
-    reporter?.apiGwAuthorizerEvaluation({
+    reporter.apiGwAuthorizerEvaluation({
       lambdaName: firstEvidence?.authorizer.lambdaName ?? this.check.defaultAuthorizer?.lambdaName ?? 'n/a',
       outcome: 'none',
       ...omitUndefined({
@@ -121,7 +103,7 @@ export class EvaluateApiGwAuthorizerFailureStep implements Step<ApiGwAuthorizerF
     return this.toNoErrorResult(firstEvidence);
   }
 
-  private evaluateRow(row: ReadonlyArray<GOLogsInsightsResultField>): ApiGwAuthorizerFailureInfo | undefined {
+  private evaluateRow(row: CloudWatchLogsRow): ApiGwAuthorizerFailureInfo | undefined {
     const evidence = this.extractEvidence(row);
     if (evidence === undefined) return undefined;
 
@@ -151,11 +133,11 @@ export class EvaluateApiGwAuthorizerFailureStep implements Step<ApiGwAuthorizerF
     return undefined;
   }
 
-  private extractEvidence(row: ReadonlyArray<GOLogsInsightsResultField> | undefined): AuthorizerEvidence | undefined {
+  private extractEvidence(row: CloudWatchLogsRow | undefined): AuthorizerEvidence | undefined {
     if (row === undefined || this.schema.authorizer === undefined) return undefined;
 
-    const path = this.sanitize(readRowField(row, this.schema.pathField));
-    const httpMethod = this.sanitize(readRowField(row, this.schema.httpMethodField));
+    const path = readAccessLogField(row, this.schema.pathField, this.schema);
+    const httpMethod = readAccessLogField(row, this.schema.httpMethodField, this.schema);
     const authorizer = this.selectAuthorizer(path, httpMethod);
     if (authorizer === undefined) return undefined;
 
@@ -169,11 +151,6 @@ export class EvaluateApiGwAuthorizerFailureStep implements Step<ApiGwAuthorizerF
     };
   }
 
-  /**
-   * The row of the request the access-log parser selected, by the exact position it published. Without a parser (no
-   * position published) there is no selection: the gate is the first reader of the access log, and any failing row
-   * ends the chain.
-   */
   private toResolvedResult(info: ApiGwAuthorizerFailureInfo): StepResult<ApiGwAuthorizerFailureInfo | undefined> {
     const vars: Record<string, string> = {
       apiGwAuthorizerOutcome: info.outcome,
@@ -229,22 +206,12 @@ export class EvaluateApiGwAuthorizerFailureStep implements Step<ApiGwAuthorizerF
     return this.check.defaultAuthorizer;
   }
 
-  private pickFirstMeaningfulField(
-    row: ReadonlyArray<GOLogsInsightsResultField>,
-    fields: ReadonlyArray<string>,
-  ): string | undefined {
+  private pickFirstMeaningfulField(row: CloudWatchLogsRow, fields: ReadonlyArray<string>): string | undefined {
     for (const field of fields) {
-      const value = this.sanitize(readRowField(row, field));
+      const value = readAccessLogField(row, field, this.schema);
       if (value !== undefined) return value;
     }
     return undefined;
-  }
-
-  private sanitize(raw: string | undefined): string | undefined {
-    const trimmed = (raw ?? '').trim();
-    if (trimmed === '') return undefined;
-    if (this.schema.notApplicableSentinels.includes(trimmed)) return undefined;
-    return trimmed;
   }
 
   private parseLatency(raw: string | undefined): number | undefined {
@@ -265,27 +232,6 @@ function buildAuthorizerMessage(info: ApiGwAuthorizerFailureInfo): string {
 function baseMessage(info: ApiGwAuthorizerFailureInfo): string {
   if (info.failureType === 'timeout') return `Timeout Lambda authorizer ${info.lambdaName}`;
   return `Errore Lambda authorizer ${info.lambdaName}`;
-}
-
-interface AuthorizerEvidence {
-  readonly authorizer: ApiGwAuthorizerLambdaConfig;
-  readonly authorizerStatus?: string;
-  readonly latencyMs?: number;
-  readonly requestId?: string;
-  readonly path?: string;
-  readonly httpMethod?: string;
-}
-
-interface ApiGwAuthorizerReporterInput {
-  readonly lambdaName: string;
-  readonly authorizerStatus?: string;
-  readonly authorizerLatencyMs?: number;
-  readonly authorizerRequestId?: string;
-  readonly timeoutMs?: number;
-  readonly path?: string;
-  readonly httpMethod?: string;
-  readonly outcome: 'none' | 'timeout' | 'error';
-  readonly failureType?: string;
 }
 
 function toReporterInput(info: ApiGwAuthorizerFailureInfo): ApiGwAuthorizerReporterInput {

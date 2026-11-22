@@ -2,7 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { Condition, KnownCase } from '../../../engine/index.js';
-import { lambda, SEND_DOWNSTREAMS } from '../../../toolkits/send/index.js';
+import { SEND_DOWNSTREAMS } from '../../../toolkits/send/index.js';
+import { matchDownstreamErrorPattern } from '../../../toolkits/common/families/lambda/helpers/matchDownstreamErrorPattern.js';
 
 import { KNOWN_CASES as TOKEN_EXCHANGE_CASES } from '../lambda/pn-tokenExchangeLambda-LogInvocationErrors-Alarm/knownCases.js';
 import { KNOWN_CASES as IO_AUTHORIZER_CASES } from '../lambda/pn-ioAuthorizerLambda-LogInvocationErrors-Alarm/knownCases.js';
@@ -110,7 +111,7 @@ describe('lambda runbook known cases', () => {
     );
     for (const message of [SPID_KEYS_TIMEOUT, IDP_CERT_ERROR]) {
       assert.strictEqual(
-        lambda.matchDownstreamErrorPattern(message, LOLLIPOP_AUTHORIZER_DOWNSTREAM_PATTERNS),
+        matchDownstreamErrorPattern(message, LOLLIPOP_AUTHORIZER_DOWNSTREAM_PATTERNS),
         SEND_DOWNSTREAMS.APP_IO,
       );
     }

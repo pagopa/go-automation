@@ -1,10 +1,4 @@
-/** An operator field; vars references also populate details.diagnostics with the declared type. */
-interface RunbookOutputField {
-  readonly name: string;
-  readonly label: string;
-  readonly ref: `vars.${string}` | `params.${string}`;
-  readonly valueType: 'string' | 'integer';
-}
+import type { RunbookOutputField } from './RunbookOutputField.js';
 
 /** Family-independent output for runbooks with custom diagnostic steps. */
 export interface RunbookOutputDefinition {

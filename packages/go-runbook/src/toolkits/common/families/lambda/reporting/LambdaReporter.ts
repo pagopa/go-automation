@@ -1,30 +1,7 @@
 import type { TreeNode } from '@pagopa/go-common/render';
-
-import type { RunbookReporter } from '../../../../../engine/reporting/RunbookReporter.js';
-import type { LambdaTerminationReason } from '../types/LambdaTerminationReason.js';
-import type { LambdaErrorCategory } from '../types/LambdaErrorCategory.js';
-
-/** Outcome fields surfaced by the parse step. */
-export interface LambdaResultInfo {
-  readonly errorCount: number;
-  readonly category: LambdaErrorCategory;
-  readonly requestId?: string;
-  readonly runtimeStatus?: string;
-  readonly durationMs?: number;
-  readonly memorySizeMb?: number;
-  readonly maxMemoryUsedMb?: number;
-  readonly downstreamTarget?: string;
-}
-
-/** Termination payload rendered by the closing summary. */
-export interface LambdaTermination {
-  readonly reason: LambdaTerminationReason;
-  readonly matchedCaseIds: ReadonlyArray<string>;
-  readonly category?: string;
-  readonly downstreamTarget?: string;
-  readonly errorMessage?: string;
-  readonly requestId?: string;
-}
+import type { RunbookReporter } from '../../../../../engine/index.js';
+import { queryFailedNode } from '../../../reporting/queryFailedNode.js';
+import type { LambdaResultInfo } from './LambdaResultInfo.js';
 
 /** True when an optional string carries something to print. */
 function present(value: string | undefined): value is string {
@@ -43,11 +20,11 @@ export class LambdaReporter {
   constructor(private readonly reporter: RunbookReporter) {}
 
   sectionPrepare(lambdaName: string, logGroup: string, eventSource?: string): void {
-    this.section('Preparazione: query Lambda');
-    this.tree([
+    this.reporter.section('Preparazione: query Lambda');
+    this.reporter.add(
       { label: `Lambda: ${lambdaName}${present(eventSource) ? `  (eventSource: ${eventSource})` : ''}` },
       { label: `Log group: ${logGroup}` },
-    ]);
+    );
   }
 
   lambdaResult(info: LambdaResultInfo): void {
@@ -68,82 +45,20 @@ export class LambdaReporter {
       nodes.push({ label: `Downstream individuato: ${info.downstreamTarget}` });
     }
     nodes.push({ label: `requestId: ${present(info.requestId) ? info.requestId : 'non disponibile'}` });
-    this.tree(nodes);
+    this.reporter.add(...nodes);
   }
 
   invocation(requestId: string, logCount: number): void {
-    this.section('Flusso invocazione (per requestId)');
-    this.tree([{ label: `Query CloudWatch [filter: ${requestId}]` }, { label: `Log trovati: ${logCount}` }]);
+    this.reporter.section('Flusso invocazione (per requestId)');
+    this.reporter.add({ label: `Query CloudWatch [filter: ${requestId}]` }, { label: `Log trovati: ${logCount}` });
   }
 
   downstream(name: string, logGroup: string, logCount: number): void {
-    this.section(`Downstream: ${name}`);
-    this.tree([{ label: `Log group: ${logGroup}` }, { label: `Log trovati: ${logCount}` }]);
+    this.reporter.section(`Downstream: ${name}`);
+    this.reporter.add({ label: `Log group: ${logGroup}` }, { label: `Log trovati: ${logCount}` });
   }
 
   queryFailed(logGroups: ReadonlyArray<string>, errorMessage: string): void {
-    const children: TreeNode[] = [];
-    if (logGroups.length > 0) {
-      children.push({ label: `Log group${logGroups.length === 1 ? '' : 's'}: ${logGroups.join(', ')}` });
-    }
-    children.push({ label: `Causa: ${errorMessage}` });
-    this.tree([{ label: '\u26a0 Query fallita', children }]);
-  }
-
-  stopSummary(termination: LambdaTermination): void {
-    this.section('Esecuzione terminata');
-    const nodes: TreeNode[] = [];
-    if (present(termination.category)) {
-      nodes.push({ label: `Categoria errore: ${termination.category}` });
-    }
-    const ids = termination.matchedCaseIds;
-    switch (termination.reason) {
-      case 'known-case':
-        nodes.push(
-          ids.length <= 1
-            ? { label: `Esito: caso noto${ids[0] !== undefined ? ` (${ids[0]})` : ''}` }
-            : {
-                label: `Casi noti rilevati: ${ids.length}`,
-                children: ids.map((id) => ({ label: id })),
-              },
-        );
-        break;
-      case 'downstream':
-        nodes.push(
-          { label: `Esito: errore downstream (${termination.downstreamTarget ?? 'n/a'})` },
-          {
-            label: present(termination.errorMessage)
-              ? `Errore: ${termination.errorMessage}`
-              : 'Nessun error message disponibile',
-          },
-        );
-        break;
-      case 'no-errors':
-        nodes.push({ label: 'Esito: nessun errore individuato nella finestra temporale' });
-        break;
-      case 'no-match':
-        nodes.push(
-          { label: 'Esito: caso non riconosciuto' },
-          {
-            label: present(termination.errorMessage)
-              ? `Errore pi\u00f9 rappresentativo: ${termination.errorMessage}`
-              : 'Nessun error message disponibile',
-          },
-        );
-        break;
-      default: {
-        const exhaustive: never = termination.reason;
-        throw new Error(`Unknown TerminationReason: ${String(exhaustive)}`);
-      }
-    }
-    this.tree(nodes);
-  }
-
-  private section(title: string): void {
-    this.reporter.section(title);
-  }
-
-  private tree(nodes: ReadonlyArray<TreeNode>): void {
-    this.reporter.add(...nodes);
+    this.reporter.add(queryFailedNode(logGroups, errorMessage));
   }
 }

@@ -1,5 +1,11 @@
 import { BFF_READ_TIMEOUT, BFF_READ_TIMEOUT_VAR } from './bffReadTimeout.js';
-import { apiGwPathMatches, apiGwStatusIs, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import {
+  downstreamMarkerPattern,
+  apiGwPathMatches,
+  apiGwStatusIs,
+  knownCase,
+  SEND_DOWNSTREAMS,
+} from '../../../../toolkits/send/index.js';
 import {
   all,
   any,
@@ -39,7 +45,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       varMatches('bffErrorMsg', '500 Internal Server Error from GET http://[^\\s"\\\\]+/ext-registry/pa/v1/groups\\b'),
       stepEvidenceMatches(
         EXTERNAL_REGISTRIES,
-        '\\[DOWNSTREAM\\] Service SelfcarePA returned errors=400 Bad Request from GET https://api\\.selfcare\\.pagopa\\.it/external/v2/user-groups\\b',
+        `${downstreamMarkerPattern('SelfcarePA', {
+          status: '400 Bad Request',
+          method: 'GET',
+          endpoint: 'https://api.selfcare.pagopa.it/external/v2/user-groups',
+        })}\\b`,
       ),
       anyStepEvidenceMatches(EXTERNAL_REGISTRIES_ROWS, 'Invalid tenant context'),
     ),

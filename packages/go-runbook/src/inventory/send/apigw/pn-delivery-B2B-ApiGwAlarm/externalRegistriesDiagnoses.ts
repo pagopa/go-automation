@@ -1,3 +1,4 @@
+import { downstreamMarkerPattern } from '../../../../toolkits/send/index.js';
 import {
   all,
   any,
@@ -12,8 +13,7 @@ const STEP = 'query-pn-external-registries';
 /** The other error rows of the same identifier, beside the row of a node. */
 const SIBLINGS = `${STEP}.siblings`;
 
-const SELFCARE_TIMEOUT =
-  '\\[DOWNSTREAM\\] Service SelfcarePG returned errors=[\\s\\S]*io\\.netty\\.handler\\.timeout\\.ReadTimeoutException';
+const SELFCARE_TIMEOUT = `${downstreamMarkerPattern('SelfcarePG')}[\\s\\S]*io\\.netty\\.handler\\.timeout\\.ReadTimeoutException`;
 const USER_GROUPS_REQUEST = 'Request to GET https://api\\.selfcare\\.pagopa\\.it/external/v2/user-groups';
 const READ_TIMEOUT_CAUSE = 'Caused by: io\\.netty\\.handler\\.timeout\\.ReadTimeoutException';
 const RETRY = 'Exception caught by retry';

@@ -2,12 +2,13 @@ import type { LambdaAlarmConfig } from '../types/LambdaAlarmConfig.js';
 import type { LambdaQueryProfile } from '../profiles/LambdaQueryProfile.js';
 import { isValidRegex } from '@pagopa/go-common/utils';
 import {
-  assertKnownCaseStepRefs,
   assertStepDescriptorIds,
   failAlarmConfig,
   type AlarmConfigValidationContext,
 } from '../../../builders/alarmConfigValidation.js';
 import { REQUEST_ID_FILTER_PLACEHOLDER } from '../helpers/lambdaRequestIdFilter.js';
+import { LAMBDA_PIPELINE_STEP_IDS } from './LAMBDA_PIPELINE_STEP_IDS.js';
+import { lambdaDownstreamReadStepId } from './lambdaDownstreamReadStepId.js';
 
 const REQUEST_ID_PLACEHOLDER = REQUEST_ID_FILTER_PLACEHOLDER;
 
@@ -17,27 +18,6 @@ function context(config: LambdaAlarmConfig): AlarmConfigValidationContext {
 
 function fail(config: LambdaAlarmConfig, message: string): never {
   failAlarmConfig(context(config), message);
-}
-
-/**
- * Deterministic set of step ids wired into the Lambda pipeline for a config.
- */
-function computeWiredStepIds(config: LambdaAlarmConfig): ReadonlySet<string> {
-  const ids = new Set<string>([
-    'prepare-lambda-section',
-    'query-lambda-errors',
-    'parse-lambda-errors',
-    'query-lambda-invocation',
-    'analyze-lambda-invocation',
-    'descend-lambda',
-  ]);
-  for (const hook of config.hooks ?? []) {
-    ids.add(hook.step.id);
-  }
-  for (const downstream of config.downstreams ?? []) {
-    ids.add(`query-${downstream.name}`);
-  }
-  return ids;
 }
 
 /**
@@ -87,38 +67,27 @@ function validateDownstreams(config: LambdaAlarmConfig): void {
 }
 
 /**
- * Fail-fast on step-id collisions: duplicate/reserved preStep ids and
- * downstream query ids that collide with reserved pipeline ids.
+ * Fail-fast on step-id collisions: duplicate/reserved hook ids and
+ * downstream read ids that collide with reserved pipeline ids.
  */
 function validateNoStepIdCollisions(config: LambdaAlarmConfig): void {
-  const reserved = computeWiredStepIds({ ...config, hooks: [], downstreams: [] });
-  const preStepIds = assertStepDescriptorIds(context(config), config.hooks, reserved, 'hook');
+  const reserved: ReadonlySet<string> = new Set(Object.values(LAMBDA_PIPELINE_STEP_IDS));
+  const hookIds = assertStepDescriptorIds(context(config), config.hooks, reserved, 'hook');
 
+  // Only a downstream with logs is read, so only its read occupies a step id.
   for (const downstream of config.downstreams ?? []) {
-    const stepId = `query-${downstream.name}`;
+    if (downstream.logGroup === undefined) continue;
+    const stepId = lambdaDownstreamReadStepId(downstream.name);
     if (reserved.has(stepId)) {
       fail(
         config,
         `downstream "${downstream.name}" produces step id "${stepId}" which collides with a reserved pipeline step id.`,
       );
     }
-    if (preStepIds.has(stepId)) {
+    if (hookIds.has(stepId)) {
       fail(config, `downstream "${downstream.name}" produces step id "${stepId}" which collides with a preStep id.`);
     }
   }
-}
-
-/**
- * Fail-fast when a known case condition references a `steps.X` step that is
- * not wired in this runbook (typically a typo or a missing downstream).
- */
-function validateKnownCaseStepRefs(config: LambdaAlarmConfig): void {
-  assertKnownCaseStepRefs(
-    context(config),
-    config.knownCases,
-    computeWiredStepIds(config),
-    '. Remove the reference or declare the step/downstream.',
-  );
 }
 
 /**
@@ -133,5 +102,4 @@ export function validateLambdaAlarmConfig(config: LambdaAlarmConfig, profile: La
   validateInvocationPlaceholder(config, profile);
   validateDownstreams(config);
   validateNoStepIdCollisions(config);
-  validateKnownCaseStepRefs(config);
 }

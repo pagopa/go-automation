@@ -1,5 +1,5 @@
 /**
- * Bounds of the Watchtower analysis draft contract (§5.1).
+ * Bounds of the Watchtower analysis draft contract.
  *
  * They live in one place because two independent guards enforce them:
  * `assertAnalysisAnnotations` at registration time, and `fitAnalysisDraft` when
@@ -17,6 +17,6 @@ export const ANALYSIS_DRAFT_BOUNDS = {
   IGNORE_REASON_CODE_LENGTH: 100,
   /** Maximum items per reference array. */
   ARRAY_ITEMS: 64,
-  /** Raw budget of the serialized draft enforced by Watchtower (§5.4). */
+  /** Raw budget of the serialized draft enforced by Watchtower. */
   DRAFT_BYTES: 65_536,
 } as const;

@@ -1,4 +1,4 @@
-import { knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import { downstreamMarkerPattern, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
 import {
   all,
   any,
@@ -109,7 +109,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     condition: any(
       stepEvidenceMatches(
         'query-pn-data-vault',
-        '\\[DOWNSTREAM\\] Service PersonalDataVault_UserRegistry returned errors=500 Internal Server Error',
+        downstreamMarkerPattern('PersonalDataVault_UserRegistry', { status: '500 Internal Server Error' }),
       ),
       stepEvidenceMatches(
         'query-pn-data-vault',

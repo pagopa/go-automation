@@ -1,27 +1,21 @@
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import type { Step } from '../../../../../engine/types/Step.js';
-import type { StepKind } from '../../../../../engine/types/StepKind.js';
-import type { StepResult } from '../../../../../engine/types/StepResult.js';
+import type { Step, StepKind, StepResult } from '../../../../../engine/index.js';
+import { executeStep, readStepOutput } from '../../../../../engine/index.js';
 import type { TimeRangeFromParams } from '../../../time/TimeRangeFromParams.js';
-import { readStepOutput } from '../../../../../engine/context/readStepOutput.js';
-import type { StepCoverage } from '../../../../../engine/types/StepCoverage.js';
-import type { StepDiagnostics } from '../../../../../engine/tracing/StepDiagnostics.js';
-import { mergeCloudWatchLogsDiagnostics } from '../../../steps/aws/cloudwatch-logs/mergeCloudWatchLogsDiagnostics.js';
-import { LAMBDA_REQUEST_ID, lambdaInvocationQuery } from '../helpers/lambdaRequestIdFilter.js';
-import { lambdaRowRequestId } from '../helpers/lambdaRowRequestId.js';
+import {
+  INVOCATION_BATCH_SIZE,
+  lambdaInvocationQuery,
+  sampleLambdaInvocationQuery,
+} from '../helpers/lambdaRequestIdFilter.js';
+import { requestIdsOf } from '../helpers/requestIdsOf.js';
 import { rowsOfInvocations } from '../helpers/rowsOfInvocations.js';
 import { resolveTimeRange } from '../../../time/resolveTimeRange.js';
-import { executeStep } from '../../../../../engine/steps/execution/executeStep.js';
-import { executeCloudWatchLogsQuery } from '../../../steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
+import { readCloudWatchLogsBatches } from '../../../steps/aws/cloudwatch-logs/readCloudWatchLogsBatches.js';
+import { SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS } from '../../../steps/aws/cloudwatch-logs/SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS.js';
 import { LambdaReporter } from '../reporting/LambdaReporter.js';
 import { OperationalStep } from '../../../steps/OperationalStep.js';
 import type { OperationalContext } from '../../../services/OperationalContext.js';
 import type { OperationalServiceName } from '../../../services/OperationalServiceName.js';
-
-type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
-
-/** Request ids per invocation query. */
-const INVOCATION_BATCH_SIZE = 25;
+import type { CloudWatchLogsRows } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRows.js';
 
 /**
  * Configuration of {@link QueryLambdaInvocationStep}.
@@ -40,14 +34,14 @@ export interface QueryLambdaInvocationConfig {
 /**
  * Reconstructs the invocation flow of every request id of the error scan, a batch of request ids per query. The
  * rows are divided among the invocations by the engine; a batch that cannot be read is an `unavailable` coverage
- * entry, the others are kept.
+ * entry for its request ids, the others are kept. A cancellation or a configuration error of the target ends the step.
  *
  * @example
  * ```typescript
  * new QueryLambdaInvocationStep({ id: 'query-lambda-invocation', label: '…', lambdaLogGroup, queryTemplate, timeRangeFromParams });
  * ```
  */
-export class QueryLambdaInvocationStep extends OperationalStep<Rows> implements Step<Rows> {
+export class QueryLambdaInvocationStep extends OperationalStep<CloudWatchLogsRows> implements Step<CloudWatchLogsRows> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -66,7 +60,7 @@ export class QueryLambdaInvocationStep extends OperationalStep<Rows> implements 
 
   getTraceInfo(): Readonly<Record<string, unknown>> {
     return {
-      query: lambdaInvocationQuery(this.config.queryTemplate, ['00000000-0000-0000-0000-000000000000']),
+      query: sampleLambdaInvocationQuery(this.config.queryTemplate),
       logGroups: [this.config.lambdaLogGroup],
       queryKind: 'lambda-invocation-flow',
       batchSize: INVOCATION_BATCH_SIZE,
@@ -77,62 +71,33 @@ export class QueryLambdaInvocationStep extends OperationalStep<Rows> implements 
     return ['cloudWatchLogs'];
   }
 
-  override async execute(context: OperationalContext): Promise<StepResult<Rows>> {
-    const upstream = readStepOutput<Rows>(context, this.fromStep);
+  override async execute(context: OperationalContext): Promise<StepResult<CloudWatchLogsRows>> {
+    const upstream = readStepOutput<CloudWatchLogsRows>(context, this.fromStep);
     if (!upstream.ok) return upstream.failure;
-    const requestIds = [
-      ...new Set(
-        upstream.value.flatMap((row) => {
-          const requestId = lambdaRowRequestId(row);
-          return requestId !== undefined && LAMBDA_REQUEST_ID.test(requestId) ? [requestId] : [];
-        }),
-      ),
-    ];
+    const requestIds = requestIdsOf(upstream.value);
     if (requestIds.length === 0) {
       return { success: true, output: [], vars: { lambdaInvocationLogCount: '0' } };
     }
 
-    return executeStep('Lambda invocation query', async () => {
-      const timeRange = resolveTimeRange(context, this.config.timeRangeFromParams);
-      const rows: ReadonlyArray<GOLogsInsightsResultField>[] = [];
-      const coverage: StepCoverage[] = [];
-      const diagnostics: (StepDiagnostics | undefined)[] = [];
-      let failed = 0;
-      for (let start = 0; start < requestIds.length; start += INVOCATION_BATCH_SIZE) {
-        const batch = requestIds.slice(start, start + INVOCATION_BATCH_SIZE);
-        try {
-          const result = await executeCloudWatchLogsQuery(
-            context,
-            [this.config.lambdaLogGroup],
-            lambdaInvocationQuery(this.config.queryTemplate, batch),
-            timeRange,
-            {
-              ...(context.signal !== undefined ? { signal: context.signal } : {}),
-              logGroupResolutionMode: 'search-configured-profiles',
-            },
-          );
-          rows.push(...rowsOfInvocations(result.rows, batch));
-          coverage.push(...result.coverage);
-          diagnostics.push(result.diagnostics);
-        } catch (error: unknown) {
-          if (context.signal?.aborted === true) throw error;
-          failed += 1;
-          const detail = error instanceof Error ? error.message : String(error);
-          coverage.push({ source: this.config.lambdaLogGroup, complete: false, reason: 'unavailable', detail });
-        }
-      }
-      // No batch answered: the reconstruction failed.
-      if (failed === Math.ceil(requestIds.length / INVOCATION_BATCH_SIZE)) {
-        throw new Error(coverage[0]?.detail ?? 'Lambda invocation query failed');
-      }
-      new LambdaReporter(context.services.reporter).invocation(requestIds.join(', '), rows.length);
-      const merged = mergeCloudWatchLogsDiagnostics(diagnostics);
+    return executeStep(context, 'Lambda invocation query', async () => {
+      // A batch that cannot be read is unavailable for its request ids; no batch answered: the reconstruction failed.
+      const read = await readCloudWatchLogsBatches(context, {
+        logGroups: [this.config.lambdaLogGroup],
+        timeRange: resolveTimeRange(context, this.config.timeRangeFromParams),
+        options: SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS,
+        items: requestIds,
+        batchSize: INVOCATION_BATCH_SIZE,
+        query: (batch) => lambdaInvocationQuery(this.config.queryTemplate, batch),
+        identifier: (requestId) => ({ kind: 'requestId', value: requestId }),
+        rowsOf: (rows, batch) => rowsOfInvocations(rows, batch),
+      });
+      new LambdaReporter(context.services.reporter).invocation(requestIds.join(', '), read.rows.length);
       return {
         success: true,
-        output: rows,
-        vars: { lambdaInvocationLogCount: String(rows.length) },
-        ...(merged !== undefined ? { diagnostics: merged } : {}),
-        ...(coverage.length > 0 ? { coverage } : {}),
+        output: read.rows,
+        vars: { lambdaInvocationLogCount: String(read.rows.length) },
+        ...(read.diagnostics !== undefined ? { diagnostics: read.diagnostics } : {}),
+        ...(read.coverage.length > 0 ? { coverage: read.coverage } : {}),
       };
     });
   }

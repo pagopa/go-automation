@@ -1,10 +1,14 @@
+import { getErrorMessage } from '@pagopa/go-common/errors';
 import type { KnownCaseAnalysis } from '../KnownCaseAnalysis.js';
 import type { AnalysisLinkRef } from '../AnalysisLinkRef.js';
 import type { AnalysisResourceRef } from '../AnalysisResourceRef.js';
-import type { Runbook } from '../../../../engine/types/Runbook.js';
+import type { Runbook } from '../../../../engine/index.js';
 import type { RunbookProduct } from '../../registration/RunbookProduct.js';
 import { buildPotentialAnalysisDrafts } from '../draft/buildAnalysisDraft.js';
 import { ANALYSIS_DRAFT_BOUNDS } from '../draft/analysisDraftBounds.js';
+import type { AnalysisReferences } from './AnalysisReferences.js';
+import type { ReferenceDeclaration } from './ReferenceDeclaration.js';
+import type { ReferenceEqualityFn } from './ReferenceEqualityFn.js';
 
 const MAX_NAME_LENGTH = ANALYSIS_DRAFT_BOUNDS.NAME_LENGTH;
 const MAX_TEXT_LENGTH = ANALYSIS_DRAFT_BOUNDS.TEXT_LENGTH;
@@ -13,15 +17,6 @@ const MAX_LINK_TYPE_LENGTH = ANALYSIS_DRAFT_BOUNDS.LINK_TYPE_LENGTH;
 const MAX_IGNORE_REASON_CODE_LENGTH = ANALYSIS_DRAFT_BOUNDS.IGNORE_REASON_CODE_LENGTH;
 const MAX_DRAFT_BYTES = ANALYSIS_DRAFT_BOUNDS.DRAFT_BYTES;
 const MAX_ARRAY_ITEMS = ANALYSIS_DRAFT_BOUNDS.ARRAY_ITEMS;
-
-type AnalysisReferences = Pick<KnownCaseAnalysis, 'resources' | 'downstreams' | 'finalActions' | 'links'>;
-
-interface ReferenceDeclaration<T> {
-  readonly value: T;
-  readonly location: string;
-}
-
-type ReferenceEqualityFn<T> = (left: T, right: T) => boolean;
 
 /**
  * Rejects a runbook whose analysis annotations would produce an invalid or
@@ -129,7 +124,7 @@ function assertResources(
   }
 }
 
-/** Fails on a value outside the catalog of the declared product (§5.1.2). */
+/** Fails on a value outside the catalog of the declared product. */
 function assertInCatalog(
   runbookId: string,
   caseId: string | undefined,
@@ -246,7 +241,7 @@ function assertDraftBudget(runbookId: string, runbook: Runbook): void {
   try {
     drafts = buildPotentialAnalysisDrafts(runbook);
   } catch (error: unknown) {
-    throw new Error(`Runbook "${runbookId}": ${error instanceof Error ? error.message : String(error)}`, {
+    throw new Error(`Runbook "${runbookId}": ${getErrorMessage(error)}`, {
       cause: error,
     });
   }

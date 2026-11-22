@@ -1,17 +1,14 @@
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import type { RunbookContext } from '../../../../engine/types/RunbookContext.js';
-import type { Step } from '../../../../engine/types/Step.js';
-import type { StepKind } from '../../../../engine/types/StepKind.js';
-import type { StepResult } from '../../../../engine/types/StepResult.js';
+import type { RunbookContext, Step, StepKind, StepResult } from '../../../../engine/index.js';
 import type { TimeRangeFromParams } from '../../../common/time/TimeRangeFromParams.js';
 import { resolveTimeRange } from '../../../common/time/resolveTimeRange.js';
 import type { BuildInteropK8sApplicationLogsQueryFn } from '../types/BuildInteropK8sApplicationLogsQueryFn.js';
 import { OperationalStep } from '../../../common/steps/OperationalStep.js';
 import { executeCloudWatchLogsQuery } from '../../../common/steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
-import { interopLogsQueryOptions } from '../../helpers/interopLogsQueryOptions.js';
+import { SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS } from '../../../common/steps/aws/cloudwatch-logs/SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS.js';
 import { readNonBlankVar } from '../../helpers/readNonBlankVar.js';
 import type { OperationalContext } from '../../../common/services/OperationalContext.js';
 import type { OperationalServiceName } from '../../../common/services/OperationalServiceName.js';
+import type { CloudWatchLogsRows } from '../../../common/steps/aws/cloudwatch-logs/CloudWatchLogsRows.js';
 
 export interface QueryInteropApplicationLogsStepConfig {
   readonly id: string;
@@ -31,9 +28,13 @@ const DEFAULT_LOG_GROUP_VAR = 'interopLogGroup';
 const DEFAULT_POD_APP_VAR = 'interopPodApp';
 const DEFAULT_ENVIRONMENT_VAR = 'interopEnvironment';
 
+/**
+ * Reads the error rows of an INTEROP pod from its application log group; log group, pod and environment come from
+ * runbook variables.
+ */
 export class QueryInteropApplicationLogsStep
-  extends OperationalStep<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
-  implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
+  extends OperationalStep<CloudWatchLogsRows>
+  implements Step<CloudWatchLogsRows>
 {
   readonly id: string;
   readonly label: string;
@@ -83,9 +84,7 @@ export class QueryInteropApplicationLogsStep
     return ['cloudWatchLogs'];
   }
 
-  override async execute(
-    context: OperationalContext,
-  ): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
+  override async execute(context: OperationalContext): Promise<StepResult<CloudWatchLogsRows>> {
     const logGroup = readNonBlankVar(context, this.logGroupVar);
     if (logGroup === undefined) return missingVarFailure(this.logGroupVar);
     const podApp = readNonBlankVar(context, this.podAppVar);
@@ -100,7 +99,7 @@ export class QueryInteropApplicationLogsStep
       [logGroup],
       query,
       timeRange,
-      interopLogsQueryOptions(context),
+      SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS,
     );
     context.services.reporter.add({ label: `Log applicativi trovati: ${result.rows.length}` });
 

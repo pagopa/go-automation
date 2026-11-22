@@ -9,7 +9,6 @@ export { scanApplicationLogs } from '../../parsing/applicationLogs/scanApplicati
 export type { ApplicationLogsScan } from '../../parsing/applicationLogs/scanApplicationLogs.js';
 export type { TraceIdCandidateMatch } from '../../parsing/traceIds/TraceIdCandidateMatch.js';
 export { buildServiceOutputContext } from './output/buildServiceOutputContext.js';
-export type { BuildServiceOutputContextOptions } from './output/buildServiceOutputContext.js';
 export type { ServiceOutputContext } from './output/ServiceOutputContext.js';
 export { isServiceRunbookContext } from './output/ServiceRunbookContext.js';
 export type { ServiceRunbookContext } from './output/ServiceRunbookContext.js';

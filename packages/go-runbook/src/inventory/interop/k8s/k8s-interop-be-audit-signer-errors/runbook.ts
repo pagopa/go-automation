@@ -7,9 +7,14 @@ import { AUDIT_SIGNER_QUERY_PROFILE } from './queryProfile.js';
 const CONFLUENCE_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3130917378/k8s-interop-be-audit-signer-errors';
 
+/**
+ * Builds the k8s-interop-be-audit-signer-errors runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: alarm.runbookKey,
+    alarm,
     metadata: {
       name: alarm.runbookKey,
       description:
@@ -20,8 +25,6 @@ export function buildRunbook(): Runbook {
       tags: ['interop', 'k8s', 'service', 'audit', 'safe-storage'],
     },
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
-    service: { name: alarm.podApp, logGroup: alarm.logGroup, varPrefix: alarm.varPrefix },
-    resolveAlarmContext: alarm.resolveContext,
     queryProfile: AUDIT_SIGNER_QUERY_PROFILE,
     knownCases: KNOWN_CASES,
     analysisDefaults: {

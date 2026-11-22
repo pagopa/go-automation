@@ -22,13 +22,14 @@ import type { ExecutedCloudWatchLogsQuery } from './ExecutedCloudWatchLogsQuery.
  *   could not read anything still fails.
  * - A reader without statistics returns its rows; reaching the query limit is then `saturated`.
  *
- * Cancellation and configuration errors of the target always throw.
+ * The read carries the abort signal of the context. Cancellation and configuration errors of the target always throw.
  *
  * @param context - Context of the step, whose `cloudWatchLogs` service runs the read
  * @param logGroups - Log groups to read
  * @param query - Logs Insights query
  * @param timeRange - Time range of the read
- * @param options - Options of the read; `partialResults` follows the read policy of the context unless the caller sets it
+ * @param options - Options of the read, without the signal; `partialResults` follows the read policy of the context
+ *   unless the caller sets it
  * @returns The rows, the diagnostics and the coverage of the read
  * @throws Error when no read answered, or on cancellation and target configuration errors
  *
@@ -42,14 +43,19 @@ export async function executeCloudWatchLogsQuery(
   logGroups: ReadonlyArray<string>,
   query: string,
   timeRange: TimeRange,
-  options: AWSCloudWatchLogsQueryOptions,
+  options: Omit<AWSCloudWatchLogsQueryOptions, 'signal'>,
 ): Promise<ExecutedCloudWatchLogsQuery> {
   const service = context.services.cloudWatchLogs;
+  const signal = context.signal === undefined ? {} : { signal: context.signal };
 
   if (service.queryWithStatistics !== undefined) {
     // Partial reads only where the execution keeps partial evidence (an alarm analysis); a procedure reads strictly.
     const partialResults = context.readPolicy === 'partial';
-    const result = await service.queryWithStatistics(logGroups, query, timeRange, { partialResults, ...options });
+    const result = await service.queryWithStatistics(logGroups, query, timeRange, {
+      partialResults,
+      ...options,
+      ...signal,
+    });
     const failedReads = result.failedReads ?? [];
     // Nothing answered: the read failed as a whole, exactly as without partial results.
     const firstFailure = failedReads[0];
@@ -63,7 +69,7 @@ export async function executeCloudWatchLogsQuery(
     };
   }
 
-  const rows = await service.query(logGroups, query, timeRange, options);
+  const rows = await service.query(logGroups, query, timeRange, { ...options, ...signal });
   return {
     rows,
     coverage:

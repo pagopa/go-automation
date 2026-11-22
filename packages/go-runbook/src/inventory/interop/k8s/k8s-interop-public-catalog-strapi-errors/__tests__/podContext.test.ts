@@ -36,7 +36,6 @@ function context(
       ['startTime', '2026-10-06T00:31:08Z'],
       ['endTime', '2026-10-06T00:41:08Z'],
     ]),
-    logs: [],
     recoveredErrors: [],
     reads: EMPTY_RUNBOOK_READS,
     readPolicy: 'partial',

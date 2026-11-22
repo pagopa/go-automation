@@ -1,20 +1,18 @@
-import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { omitUndefined } from '@pagopa/go-common/utils';
+import { readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
-import type { ErrorNodeSpec } from '../../../../../engine/types/ErrorNodeSpec.js';
-import type { TreeEnumeratorFn } from '../../../../../engine/types/TreeEnumeratorFn.js';
-import { isRequestId } from '../../../../../engine/reads/isRequestId.js';
-import { extractTraceId } from '../../../../common/families/apigw/accessLog/extractTraceId.js';
+import type { ErrorNodeSpec, TreeEnumeratorFn } from '../../../../../engine/index.js';
+import { isRequestId, safeCorrelationValue } from '../../../../../engine/internal.js';
+import { traceIdReader } from '../../../../common/families/apigw/accessLog/extractTraceId.js';
 import {
   pickPrimaryStatusCode,
+  readAccessLogField,
   rowMeetsThreshold,
-  sanitizeApiGwField,
 } from '../../../../common/families/apigw/accessLog/accessLogRow.js';
 import { occurredAtOf } from '../../../../common/parsing/correlation/occurredAtOf.js';
-import { safeCorrelationValue } from '../../../../../engine/reads/safeCorrelationValue.js';
-import { canonicalTraceId } from '../../../../common/parsing/traceIds/canonicalTraceId.js';
+import { canonicalTraceId } from '../../../../common/parsing/traceIds/traceIdentity.js';
 import type { ApiGwRequestLevelConfig } from './ApiGwRequestLevelConfig.js';
-
-type Row = ReadonlyArray<GOLogsInsightsResultField>;
+import type { CloudWatchLogsRow } from '../../../../common/steps/aws/cloudwatch-logs/CloudWatchLogsRow.js';
 
 /**
  * The enumerator of the root level of a SEND API Gateway runbook: one node per request in error of the access log.
@@ -35,12 +33,13 @@ type Row = ReadonlyArray<GOLogsInsightsResultField>;
  */
 export function enumerateApiGwRequests(config: ApiGwRequestLevelConfig): TreeEnumeratorFn {
   const { schema } = config;
+  const readTraceId = traceIdReader(schema);
   return ({ context }) => {
     const rows = asRows(context.stepResults.get(config.accessLogStepId));
-    const requests = new Map<string, Row[]>();
+    const requests = new Map<string, CloudWatchLogsRow[]>();
     for (const [index, row] of rows.entries()) {
       if (!rowMeetsThreshold(row, config.minStatusCode, schema)) continue;
-      const requestId = sanitizeApiGwField(readRowField(row, schema.requestIdField), schema);
+      const requestId = readAccessLogField(row, schema.requestIdField, schema) ?? '';
       // A row without a usable request id is a request of its own.
       const key = isRequestId(requestId) ? requestId : `row:${String(index)}`;
       const group = requests.get(key) ?? [];
@@ -48,7 +47,7 @@ export function enumerateApiGwRequests(config: ApiGwRequestLevelConfig): TreeEnu
       requests.set(key, group);
     }
 
-    const executionRows = new Map<string, Row[]>();
+    const executionRows = new Map<string, CloudWatchLogsRow[]>();
     if (config.executionLogStepId !== undefined) {
       for (const row of asRows(context.stepResults.get(config.executionLogStepId))) {
         const requestId = readRowField(row, 'requestId') ?? '';
@@ -62,12 +61,12 @@ export function enumerateApiGwRequests(config: ApiGwRequestLevelConfig): TreeEnu
     const nodes = [...requests.entries()].map(([key, requestRows]): ErrorNodeSpec => {
       const first = requestRows[0] ?? [];
       const requestId = key.startsWith('row:') ? undefined : safeCorrelationValue(key);
-      const rawTrace = extractTraceId(first, schema) ?? '';
+      const rawTrace = readTraceId(first) ?? '';
       const traceId = safeCorrelationValue(canonicalTraceId(rawTrace));
       const label = [
         pickPrimaryStatusCode(first, schema),
-        sanitizeApiGwField(readRowField(first, schema.httpMethodField), schema),
-        sanitizeApiGwField(readRowField(first, schema.pathField), schema),
+        readAccessLogField(first, schema.httpMethodField, schema) ?? '',
+        readAccessLogField(first, schema.pathField, schema) ?? '',
       ]
         .filter((part) => part !== '')
         .join(' ');
@@ -82,8 +81,7 @@ export function enumerateApiGwRequests(config: ApiGwRequestLevelConfig): TreeEnu
         label: label !== '' ? label : 'richiesta in errore',
         ...(occurredAt !== undefined ? { occurredAt } : {}),
         correlation: {
-          ...(requestId !== undefined ? { requestId } : {}),
-          ...(traceId !== undefined ? { traceId } : {}),
+          ...omitUndefined({ requestId, traceId }),
         },
         // A request without request id was never read in the execution logs, whatever the window did.
         ...(config.executionLogStepId !== undefined && (requestId === undefined || incomplete)
@@ -110,6 +108,6 @@ export function enumerateApiGwRequests(config: ApiGwRequestLevelConfig): TreeEnu
 }
 
 /** The rows of a step output, or none. */
-function asRows(output: unknown): ReadonlyArray<Row> {
-  return Array.isArray(output) ? (output as ReadonlyArray<Row>) : [];
+function asRows(output: unknown): ReadonlyArray<CloudWatchLogsRow> {
+  return Array.isArray(output) ? (output as ReadonlyArray<CloudWatchLogsRow>) : [];
 }

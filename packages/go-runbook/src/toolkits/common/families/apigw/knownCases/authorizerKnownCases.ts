@@ -1,4 +1,4 @@
-import type { KnownCase } from '../../../../../engine/types/KnownCase.js';
+import type { KnownCase } from '../../../../../engine/index.js';
 import type { ApiGwAuthorizerFailureCheckConfig } from '../types/ApiGwAuthorizerFailureCheckConfig.js';
 
 /**

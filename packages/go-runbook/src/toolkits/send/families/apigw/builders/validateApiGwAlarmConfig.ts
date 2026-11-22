@@ -2,15 +2,15 @@ import type { ApiGwAlarmConfig } from '../types/ApiGwAlarmConfig.js';
 import type { ApiGwQueryProfile } from '../profiles/ApiGwQueryProfile.js';
 import { renderQueryTemplate } from '../../../../common/queries/renderQueryTemplate.js';
 import {
-  assertKnownCaseStepRefs,
   assertStepDescriptorIds,
   failAlarmConfig,
   type AlarmConfigValidationContext,
 } from '../../../../common/builders/alarmConfigValidation.js';
 import { getEffectiveExecutionLogGroup, isExecutionLogEnabled } from './executionLogEnablement.js';
+import { SEND_API_GW_STEP_IDS as STEP_IDS } from './SEND_API_GW_STEP_IDS.js';
 
 /**
- * V1: dry-run di `renderQueryTemplate` su tutti i template del profilo
+ * Dry-run di `renderQueryTemplate` su tutti i template del profilo
  * con valori dummy, per verificare la presenza dei placeholder
  * obbligatori. Fail-fast a build time invece che a runtime sulla prima
  * esecuzione del runbook.
@@ -45,11 +45,11 @@ function validatePlaceholders(profile: ApiGwQueryProfile): void {
 }
 
 /**
- * V2: parità config↔profilo. Se il config valorizza
+ * Parità config↔profilo. Se il config valorizza
  * `entryService.executionLogGroup` ma il profilo non ha la capability,
  * fail-fast: il runbook non gira mai gli step di execution log.
  *
- * V03/V04 (E2/D19): usa `getEffectiveExecutionLogGroup` per allineare
+ * Usa `getEffectiveExecutionLogGroup` per allineare
  * la semantica con `isExecutionLogEnabled` (stringa vuota/whitespace =
  * assente).
  */
@@ -106,65 +106,30 @@ function validateExecutionLogAnalysisMode(config: ApiGwAlarmConfig, profile: Api
 }
 
 /**
- * Calcola l'insieme degli step ID effettivamente cablati nella pipeline
- * dato il config risolto. È deterministico.
+ * The step ids the pipeline wires for the config, hooks excluded: the hooks must not take them.
  */
-function computeWiredStepIds(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): ReadonlySet<string> {
-  const ids = new Set<string>();
-  ids.add('prepare-api-gw-section');
-  ids.add('query-api-gw-logs');
-
-  if (config.authorizerFailureCheck !== undefined) {
-    ids.add('evaluate-api-gw-authorizer-failure');
-  }
-
+function reservedStepIds(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): ReadonlySet<string> {
+  const ids = new Set<string>([STEP_IDS.prepare, STEP_IDS.accessLog, STEP_IDS.parse, STEP_IDS.descend]);
+  if (config.authorizerFailureCheck !== undefined) ids.add(STEP_IDS.authorizerFailure);
   if (isExecutionLogEnabled(config, profile)) {
-    ids.add('query-api-gw-execution-logs');
-    if (config.executionLogAnalysisMode !== 'best-effort') {
-      ids.add('stop-api-gw-execution-log-unresolved');
-    }
+    ids.add(STEP_IDS.executionLog);
+    if (config.executionLogAnalysisMode !== 'best-effort') ids.add(STEP_IDS.stopExecutionLog);
   }
-
-  ids.add('parse-api-gw-errors');
-  ids.add('descend-api-gateway');
-
-  for (const hook of config.hooks ?? []) {
-    ids.add(hook.step.id);
+  for (const service of [config.entryService, ...(config.services ?? [])]) {
+    ids.add(`query-${service.name}`);
+    ids.add(`descend-${service.name}`);
   }
-
-  const services = [config.entryService, ...(config.services ?? [])];
-  for (const s of services) {
-    ids.add(`query-${s.name}`);
-    ids.add(`descend-${s.name}`);
-  }
-
   return ids;
 }
 
 /**
- * V4: collisioni step ID. Gli hook non devono usare ID riservati alla
+ * Collisioni step ID. Gli hook non devono usare ID riservati alla
  * pipeline canonica (es. un preStep che si chiama `parse-api-gw-errors`).
  */
 function validateNoStepIdCollisions(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
   // One check for every anchor: hooks share a single id namespace, so a step
   // declared twice at different anchors is still a duplicate.
-  const reserved = computeWiredStepIds({ ...config, hooks: [] }, profile);
-  assertStepDescriptorIds(context(config), config.hooks, reserved, 'hook');
-}
-
-/**
- * V3: orphan step refs. Per ogni `KnownCase` verifica che gli step citati
- * con prefisso `steps.` siano effettivamente cablati nella pipeline. Cattura
- * il bug "runbook che cita uno step inesistente nel profilo corrente".
- */
-function validateKnownCaseStepRefs(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
-  assertKnownCaseStepRefs(
-    context(config),
-    config.knownCases,
-    computeWiredStepIds(config, profile),
-    ` (profile "${profile.id}" + current config). ` +
-      'Either switch profile / config to wire that step, or remove the reference from the known case.',
-  );
+  assertStepDescriptorIds(context(config), config.hooks, reservedStepIds(config, profile), 'hook');
 }
 
 function context(config: ApiGwAlarmConfig): AlarmConfigValidationContext {
@@ -184,5 +149,4 @@ export function validateApiGwAlarmConfig(config: ApiGwAlarmConfig, profile: ApiG
   validateCapabilityParity(config, profile);
   validateExecutionLogAnalysisMode(config, profile);
   validateNoStepIdCollisions(config, profile);
-  validateKnownCaseStepRefs(config, profile);
 }

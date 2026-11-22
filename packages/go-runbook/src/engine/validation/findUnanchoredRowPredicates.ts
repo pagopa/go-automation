@@ -1,10 +1,10 @@
 import type { Condition } from '../types/Condition.js';
 import type { KnownCase } from '../types/KnownCase.js';
-
-const STEPS_PREFIX = 'steps.';
+import { parseStepRef } from '../context/parseStepRef.js';
+import { conditionLeafRefs } from './conditionLeafRefs.js';
 
 /** Related rows a node reads beside its own: they anchor a second predicate on the same read. */
-const RELATED_SUFFIXES: ReadonlyArray<string> = ['.siblings', '.context'];
+const RELATED_PATHS: ReadonlySet<string> = new Set(['siblings', 'context']);
 
 /**
  * The first known case with an `all(...)` that reads the rows of the same level read in two of its branches, none of
@@ -42,12 +42,14 @@ function findIn(condition: Condition, levelReads: ReadonlySet<string>): string |
       const plain = new Map<string, number>();
       const related = new Set<string>();
       for (const child of condition.conditions) {
-        for (const ref of rowRefs(child)) {
-          const suffix = RELATED_SUFFIXES.find((candidate) => ref.endsWith(candidate));
-          const stepId = suffix === undefined ? ref : ref.slice(0, -suffix.length);
-          if (!levelReads.has(stepId)) continue;
-          if (suffix !== undefined) related.add(stepId);
-          else plain.set(stepId, (plain.get(stepId) ?? 0) + 1);
+        for (const ref of new Set(conditionLeafRefs(child))) {
+          const stepRef = parseStepRef(ref);
+          if (stepRef === undefined || !levelReads.has(stepRef.stepId)) continue;
+          const [first, ...rest] = stepRef.path;
+          // The rows of the read itself (`steps.<id>`) or its related rows (`steps.<id>.siblings`); any other path is
+          // not a row predicate of the read.
+          if (first === undefined) plain.set(stepRef.stepId, (plain.get(stepRef.stepId) ?? 0) + 1);
+          else if (rest.length === 0 && RELATED_PATHS.has(first)) related.add(stepRef.stepId);
         }
       }
       for (const [stepId, count] of plain) if (count >= 2 && !related.has(stepId)) return stepId;
@@ -76,16 +78,4 @@ function findIn(condition: Condition, levelReads: ReadonlySet<string>): string |
       throw new Error(`Unhandled condition type: ${JSON.stringify(exhaustive)}`);
     }
   }
-}
-
-/** The distinct step refs (without `steps.`) a branch reads, at any depth. */
-function rowRefs(condition: Condition): ReadonlySet<string> {
-  const refs = new Set<string>();
-  const visit = (node: Condition): void => {
-    if (node.type === 'and' || node.type === 'or') for (const child of node.conditions) visit(child);
-    else if (node.type === 'not') visit(node.condition);
-    else if (node.ref.startsWith(STEPS_PREFIX)) refs.add(node.ref.slice(STEPS_PREFIX.length));
-  };
-  visit(condition);
-  return refs;
 }

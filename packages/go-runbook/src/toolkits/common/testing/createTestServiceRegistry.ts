@@ -1,4 +1,4 @@
-import { NOOP_RUNBOOK_REPORTER } from '../../../engine/reporting/NOOP_RUNBOOK_REPORTER.js';
+import { NOOP_RUNBOOK_REPORTER } from '../../../engine/index.js';
 import { OPERATIONAL_SERVICE_METHODS } from '../services/OPERATIONAL_SERVICE_CAPABILITIES.js';
 import type { ServiceRegistry } from '../services/ServiceRegistry.js';
 import type { TestServiceCall } from './TestServiceCall.js';

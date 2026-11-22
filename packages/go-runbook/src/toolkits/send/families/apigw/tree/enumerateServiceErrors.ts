@@ -1,20 +1,22 @@
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { omitUndefined } from '@pagopa/go-common/utils';
 
-import type { ErrorNodeSpec } from '../../../../../engine/types/ErrorNodeSpec.js';
-import type { TreeEnumeratorFn } from '../../../../../engine/types/TreeEnumeratorFn.js';
-import type { ReadIdentifier } from '../../../../../engine/types/ReadIdentifier.js';
+import type { ErrorNodeSpec, EvidenceIdentifier, TreeEnumeratorFn } from '../../../../../engine/index.js';
+import { safeCorrelationValue } from '../../../../../engine/internal.js';
 import { readServiceLogRow } from '../../../../common/parsing/applicationLogs/readServiceLogRow.js';
+import type { ServiceLogRow } from '../../../../common/parsing/applicationLogs/ServiceLogRow.js';
 import { matchTraceIdCandidate } from '../../../../common/parsing/traceIds/matchTraceIdCandidate.js';
 import { boundedText } from '../../../../common/parsing/correlation/boundedText.js';
+import { errorNodeLabel } from '../../../../common/tree/errorNodeLabel.js';
 import { occurredAtOf } from '../../../../common/parsing/correlation/occurredAtOf.js';
-import { safeCorrelationValue } from '../../../../../engine/reads/safeCorrelationValue.js';
-import { scanServiceLogs } from '../correlation/scanServiceLogs.js';
+import { findKnownUrlCall } from '../correlation/scanServiceLogs.js';
 import type { ServiceErrorLevelConfig } from './ServiceErrorLevelConfig.js';
+import type { CloudWatchLogsRow } from '../../../../common/steps/aws/cloudwatch-logs/CloudWatchLogsRow.js';
 
-type Row = ReadonlyArray<GOLogsInsightsResultField>;
-
-/** Longest label of a service error node. */
-const MAX_LABEL = 160;
+/** A row of the read with its fields, message and level read once. */
+interface ReadRow {
+  readonly raw: CloudWatchLogsRow;
+  readonly row: ServiceLogRow;
+}
 
 /**
  * The enumerator of a service level of a SEND API Gateway runbook: one node per error row (an ERROR or WARN level,
@@ -32,58 +34,65 @@ const MAX_LABEL = 160;
  */
 export function enumerateServiceErrors(config: ServiceErrorLevelConfig): TreeEnumeratorFn {
   return ({ rows, identifier, secondAttempt }) => {
-    const parsed = rows.flatMap((raw) => {
-      if (!Array.isArray(raw)) return [];
-      const row = readServiceLogRow(raw as Row, config.schema);
-      return [{ raw: raw as Row, row, error: row.isErrorLevel || (row.level === '' && row.hasErrorKeyword) }];
-    });
-    const errors = parsed.filter((entry) => entry.error).map((entry) => entry.raw);
-    const others = parsed.filter((entry) => !entry.error).map((entry) => entry.raw);
+    const errors: ReadRow[] = [];
+    const others: ReadRow[] = [];
+    for (const raw of rows) {
+      if (!Array.isArray(raw)) continue;
+      const row = readServiceLogRow(raw as CloudWatchLogsRow, config.schema);
+      (row.isErrorLevel || (row.level === '' && row.hasErrorKeyword) ? errors : others).push({
+        raw: raw as CloudWatchLogsRow,
+        row,
+      });
+    }
+    const errorRows = errors.map(({ raw }) => raw);
+    const otherRows = others.map(({ raw }) => raw);
 
-    const nodes = errors.map((raw, index): ErrorNodeSpec => {
-      const message = readServiceLogRow(raw, config.schema).message;
+    const nodes = errors.map(({ raw, row }, index): ErrorNodeSpec => {
       const occurredAt = occurredAtOf([raw]);
-      const traceId = matchTraceIdCandidate(readServiceLogRow(raw, config.schema).fields, config.schema, 'field');
+      const traceId = matchTraceIdCandidate(row.fields, config.schema, 'field');
       const correlation = correlationOf(
         identifier,
         traceId?.canonical ?? (secondAttempt?.kind === 'traceId' ? secondAttempt.value : undefined),
       );
       return {
         key: `e${String(index + 1)}`,
-        label: boundedText(message.split('\n')[0] ?? '', MAX_LABEL) || 'errore senza messaggio',
+        label: errorNodeLabel(row.message),
         ...(occurredAt !== undefined ? { occurredAt } : {}),
         correlation,
         vars: {
-          ...nodeVars(config, [raw], boundedText(message)),
-          ...readTrace(config, [raw], identifier, secondAttempt),
+          ...nodeVars(config, [row], boundedText(row.message)),
+          ...readTrace(config, [row], identifier, secondAttempt),
         },
         scopedOutputs: { [config.readStepId]: [raw] },
-        contextOutputs: { [config.readStepId]: others },
-        siblingOutputs: { [config.readStepId]: errors },
+        contextOutputs: { [config.readStepId]: otherRows },
+        siblingOutputs: { [config.readStepId]: errorRows },
       };
     });
 
     // The rows that are not errors may call known downstreams the error rows do not: a route each, never a node.
     // One pseudo-node per call: the target and the fallback UUID of the call, so two calls to the same service are
     // two routes.
-    const byTarget = new Map<string, Row[]>();
-    for (const raw of others) {
-      const vars = nodeVars(config, [raw], '');
-      const target = vars[`${config.varPrefix}NextUrlTarget`] ?? '';
+    const byTarget = new Map<string, ReadRow[]>();
+    for (const other of others) {
+      const call = findKnownUrlCall([other.row], config.registry);
+      const target = call.knownUrl?.known.target ?? '';
       if (target === '') continue;
-      const key = `${target}|${vars['fallbackUuid'] ?? ''}`;
+      const key = `${target}|${call.fallbackUuid ?? ''}`;
       const group = byTarget.get(key) ?? [];
-      group.push(raw);
+      group.push(other);
       byTarget.set(key, group);
     }
     return {
       nodes,
-      routings: [...byTarget.entries()].map(([target, routeRows]) => ({
-        key: `route:${target}`,
-        label: 'righe di contesto',
-        vars: { ...nodeVars(config, routeRows, ''), ...readTrace(config, routeRows, identifier, secondAttempt) },
-        scopedOutputs: { [config.readStepId]: routeRows },
-      })),
+      routings: [...byTarget.entries()].map(([target, group]) => {
+        const routeRows = group.map(({ row }) => row);
+        return {
+          key: `route:${target}`,
+          label: 'righe di contesto',
+          vars: { ...nodeVars(config, routeRows, ''), ...readTrace(config, routeRows, identifier, secondAttempt) },
+          scopedOutputs: { [config.readStepId]: group.map(({ raw }) => raw) },
+        };
+      }),
     };
   };
 }
@@ -91,30 +100,28 @@ export function enumerateServiceErrors(config: ServiceErrorLevelConfig): TreeEnu
 /** The variables of a node, or of the routing pseudo-node, from its rows. */
 function nodeVars(
   config: ServiceErrorLevelConfig,
-  rows: ReadonlyArray<Row>,
+  rows: ReadonlyArray<ServiceLogRow>,
   errorMessage: string,
 ): Readonly<Record<string, string>> {
-  const scan = scanServiceLogs(rows, config.schema, config.registry);
-  const knownUrl = scan.knownUrl;
+  const { knownUrl, fallbackUuid } = findKnownUrlCall(rows, config.registry);
   return {
     [`${config.varPrefix}ErrorMsg`]: errorMessage,
     [`${config.varPrefix}NextUrl`]: knownUrl?.observedUrl ?? '',
     [`${config.varPrefix}NextUrlTarget`]: knownUrl?.known.target ?? '',
     // A known call follows its own fallback UUID, or the trace id when the call has none.
-    ...(knownUrl !== undefined ? { fallbackUuid: scan.fallbackUuid ?? '' } : {}),
+    ...(knownUrl !== undefined ? { fallbackUuid: fallbackUuid ?? '' } : {}),
   };
 }
 
 /** The correlation of a node: the trace id it was found by or carries, the fallback UUID it was found by. */
 function correlationOf(
-  identifier: ReadIdentifier | undefined,
+  identifier: EvidenceIdentifier | undefined,
   rowTraceId: string | undefined,
 ): Readonly<Record<string, string>> {
   const traceId = safeCorrelationValue(rowTraceId ?? (identifier?.kind === 'traceId' ? identifier.value : undefined));
   const fallbackUuid = identifier?.kind === 'fallbackUuid' ? safeCorrelationValue(identifier.value) : undefined;
   return {
-    ...(traceId !== undefined ? { traceId } : {}),
-    ...(fallbackUuid !== undefined ? { fallbackUuid } : {}),
+    ...omitUndefined({ traceId, fallbackUuid }),
   };
 }
 
@@ -124,13 +131,13 @@ function correlationOf(
  */
 function readTrace(
   config: ServiceErrorLevelConfig,
-  rows: ReadonlyArray<Row>,
-  identifier: ReadIdentifier | undefined,
-  secondAttempt: ReadIdentifier | undefined,
+  rows: ReadonlyArray<ServiceLogRow>,
+  identifier: EvidenceIdentifier | undefined,
+  secondAttempt: EvidenceIdentifier | undefined,
 ): Readonly<Record<string, string>> {
   if (identifier?.kind !== 'fallbackUuid') return {};
   for (const row of rows) {
-    const trace = matchTraceIdCandidate(readServiceLogRow(row, config.schema).fields, config.schema, 'field');
+    const trace = matchTraceIdCandidate(row.fields, config.schema, 'field');
     if (trace !== undefined) return { [config.traceIdContextVar]: trace.canonical };
   }
   return secondAttempt?.kind === 'traceId' ? { [config.traceIdContextVar]: secondAttempt.value } : {};

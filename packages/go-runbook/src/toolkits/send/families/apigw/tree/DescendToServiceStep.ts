@@ -1,11 +1,7 @@
-import type { DescendRequest } from '../../../../../engine/types/DescendRequest.js';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
-import type { Step } from '../../../../../engine/types/Step.js';
-import type { StepKind } from '../../../../../engine/types/StepKind.js';
-import type { StepResult } from '../../../../../engine/types/StepResult.js';
+import type { DescendRequest, RunbookContext, Step, StepKind, StepResult } from '../../../../../engine/index.js';
 import { boundedText } from '../../../../common/parsing/correlation/boundedText.js';
 import type { DescendToServiceConfig } from './DescendToServiceConfig.js';
-import { canonicalTraceId } from '../../../../common/parsing/traceIds/canonicalTraceId.js';
+import { canonicalTraceId } from '../../../../common/parsing/traceIds/traceIdentity.js';
 
 const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/u;
 
@@ -64,8 +60,8 @@ export class DescendToServiceStep implements Step<void> {
     const traceId = canonicalTraceId(rawTrace) ?? '';
     const descend: DescendRequest =
       fallbackUuid !== ''
-        ? { target, identifier: fallbackUuid, kind: 'fallbackUuid' }
-        : { target, identifier: traceId, kind: 'traceId' };
+        ? { target, identifier: { kind: 'fallbackUuid', value: fallbackUuid } }
+        : { target, identifier: { kind: 'traceId', value: traceId } };
     return { success: true, vars: lastError, descend: [descend] };
   }
 }

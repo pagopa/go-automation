@@ -1,7 +1,4 @@
-import type { Step } from '../../../../../engine/types/Step.js';
-import type { StepKind } from '../../../../../engine/types/StepKind.js';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
-import type { StepResult } from '../../../../../engine/types/StepResult.js';
+import type { RunbookContext, Step, StepKind, StepResult } from '../../../../../engine/index.js';
 import { LambdaReporter } from '../reporting/LambdaReporter.js';
 
 /**

@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { messageTraceIds } from '../messageTraceIds.js';
+import { messageTraceIds } from '../traceIdentity.js';
 
 describe('messageTraceIds', () => {
   it('reads the X-Ray and the compact forms, in lowercase and uppercase, as one canonical id', () => {

@@ -1,23 +1,16 @@
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import { escapeSqlString } from '../../../queries/interpolateTemplate.js';
-
-import type { StepKind } from '../../../../../engine/types/StepKind.js';
-import type { StepResult } from '../../../../../engine/types/StepResult.js';
-import type { TreeLevelReader } from '../../../../../engine/types/TreeLevelReader.js';
-import type { TreeLevelReadResult } from '../../../../../engine/types/TreeLevelReadResult.js';
-import type { ReadIdentifier } from '../../../../../engine/types/ReadIdentifier.js';
-import { executeCloudWatchLogsQuery } from '../../../steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
-import { OperationalStep } from '../../../steps/OperationalStep.js';
-import type { OperationalContext } from '../../../services/OperationalContext.js';
-import type { OperationalServiceName } from '../../../services/OperationalServiceName.js';
-import { resolveTimeRange } from '../../../time/resolveTimeRange.js';
-import type { ServiceTraceLevelReaderConfig } from './ServiceTraceLevelReaderConfig.js';
-import { traceIdForms } from '../../../parsing/traceIds/traceIdForms.js';
 import { readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import { rowsOfTraces } from '../../../parsing/traceIds/rowsOfTraces.js';
-import { traceRowMatcher } from '../../../parsing/traceIds/traceRowMatcher.js';
 
-type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
+import type { EvidenceIdentifier } from '../../../../../engine/index.js';
+import type { OperationalContext } from '../../../services/OperationalContext.js';
+import { renderQueryTemplate } from '../../../queries/renderQueryTemplate.js';
+import { escapeSqlString } from '../../../queries/interpolateTemplate.js';
+import { CloudWatchLogsLevelReader } from '../../../tree/CloudWatchLogsLevelReader.js';
+import type { ServiceTraceLevelReaderConfig } from './ServiceTraceLevelReaderConfig.js';
+import { traceIdForms } from '../../../parsing/traceIds/traceIdentity.js';
+import { rowsOfTraces } from '../../../parsing/traceIds/traceRows.js';
+import { traceRowMatcher } from '../../../parsing/traceIds/traceRows.js';
+import type { CloudWatchLogsRow } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRow.js';
+import type { CloudWatchLogsRows } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRows.js';
 
 const TRACE_ID_PLACEHOLDER = '{{TRACE_ID}}';
 
@@ -37,92 +30,77 @@ export function readsTraceBatches(template: string): boolean {
 /**
  * The grouped read of the trace of the errors of a service: the trace ids of a batch in `OR`.
  */
-export class ServiceTraceLevelReader extends OperationalStep<Rows> implements TreeLevelReader {
-  readonly id: string;
-  readonly label: string;
-  readonly kind: StepKind = 'data';
-
+export class ServiceTraceLevelReader extends CloudWatchLogsLevelReader<ServiceTraceLevelReaderConfig> {
   /**
    * @param config - Service, log groups and trace query
    * @throws Error when the query has no `{{TRACE_ID}}`
    */
-  constructor(private readonly config: ServiceTraceLevelReaderConfig) {
-    super();
-    this.id = config.id;
-    this.label = config.label;
+  constructor(config: ServiceTraceLevelReaderConfig) {
+    super(config);
     if (!config.queryTemplate.includes(TRACE_ID_PLACEHOLDER)) {
       throw new Error(`ServiceTraceLevelReader "${this.id}": queryTemplate must contain ${TRACE_ID_PLACEHOLDER}.`);
     }
   }
 
+  /**
+   * The query of the read for one sample trace id, with its log groups.
+   *
+   * @returns Trace metadata of the read
+   */
   getTraceInfo(): Readonly<Record<string, unknown>> {
     return {
       queryProfileId: this.config.queryProfileId,
       queryKind: 'service-trace-log',
       logGroups: [...this.config.logGroups],
-      query: this.buildQuery(['1-00000000-000000000000000000000000']),
+      query: this.query([{ kind: 'traceId', value: '1-00000000-000000000000000000000000' }]),
     };
   }
 
-  override requiredServices(): ReadonlyArray<OperationalServiceName> {
-    return ['cloudWatchLogs'];
+  protected override logGroups(): ReadonlyArray<string> {
+    return this.config.logGroups;
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
-  override async execute(): Promise<StepResult<Rows>> {
-    return { success: false, error: `"${this.id}" is the grouped read of a level: the engine calls read().` };
-  }
-
-  /**
-   * Reads the trace of a batch of trace ids.
-   *
-   * @param context - Context of the window
-   * @param identifiers - Trace ids of the batch
-   * @returns The rows, with the coverage of the query
-   */
-  async read(context: OperationalContext, identifiers: ReadonlyArray<ReadIdentifier>): Promise<TreeLevelReadResult> {
-    const result = await executeCloudWatchLogsQuery(
-      context,
-      this.config.logGroups,
-      this.buildQuery(identifiers.map(({ value }) => value)),
-      resolveTimeRange(context, this.config.timeRangeFromParams),
-      {
-        ...(context.signal !== undefined ? { signal: context.signal } : {}),
-        logGroupResolutionMode: 'search-configured-profiles',
-      },
-    );
-    context.services.reporter.add({
-      label: `Trace ${this.config.serviceName}: ${String(result.rows.length)} righe per ${String(identifiers.length)} trace id`,
+  protected override query(identifiers: ReadonlyArray<EvidenceIdentifier>): string {
+    const { queryTemplate } = this.config;
+    if (!readsTraceBatches(queryTemplate)) {
+      return renderQueryTemplate(queryTemplate, {
+        values: { [TRACE_ID_PLACEHOLDER]: identifiers[0]?.value ?? '' },
+        escape: 'sql',
+        queryId: this.config.queryProfileId,
+      });
+    }
+    // Every trace id in every form the logs write it (X-Ray and compact 32-hex).
+    const predicate = identifiers
+      .flatMap(({ value }) => traceIdForms(value))
+      .map((form) => `@message like '${escapeSqlString(form)}'`)
+      .join(' or ');
+    return renderQueryTemplate(queryTemplate, {
+      values: { [TRACE_PREDICATE]: `(${predicate})` },
+      queryId: this.config.queryProfileId,
     });
-    return {
-      success: true,
-      rows: this.rowsOfBatch(result.rows, identifiers),
-      ...(result.coverage.length > 0 ? { coverage: result.coverage } : {}),
-      ...(result.diagnostics !== undefined ? { diagnostics: result.diagnostics } : {}),
-    };
   }
 
   /**
    * The rows of the batch: a read by batches follows the rule its attribution uses; a query that reads one trace at
    * a time drops only the rows whose trace field names another trace.
    */
-  private rowsOfBatch(rows: Rows, identifiers: ReadonlyArray<ReadIdentifier>): Rows {
-    const traceField = (row: ReadonlyArray<GOLogsInsightsResultField>): string => readRowField(row, 'trace_id') ?? '';
+  protected override rowsOf(
+    rows: CloudWatchLogsRows,
+    identifiers: ReadonlyArray<EvidenceIdentifier>,
+  ): CloudWatchLogsRows {
+    const traceField = (row: CloudWatchLogsRow): string => readRowField(row, 'trace_id') ?? '';
     if (!readsTraceBatches(this.config.queryTemplate)) return rowsOfTraces(rows, identifiers, traceField);
     const belongs = traceRowMatcher(identifiers.map((identifier) => identifier.value));
     return rows.filter((row) => belongs(traceField(row), readRowField(row, '@message') ?? ''));
   }
 
-  private buildQuery(traceIds: ReadonlyArray<string>): string {
-    const { queryTemplate } = this.config;
-    if (!readsTraceBatches(queryTemplate)) {
-      return queryTemplate.split(TRACE_ID_PLACEHOLDER).join(escapeSqlString(traceIds[0] ?? ''));
-    }
-    // Every trace id in every form the logs write it (X-Ray and compact 32-hex).
-    const predicate = traceIds
-      .flatMap((traceId) => traceIdForms(traceId))
-      .map((form) => `@message like '${escapeSqlString(form)}'`)
-      .join(' or ');
-    return queryTemplate.split(TRACE_PREDICATE).join(`(${predicate})`);
+  protected override report(
+    context: OperationalContext,
+    rowCount: number,
+    identifiers: ReadonlyArray<EvidenceIdentifier>,
+  ): void {
+    context.services.reporter.add({
+      label: `Trace ${this.config.serviceName}: ${String(rowCount)} righe per ${String(identifiers.length)} trace id`,
+    });
   }
 }

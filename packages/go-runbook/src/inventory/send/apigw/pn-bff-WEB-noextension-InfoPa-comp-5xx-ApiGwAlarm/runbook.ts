@@ -7,6 +7,11 @@ import { INFO_PA_QUERY_PROFILE } from './queryProfile.js';
 import { FlagBffReadTimeoutStep } from './FlagBffReadTimeoutStep.js';
 export const INFO_PA_ALARM = 'pn-bff-WEB-noextension-InfoPa-comp-5xx-ApiGwAlarm';
 const RUNBOOK_URL: string = `https://pagopa.atlassian.net/wiki/spaces/GO/pages/2913599691/${INFO_PA_ALARM}`;
+/**
+ * Builds the pn-bff-WEB-noextension-InfoPa-comp-5xx-ApiGwAlarm runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return apigw.createSendApiGwAlarmRunbook({
     id: INFO_PA_ALARM,

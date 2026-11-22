@@ -9,9 +9,14 @@ import { POD_CONTEXT } from './podContext.js';
 const CONFLUENCE_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3298033847/k8s-interop-be-catalog-platformstate-writer-errors';
 
+/**
+ * Builds the k8s-interop-be-catalog-platformstate-writer-errors runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: CATALOG_PLATFORMSTATE_WRITER_ALARM.runbookKey,
+    alarm: CATALOG_PLATFORMSTATE_WRITER_ALARM,
     metadata: {
       name: CATALOG_PLATFORMSTATE_WRITER_ALARM.runbookKey,
       description:
@@ -22,30 +27,13 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'service', 'catalog', 'platformstate', 'kafka'],
     },
-    service: {
-      name: CATALOG_PLATFORMSTATE_WRITER_ALARM.podApp,
-      logGroup: CATALOG_PLATFORMSTATE_WRITER_ALARM.logGroup,
-      varPrefix: CATALOG_PLATFORMSTATE_WRITER_ALARM.varPrefix,
-    },
-    resolveAlarmContext: CATALOG_PLATFORMSTATE_WRITER_ALARM.resolveContext,
     queryProfile: PLATFORMSTATE_WRITER_QUERY_PROFILE,
     knownCases: KNOWN_CASES,
-    hooks: [
-      {
-        at: 'before-cid-analysis',
-        step: new interop.k8s.QueryInteropPodContextStep(POD_CONTEXT),
-        evidence: [
-          {
-            id: 'platformstate-writer-context',
-            label: 'Contesto di riavvio e rejoin del catalog platformstate writer',
-            type: 'log-sample',
-            messageFields: ['log', '@message'],
-            // The query rejects capped results: keep the whole episode, including its start.
-            retention: { mode: 'all' },
-          },
-        ],
-      },
-    ],
+    podContext: {
+      step: POD_CONTEXT,
+      evidenceId: 'platformstate-writer-context',
+      evidenceLabel: 'Contesto di riavvio e rejoin del catalog platformstate writer',
+    },
     analysisDefaults: {
       runbookName: CATALOG_PLATFORMSTATE_WRITER_ALARM.runbookKey,
       links: [

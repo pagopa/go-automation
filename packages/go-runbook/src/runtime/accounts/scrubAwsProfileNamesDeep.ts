@@ -1,3 +1,4 @@
+import { COVERAGE_REASONS, ERROR_CHAIN_INTERRUPTION_REASONS } from '../../engine/index.js';
 import { scrubAwsProfileNames } from './scrubAwsProfileNames.js';
 
 /** Deepest nesting walked: runbook outputs and traces are far shallower. */
@@ -30,15 +31,7 @@ const MACHINE_FIELDS: ReadonlySet<string> = new Set([
   'analysistype',
 ]);
 /** Enum values of the `reason` fields (coverage, interruptions); any other reason is free text. */
-const REASON_VALUES: ReadonlySet<string> = new Set([
-  'saturated',
-  'unavailable',
-  'skipped',
-  'manual',
-  'incomplete',
-  'failed',
-  'cycle',
-]);
+const REASON_VALUES: ReadonlySet<string> = new Set([...COVERAGE_REASONS, ...ERROR_CHAIN_INTERRUPTION_REASONS]);
 /** A value made only of a timestamp: date, `T` or one space, time, then no other whitespace. */
 const WHOLE_TIMESTAMP = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}\S*$/u;
 /** Replacement of a masked profile name. */

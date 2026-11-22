@@ -19,22 +19,22 @@ const ENV: ExecutionEnvironment = {
 /** A TraceBuilder primed with one step. */
 function builderWithOneStep(diagnostics?: StepDiagnostics): TraceBuilder {
   const builder = new TraceBuilder('exec', RUNBOOK, new Map());
-  builder.traceStep(
-    'analyze-x',
-    'Analyze x',
-    'transform',
-    'sequential',
-    '2026-05-13T00:00:00.000Z',
-    '2026-05-13T00:00:00.001Z',
-    1,
-    'success',
-    false,
-    {},
-    null,
-    {},
-    'continue',
-    diagnostics,
-  );
+  builder.traceStep({
+    stepId: 'analyze-x',
+    label: 'Analyze x',
+    kind: 'transform',
+    reachedVia: 'sequential',
+    startedAt: '2026-05-13T00:00:00.000Z',
+    completedAt: '2026-05-13T00:00:00.001Z',
+    durationMs: 1,
+    status: 'success',
+    recovered: false,
+    input: {},
+    output: null,
+    varsWritten: {},
+    flowDirective: 'continue',
+    ...(diagnostics === undefined ? {} : { diagnostics }),
+  });
   return builder;
 }
 

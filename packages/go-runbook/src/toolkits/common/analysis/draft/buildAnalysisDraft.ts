@@ -1,28 +1,23 @@
-import type { Runbook } from '../../../../engine/types/Runbook.js';
-import type { RunbookExecutionResult } from '../../../../engine/types/RunbookExecutionResult.js';
-import type { KnownCaseDetection } from '../../../../engine/types/KnownCaseDetection.js';
+import type { KnownCaseDetection, Runbook, RunbookExecutionResult } from '../../../../engine/index.js';
+import { interpolatePlaceholders } from '../../../../engine/internal.js';
 import type { KnownCaseAnalysis } from '../KnownCaseAnalysis.js';
 import type { AnalysisLinkRef } from '../AnalysisLinkRef.js';
 import type { AnalysisResourceRef } from '../AnalysisResourceRef.js';
 import type { AnalysisDraftV1 } from './AnalysisDraft.js';
 import type { KnownCaseAnalysisDraft } from './KnownCaseAnalysisDraft.js';
 import type { UnknownCaseContextDraft } from './UnknownCaseContextDraft.js';
-import { interpolatePlaceholders } from '../../../../engine/context/templatePlaceholders.js';
 import { fitAnalysisDraft } from './fitAnalysisDraft.js';
-import { buildCoverageLines } from '../../output/buildCoverageLines.js';
+import { coverageLinesOf } from '../../output/buildCoverageLines.js';
 import { detectionContext } from '../../output/resultContexts.js';
-import { buildErrorChains } from '../../output/buildErrorChains.js';
+import { errorChainsOf } from '../../output/buildErrorChains.js';
+import { ErrorTreeView } from '../../output/tree/ErrorTreeView.js';
+import type { ErrorTreeReading } from '../../output/tree/ErrorTreeReading.js';
 import { renderErrorChainLines } from '../../output/renderErrorChainLines.js';
+import type { ChainVerdict } from './ChainVerdict.js';
+import type { DraftEntry } from './DraftEntry.js';
 
 /** Placeholder rendered when a `resolution` interpolates a value the run never produced. */
 const UNAVAILABLE_VALUE = 'non disponibile';
-
-/** An annotated detection with the texts it contributes to the draft. */
-interface DraftEntry {
-  readonly detection: KnownCaseDetection;
-  readonly analysis: KnownCaseAnalysis;
-  readonly resolution: string;
-}
 
 /**
  * Composes the deterministic analysis draft for a completed run.
@@ -52,13 +47,39 @@ interface DraftEntry {
  * ```
  */
 export function buildAnalysisDraft(runbook: Runbook, result: RunbookExecutionResult): AnalysisDraftV1 | undefined {
+  const view = new ErrorTreeView(result);
+  return analysisDraftOf(runbook, result, {
+    view,
+    chains: errorChainsOf(result, view),
+    coverageLines: coverageLinesOf(result, view),
+  });
+}
+
+/**
+ * {@link buildAnalysisDraft} with the chains and the coverage lines the output already computed.
+ *
+ * @param runbook - The executed runbook definition
+ * @param result - The execution result
+ * @param reading - The view of the error tree, its chains and its coverage lines
+ * @returns The draft, or `undefined` when the outcome carries no analysis
+ */
+export function analysisDraftOf(
+  runbook: Runbook,
+  result: RunbookExecutionResult,
+  reading: ErrorTreeReading,
+): AnalysisDraftV1 | undefined {
   if (result.status === 'aborted' || result.status === 'failed') return undefined;
+  const { view } = reading;
 
   const entries: DraftEntry[] = [];
-  for (const detection of draftDetections(result)) {
+  for (const detection of draftDetections(result, view)) {
     const analysis = detection.knownCase.analysis;
     if (analysis === undefined) continue;
-    entries.push({ detection, analysis, resolution: interpolateResolution(analysis.resolution, result, detection) });
+    entries.push({
+      detection,
+      analysis,
+      resolution: interpolateResolution(analysis.resolution, result, view, detection),
+    });
   }
 
   if (entries.length === 0) {
@@ -67,9 +88,9 @@ export function buildAnalysisDraft(runbook: Runbook, result: RunbookExecutionRes
       : undefined;
   }
 
-  const coverageLines = buildCoverageLines(result);
-  const chainNotes = treeNoteEntries(result, entries);
-  const draft = buildKnownCaseDraft(runbook, entries, coverageLines, chainVerdict(result), chainNotes);
+  const { coverageLines } = reading;
+  const chainNotes = treeNoteEntries(result, reading, entries);
+  const draft = buildKnownCaseDraft(runbook, entries, coverageLines, chainVerdict(result, view), chainNotes);
   const single = entries.length === 1 && coverageLines.length === 0 && chainNotes === undefined;
   return fitAnalysisDraft(
     draft,
@@ -224,9 +245,10 @@ function buildUnknownContext(runbook: Runbook): UnknownCaseContextDraft | undefi
 function interpolateResolution(
   resolution: string,
   result: RunbookExecutionResult,
+  view: ErrorTreeView,
   detection: KnownCaseDetection,
 ): string {
-  const context = detectionContext(result, detection);
+  const context = detectionContext(result, view, detection);
   return interpolatePlaceholders(
     resolution,
     { vars: context.vars, params: context.params },
@@ -256,14 +278,6 @@ function dedupeStrings(values: ReadonlyArray<string>): ReadonlyArray<string> {
   return [...new Set(values)];
 }
 
-/** What the chains of an error tree say about closing and ignoring the occurrence. */
-interface ChainVerdict {
-  /** A chain ends in a true leaf recognized by a case that proposes `COMPLETED`. */
-  readonly completed: boolean;
-  /** The analyses of the cases every chain ends in; absent when a chain ends unrecognized or interrupted. */
-  readonly endAnalyses?: ReadonlyArray<KnownCaseAnalysis>;
-}
-
 /**
  * The verdict of the chains of an error tree: closable when a chain ends in a recognized true leaf whose case
  * proposes `COMPLETED`, ignorable only when every chain ends in recognized ignorable cases.
@@ -271,15 +285,13 @@ interface ChainVerdict {
  * @param result - Result of the execution
  * @returns The verdict, or nothing for a window-level runbook
  */
-function chainVerdict(result: RunbookExecutionResult): ChainVerdict | undefined {
-  if (result.tree === undefined || result.chains === undefined) return undefined;
-  const nodes = new Map(result.tree.map((node) => [node.id, node]));
+function chainVerdict(result: RunbookExecutionResult, view: ErrorTreeView): ChainVerdict | undefined {
+  if (!view.hasTree || result.chains === undefined) return undefined;
   let completed = false;
   let endAnalyses: KnownCaseAnalysis[] | undefined = [];
-  for (const group of result.chains) {
+  for (const group of view.chains) {
     for (const member of group.members) {
-      const last = nodes.get(member.nodeIds[member.nodeIds.length - 1] ?? '');
-      const detections = last?.detections ?? [];
+      const detections = view.last(member)?.detections ?? [];
       if (
         member.end === 'leaf' &&
         detections.some((detection) => detection.knownCase.analysis?.proposedStatus === 'COMPLETED')
@@ -304,13 +316,14 @@ function chainVerdict(result: RunbookExecutionResult): ChainVerdict | undefined 
  * @param result - Result of the execution
  * @returns The detections, in order
  */
-function draftDetections(result: RunbookExecutionResult): ReadonlyArray<KnownCaseDetection> {
-  if (result.tree === undefined || result.chains === undefined) return result.detections;
-  const nodes = new Map(result.tree.map((node) => [node.id, node]));
-  return result.chains.flatMap((group) => {
+function draftDetections(result: RunbookExecutionResult, view: ErrorTreeView): ReadonlyArray<KnownCaseDetection> {
+  if (!view.hasTree || result.chains === undefined) return result.detections;
+  return view.chains.flatMap((group) => {
+    const oldest = group.members[0];
+    if (oldest === undefined) return [];
     const seen = new Set<string>();
-    return (group.members[0]?.nodeIds ?? []).flatMap((id) =>
-      (nodes.get(id)?.detections ?? []).filter((detection) => {
+    return view.chainNodes(oldest).flatMap((node) =>
+      node.detections.filter((detection) => {
         if (seen.has(detection.knownCase.id)) return false;
         seen.add(detection.knownCase.id);
         return true;
@@ -329,23 +342,22 @@ function draftDetections(result: RunbookExecutionResult): ReadonlyArray<KnownCas
  */
 function treeNoteEntries(
   result: RunbookExecutionResult,
+  reading: ErrorTreeReading,
   entries: ReadonlyArray<DraftEntry>,
 ): ReadonlyArray<string> | undefined {
-  const chains = result.chains;
-  if (result.tree === undefined || chains === undefined) return undefined;
+  const { view } = reading;
+  if (!view.hasTree || result.chains === undefined) return undefined;
+  const chains = view.chains;
   // One complete chain with one recognized node keeps the historical shape of the draft.
   const only =
     chains.length === 1 &&
-    buildCoverageLines(result).length === 0 &&
+    reading.coverageLines.length === 0 &&
     chains[0]?.members.every((member) => member.end === 'leaf' && !member.incompleteEvidence) === true;
-  const recognizedNodes = (chains[0]?.members[0]?.nodeIds ?? []).filter((id) =>
-    result.tree?.some((node) => node.id === id && node.detections.length > 0),
-  );
+  const oldest = chains[0]?.members[0];
+  const recognizedNodes =
+    oldest === undefined ? [] : view.chainNodes(oldest).filter((node) => node.detections.length > 0);
   if (only && entries.length === 1 && recognizedNodes.length === 1) return undefined;
-  const nodeOf = new Map(
-    result.tree.flatMap((node) => node.detections.map((detection) => [detection, node.id] as const)),
-  );
-  const lines = renderErrorChainLines(buildErrorChains(result));
+  const lines = renderErrorChainLines(reading.chains);
   return chains.map((group, index) => {
     const path = group.members[0]?.nodeIds ?? [];
     const resolutions = [
@@ -353,7 +365,7 @@ function treeNoteEntries(
         [...path]
           .reverse()
           .flatMap((nodeId) =>
-            entries.filter((entry) => nodeOf.get(entry.detection) === nodeId).map((entry) => entry.resolution),
+            entries.filter((entry) => view.nodeOf(entry.detection)?.id === nodeId).map((entry) => entry.resolution),
           ),
       ),
     ];

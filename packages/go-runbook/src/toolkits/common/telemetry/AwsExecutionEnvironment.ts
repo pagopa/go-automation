@@ -1,4 +1,4 @@
-import type { ExecutionEnvironment } from '../../../engine/tracing/ExecutionEnvironment.js';
+import type { ExecutionEnvironment } from '../../../engine/index.js';
 
 /**
  * Environment of an operational execution: the AWS profiles and region are

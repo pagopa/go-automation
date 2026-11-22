@@ -5,8 +5,8 @@ import type { ApiGwQueryProfile } from '../profiles/ApiGwQueryProfile.js';
  * Restituisce il log group degli execution log "effettivo": trimmato e
  * vuoto-è-assente.
  *
- * V04 (E2/D19): allinea la semantica di "executionLogGroup assente"
- * fra validation e branching della pipeline. Senza questo helper, V02
+ * Allinea la semantica di "executionLogGroup assente"
+ * fra validation e branching della pipeline. Senza questo helper si
  * usava `!== undefined` in validation e `trim() !== ''` in
  * `isExecutionLogEnabled` → casi limite incoerenti per stringa vuota o
  * whitespace.

@@ -11,6 +11,11 @@ const DIAGNOSTIC_DETAILS = [
   ['Log di errore non spiegati', '{{vars.logsaverUnaccountedErrorLogCount}}'],
 ] as const;
 
+/**
+ * Builds the pn-logsaver-be-FailedInvocation-Alarm runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return AlarmRunbookBuilder.create(LOGSAVER_ALARM)
     .metadata({

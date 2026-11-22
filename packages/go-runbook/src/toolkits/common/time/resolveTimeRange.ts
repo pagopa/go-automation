@@ -1,4 +1,4 @@
-import type { RunbookContext } from '../../../engine/types/RunbookContext.js';
+import type { RunbookContext } from '../../../engine/index.js';
 import type { TimeRange } from './TimeRange.js';
 import type { TimeRangeFromParams } from './TimeRangeFromParams.js';
 

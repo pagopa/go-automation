@@ -1,4 +1,4 @@
-import type { TreeExclusion } from '../../../../../engine/types/TreeExclusion.js';
+import type { TreeExclusion } from '../../../../../engine/index.js';
 
 /**
  * Descriptor of a microservice analysed by an API Gateway alarm runbook.

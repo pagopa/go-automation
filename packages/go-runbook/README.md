@@ -1,7 +1,7 @@
 # go-runbook
 
 Motore runbook dichiarativo: definisce ed esegue procedure operative
-strutturate come sequenze di step tipizzati, con branching condizionale,
+strutturate come sequenze di step tipizzati, con
 rilevazione di tutti i casi noti presenti nell'evidenza (in ordine di tempo),
 copertura dell'evidenza e azioni associate. Contiene anche i toolkit per le
 famiglie di allarmi e i runbook concreti di SEND e INTEROP.
@@ -37,7 +37,7 @@ Solo `./runtime` carica gli SDK: gli altri sei entrypoint funzionano senza nessu
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@pagopa/go-runbook`                  | **Engine**: tipi, contesto, condizioni, step di controllo, azioni, trace, `RunbookBuilder`, `RunbookEngine`. Non conosce AWS, prodotti, allarmi né Watchtower.                                          |
 | `@pagopa/go-runbook/output`           | Contratto dell'output dei runbook verso Watchtower (`RunbookOutput` schema `3.0.0`, `classifyRunbookOutcome`, `buildErrorChains`, `renderErrorChainLines`, `buildCoverageLines`, bozza d'analisi, …).   |
-| `@pagopa/go-runbook/toolkits/common`  | Toolkit operativo comune: `OperationalRunbookEngine`, step AWS e HTTP, famiglie `apigw`, `lambda`, `service` senza dati di prodotto, account logici, helper di test.                                    |
+| `@pagopa/go-runbook/toolkits/common`  | Toolkit operativo comune: `OperationalRunbookEngine`, step CloudWatch Logs, famiglie `apigw`, `lambda`, `service` senza dati di prodotto, account logici, helper di test.                               |
 | `@pagopa/go-runbook/toolkits/send`    | Toolkit SEND: pipeline e profili SEND delle famiglie (`apigw`, `lambda`, `service`, `downstream`), `SEND_DOWNSTREAMS`, `SEND_ACCOUNTS`.                                                                 |
 | `@pagopa/go-runbook/toolkits/interop` | Toolkit INTEROP: famiglie `interop.apigw` e `interop.k8s`, ambienti e downstream INTEROP.                                                                                                               |
 | `@pagopa/go-runbook/inventory`        | Runbook concreti e catalogo (`RUNBOOK_CATALOG`, `RUNBOOK_REGISTRY`, `RunbookDescriptor`, …).                                                                                                            |

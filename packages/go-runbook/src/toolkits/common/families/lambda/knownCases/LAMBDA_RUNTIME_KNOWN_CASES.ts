@@ -1,5 +1,5 @@
 import { knownCase } from '../../../analysis/knownCase.js';
-import type { KnownCase } from '../../../../../engine/types/KnownCase.js';
+import type { KnownCase } from '../../../../../engine/index.js';
 
 /**
  * Built-in runtime known cases shared by Lambda runbooks (timeout /

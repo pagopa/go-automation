@@ -1,4 +1,4 @@
-import { type ApiGwQueryProfile, SEND_API_GW_PROFILE } from '../../../../toolkits/send/index.js';
+import { apigw } from '../../../../toolkits/send/index.js';
 
 // Operations verified against the NotificationReceived child alarm in production.
 const SCOPE = `filter (
@@ -25,11 +25,11 @@ const SCOPE = `filter (
   )
 )`;
 
-export const NOTIFICATION_RECEIVED_QUERY_PROFILE: ApiGwQueryProfile = {
-  ...SEND_API_GW_PROFILE,
+export const NOTIFICATION_RECEIVED_QUERY_PROFILE: apigw.ApiGwQueryProfile = {
+  ...apigw.SEND_API_GW_PROFILE,
   id: 'send-notification-received-web',
   accessLog: {
-    ...SEND_API_GW_PROFILE.accessLog,
-    query: `${SCOPE}\n| ${SEND_API_GW_PROFILE.accessLog.query}`,
+    ...apigw.SEND_API_GW_PROFILE.accessLog,
+    query: `${SCOPE}\n| ${apigw.SEND_API_GW_PROFILE.accessLog.query}`,
   },
 };

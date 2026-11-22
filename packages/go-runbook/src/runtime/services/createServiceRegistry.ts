@@ -7,7 +7,7 @@ import type { GOHttpClient } from '@pagopa/go-common/http';
 
 import { createAwsAccountsPort } from '../accounts/createAwsAccountsPort.js';
 import type { CreateServiceRegistryDeps } from './CreateServiceRegistryDeps.js';
-import type { RunbookReporter } from '../../engine/reporting/RunbookReporter.js';
+import type { RunbookReporter } from '../../engine/index.js';
 import type { ServiceRegistry } from '../../toolkits/common/services/ServiceRegistry.js';
 
 /**

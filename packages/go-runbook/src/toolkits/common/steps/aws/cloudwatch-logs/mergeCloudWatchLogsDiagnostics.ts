@@ -1,6 +1,6 @@
 import { sumCloudWatchLogsQueryStatistics } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
-import type { StepDiagnostics } from '../../../../../engine/tracing/StepDiagnostics.js';
+import type { StepDiagnostics } from '../../../../../engine/index.js';
 
 /**
  * Diagnostics of a step that ran several CloudWatch Logs queries: rows,
