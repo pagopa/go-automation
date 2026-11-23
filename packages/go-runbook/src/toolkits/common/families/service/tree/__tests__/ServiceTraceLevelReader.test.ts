@@ -47,8 +47,7 @@ describe('ServiceTraceLevelReader', () => {
       [{ kind: 'traceId', value: TRACE }],
     );
     const query = cloudWatchLogs.queries[0]?.query ?? '';
-    assert.ok(query.includes(`@message like '${TRACE}'`));
-    assert.ok(query.includes(`@message like '${COMPACT}'`));
+    assert.ok(query.includes(`(@message like /${TRACE}|${COMPACT}/)`));
     assert.deepEqual(
       result.rows.map((row) => (row as ReadonlyArray<{ readonly value?: string }>).at(-1)?.value),
       ['ERROR of the trace', `ERROR without field, ${TRACE}`],
@@ -82,5 +81,23 @@ describe('ServiceTraceLevelReader', () => {
 
   it('rejects a query without the trace id placeholder', () => {
     assert.throws(() => reader('fields @message'), /must contain \{\{TRACE_ID\}\}/u);
+  });
+  it('reads as many traces per query as fit in its length, within the cap of the level', () => {
+    const traces = Array.from({ length: 422 }, (_, index) => ({
+      kind: 'traceId' as const,
+      value: `traceId:${String(index).padStart(8, '0')}-c213-44bd-9d46-e71204834571`,
+    }));
+    const batch = reader("fields @message | filter @message like '{{TRACE_ID}}' | limit 10000");
+
+    const batches = batch.batches(traces);
+    assert.deepStrictEqual(
+      batches.map((entries) => entries.length),
+      [220, 202],
+    );
+    assert.ok(batches.every((entries) => batch.batches(entries).length === 1));
+    assert.deepStrictEqual(
+      batch.batches(traces, 50).map((entries) => entries.length),
+      [50, 50, 50, 50, 50, 50, 50, 50, 22],
+    );
   });
 });

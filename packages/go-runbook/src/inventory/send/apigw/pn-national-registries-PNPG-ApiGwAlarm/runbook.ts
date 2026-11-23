@@ -52,7 +52,7 @@ export function buildRunbook(): Runbook {
             '| filter message = "Starting process _infoCamereLegalInstitutions" ' +
             'or message = "Ending process _infoCamereLegalInstitutions" ' +
             'or message = "Checking [INFO CAMERE] legal institutions passed"\n' +
-            '| sort @timestamp asc\n| limit 1000\n| display @timestamp, level, message, trace_id',
+            '| sort @timestamp asc\n| limit 10000\n| display @timestamp, level, message, trace_id',
         }),
       },
     ],

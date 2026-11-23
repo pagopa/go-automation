@@ -3,10 +3,9 @@ import { readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { EvidenceIdentifier } from '../../../../../engine/index.js';
 import type { OperationalContext } from '../../../services/OperationalContext.js';
 import { renderQueryTemplate } from '../../../queries/renderQueryTemplate.js';
-import { escapeSqlString } from '../../../queries/interpolateTemplate.js';
+import { traceIdsInsightsPattern } from '../../../queries/insightsRegex.js';
 import { CloudWatchLogsLevelReader } from '../../../tree/CloudWatchLogsLevelReader.js';
 import type { ServiceTraceLevelReaderConfig } from './ServiceTraceLevelReaderConfig.js';
-import { traceIdForms } from '../../../parsing/traceIds/traceIdentity.js';
 import { rowsOfTraces } from '../../../parsing/traceIds/traceRows.js';
 import { traceRowMatcher } from '../../../parsing/traceIds/traceRows.js';
 import type { CloudWatchLogsRow } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRow.js';
@@ -69,13 +68,10 @@ export class ServiceTraceLevelReader extends CloudWatchLogsLevelReader<ServiceTr
         queryId: this.config.queryProfileId,
       });
     }
-    // Every trace id in every form the logs write it (X-Ray and compact 32-hex).
-    const predicate = identifiers
-      .flatMap(({ value }) => traceIdForms(value))
-      .map((form) => `@message like '${escapeSqlString(form)}'`)
-      .join(' or ');
+    // Every trace id in every form the logs write it (X-Ray and compact 32-hex), in one regex for the batch.
+    const pattern = traceIdsInsightsPattern(identifiers.map(({ value }) => value));
     return renderQueryTemplate(queryTemplate, {
-      values: { [TRACE_PREDICATE]: `(${predicate})` },
+      values: { [TRACE_PREDICATE]: `(@message like /${pattern}/)` },
       queryId: this.config.queryProfileId,
     });
   }

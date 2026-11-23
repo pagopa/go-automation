@@ -6,6 +6,8 @@ export interface KnownCaseDetectionOutput {
   readonly firstSeenAt?: string;
   readonly lastSeenAt?: string;
   readonly evidenceRows: number;
+  readonly errors: number;
   readonly resolvedMessage?: string;
+  readonly resolvedMessages?: ReadonlyArray<string>;
   readonly observations: ReadonlyArray<IdentifierObservation>;
 }

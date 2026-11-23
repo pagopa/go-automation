@@ -10,6 +10,7 @@ import { requestIdsOf } from '../helpers/requestIdsOf.js';
 import { rowsOfInvocations } from '../helpers/rowsOfInvocations.js';
 import { resolveTimeRange } from '../../../time/resolveTimeRange.js';
 import { readCloudWatchLogsBatches } from '../../../steps/aws/cloudwatch-logs/readCloudWatchLogsBatches.js';
+import { logRowIdentity } from '../../../steps/aws/cloudwatch-logs/logRowIdentity.js';
 import { SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS } from '../../../steps/aws/cloudwatch-logs/SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS.js';
 import { LambdaReporter } from '../reporting/LambdaReporter.js';
 import { OperationalStep } from '../../../steps/OperationalStep.js';
@@ -90,6 +91,8 @@ export class QueryLambdaInvocationStep extends OperationalStep<CloudWatchLogsRow
         query: (batch) => lambdaInvocationQuery(this.config.queryTemplate, batch),
         identifier: (requestId) => ({ kind: 'requestId', value: requestId }),
         rowsOf: (rows, batch) => rowsOfInvocations(rows, batch),
+        belongs: (row, requestId) => rowsOfInvocations([row], [requestId]).length > 0,
+        rowIdentity: logRowIdentity,
       });
       new LambdaReporter(context.services.reporter).invocation(requestIds.join(', '), read.rows.length);
       return {

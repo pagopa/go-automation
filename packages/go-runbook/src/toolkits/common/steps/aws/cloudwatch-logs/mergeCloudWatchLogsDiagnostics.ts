@@ -6,17 +6,18 @@ import type { StepDiagnostics } from '../../../../../engine/index.js';
  * Diagnostics of a step that ran several CloudWatch Logs queries: rows,
  * statistics and executions summed over all of them.
  *
- * The sum is reported only when every query has statistics, so a partial total
- * is never presented as complete.
+ * A query without statistics (a failed read, the rows kept from a divided read)
+ * leaves the others: the total is that of the statistics available.
  *
  * @param diagnostics - Diagnostics of each query, `undefined` when a query had none
- * @returns The merged diagnostics, or `undefined` when there are no queries or one lacks statistics
+ * @returns The merged diagnostics, or `undefined` when no query has statistics
  */
 export function mergeCloudWatchLogsDiagnostics(
   diagnostics: ReadonlyArray<StepDiagnostics | undefined>,
 ): StepDiagnostics | undefined {
   const values = diagnostics.flatMap((entry) => (entry?.cloudWatchLogs === undefined ? [] : [entry.cloudWatchLogs]));
-  if (values.length === 0 || values.length !== diagnostics.length) return undefined;
+  // A read without statistics leaves the others: the total is that of the statistics available.
+  if (values.length === 0) return undefined;
   return {
     cloudWatchLogs: {
       rowsReturned: values.reduce((sum, value) => sum + value.rowsReturned, 0),

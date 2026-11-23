@@ -283,6 +283,7 @@ export interface ErrorNodeSpec {
     readonly contextOutputs?: Readonly<Record<string, ReadonlyArray<unknown>>>;
     readonly siblingOutputs?: Readonly<Record<string, ReadonlyArray<unknown>>>;
     readonly rowIdentities?: ReadonlyArray<string>;
+    readonly occurrences?: number;
 }
 ```
 
@@ -314,6 +315,8 @@ export interface ErrorTreeNode {
     readonly level: number;
     readonly target: string;
     readonly key: string;
+    readonly errorKey: string;
+    readonly occurrences?: number;
     readonly label: string;
     readonly occurredAt?: string;
     readonly correlation: Readonly<Record<string, string>>;
@@ -654,6 +657,14 @@ const PLAIN_LOG_ACTION_RENDERER: LogActionRenderer;
 export type ReadPolicy = 'partial' | 'strict';
 ```
 
+### `ReadSplitBudget` (type)
+
+```ts
+export interface ReadSplitBudget {
+    remaining: number;
+}
+```
+
 ### `ReadState` (type)
 
 ```ts
@@ -739,6 +750,8 @@ export interface RunbookContext<TServices extends WorkflowServices = WorkflowSer
     readonly reads: RunbookReads;
     readonly readPolicy?: ReadPolicy;
     readonly sharedReads?: Map<string, Promise<unknown>>;
+    readonly readSplits?: ReadSplitBudget;
+    readonly readFailures?: Map<string, number>;
 }
 ```
 
@@ -812,6 +825,7 @@ export interface RunbookExecutionTrace {
     readonly caseMatching: CaseMatchingTrace;
     readonly actionsExecuted: ReadonlyArray<ActionTrace>;
     readonly coverage: ReadonlyArray<CoverageEntry>;
+    readonly readFailures?: Readonly<Record<string, number>>;
     readonly summary: ExecutionSummary;
 }
 ```
@@ -1214,7 +1228,8 @@ export interface TreeLevelReader {
     readonly id: string;
     readonly label: string;
     readonly kind: StepKind;
-    read(context: RunbookContext, identifiers: ReadonlyArray<EvidenceIdentifier>): Promise<TreeLevelReadResult>;
+    read(context: RunbookContext, identifiers: ReadonlyArray<EvidenceIdentifier>, rules?: TreeLevelRowRules): Promise<TreeLevelReadResult>;
+    batches?(identifiers: ReadonlyArray<EvidenceIdentifier>, maxIdentifiers?: number): ReadonlyArray<ReadonlyArray<EvidenceIdentifier>>;
     getTraceInfo?(context: RunbookContext): Readonly<Record<string, unknown>>;
     requiredServices?(): ReadonlyArray<string>;
 }
@@ -1229,6 +1244,15 @@ export interface TreeLevelReadResult {
     readonly rows: ReadonlyArray<unknown>;
     readonly coverage?: ReadonlyArray<StepCoverage>;
     readonly diagnostics?: StepDiagnostics;
+}
+```
+
+### `TreeLevelRowRules` (type)
+
+```ts
+export interface TreeLevelRowRules {
+    readonly attribute?: TreeRowAttributionFn;
+    readonly rowIdentity?: TreeRowIdentityFn;
 }
 ```
 

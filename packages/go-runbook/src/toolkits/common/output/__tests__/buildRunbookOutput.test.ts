@@ -85,7 +85,7 @@ describe('buildRunbookOutput', () => {
       },
     );
 
-    assert.strictEqual(output.schemaVersion, '3.0.0');
+    assert.strictEqual(output.schemaVersion, '4.0.0');
     assert.strictEqual(output.outcome.kind, 'known-case-matched');
     assert.strictEqual(output.execution.traceFile, 'trace-test.json');
     assert.strictEqual(output.execution.recoveredErrors[0]?.error, 'temporary error');

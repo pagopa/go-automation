@@ -25,7 +25,7 @@ function output(
   const recordsMatched = options.recordsMatched ?? 0;
 
   return {
-    schemaVersion: '3.0.0',
+    schemaVersion: '4.0.0',
     generatedAt: '2026-09-01T10:00:00.000Z',
     runbook: {
       id: 'test-runbook',
@@ -78,7 +78,9 @@ describe('classifyRunbookOutcome', () => {
     const hit = output(
       {
         kind: 'known-case-matched',
-        detections: [{ caseId: 'lambda-timeout', description: 'Timeout', evidenceRows: 1, observations: [] }],
+        detections: [
+          { caseId: 'lambda-timeout', description: 'Timeout', evidenceRows: 1, errors: 1, observations: [] },
+        ],
         message: 'm',
       },
       { recordsMatched: 1, recordsScanned: 10 },
@@ -175,7 +177,7 @@ describe('classifyRunbookOutcome', () => {
       {
         kind: 'known-case-matched',
         message: 'matched',
-        detections: [{ caseId: 'c', description: 'd', evidenceRows: 1, observations: [] }],
+        detections: [{ caseId: 'c', description: 'd', evidenceRows: 1, errors: 1, observations: [] }],
       },
       { fields },
     );

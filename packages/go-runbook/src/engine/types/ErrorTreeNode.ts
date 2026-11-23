@@ -11,6 +11,8 @@ export interface ErrorTreeNode {
   readonly level: number;
   readonly target: string;
   readonly key: string;
+  readonly errorKey: string;
+  readonly occurrences?: number;
   readonly label: string;
   readonly occurredAt?: string;
   readonly correlation: Readonly<Record<string, string>>;

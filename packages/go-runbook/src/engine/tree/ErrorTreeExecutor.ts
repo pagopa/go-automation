@@ -1,3 +1,4 @@
+import { omitUndefined } from '@pagopa/go-common/utils';
 import type { ErrorTreeExecutorDeps } from '../types/ErrorTreeExecutorDeps.js';
 import type { ErrorTreeRun } from '../types/ErrorTreeRun.js';
 import type { DescendRequest } from '../types/DescendRequest.js';
@@ -125,14 +126,16 @@ export class ErrorTreeExecutor {
         ? await this.deps.runSteps(level.perNode, context, scope)
         : { context, descends: [] };
     const ownRows = spec.rowIdentities ?? rowIdentities(spec, level);
+    const id = this.uniqueId(
+      parent === undefined ? `${level.target}:${spec.key}` : `${parent.id}>${level.target}:${spec.key}`,
+    );
     const node: WorkNode = {
-      id: this.uniqueId(
-        parent === undefined ? `${level.target}:${spec.key}` : `${parent.id}>${level.target}:${spec.key}`,
-      ),
+      id,
       ...(parent !== undefined ? { parentId: parent.id } : {}),
       depth: parent === undefined ? 0 : parent.depth + 1,
       level,
       spec,
+      errorKey: ownRows.length > 0 ? [level.target, ...ownRows].join('\n') : id,
       scope,
       ...(arrivedBy?.request.via !== undefined ? { via: arrivedBy.request.via } : {}),
       context: run.context,
@@ -252,15 +255,14 @@ export class ErrorTreeExecutor {
 
     const byIdentifier = new Map<string, ReadOutcome>();
     for (const group of groups.values()) {
-      const values = [...group.values];
-      const size = Math.max(1, group.level.batchSize ?? DEFAULT_BATCH_SIZE);
-      for (let start = 0; start < values.length; start += size) {
+      const identifiers = [...group.values].map((value): EvidenceIdentifier => ({ kind: group.kind, value }));
+      for (const batch of this.batchesOf(group.reader, group.level, identifiers)) {
         throwIfRunbookAborted(window);
-        const batch = values.slice(start, start + size).map((value) => ({ kind: group.kind, value }));
         const startedAtMs = Date.now();
         let result: TreeLevelReadResult;
         try {
-          result = await group.reader.read(window, batch);
+          const { attribute, rowIdentity } = group.level;
+          result = await group.reader.read(window, batch, omitUndefined({ attribute, rowIdentity }));
         } catch (error: unknown) {
           result = { ...failedResultUnlessAborted(window, error), rows: [] };
         }
@@ -285,6 +287,19 @@ export class ErrorTreeExecutor {
       outcomes.set(entry, outcome);
     }
     return outcomes;
+  }
+
+  /** The batches of a level: the reader divides them when it can, otherwise fixed batches of `batchSize`. */
+  private batchesOf(
+    reader: TreeLevelReader,
+    level: TreeLevel,
+    identifiers: ReadonlyArray<EvidenceIdentifier>,
+  ): ReadonlyArray<ReadonlyArray<EvidenceIdentifier>> {
+    if (reader.batches !== undefined) return reader.batches(identifiers, level.batchSize);
+    const size = Math.max(1, level.batchSize ?? DEFAULT_BATCH_SIZE);
+    const batches: EvidenceIdentifier[][] = [];
+    for (let start = 0; start < identifiers.length; start += size) batches.push(identifiers.slice(start, start + size));
+    return batches;
   }
 
   /** Publishes the read on the parent, enumerates the children, then follows the route of the context rows. */
@@ -439,6 +454,10 @@ export class ErrorTreeExecutor {
       level: node.depth,
       target: node.level.target,
       key: node.spec.key,
+      errorKey: node.errorKey,
+      ...(node.spec.occurrences !== undefined && node.spec.occurrences > 1
+        ? { occurrences: node.spec.occurrences }
+        : {}),
       label: node.spec.label,
       ...(node.spec.occurredAt !== undefined ? { occurredAt: node.spec.occurredAt } : {}),
       correlation: node.spec.correlation ?? {},

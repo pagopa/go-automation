@@ -1,6 +1,6 @@
 /**
  * Console Logger Handler
- * Outputs log events to the console with colors and hierarchical indentation
+ * Outputs log events to the console with colors, grouping each header and section in a block drawn with a gutter
  */
 
 import { consoleColorsEnabled, stripAnsi } from '../../render/ansi.js';
@@ -8,15 +8,24 @@ import { GOLogEvent } from '../GOLogEvent.js';
 import { GOLogEventCategory } from '../GOLogEventCategory.js';
 import type { GOLoggerHandler } from '../GOLoggerHandler.js';
 import { redactSensitiveLogText } from '../GOSensitiveLogRedactor.js';
-import { GOConsoleLoggerStyle } from './GOConsoleLoggerStyle.js';
+import { ConsoleColors, GOConsoleLoggerStyle } from './GOConsoleLoggerStyle.js';
+
+/** The block the next line belongs to: none, the card opened by a header, or a section. */
+type ConsoleBlock = 'none' | 'card' | 'section';
+
+const BAR = `${ConsoleColors.DIM}│${ConsoleColors.RESET}`;
+const GUTTER = `${BAR}  `;
+const CARD_END = `${ConsoleColors.DIM}╰─${ConsoleColors.RESET}`;
 
 /**
- * Console logger handler with hierarchical indentation support
+ * Console logger handler: a header opens a card (`╭─ … ╰─`), a section opens a block (`◆ …`), and every line of a
+ * card or a section is drawn behind the `│` gutter. Consecutive sections are joined by a `│` line.
  */
 export class GOConsoleLoggerHandler implements GOLoggerHandler {
   private style: GOConsoleLoggerStyle;
-  private indentLevel: number = 0;
-  private readonly indentSize: number = 2;
+  private block: ConsoleBlock = 'none';
+  // Whether the last line written is empty or a bare gutter, so a block never gets two separators in a row.
+  private lastLineBlank: boolean = true;
   // Whether to keep ANSI colors. Disabled in non-TTY contexts (Lambda/CloudWatch,
   // CI, pipes) so escape sequences do not leak into the logs.
   private readonly colorsEnabled: boolean;
@@ -50,52 +59,54 @@ export class GOConsoleLoggerHandler implements GOLoggerHandler {
 
     const redactedEvent = this.redactEvent(event);
 
-    if (event.category === GOLogEventCategory.ERROR) {
-      console.error(this.render(this.style.format(redactedEvent, ' '.repeat(this.indentLevel * this.indentSize))));
+    if (event.category === GOLogEventCategory.HEADER || event.category === GOLogEventCategory.SECTION) {
+      this.openBlock(redactedEvent);
       return;
     }
 
-    // Adjust indentation based on category
-    this.updateIndentLevel(event.category);
-
-    // Get indentation string
-    const indent = ' '.repeat(this.indentLevel * this.indentSize);
-
-    // Format and output
-    const formatted = this.render(this.style.format(redactedEvent, indent));
-    process.stdout.write(`${formatted}\n`);
-
-    // Increase indentation after header/section
-    if (event.category === GOLogEventCategory.HEADER || event.category === GOLogEventCategory.SECTION) {
-      this.indentLevel++;
+    const inBlock = this.block !== 'none';
+    if (event.category === GOLogEventCategory.TEXT && redactedEvent.message.length === 0) {
+      this.write(inBlock ? BAR : '', true);
+      return;
     }
+
+    const formatted = this.style.format(redactedEvent);
+    const line = inBlock ? GUTTER + formatted.replaceAll('\n', `\n${GUTTER}`) : formatted;
+    this.write(line, false, event.category === GOLogEventCategory.ERROR);
   }
 
   /**
-   * Update indentation level based on category
+   * Closes the current block and opens the one of a header or a section, separated from what came before.
    */
-  private updateIndentLevel(category: GOLogEventCategory): void {
-    // Reset indentation for headers
-    if (category === GOLogEventCategory.HEADER) {
-      this.indentLevel = 0;
+  private openBlock(event: GOLogEvent): void {
+    const joinSections = this.block === 'section' && event.category === GOLogEventCategory.SECTION;
+    if (this.block === 'card') {
+      this.write(CARD_END, false);
     }
-    // Sections are at level 1 (under header)
-    else if (category === GOLogEventCategory.SECTION) {
-      // If we were deeper than level 1, go back to 1
-      if (this.indentLevel > 1) {
-        this.indentLevel = 1;
-      }
+    if (!this.lastLineBlank) {
+      this.write(joinSections ? BAR : '', true);
     }
-    // Other categories don't change the level before printing
-    // (but header/section will increase it after)
+    this.write(this.style.format(event), false);
+    this.block = event.category === GOLogEventCategory.HEADER ? 'card' : 'section';
+  }
+
+  private write(line: string, blank: boolean, toStderr: boolean = false): void {
+    const rendered = this.render(line);
+    if (toStderr) {
+      console.error(rendered);
+    } else {
+      process.stdout.write(`${rendered}\n`);
+    }
+    this.lastLineBlank = blank;
   }
 
   /**
-   * Reset indentation to zero
+   * Leave any open block: the next line starts at the margin
    */
   // eslint-disable-next-line @typescript-eslint/require-await
   public async reset(): Promise<void> {
-    this.indentLevel = 0;
+    this.block = 'none';
+    this.lastLineBlank = true;
   }
 
   /**

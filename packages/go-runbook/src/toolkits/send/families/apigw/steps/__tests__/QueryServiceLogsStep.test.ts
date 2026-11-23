@@ -62,7 +62,7 @@ describe('QueryServiceLogsStep', () => {
 
     assert.deepStrictEqual(result.output, ROWS);
     assert.strictEqual(queries.length, 1);
-    assert.match(queries[0] ?? '', /filter \(@message like 'trace''1'\)/);
+    assert.match(queries[0] ?? '', /filter \(@message like \/trace'1\/\)/);
     assert.doesNotMatch(queries[0] ?? '', /\bor\b/);
   });
 
@@ -95,8 +95,8 @@ describe('QueryServiceLogsStep', () => {
     assert.match(
       queries[0] ?? '',
       new RegExp(
-        `filter \\(@message like '${trace}'\\) or \\(@message like '1-6789abcd-0123456789abcdef01234567'\\) or ` +
-          `\\(@message like '6789abcd0123456789abcdef01234567'\\)`,
+        `filter \\(@message like /${trace}\\|1-6789abcd-0123456789abcdef01234567\\|` +
+          `6789abcd0123456789abcdef01234567/\\)`,
       ),
     );
   });

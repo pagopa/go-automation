@@ -95,7 +95,8 @@ describe('external-registries SelfcarePA downstream runbook', () => {
       const { result, draft, queries } = await execute([message], ['INFO - Downstream request completed']);
       assert.strictEqual(result.stepsExecuted, 4);
       assert.strictEqual(queries.length, 2);
-      assert.ok(queries[1]?.includes(`@message like '${ROOT}'`));
+      assert.match(queries[1] ?? '', /@message like \//u);
+      assert.ok(queries[1]?.includes(ROOT));
       assert.ok(!queries[1]?.includes('Self='));
       assert.deepStrictEqual(
         result.detections.map(({ knownCase }) => knownCase.id),

@@ -6,6 +6,7 @@ import {
   ALARM_TIME_RANGE,
   type CloudWatchLogsBatchedReadResult,
   endsCloudWatchLogsRead,
+  logRowIdentity,
   readCloudWatchLogsBatches,
   resolveTimeRange,
   SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS,
@@ -82,6 +83,8 @@ export class QueryStreamLambdaLogsStep extends OperationalStep<CloudWatchLogsRow
           query: (batch) =>
             `fields @timestamp, @requestId, @message\n| filter @requestId in [${batch.map((id) => `'${id}'`).join(', ')}]\n| sort @timestamp asc\n| limit 10000`,
           identifier: (id) => ({ kind: 'requestId', value: id }),
+          belongs: (row, id) => readRowField(row, '@requestId') === id,
+          rowIdentity: logRowIdentity,
         });
       } catch (error: unknown) {
         if (endsCloudWatchLogsRead(context, error)) throw error;

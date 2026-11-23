@@ -17,7 +17,7 @@ import type { ErrorChainNode } from './ErrorChainNode.js';
 import type { ErrorChainRoute } from './ErrorChainRoute.js';
 import { ErrorTreeView } from './tree/ErrorTreeView.js';
 import { mergeObservations } from './tree/mergeObservations.js';
-import { isEarlier } from './isEarlier.js';
+import { earliest, latest } from './isEarlier.js';
 
 /** Target of the single node of a window-level chain. */
 const WINDOW_TARGET = 'window';
@@ -69,6 +69,7 @@ export function errorChainsOf(result: RunbookExecutionResult, view: ErrorTreeVie
     interruptions: [],
     incompleteEvidence: result.windowIncomplete || observesGap(detection.observations, named),
     count: 1,
+    errors: 1,
     ...omitUndefined({ firstSeenAt: detection.firstSeenAt, lastSeenAt: detection.lastSeenAt }),
     routes: [],
     samples: [{ key: detection.knownCase.id, correlation: {} }],
@@ -129,6 +130,7 @@ function treeChainGroup(group: TreeChainGroup, view: ErrorTreeView): ErrorChainG
     interruptions: interruptionsOf(group.members),
     incompleteEvidence: group.members.some((chain) => chain.incompleteEvidence),
     count: group.members.length,
+    errors: view.distinctErrors(group.members),
     ...omitUndefined({ firstSeenAt, lastSeenAt }),
     routes: routesOf(members),
     samples: members.slice(0, MAX_SAMPLES).map(({ key, correlation }) => ({ key, correlation })),
@@ -214,20 +216,4 @@ function observationsOf(chains: ReadonlyArray<TreeChain>, view: ErrorTreeView): 
     }
   }
   return mergeObservations(candidates);
-}
-
-/** The earliest of some ISO times. */
-function earliest(times: ReadonlyArray<string | undefined>): string | undefined {
-  let best: string | undefined;
-  for (const time of times) if (isEarlier(time, best)) best = time;
-  return best;
-}
-
-/** The latest of some ISO times. */
-function latest(times: ReadonlyArray<string | undefined>): string | undefined {
-  let best: string | undefined;
-  for (const time of times) {
-    if (time !== undefined && (best === undefined || Date.parse(time) > Date.parse(best))) best = time;
-  }
-  return best;
 }

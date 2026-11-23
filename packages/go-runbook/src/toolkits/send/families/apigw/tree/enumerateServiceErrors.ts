@@ -1,4 +1,5 @@
 import { omitUndefined } from '@pagopa/go-common/utils';
+import { canonicalizeJson } from '@pagopa/go-common/json';
 
 import type { ErrorNodeSpec, EvidenceIdentifier, TreeEnumeratorFn } from '../../../../../engine/index.js';
 import { safeCorrelationValue } from '../../../../../engine/internal.js';
@@ -8,6 +9,7 @@ import { matchTraceIdCandidate } from '../../../../common/parsing/traceIds/match
 import { boundedText } from '../../../../common/parsing/correlation/boundedText.js';
 import { errorNodeLabel } from '../../../../common/tree/errorNodeLabel.js';
 import { occurredAtOf } from '../../../../common/parsing/correlation/occurredAtOf.js';
+import { earliest } from '../../../../common/output/isEarlier.js';
 import { findKnownUrlCall } from '../correlation/scanServiceLogs.js';
 import type { ServiceErrorLevelConfig } from './ServiceErrorLevelConfig.js';
 import type { CloudWatchLogsRow } from '../../../../common/steps/aws/cloudwatch-logs/CloudWatchLogsRow.js';
@@ -83,7 +85,10 @@ export function enumerateServiceErrors(config: ServiceErrorLevelConfig): TreeEnu
       byTarget.set(key, group);
     }
     return {
-      nodes,
+      nodes:
+        config.mergeIdenticalErrors === true
+          ? mergeIdenticalErrors(nodes, errors, `${config.varPrefix}ErrorMsg`)
+          : nodes,
       routings: [...byTarget.entries()].map(([target, group]) => {
         const routeRows = group.map(({ row }) => row);
         return {
@@ -95,6 +100,56 @@ export function enumerateServiceErrors(config: ServiceErrorLevelConfig): TreeEnu
       }),
     };
   };
+}
+
+/**
+ * One node for the errors of a read that are the same error written more than once (`Error during retrieve of the
+ * groups` logged several times by one request): the same message inside the log, the same next call, fallback UUID
+ * and trace, the same correlation. The time and stack of each line differ and stay in its row: the node has the key,
+ * label and variables of the first, the earliest time, every row and their number.
+ *
+ * Complexity: O(N) over the error nodes.
+ */
+function mergeIdenticalErrors(
+  nodes: ReadonlyArray<ErrorNodeSpec>,
+  errors: ReadonlyArray<ReadRow>,
+  messageVar: string,
+): ReadonlyArray<ErrorNodeSpec> {
+  const merged = new Map<string, ErrorNodeSpec>();
+  for (const [index, node] of nodes.entries()) {
+    const { [messageVar]: _message, ...vars } = node.vars ?? {};
+    const key = canonicalizeJson([innerMessage(errors[index]?.row.message ?? ''), vars, node.correlation ?? {}]);
+    const first = merged.get(key);
+    if (first === undefined) {
+      merged.set(key, node);
+      continue;
+    }
+    merged.set(key, {
+      ...first,
+      ...omitUndefined({ occurredAt: earliest([first.occurredAt, node.occurredAt]) }),
+      scopedOutputs: Object.fromEntries(
+        Object.entries(first.scopedOutputs).map(([stepId, rows]) => [
+          stepId,
+          [...rows, ...(node.scopedOutputs[stepId] ?? [])],
+        ]),
+      ),
+      occurrences: (first.occurrences ?? 1) + 1,
+    });
+  }
+  return [...merged.values()];
+}
+
+/** The message a log line carries: the `message` of a JSON line, the whole text otherwise. */
+function innerMessage(text: string): string {
+  if (!text.trimStart().startsWith('{')) return text;
+  try {
+    const parsed: unknown = JSON.parse(text);
+    const message =
+      typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>)['message'] : undefined;
+    return typeof message === 'string' ? message : text;
+  } catch {
+    return text;
+  }
 }
 
 /** The variables of a node, or of the routing pseudo-node, from its rows. */

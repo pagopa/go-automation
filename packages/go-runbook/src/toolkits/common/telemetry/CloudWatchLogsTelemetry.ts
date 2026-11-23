@@ -4,6 +4,7 @@ import type { CloudWatchLogsTelemetryQueryExecution } from './CloudWatchLogsTele
 
 export interface CloudWatchLogsTelemetry {
   readonly queryCount: number;
+  readonly failedQueryCount?: number;
   readonly statistics: AWSCloudWatchLogsQueryStatistics;
   readonly queryExecutions: ReadonlyArray<CloudWatchLogsTelemetryQueryExecution>;
 }

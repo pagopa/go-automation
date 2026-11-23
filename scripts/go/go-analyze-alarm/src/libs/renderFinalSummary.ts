@@ -22,29 +22,33 @@ export function renderFinalSummary(logger: GOLogger, runbook: Runbook, result: R
   // The chains of a Lambda runbook already tell how each invocation ended.
   if (lambda.isLambdaRunbookContext(context)) {
     logger.section('Lambda Runbook Summary');
-    logger.info(`Lambda: ${context.lambda.name}`);
+    logger.fields({ Lambda: context.lambda.name });
     return;
   }
   // The chains of a SEND API Gateway runbook already tell how each request ended.
   if (apigw.isSendApiGwRunbookContext(context)) {
     logger.section('SEND API Gateway Runbook Summary');
-    logger.info(`API Gateway log group: ${context.apiGwLogGroup}`);
-    for (const apiGwService of context.services) logger.info(`Service: ${apiGwService.name}`);
+    logger.fields({
+      'API Gateway log group': context.apiGwLogGroup,
+      Service: context.services.map((entry) => entry.name).join(', '),
+    });
     return;
   }
   if (interop.apigw.isInteropApiGwRunbookContext(context)) {
     logger.section('INTEROP API Gateway Runbook Summary');
-    logger.info(`API Gateway log group: ${context.apiGwLogGroup}`);
-    for (const apiGwService of context.services) logger.info(`Service: ${apiGwService.name}`);
+    logger.fields({
+      'API Gateway log group': context.apiGwLogGroup,
+      Service: context.services.map((entry) => entry.name).join(', '),
+    });
     return;
   }
   if (interop.k8s.isInteropK8sRunbookContext(context)) {
     logger.section('INTEROP K8S Runbook Summary');
-    logger.info(`Service: ${context.service.name}`);
+    logger.fields({ Service: context.service.name });
     return;
   }
   if (service.isServiceRunbookContext(context)) {
     logger.section('Service Runbook Summary');
-    logger.info(`Service: ${context.service.name}`);
+    logger.fields({ Service: context.service.name });
   }
 }

@@ -6,7 +6,7 @@ export const API_GW_LOG_GROUP =
 // Keep outgoing invocations, WARNs and response-commit evidence as well as errors.
 const SERVICE_QUERY = `{{FILTER_CLAUSE}}
 | sort @timestamp asc
-| limit 1000
+| limit 10000
 | display @timestamp, level, @message, trace_id, \`AWS-XRAY-TRACE-ID\``;
 
 export const ENTRY_SERVICE: apigw.ApiGwService = {

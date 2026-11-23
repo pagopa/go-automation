@@ -53,8 +53,7 @@ export class LambdaReporter {
     this.reporter.add({ label: `Query CloudWatch [filter: ${requestId}]` }, { label: `Log trovati: ${logCount}` });
   }
 
-  downstream(name: string, logGroup: string, logCount: number): void {
-    this.reporter.section(`Downstream: ${name}`);
+  downstream(logGroup: string, logCount: number): void {
     this.reporter.add({ label: `Log group: ${logGroup}` }, { label: `Log trovati: ${logCount}` });
   }
 

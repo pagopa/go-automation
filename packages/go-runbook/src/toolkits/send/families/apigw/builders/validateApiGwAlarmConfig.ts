@@ -28,6 +28,12 @@ function validatePlaceholders(profile: ApiGwQueryProfile): void {
     values: { '{{VALUE}}': '' },
     queryId: `${profile.id}.serviceLog.tracePredicate`,
   });
+  if (profile.serviceLog.tracePatternTemplate !== undefined) {
+    renderQueryTemplate(profile.serviceLog.tracePatternTemplate, {
+      values: { '{{PATTERN}}': '' },
+      queryId: `${profile.id}.serviceLog.tracePattern`,
+    });
+  }
   renderQueryTemplate(profile.serviceLog.fallbackPredicateTemplate, {
     values: { '{{VALUE}}': '' },
     queryId: `${profile.id}.serviceLog.fallbackPredicate`,

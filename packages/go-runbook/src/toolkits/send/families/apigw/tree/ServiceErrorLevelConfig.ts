@@ -12,4 +12,5 @@ export interface ServiceErrorLevelConfig {
   readonly registry: KnownUrlsRegistry;
   /** Variable with the trace id the chain follows. */
   readonly traceIdContextVar: string;
+  readonly mergeIdenticalErrors?: boolean;
 }

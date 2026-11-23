@@ -8,7 +8,7 @@ const SEND_SERVICE_ERROR_QUERY = `filter level = 'ERROR'
 
 const SEND_SERVICE_TRACE_QUERY_TEMPLATE = `filter @message like '{{TRACE_ID}}'
 | sort @timestamp asc
-| limit 1000
+| limit 10000
 | display @timestamp, level, ms, @message, trace_id`;
 
 /**

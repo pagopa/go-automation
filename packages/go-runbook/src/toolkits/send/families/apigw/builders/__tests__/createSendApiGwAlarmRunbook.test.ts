@@ -618,7 +618,7 @@ describe('createSendApiGwAlarmRunbook execution log per request', () => {
       }
       if (group === EXECUTION_LOG) {
         const id = query.includes('req-ok') ? 'req-ok' : 'req-sat';
-        const count = id === 'req-sat' ? 1000 : 1;
+        const count = id === 'req-sat' ? 10_000 : 1;
         return { rows: Array.from({ length: count }, () => logRow({ '@message': `(${id}) execution detail` })) };
       }
       return { rows: [] };

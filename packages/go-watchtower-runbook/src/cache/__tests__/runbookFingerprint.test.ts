@@ -64,8 +64,8 @@ describe('runbookFingerprint', () => {
 
   it('never reuses an entry saved before the reads carried their identifiers', () => {
     const meta = cacheMeta();
-    assert.equal(meta.fingerprintVersion, 20);
-    assert.equal(meta.outputSchemaVersion, '3.0.0');
+    assert.equal(meta.fingerprintVersion, 23);
+    assert.equal(meta.outputSchemaVersion, '4.0.0');
     const previous = computeFingerprint({ ...meta, fingerprintVersion: 14, outputSchemaVersion: '2.0.0' });
     assert.notEqual(computeFingerprint(meta), previous);
     assert.notEqual(computeFingerprint(meta), computeFingerprint({ ...meta, fingerprintVersion: 14 }));

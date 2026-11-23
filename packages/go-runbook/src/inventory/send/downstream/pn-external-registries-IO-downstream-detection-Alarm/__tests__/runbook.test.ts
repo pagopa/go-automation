@@ -30,7 +30,8 @@ describe('external-registries IO downstream runbook', () => {
     assert.deepStrictEqual(result.detections, []);
     assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
     assert.strictEqual(queries.length, 2);
-    assert.ok(queries[1]?.query.includes(`@message like '${TRACE_ID}'`));
+    assert.match(queries[1]?.query ?? '', /@message like \//u);
+    assert.ok(queries[1]?.query.includes(TRACE_ID));
   });
 
   it('recognizes a known timeout, still reads its trace and does not claim recovery', async () => {
@@ -41,7 +42,8 @@ describe('external-registries IO downstream runbook', () => {
     assert.strictEqual(result.status, 'completed');
     assert.strictEqual(result.stepsExecuted, 4);
     assert.strictEqual(queries.length, 2);
-    assert.ok(queries[1]?.query.includes(`@message like '${TRACE_ID}'`));
+    assert.match(queries[1]?.query ?? '', /@message like \//u);
+    assert.ok(queries[1]?.query.includes(TRACE_ID));
     assert.strictEqual(result.detections[0]?.knownCase.id, 'io-read-timeout');
   });
 

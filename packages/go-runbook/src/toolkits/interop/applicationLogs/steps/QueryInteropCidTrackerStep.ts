@@ -9,6 +9,7 @@ import { OperationalStep } from '../../../common/steps/OperationalStep.js';
 import type { CloudWatchLogsBatchedReadResult } from '../../../common/steps/aws/cloudwatch-logs/CloudWatchLogsBatchedReadResult.js';
 import { endsCloudWatchLogsRead } from '../../../common/steps/aws/cloudwatch-logs/endsCloudWatchLogsRead.js';
 import { readCloudWatchLogsBatches } from '../../../common/steps/aws/cloudwatch-logs/readCloudWatchLogsBatches.js';
+import { logRowIdentity } from '../../../common/steps/aws/cloudwatch-logs/logRowIdentity.js';
 import { SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS } from '../../../common/steps/aws/cloudwatch-logs/SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS.js';
 import { readNonBlankVar } from '../../helpers/readNonBlankVar.js';
 import type { OperationalContext } from '../../../common/services/OperationalContext.js';
@@ -123,6 +124,8 @@ export class QueryInteropCidTrackerStep
           cidResults.push(...attributeToCids(rows, batch));
           return rows;
         },
+        belongs: (row, cid) => readRowField(row, 'cid') === cid,
+        rowIdentity: logRowIdentity,
       });
     } catch (error: unknown) {
       // No batch answered: every CID is unread.

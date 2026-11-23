@@ -2829,12 +2829,23 @@ Uno step di nodo chiede le discese con `StepResult.descend` (`DescendRequest`: `
 `EvidenceIdentifier` con `kind` e `value`). Il motore procede per ondate:
 
 1. raccoglie le discese di tutti i nodi non ancora lette;
-2. le **raggruppa per livello e tipo d'identificativo** e fa una lettura per ogni lotto di `batchSize` identificativi;
+2. le **raggruppa per livello e tipo d'identificativo** e le legge a lotti: un lettore che sa dividerli
+   (`TreeLevelReader.batches`, come `CloudWatchLogsLevelReader`) mette in un lotto quanti identificativi stanno in una
+   query di 10.000 caratteri, perché ogni query scansiona tutto il log group della finestra; altrimenti lotti fissi di
+   `batchSize` (che per un lettore che divide resta un tetto);
 3. **divide** le righe fra i padri per identificativo esatto (`attribute`); una lettura di un solo identificativo le
    assegna tutte;
 4. toglie le righe che un antenato possiede già (`rowIdentity`), pubblica sul padre l'esito della lettura e chiama
    l'enumeratore del livello, che crea i figli;
 5. ricomincia finché restano discese da leggere.
+
+Un lotto saturo si divide in due e si rilegge (`readSplittingSaturated`), finché le metà sono complete, entro un budget
+di 10 riletture per esecuzione condiviso da tutti i lettori (`RunbookContext.readSplits`): le righe di un identificativo
+riletto completamente sono quelle delle metà, a un identificativo ancora incompleto restano anche le righe del lotto
+saturo, senza doppioni. Si divide solo una lettura che sa riconoscere le proprie righe (`rowIdentity` del lettore); le
+letture a lotti degli step (`readCloudWatchLogsBatches`) dichiarano `belongs` e `rowIdentity`. Ogni lettura fallita di
+CloudWatch Logs si conta una volta (`RunbookContext.readFailures`, nella traccia `readFailures`) e la telemetria la
+riporta accanto alle query (`failedQueryCount`).
 
 La copertura di una lettura raggruppata (satura, non disponibile) vale per tutti gli identificativi del lotto, salvo
 le lacune che nominano i loro `identifiers`. Ogni tentativo di una discesa è legato al lotto che l'ha letta: la discesa
@@ -3037,7 +3048,10 @@ dice come si riconosce un valore e qual è la sua forma canonica, in che forme l
 nominano in un messaggio e se un messaggio ne dà uno da scoprire (il Fallback UUID no: un messaggio nomina anche quelli
 delle chiamate). `canonicalTraceId` dà la forma canonica di un valore di qualunque formato, anche dal `Root=` di un header
 X-Ray o da un header `traceparent`; è la forma di correlazioni, variabili `…TraceId` e identificatori delle discese.
-`traceIdForms` dà le forme con cui le query lo cercano: quella data e quelle del suo formato. `traceRowMatcher` dice se una riga appartiene a un trace: decide
+`traceIdForms` dà le forme con cui le query lo cercano: quella data e quelle del suo formato. Una query a lotti le
+scrive tutte in una sola regex (`traceIdsInsightsPattern`: `@message like /f1|f2|…/`, ogni forma come letterale), che
+trova le stesse righe di un `like` per forma in una query molto più corta; il profilo SEND la usa con
+`tracePatternTemplate`, un profilo senza il template tiene un predicato per forma (`tracePredicateTemplate`). `traceRowMatcher` dice se una riga appartiene a un trace: decide
 il campo trace, il messaggio solo senza campo. Le letture per lotti (template con `@message like '{{TRACE_ID}}'`,
 `ServiceLogsLevelReader`) tengono le righe con questa regola; una query che legge un trace per volta scarta solo le
 righe il cui campo trace nomina un altro trace (`rowsOfTraces`). Il profilo SEND estrae dall'access log il solo id

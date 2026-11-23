@@ -21,6 +21,7 @@ import type { LambdaPipelineAnchor } from '../types/LambdaPipelineAnchor.js';
 import { LAMBDA_PIPELINE_STEP_IDS as STEP_IDS } from './LAMBDA_PIPELINE_STEP_IDS.js';
 import { lambdaDownstreamReadStepId } from './lambdaDownstreamReadStepId.js';
 import type { CloudWatchLogsRow } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRow.js';
+import { logRowIdentity } from '../../../steps/aws/cloudwatch-logs/logRowIdentity.js';
 
 /**
  * Assembles a complete Lambda alarm runbook from declarative inputs: the error scan and the reconstructed flow of
@@ -132,6 +133,8 @@ export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
       }),
       attribute: (identifier) => (row) =>
         Array.isArray(row) && lambdaRowRequestId(row as CloudWatchLogsRow) === identifier.value,
+      // The same log event read by two attempts or two parents is one row.
+      rowIdentity: logRowIdentity,
       enumerate: enumerateLambdaDownstreamErrors(readStepId, downstream.varPrefix),
       ownsVar: (name) => name === errorVar,
     };

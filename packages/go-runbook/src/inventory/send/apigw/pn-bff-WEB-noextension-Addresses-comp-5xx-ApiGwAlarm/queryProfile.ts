@@ -26,7 +26,7 @@ export const ADDRESSES_QUERY_PROFILE: apigw.ApiGwQueryProfile = {
     ...apigw.SEND_API_GW_PROFILE.serviceLog,
     queryTemplate: `{{FILTER_CLAUSE}}
 | sort @timestamp asc
-| limit 1000
+| limit 10000
 | display @timestamp, level, message, @message, trace_id, \`AWS-XRAY-TRACE-ID\``,
   },
 };

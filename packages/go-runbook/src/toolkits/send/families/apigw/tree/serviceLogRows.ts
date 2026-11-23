@@ -50,21 +50,6 @@ export function serviceRowMatcher(
 }
 
 /**
- * The identity of a service row, to merge two reads and to recognize a row an ancestor holds: its `@ptr` when the
- * query projects it, otherwise every field of the row.
- *
- * @param row - Logs Insights row
- * @returns The identity
- */
-export function serviceRowIdentity(row: unknown): string {
-  if (!Array.isArray(row)) return String(row);
-  const fields = row as CloudWatchLogsRow;
-  const pointer = readRowField(fields, '@ptr');
-  if (pointer !== undefined && pointer !== '') return pointer;
-  return fields.map((field) => `${field.field ?? ''}=${field.value ?? ''}`).join('\u0001');
-}
-
-/**
  * The second attempt of a read by fallback UUID: the trace id the rows carry, to read the service again by trace.
  *
  * @param rows - Rows of the first read for the identifier

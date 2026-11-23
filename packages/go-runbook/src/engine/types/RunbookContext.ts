@@ -1,3 +1,4 @@
+import type { ReadSplitBudget } from './ReadSplitBudget.js';
 import type { ErrorRecoveryInfo } from './ErrorRecoveryInfo.js';
 import type { GORegexCache } from '@pagopa/go-common/utils';
 import type { WorkflowServices } from './WorkflowServices.js';
@@ -44,4 +45,6 @@ export interface RunbookContext<TServices extends WorkflowServices = WorkflowSer
    * (for example a probe every request may need). Created by each execution, never shared between executions.
    */
   readonly sharedReads?: Map<string, Promise<unknown>>;
+  readonly readSplits?: ReadSplitBudget;
+  readonly readFailures?: Map<string, number>;
 }

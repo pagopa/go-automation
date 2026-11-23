@@ -747,6 +747,16 @@ for await (const row of new GOJSONListImporter<DataRow>().importStream('./data/i
 }
 ```
 
+**Un valore grande.** `GOJSONFileExporter` scrive un solo valore (una traccia d'esecuzione, un riepilogo) con lo stesso testo di `JSON.stringify(value, null, indent)`, ma a pezzi: `GOJSONStreamWriter` genera il testo un pezzo alla volta e lo passa allo stream rispettandone la backpressure, quindi un valore il cui testo non sta in una stringa (`Invalid string length`) si scrive comunque. Il file si scrive in un temporaneo nella stessa cartella e prende il nome finale solo quando è completo: un'esportazione fallita (una struttura circolare, un disco pieno) lascia il file precedente com'era e nessun file parziale.
+
+`GOJSONStreamWriter` si usa anche da solo, su qualsiasi `Writable`: non chiude lo stream, la promessa si risolve quando l'ultimo pezzo è passato allo stream e si rifiuta con l'errore della serializzazione o dello stream.
+
+```typescript
+const stream = createWriteStream('./data/trace.json');
+await new GOJSONStreamWriter({ indent: 2 }).write(trace, stream);
+stream.end();
+```
+
 ### HTML Exporter
 
 ```typescript

@@ -20,6 +20,7 @@ export interface ErrorChainGroup {
   readonly incompleteEvidence: boolean;
   /** Chains merged in this group. */
   readonly count: number;
+  readonly errors: number;
   /** Absent for window-level chains whose evidence has no time. */
   readonly firstSeenAt?: string;
   readonly lastSeenAt?: string;

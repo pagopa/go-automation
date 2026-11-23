@@ -52,6 +52,6 @@ export class LambdaDownstreamLevelReader extends CloudWatchLogsLevelReader<Lambd
 
   protected override report(context: OperationalContext, rowCount: number): void {
     const { downstream } = this.config;
-    new LambdaReporter(context.services.reporter).downstream(downstream.name, downstream.logGroup, rowCount);
+    new LambdaReporter(context.services.reporter).downstream(downstream.logGroup, rowCount);
   }
 }

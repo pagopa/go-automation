@@ -8,6 +8,8 @@ import type { OperationalContext } from '../../../services/OperationalContext.js
 import type { OperationalServiceName } from '../../../services/OperationalServiceName.js';
 import type { CloudWatchLogsReadAttempt } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsReadAttempt.js';
 import { tryCloudWatchLogsRead } from '../../../steps/aws/cloudwatch-logs/tryCloudWatchLogsRead.js';
+import { queryRowLimit } from '../../../steps/aws/cloudwatch-logs/queryCoverage.js';
+import { logRowIdentity } from '../../../steps/aws/cloudwatch-logs/logRowIdentity.js';
 import { mergeCloudWatchLogsDiagnostics } from '../../../steps/aws/cloudwatch-logs/mergeCloudWatchLogsDiagnostics.js';
 import { OperationalStep } from '../../../steps/OperationalStep.js';
 import { ALARM_TIME_RANGE } from '../../../time/ALARM_TIME_RANGE.js';
@@ -212,7 +214,9 @@ export class QueryLambdaAcrossAccountsStep
     const tag = { field: this.sourceField(), value: source.key };
     const own = batch === undefined ? result.rows : rowsOfInvocations(result.rows, batch);
     const rows = own.map((row) => [...row, tag]);
-    if (result.rows.length < QUERY_ROW_LIMIT) return [{ rows, ...diagnostics, coverage: result.coverage }];
+    // The error scan keeps its limit of 1000 rows; an invocation batch is saturated at the limit of its query.
+    const limit = batch === undefined ? QUERY_ROW_LIMIT : queryRowLimit(query);
+    if (result.rows.length < limit) return [{ rows, ...diagnostics, coverage: result.coverage }];
     const saturated = (detail: string): StepCoverage => ({
       source: source.key,
       complete: false,
@@ -227,7 +231,7 @@ export class QueryLambdaAcrossAccountsStep
     if (batch.length === 1 || run.splits + 2 > MAX_SPLIT_QUERIES) {
       const detail =
         batch.length === 1
-          ? `invocation ${batch[0] ?? ''} reached the ${String(QUERY_ROW_LIMIT)}-row limit`
+          ? `invocation ${batch[0] ?? ''} reached the ${String(limit)}-row limit`
           : `${String(batch.length)} invocations not split: query budget of ${String(MAX_SPLIT_QUERIES)} exhausted`;
       return [{ rows, ...diagnostics, coverage: [...unread(result.coverage), saturated(detail)] }];
     }
@@ -240,9 +244,9 @@ export class QueryLambdaAcrossAccountsStep
       if (!halfReads.some((read) => read.coverage.some((entry) => !entry.complete))) continue;
       // The half is still incomplete: the saturated read keeps the rows of its invocations, without duplicates.
       const ids = new Set(half);
-      const seen = new Set(halfReads.flatMap((read) => read.rows.map((row) => rowIdentity(row))));
+      const seen = new Set(halfReads.flatMap((read) => read.rows.map((row) => logRowIdentity(row))));
       reads.push({
-        rows: rows.filter((row) => ids.has(lambdaRowRequestId(row) ?? '') && !seen.has(rowIdentity(row))),
+        rows: rows.filter((row) => ids.has(lambdaRowRequestId(row) ?? '') && !seen.has(logRowIdentity(row))),
         coverage: [],
       });
     }
@@ -293,11 +297,6 @@ export class QueryLambdaAcrossAccountsStep
   private sourceField(): 'sourceAccount' | 'sourceKey' {
     return this.config.sources === 'configured-sources' ? 'sourceKey' : 'sourceAccount';
   }
-}
-
-/** The identity of a row, to keep a row of two reads once. */
-function rowIdentity(row: CloudWatchLogsRow): string {
-  return row.map(({ field, value }) => `${field ?? ''}=${value ?? ''}`).join('\u0001');
 }
 
 /** The parts of a read that failed: they stay beside the saturation the step declares. */

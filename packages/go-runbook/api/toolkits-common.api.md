@@ -373,6 +373,7 @@ export interface ApiGwService {
     readonly varPrefix: string;
     readonly queryOverride?: string;
     readonly exclusions?: ReadonlyArray<TreeExclusion>;
+    readonly mergeIdenticalErrors?: boolean;
 }
 ```
 
@@ -453,7 +454,7 @@ export declare class EvaluateApiGwAuthorizerFailureStep implements Step<ApiGwAut
 export interface ExecutionLogSpec {
     readonly queryTemplate: string;
     readonly requestIdPredicateTemplate: string;
-    readonly maxRequestIds: number;
+    readonly maxRequestIds?: number;
 }
 ```
 
@@ -770,10 +771,12 @@ export interface CloudExecutionPolicy {
 ```ts
 export interface CloudWatchLogsBatchedRead<TItem> extends Omit<CloudWatchLogsRead, 'query' | 'identifiers'> {
     readonly items: ReadonlyArray<TItem>;
-    readonly batchSize: number;
+    readonly batchSize?: number;
     query(batch: ReadonlyArray<TItem>): string;
     identifier(item: TItem): EvidenceIdentifier;
     rowsOf?(rows: CloudWatchLogsRows, batch: ReadonlyArray<TItem>): CloudWatchLogsRows;
+    belongs?(row: CloudWatchLogsRow, item: TItem): boolean;
+    rowIdentity?(row: CloudWatchLogsRow): string;
 }
 ```
 
@@ -795,7 +798,8 @@ export declare abstract class CloudWatchLogsLevelReader<TConfig extends CloudWat
     readonly kind: StepKind;
     constructor(config: TConfig);
     requiredServices(): ReadonlyArray<OperationalServiceName>;
-    read(context: OperationalContext, identifiers: ReadonlyArray<EvidenceIdentifier>): Promise<TreeLevelReadResult>;
+    batches(identifiers: ReadonlyArray<EvidenceIdentifier>, maxIdentifiers?: number): ReadonlyArray<ReadonlyArray<EvidenceIdentifier>>;
+    read(context: OperationalContext, identifiers: ReadonlyArray<EvidenceIdentifier>, rules?: TreeLevelRowRules): Promise<TreeLevelReadResult>;
     protected abstract logGroups(): ReadonlyArray<string>;
     protected abstract query(identifiers: ReadonlyArray<EvidenceIdentifier>): string;
     protected abstract rowsOf(rows: CloudWatchLogsRows, identifiers: ReadonlyArray<EvidenceIdentifier>): CloudWatchLogsRows;
@@ -1230,7 +1234,7 @@ export declare class LambdaReporter {
     sectionPrepare(lambdaName: string, logGroup: string, eventSource?: string): void;
     lambdaResult(info: LambdaResultInfo): void;
     invocation(requestId: string, logCount: number): void;
-    downstream(name: string, logGroup: string, logCount: number): void;
+    downstream(logGroup: string, logCount: number): void;
     queryFailed(logGroups: ReadonlyArray<string>, errorMessage: string): void;
 }
 ```
@@ -1436,6 +1440,12 @@ export interface LogLine {
     readonly timestamp: string;
     readonly message: string;
 }
+```
+
+### `logRowIdentity` (value)
+
+```ts
+export declare function logRowIdentity(row: unknown): string;
 ```
 
 ### `LogSampleOptions` (type)

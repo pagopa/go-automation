@@ -14,7 +14,8 @@ import { DescendToServiceStep } from '../tree/DescendToServiceStep.js';
 import { ServiceLogsLevelReader } from '../tree/ServiceLogsLevelReader.js';
 import { enumerateApiGwRequests } from '../tree/enumerateApiGwRequests.js';
 import { enumerateServiceErrors } from '../tree/enumerateServiceErrors.js';
-import { serviceRowIdentity, serviceRowMatcher, traceIdOfFallbackRows } from '../tree/serviceLogRows.js';
+import { serviceRowMatcher, traceIdOfFallbackRows } from '../tree/serviceLogRows.js';
+import { logRowIdentity } from '../../../../common/steps/aws/cloudwatch-logs/logRowIdentity.js';
 import { QueryApiGwExecutionLogsStep } from '../../../../common/families/apigw/steps/QueryApiGwExecutionLogsStep.js';
 import { StopApiGwExecutionLogAnalysisStep } from '../../../../common/families/apigw/steps/StopApiGwExecutionLogAnalysisStep.js';
 import { EvaluateApiGwAuthorizerFailureStep } from '../../../../common/families/apigw/steps/EvaluateApiGwAuthorizerFailureStep.js';
@@ -170,7 +171,7 @@ export function createSendApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
         ...(service.queryOverride !== undefined ? { queryTemplateOverride: service.queryOverride } : {}),
       }),
       attribute: (identifier) => serviceRowMatcher([identifier], profile.serviceLog.schema),
-      rowIdentity: serviceRowIdentity,
+      rowIdentity: logRowIdentity,
       secondAttempt: (rows, identifier) => traceIdOfFallbackRows(rows, identifier, profile.serviceLog.schema),
       enumerate: enumerateServiceErrors({
         readStepId,
@@ -178,6 +179,7 @@ export function createSendApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
         schema: profile.serviceLog.schema,
         registry,
         traceIdContextVar,
+        ...(service.mergeIdenticalErrors === true ? { mergeIdenticalErrors: true } : {}),
       }),
       perNode: [
         ...(entry ? pipelineHooksAt(hooks, 'after-entry-analysis', reachedAnchors) : []),

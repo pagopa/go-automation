@@ -96,6 +96,12 @@ export declare function buildCoverageLines(result: Pick<RunbookExecutionResult, 
 export declare function buildErrorChains(result: RunbookExecutionResult): ReadonlyArray<ErrorChainGroup>;
 ```
 
+### `buildRunbookTelemetry` (value)
+
+```ts
+export declare function buildRunbookTelemetry(trace: Pick<RunbookExecutionTrace, 'pipeline' | 'readFailures'>): RunbookTelemetry | undefined;
+```
+
 ### `ClassifiedRunbookCheck` (type)
 
 ```ts
@@ -115,6 +121,7 @@ export declare function classifyRunbookOutcome(output: RunbookOutput): Classifie
 ```ts
 export interface CloudWatchLogsTelemetry {
     readonly queryCount: number;
+    readonly failedQueryCount?: number;
     readonly statistics: AWSCloudWatchLogsQueryStatistics;
     readonly queryExecutions: ReadonlyArray<CloudWatchLogsTelemetryQueryExecution>;
 }
@@ -185,6 +192,7 @@ export interface ErrorChainGroup {
     readonly interruptions: ReadonlyArray<ErrorChainInterruption>;
     readonly incompleteEvidence: boolean;
     readonly count: number;
+    readonly errors: number;
     readonly firstSeenAt?: string;
     readonly lastSeenAt?: string;
     readonly routes: ReadonlyArray<ErrorChainRoute>;
@@ -247,6 +255,20 @@ export interface ErrorChainRoute {
 export interface ErrorChainSample {
     readonly key: string;
     readonly correlation: Readonly<Record<string, string>>;
+}
+```
+
+### `ErrorChainSummary` (type)
+
+```ts
+export type ErrorChainSummary = Omit<ErrorChainGroup, 'members'>;
+```
+
+### `ErrorChainTreeOptions` (type)
+
+```ts
+export interface ErrorChainTreeOptions {
+    readonly maxDetailLength?: number;
 }
 ```
 
@@ -333,7 +355,9 @@ export interface KnownCaseDetectionOutput {
     readonly firstSeenAt?: string;
     readonly lastSeenAt?: string;
     readonly evidenceRows: number;
+    readonly errors: number;
     readonly resolvedMessage?: string;
+    readonly resolvedMessages?: ReadonlyArray<string>;
     readonly observations: ReadonlyArray<IdentifierObservation>;
 }
 ```
@@ -409,13 +433,19 @@ export type ProposedAnalysisStatus = 'IN_PROGRESS' | 'COMPLETED';
 ### `renderErrorChainLines` (value)
 
 ```ts
-export declare function renderErrorChainLines(groups: ReadonlyArray<ErrorChainGroup>): ReadonlyArray<string>;
+export declare function renderErrorChainLines(groups: ReadonlyArray<ErrorChainSummary>): ReadonlyArray<string>;
+```
+
+### `renderErrorChainTree` (value)
+
+```ts
+export declare function renderErrorChainTree(groups: ReadonlyArray<ErrorChainSummary>, options?: ErrorChainTreeOptions): ReadonlyArray<TreeNode>;
 ```
 
 ### `RUNBOOK_OUTPUT_SCHEMA_VERSION` (value)
 
 ```ts
-const RUNBOOK_OUTPUT_SCHEMA_VERSION = "3.0.0";
+const RUNBOOK_OUTPUT_SCHEMA_VERSION = "4.0.0";
 ```
 
 ### `RunbookCheck` (type)
@@ -501,7 +531,7 @@ export interface RunbookOutput {
     };
     readonly input: Readonly<Record<string, string>>;
     readonly outcome: RunbookOutcome;
-    readonly chains: ReadonlyArray<ErrorChainGroup>;
+    readonly chains: ReadonlyArray<ErrorChainSummary>;
     readonly coverage: RunbookCoverageOutput;
     readonly analysis?: AnalysisDraftV1;
     readonly telemetry?: RunbookTelemetry;

@@ -106,6 +106,8 @@ export type { EvidenceTimeReaderFn } from './types/EvidenceTimeReaderFn.js';
 export type { PipelineHook } from './types/PipelineHook.js';
 export type { Runbook } from './types/Runbook.js';
 export type { RunbookContext } from './types/RunbookContext.js';
+export type { ReadSplitBudget } from './types/ReadSplitBudget.js';
+export type { TreeLevelRowRules } from './types/TreeLevelRowRules.js';
 export type { RunbookExecutionResult } from './types/RunbookExecutionResult.js';
 export type { RunbookExecutionStatus } from './types/RunbookExecutionStatus.js';
 export type { RunbookMetadata } from './types/RunbookMetadata.js';

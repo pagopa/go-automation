@@ -413,6 +413,7 @@ export interface ApiGwService {
     readonly varPrefix: string;
     readonly queryOverride?: string;
     readonly exclusions?: ReadonlyArray<TreeExclusion>;
+    readonly mergeIdenticalErrors?: boolean;
 }
 ```
 
@@ -499,7 +500,7 @@ export declare class EvaluateApiGwAuthorizerFailureStep implements Step<ApiGwAut
 export interface ExecutionLogSpec {
     readonly queryTemplate: string;
     readonly requestIdPredicateTemplate: string;
-    readonly maxRequestIds: number;
+    readonly maxRequestIds?: number;
 }
 ```
 
@@ -755,6 +756,7 @@ export interface SendApiGwRunbookContext extends ApiGwRunbookContext {
 export interface ServiceLogSpec {
     readonly queryTemplate: string;
     readonly tracePredicateTemplate: string;
+    readonly tracePatternTemplate?: string;
     readonly fallbackPredicateTemplate: string;
     readonly schema: ServiceLogSchema;
 }
@@ -1261,7 +1263,7 @@ export declare class LambdaReporter {
     sectionPrepare(lambdaName: string, logGroup: string, eventSource?: string): void;
     lambdaResult(info: LambdaResultInfo): void;
     invocation(requestId: string, logCount: number): void;
-    downstream(name: string, logGroup: string, logCount: number): void;
+    downstream(logGroup: string, logCount: number): void;
     queryFailed(logGroups: ReadonlyArray<string>, errorMessage: string): void;
 }
 ```
@@ -1481,9 +1483,15 @@ export declare class LambdaReporter {
     sectionPrepare(lambdaName: string, logGroup: string, eventSource?: string): void;
     lambdaResult(info: LambdaResultInfo): void;
     invocation(requestId: string, logCount: number): void;
-    downstream(name: string, logGroup: string, logCount: number): void;
+    downstream(logGroup: string, logCount: number): void;
     queryFailed(logGroups: ReadonlyArray<string>, errorMessage: string): void;
 }
+```
+
+### `logRowIdentity` (value)
+
+```ts
+export declare function logRowIdentity(row: unknown): string;
 ```
 
 ### `mergeCloudWatchLogsDiagnostics` (value)
@@ -1625,7 +1633,7 @@ export interface RunbookOutput {
     };
     readonly input: Readonly<Record<string, string>>;
     readonly outcome: RunbookOutcome;
-    readonly chains: ReadonlyArray<ErrorChainGroup>;
+    readonly chains: ReadonlyArray<ErrorChainSummary>;
     readonly coverage: RunbookCoverageOutput;
     readonly analysis?: AnalysisDraftV1;
     readonly telemetry?: RunbookTelemetry;

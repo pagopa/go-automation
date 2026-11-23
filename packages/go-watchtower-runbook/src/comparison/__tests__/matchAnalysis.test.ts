@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import type { AlarmAnalysisDto, IgnoreReasonDto } from '@go-automation/go-watchtower-client';
 
-import { matchAnalysis } from '../matchAnalysis.js';
+import { bestDetectedCase, matchAnalysis } from '../matchAnalysis.js';
 import type { MatchAnalysisOptions } from '../matchAnalysis.js';
 import type { RunbookCheck } from '../../types/RtaCheckReport.js';
 import type { ErrorChainGroup } from '@pagopa/go-runbook/output';
@@ -51,12 +51,14 @@ describe('matchAnalysis', () => {
             caseId: 'a',
             description: 'Primo caso',
             evidenceRows: 1,
+            errors: 1,
             observations: [{ kind: 'cid' as const, value: 'cid-a' }],
           },
           {
             caseId: 'b',
             description: 'Secondo caso',
             evidenceRows: 1,
+            errors: 1,
             observations: [{ kind: 'cid' as const, value: 'cid-b' }],
           },
         ],
@@ -81,9 +83,10 @@ describe('matchAnalysis', () => {
             caseId: 'a',
             description: 'Primo caso',
             evidenceRows: 1,
+            errors: 1,
             observations: [{ kind: 'cid' as const, value: 'cid-a' }],
           },
-          { caseId: 'b', description: 'Secondo caso', evidenceRows: 1, observations: [] },
+          { caseId: 'b', description: 'Secondo caso', evidenceRows: 1, errors: 1, observations: [] },
         ],
       },
       chains: [chain('a', 'cid-a')],
@@ -194,6 +197,30 @@ describe('matchAnalysis', () => {
     const result = matchAnalysis(OUTPUT, miss, analysis({ errorDetails: 'qualcosa' }), NOW, OPTIONS);
     assert.strictEqual(result.status, 'NO_EVIDENCE');
   });
+  it('compares every distinct message of an occurrence, so a signal of a later message still counts', () => {
+    const base = runbookOutputFixture('unrelated');
+    if (base.outcome.kind !== 'known-case-matched') throw new Error('fixture');
+    const output = {
+      ...base,
+      outcome: {
+        ...base.outcome,
+        detections: [
+          {
+            caseId: 'selfcare',
+            description: 'Errore di pn-external-registries',
+            evidenceRows: 1,
+            errors: 2,
+            resolvedMessage: 'errore generico',
+            resolvedMessages: ['errore generico', 'read timeout verso SelfcarePG'],
+            observations: [{ kind: 'cid' as const, value: 'cid-a' }],
+          },
+        ],
+      },
+    };
+    const linked = analysis({ conclusionNotes: 'Timeout del downstream' });
+
+    assert.strictEqual(bestDetectedCase(output, linked, NOW)?.message, 'read timeout verso SelfcarePG');
+  });
 });
 
 function chain(caseId: string, cid: string): ErrorChainGroup {
@@ -203,6 +230,7 @@ function chain(caseId: string, cid: string): ErrorChainGroup {
     interruptions: [],
     incompleteEvidence: false,
     count: 1,
+    errors: 1,
     routes: [],
     samples: [{ key: caseId, correlation: {} }],
     members: [{ key: caseId, correlation: {} }],

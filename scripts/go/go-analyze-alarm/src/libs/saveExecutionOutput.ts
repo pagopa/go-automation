@@ -40,6 +40,5 @@ export async function saveExecutionOutput(
   const exporter = new GOJSONFileExporter({ outputPath: resultPath, pretty: true, indent: 2 });
   await exporter.export(scrubAwsProfileNamesDeep(output, profileNames));
 
-  script.logger.info(`Execution result saved: ${resultPath}`);
   return resultPath;
 }

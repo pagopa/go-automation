@@ -32,16 +32,17 @@ describe('LambdaReporter', () => {
     assert.match(out, /requestId: d848f0c5-1089-5c2b-9a3b-91a94511ee52/);
   });
 
-  it('renders the invocation and downstream sections', () => {
+  it('renders the invocation section and the lines of a downstream read', () => {
     const { lines, reporter: logger } = captureNarrative();
     const reporter = new LambdaReporter(logger);
     reporter.invocation('req-1', 3);
-    reporter.downstream('pn-emd-integration', '/aws/ecs/pn-emd-integration', 2);
+    reporter.downstream('/aws/ecs/pn-emd-integration', 2);
     logger.flush();
     const out = lines.join('\n');
     assert.match(out, /Flusso invocazione/);
     assert.match(out, /filter: req-1/);
-    assert.match(out, /Downstream: pn-emd-integration/);
+    assert.match(out, /Log group: \/aws\/ecs\/pn-emd-integration/);
+    assert.match(out, /Log trovati: 2/);
   });
 
   it('closes a flat level with the elbow', () => {

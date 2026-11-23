@@ -37,6 +37,7 @@ export { executeCloudWatchLogsQuery } from '../common/steps/aws/cloudwatch-logs/
 export { mergeCloudWatchLogsDiagnostics } from '../common/steps/aws/cloudwatch-logs/mergeCloudWatchLogsDiagnostics.js';
 export { tryCloudWatchLogsRead } from '../common/steps/aws/cloudwatch-logs/tryCloudWatchLogsRead.js';
 export { readCloudWatchLogsBatches } from '../common/steps/aws/cloudwatch-logs/readCloudWatchLogsBatches.js';
+export { logRowIdentity } from '../common/steps/aws/cloudwatch-logs/logRowIdentity.js';
 export type { CloudWatchLogsBatchedReadResult } from '../common/steps/aws/cloudwatch-logs/CloudWatchLogsBatchedReadResult.js';
 export { endsCloudWatchLogsRead } from '../common/steps/aws/cloudwatch-logs/endsCloudWatchLogsRead.js';
 export { SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS } from '../common/steps/aws/cloudwatch-logs/SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS.js';

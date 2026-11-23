@@ -14,6 +14,7 @@
 export type { RunbookOutput } from './RunbookOutput.js';
 export { RUNBOOK_OUTPUT_SCHEMA_VERSION } from './RUNBOOK_OUTPUT_SCHEMA_VERSION.js';
 export type { ErrorChainGroup } from './ErrorChainGroup.js';
+export type { ErrorChainSummary } from './ErrorChainSummary.js';
 export type { ErrorChainNode } from './ErrorChainNode.js';
 export type { ErrorChainInterruption } from './ErrorChainInterruption.js';
 export type { ErrorChainMember } from './ErrorChainMember.js';
@@ -30,7 +31,9 @@ export type {
 } from '../../../engine/index.js';
 export type { RunbookCoverageOutput } from './RunbookCoverageOutput.js';
 export { buildCoverageLines } from './buildCoverageLines.js';
-export { renderErrorChainLines } from './renderErrorChainLines.js';
+export { buildRunbookTelemetry } from '../telemetry/buildRunbookTelemetry.js';
+export { renderErrorChainLines, renderErrorChainTree } from './renderErrorChainLines.js';
+export type { ErrorChainTreeOptions } from './ErrorChainTreeOptions.js';
 export { buildErrorChains } from './buildErrorChains.js';
 export type { RunbookCheck } from './RunbookCheck.js';
 export type { ClassifiedRunbookCheck } from './ClassifiedRunbookCheck.js';

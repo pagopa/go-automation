@@ -6,4 +6,4 @@
 export const DEFAULT_LAMBDA_INVOCATION_QUERY: string = `fields @timestamp, @requestId, @message
 | filter {{REQUEST_ID_FILTER}}
 | sort @timestamp asc
-| limit 1000`;
+| limit 10000`;

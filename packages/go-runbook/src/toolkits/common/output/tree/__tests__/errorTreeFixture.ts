@@ -29,6 +29,7 @@ export const DETECTION: KnownCaseDetection = {
 function node(partial: Partial<ErrorTreeNode> & Pick<ErrorTreeNode, 'id' | 'target' | 'key'>): ErrorTreeNode {
   return {
     level: partial.parentId === undefined ? 0 : 1,
+    errorKey: partial.id,
     label: partial.key,
     correlation: {},
     descents: [],

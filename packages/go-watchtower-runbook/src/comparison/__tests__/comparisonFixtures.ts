@@ -20,7 +20,7 @@ export const HIT: RunbookCheck = {
  */
 export function runbookOutputFixture(requestId: string): RunbookOutput {
   return {
-    schemaVersion: '3.0.0',
+    schemaVersion: '4.0.0',
     generatedAt: NOW,
     runbook: { id: 'r', name: 'r', type: 'alarm-resolution', version: '1.0.0', team: 'GO' },
     execution: {
@@ -40,6 +40,7 @@ export function runbookOutputFixture(requestId: string): RunbookOutput {
           caseId: 'lambda-timeout',
           description: 'Timeout runtime della Lambda',
           evidenceRows: 1,
+          errors: 1,
           resolvedMessage: 'Timeout Lambda',
           observations: [],
         },

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { caseSummary } from '../caseSummary.js';
 import type { KnownCase } from '../../types/KnownCase.js';
+import type { ErrorTreeNode } from '../../types/ErrorTreeNode.js';
 import type { KnownCaseDetection } from '../../types/KnownCaseDetection.js';
 
 function detection(id: string): KnownCaseDetection {
@@ -21,6 +22,25 @@ describe('caseSummary', () => {
       caseSummary([detection('timeout'), detection('timeout'), detection('unknown'), detection('timeout')]),
       'timeout ×3, unknown',
     );
+  });
+
+  it('counts an error of a tree once, whatever the number of paths that reach it', () => {
+    const timeout = detection('timeout');
+    const node = (id: string, errorKey: string): ErrorTreeNode => ({
+      id,
+      level: 1,
+      target: 'pn-external-registries',
+      key: id,
+      errorKey,
+      label: id,
+      correlation: {},
+      descents: [],
+      status: 'ok',
+      detections: [timeout],
+      branchOutcome: 'diagnosed',
+    });
+    const nodes = [node('a>x', 'row-1'), node('b>x', 'row-1'), node('a>y', 'row-2')];
+    assert.equal(caseSummary([timeout, timeout, timeout], nodes), 'timeout ×2');
   });
 
   it('says none without detections', () => {

@@ -19,6 +19,7 @@ import type { EvidenceIdentifier } from '../../types/EvidenceIdentifier.js';
 import type { RunbookExecutionResult } from '../../types/RunbookExecutionResult.js';
 import { createTestServiceRegistry } from '../../../toolkits/common/testing/createTestServiceRegistry.js';
 import { createTestRunbook } from '../../../__tests__/helpers/createTestRunbook.js';
+import { buildErrorChains } from '../../../toolkits/common/output/buildErrorChains.js';
 
 /** An access-log request: `<requestId>|<traceId>|<status>|<time>`. */
 const REQUESTS = [
@@ -173,9 +174,10 @@ const CASES: ReadonlyArray<KnownCase> = [
 async function run(
   tree: ErrorTreeDefinition,
   knownCases: ReadonlyArray<KnownCase> = CASES,
+  requests: ReadonlyArray<string> = REQUESTS,
 ): Promise<RunbookExecutionResult> {
   return new RunbookEngine(new GOLogger()).execute(
-    createTestRunbook({ steps: [{ step: outputStep('access', REQUESTS) }], knownCases, tree }),
+    createTestRunbook({ steps: [{ step: outputStep('access', requests) }], knownCases, tree }),
     new Map(),
     createTestServiceRegistry(),
   );
@@ -234,6 +236,23 @@ describe('ErrorTreeExecutor', () => {
         ['read-down', 'unavailable'],
       ],
     );
+  });
+
+  it('gives the same error key to the nodes two paths enumerate from the same rows, and counts the error once', async () => {
+    const result = await run(
+      { root: rootLevel(), levels: [serviceLevel(fakeReader('read-svc', SERVICE_ROWS, []))] },
+      CASES,
+      ['r1|T1|500|2026-11-20T10:00:01.000Z', 'r5|T1|500|2026-11-20T10:00:05.000Z'],
+    );
+
+    const copies = (result.tree ?? []).filter((node) => node.key === 'e1');
+    assert.deepStrictEqual(
+      copies.map((node) => node.parentId),
+      ['api:r1', 'api:r5'],
+    );
+    assert.strictEqual(new Set(copies.map((node) => node.errorKey)).size, 1);
+    const npe = buildErrorChains(result).find((group) => group.nodes.some((node) => node.caseIds.includes('npe')));
+    assert.deepStrictEqual([npe?.count, npe?.errors], [2, 1]);
   });
 
   it('builds the chains, groups the identical ones and runs each case action once per group from its node', async () => {

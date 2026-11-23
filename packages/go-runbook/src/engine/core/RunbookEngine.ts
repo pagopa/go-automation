@@ -24,6 +24,7 @@ import { RUNBOOK_ABORTED_MESSAGE } from '../context/RUNBOOK_ABORTED_MESSAGE.js';
 import { compareByFirstMs } from './compareByFirstMs.js';
 import { RunbookMaxIterationsError } from '../errors/RunbookMaxIterationsError.js';
 import type { ErrorTreeRun } from '../types/ErrorTreeRun.js';
+import type { ErrorTreeNode } from '../types/ErrorTreeNode.js';
 import type { TreeChainGroup } from '../types/TreeChainGroup.js';
 
 import { ReadLedger } from '../reads/ReadLedger.js';
@@ -54,6 +55,9 @@ import { resolveRef } from '../context/resolveRef.js';
 import { sharedConditionEvaluator } from './ConditionEvaluator.js';
 import { throwIfRunbookAborted } from '../context/throwIfRunbookAborted.js';
 import { updateContextWithStepResult } from '../context/RunbookContextHelper.js';
+
+/** Re-reads an execution may spend dividing its saturated reads, across every reader. */
+const DEFAULT_READ_SPLITS = 10;
 
 /** Default maximum iterations for anti-loop protection */
 const DEFAULT_MAX_ITERATIONS = 1000;
@@ -134,6 +138,8 @@ export class RunbookEngine {
       // The policy the runbook declares; without one it reads strictly, as every required step needs.
       readPolicy: runbook.readPolicy ?? 'strict',
       sharedReads: new Map(),
+      readSplits: { remaining: DEFAULT_READ_SPLITS },
+      readFailures: new Map(),
     };
     const maxIterations = runbook.maxIterations ?? DEFAULT_MAX_ITERATIONS;
     const env = environment ?? DEFAULT_ENVIRONMENT;
@@ -267,7 +273,7 @@ export class RunbookEngine {
 
     this.logger.info(
       `Runbook ${status}: ${runbook.metadata.id} in ${trace.execution.durationMs}ms ` +
-        `(${trace.summary.stepsExecuted} steps, cases: ${caseSummary(detections)})`,
+        `(${trace.summary.stepsExecuted} steps, cases: ${caseSummary(detections, treeRun?.nodes)})`,
     );
 
     return {
@@ -648,8 +654,11 @@ export class RunbookEngine {
     const recognized = run.nodes.filter((node) => node.detections.length > 0);
     if (recognized.length === 0) return;
     const caseIds = [...new Set(recognized.flatMap((node) => node.detections.map((d) => d.knownCase.id)))];
+    // An error reached by several paths is one error.
+    const errors = (nodes: ReadonlyArray<ErrorTreeNode>): string => String(new Set(nodes.map((n) => n.errorKey)).size);
     this.logger.success(
-      `Known cases identified on ${String(recognized.length)} of ${String(run.nodes.length)} error nodes: ${caseIds.join(', ')}`,
+      `Known cases identified on ${errors(recognized)} of ${errors(run.nodes)} errors ` +
+        `(${String(recognized.length)} of ${String(run.nodes.length)} error nodes): ${caseIds.join(', ')}`,
     );
   }
 

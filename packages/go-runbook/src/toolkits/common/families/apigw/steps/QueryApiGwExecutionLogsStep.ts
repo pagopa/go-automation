@@ -1,5 +1,6 @@
 import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { getErrorMessage } from '@pagopa/go-common/errors';
+import { omitUndefined } from '@pagopa/go-common/utils';
 import type { RunbookContext, Step, StepCoverage, StepKind, StepResult } from '../../../../../engine/index.js';
 import { executeStep, readStepOutput } from '../../../../../engine/index.js';
 import { isRequestId } from '../../../../../engine/internal.js';
@@ -8,6 +9,7 @@ import { resolveTimeRange } from '../../../time/resolveTimeRange.js';
 import type { CloudWatchLogsBatchedReadResult } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsBatchedReadResult.js';
 import { endsCloudWatchLogsRead } from '../../../steps/aws/cloudwatch-logs/endsCloudWatchLogsRead.js';
 import { readCloudWatchLogsBatches } from '../../../steps/aws/cloudwatch-logs/readCloudWatchLogsBatches.js';
+import { logRowIdentity } from '../../../steps/aws/cloudwatch-logs/logRowIdentity.js';
 import { SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS } from '../../../steps/aws/cloudwatch-logs/SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS.js';
 import { readAccessLogField, rowMeetsThreshold } from '../accessLog/accessLogRow.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
@@ -133,10 +135,13 @@ export class QueryApiGwExecutionLogsStep
           timeRange,
           options: SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS,
           items: requestIds,
-          batchSize: this.maxRequestIdsOverride ?? this.spec.maxRequestIds,
+          ...omitUndefined({ batchSize: this.maxRequestIdsOverride ?? this.spec.maxRequestIds }),
           query: (batch) => this.buildExecutionLogQuery(batch),
           identifier: (request) => ({ kind: 'requestId', value: request.requestId }),
           rowsOf: (rows, batch) => attributeExecutionLogRows(rows, batch),
+          belongs: (row, request) =>
+            EXECUTION_LOG_REQUEST_PREFIX.exec(readRowField(row, '@message') ?? '')?.[1] === request.requestId,
+          rowIdentity: logRowIdentity,
         });
       } catch (error: unknown) {
         // No batch answered: nothing was read.

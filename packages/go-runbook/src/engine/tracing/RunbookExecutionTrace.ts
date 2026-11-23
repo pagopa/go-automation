@@ -37,6 +37,7 @@ export interface RunbookExecutionTrace {
   readonly actionsExecuted: ReadonlyArray<ActionTrace>;
   /** Partial evidence declared by the steps, or recorded by the engine for a failed read. */
   readonly coverage: ReadonlyArray<CoverageEntry>;
+  readonly readFailures?: Readonly<Record<string, number>>;
   /** Synthetic execution summary */
   readonly summary: ExecutionSummary;
 }

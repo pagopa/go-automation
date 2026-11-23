@@ -18,6 +18,8 @@ export * from './json/GOJSONListExporter.js';
 export * from './json/GOJSONListExporterOptions.js';
 export * from './json/GOJSONFileExporter.js';
 export * from './json/GOJSONFileExporterOptions.js';
+export * from './json/GOJSONStreamWriter.js';
+export * from './json/GOJSONStreamWriterOptions.js';
 
 // HTML Exporter
 export * from './html/GOHTMLListExporter.js';

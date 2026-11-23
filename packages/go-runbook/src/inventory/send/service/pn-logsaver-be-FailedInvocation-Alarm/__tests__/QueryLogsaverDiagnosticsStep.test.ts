@@ -148,14 +148,15 @@ describe('QueryLogsaverDiagnosticsStep', () => {
     assert.ok(labels.includes('Logsaver: 2 log di errore, 4 stream.'));
   });
 
-  it('omits aggregated diagnostics when any target cannot report query statistics', async () => {
+  it('keeps the statistics of the targets that report them when one cannot', async () => {
     const result = await new QueryLogsaverDiagnosticsStep().execute(
       await context(() => rows(1, '@message'), [], new Set(['confinfo'])),
     );
 
     assert.strictEqual(result.success, true);
     assert.strictEqual(result.output?.length, 4);
-    assert.strictEqual(result.diagnostics, undefined);
+    assert.ok(result.diagnostics?.cloudWatchLogs !== undefined);
+    assert.ok((result.diagnostics.cloudWatchLogs.queryExecutions.length ?? 0) > 0);
   });
 
   it('declares the saturated read of its source account', async () => {

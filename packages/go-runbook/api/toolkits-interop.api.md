@@ -301,6 +301,7 @@ export interface ApiGwService {
     readonly varPrefix: string;
     readonly queryOverride?: string;
     readonly exclusions?: ReadonlyArray<TreeExclusion>;
+    readonly mergeIdenticalErrors?: boolean;
 }
 ```
 
@@ -381,7 +382,7 @@ export declare class EvaluateApiGwAuthorizerFailureStep implements Step<ApiGwAut
 export interface ExecutionLogSpec {
     readonly queryTemplate: string;
     readonly requestIdPredicateTemplate: string;
-    readonly maxRequestIds: number;
+    readonly maxRequestIds?: number;
 }
 ```
 

@@ -16,8 +16,6 @@ import { defaultServiceUnknownCaseFallback } from './defaultServiceUnknownCaseFa
 import { finishAlarmRunbook } from '../../../builders/finishAlarmRunbook.js';
 import type { ServicePipelineAnchor } from '../types/ServicePipelineAnchor.js';
 
-const TRACE_BATCH_SIZE = 50;
-
 /**
  * Builds the runbook of a service alarm: the error scan of the service, then an error tree that reads each error by
  * trace id, with the hooks of the pipeline and the known cases of the configuration.
@@ -101,7 +99,8 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
           queryProfileId: profile.id,
           timeRangeFromParams: ALARM_TIME_RANGE,
         }),
-        batchSize: readsTraceBatches(traceQuery) ? TRACE_BATCH_SIZE : 1,
+        // A query that names one trace reads one at a time; a batch query takes as many as fit.
+        ...(readsTraceBatches(traceQuery) ? {} : { batchSize: 1 }),
         attribute: attributeTraceRow,
         rowIdentity: applicationRowIdentity,
         enumerate: enumerateTraceErrors(traceReadId, `${service.varPrefix}Trace`, profile.schema),

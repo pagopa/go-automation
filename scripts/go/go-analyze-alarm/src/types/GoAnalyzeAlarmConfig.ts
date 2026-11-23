@@ -38,6 +38,8 @@ export interface GoAnalyzeAlarmConfig {
   readonly awsAccountEnvironment?: string;
   /** Preferred SSO permission sets (`aws.account.permission.sets`). */
   readonly awsAccountPermissionSets?: ReadonlyArray<string>;
+  readonly outputTrace: boolean;
+  readonly outputResult: boolean;
   /** Include the per-runbook detail table in `stats` mode */
   readonly statsDetail: boolean;
   /** Write the `stats` mode report as a JSON artifact */

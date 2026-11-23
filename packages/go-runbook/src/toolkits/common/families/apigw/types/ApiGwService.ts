@@ -43,4 +43,5 @@ export interface ApiGwService {
    * on the caller as `<varPrefix>Exclusion.<name>`.
    */
   readonly exclusions?: ReadonlyArray<TreeExclusion>;
+  readonly mergeIdenticalErrors?: boolean;
 }

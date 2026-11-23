@@ -260,6 +260,25 @@ export interface GOJSONListExporterOptions<TItem = Record<string, unknown>> {
 export type GOJSONRowTransformer<TItem> = (item: TItem) => TItem;
 ```
 
+### `GOJSONStreamWriter` (value)
+
+```ts
+export declare class GOJSONStreamWriter {
+    private readonly gap;
+    constructor(options?: GOJSONStreamWriterOptions);
+    write(value: unknown, stream: Writable): Promise<void>;
+    private pieces;
+}
+```
+
+### `GOJSONStreamWriterOptions` (type)
+
+```ts
+export interface GOJSONStreamWriterOptions {
+    readonly indent?: number;
+}
+```
+
 ### `GOListExporter` (type)
 
 ```ts

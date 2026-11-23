@@ -41,7 +41,8 @@ function correlationIds(output: RunbookOutput): ReadonlyArray<string> {
 }
 
 /**
- * The detected cases of the output, in time order, each with its own identifiers: the observations of its occurrence.
+ * The detected cases of the output, in time order, one per distinct message of an occurrence, each with its own
+ * identifiers: the observations of its occurrence.
  * The correlation ids of the output context belong to every case only when no chain observed identifiers (one
  * followed request, as in SEND); otherwise a case without observations has none, and never borrows another's.
  */
@@ -61,15 +62,17 @@ function detectedCases(output: RunbookOutput): ReadonlyArray<DetectedCase> {
     ),
   ]);
   const contextIds = observedByCase.every((ids) => ids.length === 0) ? correlationIds(output) : [];
-  return output.outcome.detections.map((detection, index) => {
+  // One candidate per distinct message of an occurrence, in order: each with the identifiers of its occurrence.
+  return output.outcome.detections.flatMap((detection, index) => {
     const observed = observedByCase[index] ?? [];
-    return {
+    const messages = detection.resolvedMessages ?? [detection.resolvedMessage ?? fallbackMessage];
+    return messages.map((message) => ({
       caseId: detection.caseId,
       description: detection.description,
-      message: detection.resolvedMessage ?? fallbackMessage,
+      message,
       identifiers: observed.length > 0 ? observed : contextIds,
       traceIds: observed.length > 0 ? (tracesByCase[index] ?? []) : [],
-    };
+    }));
   });
 }
 

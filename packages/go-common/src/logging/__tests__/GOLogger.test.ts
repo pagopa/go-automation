@@ -82,6 +82,37 @@ describe('GOLogger', () => {
     );
   });
 
+  it('logs fields with the values aligned in a column', () => {
+    const handler = new RecordingLoggerHandler();
+    new GOLogger([handler]).fields({ Status: 'completed', 'Steps executed': 7, Empty: undefined });
+
+    assert.deepStrictEqual(
+      handler.events.map((e) => [e.category, e.message]),
+      [
+        [GOLogEventCategory.INFO, 'Status          completed'],
+        [GOLogEventCategory.INFO, 'Steps executed  7'],
+        [GOLogEventCategory.INFO, 'Empty           '],
+      ],
+    );
+  });
+
+  it('logs a tree one line per event, without indent unless asked', () => {
+    const handler = new RecordingLoggerHandler();
+    const logger = new GOLogger([handler]);
+    logger.tree([{ label: 'first' }, { label: 'last', children: [{ label: 'detail' }] }]);
+    logger.tree([{ label: 'more' }], { indent: '> ', siblingsFollow: true });
+
+    assert.deepStrictEqual(
+      handler.events.map((e) => [e.category, e.message]),
+      [
+        [GOLogEventCategory.TEXT, '├─ first'],
+        [GOLogEventCategory.TEXT, '└─ last'],
+        [GOLogEventCategory.TEXT, '   └─ detail'],
+        [GOLogEventCategory.TEXT, '> ├─ more'],
+      ],
+    );
+  });
+
   it('resets all handlers', async () => {
     const handler = new RecordingLoggerHandler();
     await new GOLogger([handler]).reset();

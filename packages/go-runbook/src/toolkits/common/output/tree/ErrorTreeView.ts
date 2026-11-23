@@ -125,16 +125,25 @@ export class ErrorTreeView {
   }
 
   /**
-   * @returns The number of distinct unrecognized leaves reached by a complete chain
+   * @returns The number of distinct unrecognized errors at the leaf of a complete chain: a leaf reached by several
+   *   paths is one error
    */
   unrecognizedLeaves(): number {
     const leaves = new Set<string>();
     for (const chain of this.members()) {
       if (chain.end !== 'leaf') continue;
       const leaf = this.last(chain);
-      if (leaf !== undefined && this.statusOf(leaf) === 'unrecognized') leaves.add(leaf.id);
+      if (leaf !== undefined && this.statusOf(leaf) === 'unrecognized') leaves.add(leaf.errorKey);
     }
     return leaves.size;
+  }
+
+  /**
+   * @param chains - Chains of the tree
+   * @returns The number of distinct errors the chains end on: an error reached by several paths counts once
+   */
+  distinctErrors(chains: ReadonlyArray<TreeChain>): number {
+    return new Set(chains.map((chain) => this.last(chain)?.errorKey ?? chain.nodeIds.join('>'))).size;
   }
 
   /**

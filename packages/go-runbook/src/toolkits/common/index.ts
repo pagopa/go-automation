@@ -50,6 +50,7 @@ export { tryCloudWatchLogsRead } from './steps/aws/cloudwatch-logs/tryCloudWatch
 export type { CloudWatchLogsRead } from './steps/aws/cloudwatch-logs/CloudWatchLogsRead.js';
 export type { CloudWatchLogsReadAttempt } from './steps/aws/cloudwatch-logs/CloudWatchLogsReadAttempt.js';
 export { readCloudWatchLogsBatches } from './steps/aws/cloudwatch-logs/readCloudWatchLogsBatches.js';
+export { logRowIdentity } from './steps/aws/cloudwatch-logs/logRowIdentity.js';
 export type { CloudWatchLogsBatchedRead } from './steps/aws/cloudwatch-logs/CloudWatchLogsBatchedRead.js';
 export type { CloudWatchLogsBatchedReadResult } from './steps/aws/cloudwatch-logs/CloudWatchLogsBatchedReadResult.js';
 export { endsCloudWatchLogsRead } from './steps/aws/cloudwatch-logs/endsCloudWatchLogsRead.js';

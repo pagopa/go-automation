@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import type { GOLogsInsightsResultField, AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import { readCloudWatchLogsBatches } from '../readCloudWatchLogsBatches.js';
 import { tryCloudWatchLogsRead } from '../tryCloudWatchLogsRead.js';
@@ -193,5 +193,71 @@ describe('tryCloudWatchLogsRead', () => {
     });
     await tryCloudWatchLogsRead(context, read);
     assert.strictEqual(received, controller.signal);
+  });
+  it('divides a saturated batch and hands its final rows to rowsOf once, one result per item', async () => {
+    const queries: string[] = [];
+    const statistics = { bytesScanned: 1, recordsScanned: 4, recordsMatched: 4 };
+    const queryWithStatistics = async (
+      groups: ReadonlyArray<string>,
+      query: string,
+    ): Promise<AWSCloudWatchLogsQueryResult> => {
+      await Promise.resolve();
+      queries.push(query);
+      const rows = ['a', 'b']
+        .filter((id) => query.includes(id))
+        .flatMap((id) =>
+          [1, 2].map((index) => [
+            { field: '@ptr', value: `${id}${String(index)}` },
+            { field: 'id', value: id },
+          ]),
+        );
+      return { rows, statistics, queryExecutions: [{ queryId: 'q', profile: 'p', logGroups: groups, statistics }] };
+    };
+    const context = {
+      ...createTestContext({
+        services: { cloudWatchLogs: { query: async () => Promise.resolve([]), queryWithStatistics } },
+      }),
+      readSplits: { remaining: 10 },
+    };
+    const results: string[] = [];
+
+    const read = await readCloudWatchLogsBatches(context, {
+      logGroups: ['/aws/lambda/pn-x'],
+      timeRange: RANGE,
+      options: {},
+      items: ['a', 'b'],
+      query: (batch) => `filter id in [${batch.join(',')}] | limit 3`,
+      identifier: (id) => ({ kind: 'requestId', value: id }),
+      rowsOf: (rows, batch) => {
+        results.push(...batch.map((id) => `${id}:${String(rows.filter((row) => row[1]?.value === id).length)}`));
+        return rows;
+      },
+      belongs: (row, id) => row[1]?.value === id,
+      rowIdentity: (row) => row[0]?.value ?? '',
+    });
+
+    assert.strictEqual(queries.length, 3);
+    assert.strictEqual(read.rows.length, 4);
+    assert.deepStrictEqual(results, ['a:2', 'b:2']);
+    assert.ok(read.coverage.every((entry) => entry.complete));
+  });
+
+  it('counts every failed read of the execution, whatever the caller makes of it', async () => {
+    const context = {
+      ...contextAnswering(() => {
+        throw new Error('MalformedQueryException');
+      }),
+      readFailures: new Map<string, number>(),
+    };
+
+    await assert.rejects(readIds(context, ['a', 'b', 'c']), /MalformedQueryException/);
+    await tryCloudWatchLogsRead(context, {
+      logGroups: ['/aws/lambda/pn-x'],
+      query: 'q',
+      timeRange: RANGE,
+      options: {},
+    });
+
+    assert.strictEqual(context.readFailures.get('cloudWatchLogs'), 3);
   });
 });

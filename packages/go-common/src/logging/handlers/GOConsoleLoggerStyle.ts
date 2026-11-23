@@ -74,15 +74,11 @@ export class GOConsoleLoggerStyle {
     this.styles = new Map([
       [
         GOLogEventCategory.HEADER,
-        { color: ConsoleColors.BRIGHT + ConsoleColors.CYAN, format: '{prefix}{message}{suffix}' },
+        { color: ConsoleColors.BRIGHT + ConsoleColors.CYAN, format: '{prefix}{message}{suffix}', prefix: '╭─ ' },
       ],
       [
         GOLogEventCategory.SECTION,
-        {
-          color: ConsoleColors.BRIGHT + ConsoleColors.BLUE,
-          format: '\n{prefix}{message}',
-          prefix: '⏵ ',
-        },
+        { color: ConsoleColors.BRIGHT + ConsoleColors.BLUE, format: '{prefix}{message}', prefix: '◆ ' },
       ],
       [GOLogEventCategory.STEP, { color: ConsoleColors.WHITE, format: '{prefix}{message}', prefix: '→ ' }],
       [GOLogEventCategory.TEXT, { color: ConsoleColors.WHITE, format: '{message}' }],
@@ -90,7 +86,7 @@ export class GOConsoleLoggerStyle {
       [GOLogEventCategory.ERROR, { color: ConsoleColors.RED, format: '{prefix}{message}', prefix: '✗ ERROR: ' }],
       [GOLogEventCategory.FATAL, { color: ConsoleColors.RED, format: '{prefix}{message}', prefix: '✗ FATAL: ' }],
       [GOLogEventCategory.WARNING, { color: ConsoleColors.YELLOW, format: '{prefix}{message}', prefix: '⚠ WARNING: ' }],
-      [GOLogEventCategory.INFO, { color: ConsoleColors.MAGENTA, format: '{prefix}{message}', prefix: 'ℹ ' }],
+      [GOLogEventCategory.INFO, { format: '{message}' }],
     ]);
   }
 

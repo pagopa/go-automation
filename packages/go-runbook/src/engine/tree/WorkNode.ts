@@ -14,6 +14,7 @@ export interface WorkNode {
   readonly depth: number;
   readonly level: TreeLevel;
   readonly spec: ErrorNodeSpec;
+  readonly errorKey: string;
   readonly scope: ReadScope;
   readonly via?: ReadonlyArray<string>;
   context: RunbookContext;

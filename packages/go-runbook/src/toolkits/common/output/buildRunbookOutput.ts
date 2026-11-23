@@ -1,7 +1,3 @@
-import {
-  type AWSCloudWatchLogsQueryStatistics,
-  sumCloudWatchLogsQueryStatistics,
-} from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { omitUndefined } from '@pagopa/go-common/utils';
 import type {
   CaseAction,
@@ -10,14 +6,11 @@ import type {
   Runbook,
   RunbookContext,
   RunbookExecutionResult,
-  StepTrace,
 } from '../../../engine/index.js';
 import { resolveActionMessage } from '../../../engine/index.js';
 import type { RunbookOutput } from './RunbookOutput.js';
 import type { RunbookOutcome } from './RunbookOutcome.js';
-import type { RunbookTelemetry } from '../telemetry/RunbookTelemetry.js';
-import type { CloudWatchLogsTelemetry } from '../telemetry/CloudWatchLogsTelemetry.js';
-import type { CloudWatchLogsTelemetryQueryExecution } from '../telemetry/CloudWatchLogsTelemetryQueryExecution.js';
+import { buildRunbookTelemetry } from '../telemetry/buildRunbookTelemetry.js';
 import { emptyRunbookOutputContext } from './RunbookOutputContext.js';
 import { analysisDraftOf } from '../analysis/draft/buildAnalysisDraft.js';
 import { ANALYSIS_LOG_ACTION_RENDERER } from '../analysis/reporting/ANALYSIS_LOG_ACTION_RENDERER.js';
@@ -26,6 +19,7 @@ import { buildFamilyOutputContext } from './buildFamilyOutputContext.js';
 import { errorChainsOf } from './buildErrorChains.js';
 import { coverageLinesOf } from './buildCoverageLines.js';
 import { ErrorTreeView } from './tree/ErrorTreeView.js';
+import { detectionOccurrences, errorsByCase } from './detectionOccurrences.js';
 import { RUNBOOK_OUTPUT_SCHEMA_VERSION } from './RUNBOOK_OUTPUT_SCHEMA_VERSION.js';
 import { detectionContext, detectionObservations, representativeContext } from './resultContexts.js';
 import type { RunbookCoverageOutput } from './RunbookCoverageOutput.js';
@@ -47,7 +41,7 @@ export function buildRunbookOutput(
   options: BuildRunbookOutputOptions = {},
 ): RunbookOutput {
   const trace = result.trace;
-  const telemetry = buildRunbookTelemetry(trace.pipeline);
+  const telemetry = buildRunbookTelemetry(trace);
   const view = new ErrorTreeView(result);
   const chains = errorChainsOf(result, view);
   const analysis = analysisDraftOf(runbook, result, { view, chains, coverageLines: coverageLinesOf(result, view) });
@@ -76,7 +70,8 @@ export function buildRunbookOutput(
     },
     input: trace.input,
     outcome: buildOutcome(runbook, result, view),
-    chains,
+    // The list of every path stays in the trace: the output keeps the counts, routes and samples of each group.
+    chains: chains.map(({ members: _members, ...summary }) => summary),
     coverage: {
       complete: evidenceComplete(result, view),
       sources: result.coverage,
@@ -90,47 +85,6 @@ export function buildRunbookOutput(
       (options.contextBuilder ?? buildFamilyOutputContext)(runbook, result) ?? emptyRunbookOutputContext(),
       view,
     ),
-  };
-}
-
-function buildRunbookTelemetry(steps: ReadonlyArray<StepTrace>): RunbookTelemetry | undefined {
-  const cloudWatchLogs = buildCloudWatchLogsTelemetry(steps);
-  if (cloudWatchLogs === undefined) {
-    return undefined;
-  }
-  return { cloudWatchLogs };
-}
-
-function buildCloudWatchLogsTelemetry(steps: ReadonlyArray<StepTrace>): CloudWatchLogsTelemetry | undefined {
-  const queryExecutions: CloudWatchLogsTelemetryQueryExecution[] = [];
-  const statistics: AWSCloudWatchLogsQueryStatistics[] = [];
-
-  for (const step of steps) {
-    const diagnostics = step.diagnostics?.cloudWatchLogs;
-    if (diagnostics === undefined) continue;
-
-    statistics.push(diagnostics.statistics);
-    for (const execution of diagnostics.queryExecutions) {
-      queryExecutions.push({
-        stepId: step.stepId,
-        stepLabel: step.label,
-        executionOrder: step.executionOrder,
-        queryId: execution.queryId,
-        profile: execution.profile,
-        logGroups: execution.logGroups,
-        statistics: execution.statistics,
-      });
-    }
-  }
-
-  if (statistics.length === 0) {
-    return undefined;
-  }
-
-  return {
-    queryCount: queryExecutions.length,
-    statistics: sumCloudWatchLogsQueryStatistics(statistics),
-    queryExecutions,
   };
 }
 
@@ -179,20 +133,30 @@ function buildOutcome(runbook: Runbook, result: RunbookExecutionResult, view: Er
 
 function buildKnownCaseMatchedOutcome(result: RunbookExecutionResult, view: ErrorTreeView): RunbookOutcome {
   const executed = result.trace.actionsExecuted.filter((action) => action.executed);
-  const detections = result.detections.map((detection, index) =>
-    detectionOutput(
-      detection,
-      detectionObservations(view, detection),
-      (result.tree === undefined ? executed[index]?.resolvedMessage : undefined) ??
-        resolveOutcomeMessage(detection.knownCase.action, detectionContext(result, view, detection)),
-    ),
+  const detected = result.detections.map((detection, index) => {
+    const node = view.nodeOf(detection);
+    return {
+      output: detectionOutput(
+        detection,
+        detectionObservations(view, detection),
+        (result.tree === undefined ? executed[index]?.resolvedMessage : undefined) ??
+          resolveOutcomeMessage(detection.knownCase.action, detectionContext(result, view, detection)),
+      ),
+      // Without a tree every detection is an error of its own.
+      errorKey: node?.errorKey ?? `detection:${String(index)}`,
+      inTree: node !== undefined,
+    };
+  });
+  // One entry per case and request, and one line per case: never one per node.
+  const cases = errorsByCase(detected);
+  const named = cases.map(({ description, errors }) =>
+    errors > 1 ? `${description} (${String(errors)} errori)` : description,
   );
-  const [first] = result.detections;
   const message =
-    result.detections.length === 1 && first !== undefined
-      ? `Individuato caso noto: ${first.knownCase.description}`
-      : `Individuati ${String(result.detections.length)} casi noti: ${result.detections.map((d) => d.knownCase.description).join(' | ')}`;
-  return { kind: 'known-case-matched', detections, message };
+    cases.length === 1
+      ? `Individuato caso noto: ${named[0] ?? ''}`
+      : `Individuati ${String(cases.length)} casi noti: ${named.join(' | ')}`;
+  return { kind: 'known-case-matched', detections: detectionOccurrences(detected), message };
 }
 
 function detectionOutput(
@@ -205,6 +169,7 @@ function detectionOutput(
     description: detection.knownCase.description,
     ...omitUndefined({ firstSeenAt: detection.firstSeenAt, lastSeenAt: detection.lastSeenAt }),
     evidenceRows: detection.evidenceRows,
+    errors: 1,
     ...(resolvedMessage !== undefined ? { resolvedMessage } : {}),
     observations,
   };

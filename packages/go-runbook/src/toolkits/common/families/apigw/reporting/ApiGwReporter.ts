@@ -52,6 +52,7 @@ export class ApiGwReporter {
     readonly path?: string;
     readonly httpMethod?: string;
   }): void {
+    this.reporter.section('Richiesta API Gateway');
     this.reporter.add({ label: `Errori HTTP individuati: ${args.errorCount} (status ${args.statusCode || 'n/a'})` });
 
     this.endpoint(args.httpMethod, args.path);

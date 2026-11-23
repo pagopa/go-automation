@@ -5,6 +5,7 @@ import type { CloudWatchLogsBatchedReadResult } from './CloudWatchLogsBatchedRea
 import { mergeCloudWatchLogsDiagnostics } from './mergeCloudWatchLogsDiagnostics.js';
 import { tryCloudWatchLogsRead } from './tryCloudWatchLogsRead.js';
 import type { CloudWatchLogsRow } from './CloudWatchLogsRow.js';
+import { queryBatches, readSplittingSaturated } from './queryBatches.js';
 
 /**
  * Reads many items with a Logs Insights query per batch of items, in order, and merges what the batches read.
@@ -39,31 +40,42 @@ export async function readCloudWatchLogsBatches<TItem>(
   context: OperationalContext,
   read: CloudWatchLogsBatchedRead<TItem>,
 ): Promise<CloudWatchLogsBatchedReadResult> {
-  const size = Math.max(1, read.batchSize);
+  const batches = queryBatches(read.items, (batch) => read.query(batch), read.batchSize);
   const rows: CloudWatchLogsRow[] = [];
   const coverage: StepCoverage[] = [];
   const diagnostics: (StepDiagnostics | undefined)[] = [];
   const failures: Error[] = [];
-  for (let start = 0; start < read.items.length; start += size) {
-    const batch = read.items.slice(start, start + size);
-    const attempt = await tryCloudWatchLogsRead(context, {
-      logGroups: read.logGroups,
-      query: read.query(batch),
-      timeRange: read.timeRange,
-      options: read.options,
-      identifiers: batch.map((item) => read.identifier(item)),
-      ...(read.source === undefined ? {} : { source: read.source }),
+  for (const batch of batches) {
+    const attempts = await readSplittingSaturated(batch, {
+      read: async (items) =>
+        tryCloudWatchLogsRead(context, {
+          logGroups: read.logGroups,
+          query: read.query(items),
+          timeRange: read.timeRange,
+          options: read.options,
+          identifiers: items.map((item) => read.identifier(item)),
+          ...(read.source === undefined ? {} : { source: read.source }),
+        }),
+      belongs: (row, item) => read.belongs?.(row, item) ?? false,
+      // A read that tells the item and the identity of a row divides a saturated batch.
+      ...(read.belongs !== undefined && read.rowIdentity !== undefined && context.readSplits !== undefined
+        ? { rowIdentity: (row: CloudWatchLogsRow) => read.rowIdentity?.(row) ?? '', budget: context.readSplits }
+        : {}),
     });
-    coverage.push(...attempt.coverage);
-    if (attempt.failure !== undefined) {
-      failures.push(attempt.failure);
+    for (const attempt of attempts) coverage.push(...attempt.coverage);
+    // A divided read never fails as a whole: only a first read that failed has a failure.
+    const failure = attempts[0]?.failure;
+    if (failure !== undefined) {
+      failures.push(failure);
       continue;
     }
-    rows.push(...(read.rowsOf === undefined ? attempt.rows : read.rowsOf(attempt.rows, batch)));
-    diagnostics.push(attempt.diagnostics);
+    for (const attempt of attempts) diagnostics.push(attempt.diagnostics);
+    // The rows of the batch once, after the division: a caller that collects results per item collects them once.
+    const batchRows = attempts.flatMap((attempt) => attempt.rows);
+    for (const row of read.rowsOf === undefined ? batchRows : read.rowsOf(batchRows, batch)) rows.push(row);
   }
   const firstFailure = failures[0];
-  if (firstFailure !== undefined && failures.length === Math.ceil(read.items.length / size)) throw firstFailure;
+  if (firstFailure !== undefined && failures.length === batches.length) throw firstFailure;
   const merged = mergeCloudWatchLogsDiagnostics(diagnostics);
   return { rows, coverage, failures, ...(merged === undefined ? {} : { diagnostics: merged }) };
 }

@@ -330,7 +330,7 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
         coreRequestId: query.includes(CORE_REQUEST_ID),
         secondCoreRequestId: query.includes(SECOND_CORE_REQUEST_ID),
         confinfoRequestId: query.includes(CONFINFO_REQUEST_ID),
-        bounded: query.endsWith('| limit 1000'),
+        bounded: query.endsWith('| limit 10000'),
       })),
       [
         {
@@ -386,7 +386,7 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
     const calls: QueryCall[] = [];
     const input = await context(PROD, calls, undefined, undefined, (_account, query) => {
       const row = [{ field: '@message', value: query }];
-      return (query.match(/@requestId = '/g) ?? []).length > 1 ? Array.from({ length: 1000 }, () => row) : [row];
+      return (query.match(/@requestId = '/g) ?? []).length > 1 ? Array.from({ length: 10_000 }, () => row) : [row];
     });
     const requestIds = ['req-0', 'req-1', 'req-2', 'req-3'];
     (input.stepResults as Map<string, unknown>).set(
@@ -407,14 +407,14 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
       result.output?.map((row) => row.find((field) => field.field === '@message')?.value),
       requestIds.map(
         (requestId) =>
-          `fields @timestamp, @requestId, @message\n| filter (@requestId = '${requestId}' or @message like '${requestId}')\n| sort @timestamp asc\n| limit 1000`,
+          `fields @timestamp, @requestId, @message\n| filter (@requestId = '${requestId}' or @message like '${requestId}')\n| sort @timestamp asc\n| limit 10000`,
       ),
     );
   });
 
   it('keeps the rows of a single invocation at the row limit, declaring its source saturated', async () => {
     const calls: QueryCall[] = [];
-    const saturatedRows = Array.from({ length: 1000 }, () => [{ field: '@message', value: 'many rows' }]);
+    const saturatedRows = Array.from({ length: 10_000 }, () => [{ field: '@message', value: 'many rows' }]);
     const input = await context(PROD, calls, undefined, undefined, () => saturatedRows);
     (input.stepResults as Map<string, unknown>).set('query-lambda-errors', [
       [
@@ -426,15 +426,15 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
     const result = await invocation().execute(input);
 
     assert.strictEqual(result.success, true);
-    assert.strictEqual(result.output?.length, 1000);
-    assert.match(result.coverage?.[0]?.detail ?? '', /reached the 1000-row limit/);
+    assert.strictEqual(result.output?.length, 10_000);
+    assert.match(result.coverage?.[0]?.detail ?? '', /reached the 10000-row limit/);
     assert.strictEqual(calls.length, 1);
   });
 
   it('reads every initial batch, splits the saturated ones within a budget of 100 extra queries, then declares saturated', async () => {
     const calls: QueryCall[] = [];
     const saturatedRow = [{ field: '@message', value: 'many rows' }];
-    const saturatedRows = Array.from({ length: 1000 }, () => saturatedRow);
+    const saturatedRows = Array.from({ length: 10_000 }, () => saturatedRow);
     const input = await context(PROD, calls, undefined, undefined, (_account, query) =>
       (query.match(/@requestId = '/g) ?? []).length > 1 ? saturatedRows : [saturatedRow],
     );

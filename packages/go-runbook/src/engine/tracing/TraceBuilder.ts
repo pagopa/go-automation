@@ -221,6 +221,10 @@ export class TraceBuilder {
       },
       actionsExecuted: this.actionTraces.length > 0 ? this.actionTraces : [TraceBuilder.defaultActionTrace],
       coverage: this.coverage,
+      // The reads that failed, by kind of source: a failed read has no statistics to count it by.
+      ...((finalContext.readFailures?.size ?? 0) > 0
+        ? { readFailures: Object.fromEntries(finalContext.readFailures ?? []) }
+        : {}),
       summary,
     };
   }

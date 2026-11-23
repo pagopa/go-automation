@@ -51,5 +51,5 @@ export interface ExecutionLogSpec {
    * limite può essere superato consapevolmente impostando un override in
    * `ApiGwAlarmConfig.executionLogMaxRequestIds`.
    */
-  readonly maxRequestIds: number;
+  readonly maxRequestIds?: number;
 }

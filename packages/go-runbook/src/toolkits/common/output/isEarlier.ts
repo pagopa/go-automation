@@ -15,3 +15,29 @@ export function isEarlier(candidate: string | undefined, other: string | undefin
   if (other === undefined) return true;
   return Date.parse(candidate) < Date.parse(other);
 }
+
+/**
+ * The earliest of some ISO times.
+ *
+ * @param times - The times, some of them missing
+ * @returns The earliest time, or nothing without times
+ */
+export function earliest(times: ReadonlyArray<string | undefined>): string | undefined {
+  let best: string | undefined;
+  for (const time of times) if (isEarlier(time, best)) best = time;
+  return best;
+}
+
+/**
+ * The latest of some ISO times.
+ *
+ * @param times - The times, some of them missing
+ * @returns The latest time, or nothing without times
+ */
+export function latest(times: ReadonlyArray<string | undefined>): string | undefined {
+  let best: string | undefined;
+  for (const time of times) {
+    if (time !== undefined && (best === undefined || Date.parse(time) > Date.parse(best))) best = time;
+  }
+  return best;
+}
