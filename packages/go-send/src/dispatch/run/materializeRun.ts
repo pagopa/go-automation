@@ -86,7 +86,7 @@ function reportRow(
     iun: state?.iun ?? '',
     requestId: state?.requestId ?? '',
     analogRequestId: state?.requestIds?.['PREPARE_ANALOG_DOMICILE'] ?? '',
-    digitalRequestId: state?.requestIds?.['PREPARE_DIGITAL_DOMICILE'] ?? '',
+    simpleRegisteredLetterRequestId: state?.requestIds?.['PREPARE_SIMPLE_REGISTERED_LETTER'] ?? '',
     requestIds: Object.entries(state?.requestIds ?? {})
       .map(([category, id]) => `${category}=${id}`)
       .join('|'),

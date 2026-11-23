@@ -174,7 +174,19 @@ export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
     name: 'request.id.categories',
     type: STRING_ARRAY,
     description: 'Categorie cercate, in ordine di priorità',
-    defaultValue: ['PREPARE_ANALOG_DOMICILE', 'PREPARE_DIGITAL_DOMICILE'],
+    defaultValue: ['PREPARE_ANALOG_DOMICILE', 'PREPARE_SIMPLE_REGISTERED_LETTER'],
+  },
+  {
+    name: 'request.id.append.suffix',
+    type: BOOL,
+    description: 'Aggiunge il suffisso agli id trovati (l id con cui la spedizione arriva al consolidatore)',
+    defaultValue: true,
+  },
+  {
+    name: 'request.id.suffix',
+    type: STRING,
+    description: 'Suffisso degli id trovati: non vuoto, senza spazi né |',
+    defaultValue: '.PCRETRY_0',
   },
   {
     name: 'request.id.select',

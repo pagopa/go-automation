@@ -56,6 +56,8 @@ export interface SendDispatchNotificationsConfig {
 
   readonly awsProfiles?: ReadonlyArray<string> | undefined;
   readonly requestIdCategories: ReadonlyArray<string>;
+  readonly requestIdAppendSuffix: boolean;
+  readonly requestIdSuffix: string;
   readonly requestIdSelect: string;
   readonly requestIdWait: string;
   readonly requestIdEndCategories?: ReadonlyArray<string> | undefined;

@@ -147,6 +147,8 @@ describe('createSessionOptions', () => {
     assert.equal(identity['env'], 'ente-test');
     assert.equal(identity['endpoint'], 'https://api.test.example');
     assert.match(identity['environmentValues'] ?? '', /sender\.taxId=00000000001/);
+    assert.equal(identity['requestIdCategories'], 'PREPARE_ANALOG_DOMICILE,PREPARE_SIMPLE_REGISTERED_LETTER');
+    assert.equal(identity['requestIdSuffix'], '.PCRETRY_0');
   });
 
   it('does not use documents without the send phase, nor a B2B API without a B2B target', async () => {
@@ -231,6 +233,65 @@ describe('createSessionOptions on resume', () => {
       prepare({ ...RAW_CONFIG, inputFile: undefined, resume: resumeDir, defaults: ['subject=X'] }),
       /cliValues: "" → "subject=X"/,
     );
+  });
+
+  it('refuses a resume with other requestId categories or suffix, naming the option to repeat', async () => {
+    const { resumeDir } = await resumable();
+    const resume = { ...RAW_CONFIG, inputFile: undefined, resume: resumeDir };
+    await assert.rejects(
+      prepare({ ...resume, requestIdCategories: ['PREPARE_ANALOG_DOMICILE'] }),
+      /requestIdCategories: "PREPARE_ANALOG_DOMICILE,PREPARE_SIMPLE_REGISTERED_LETTER" → "PREPARE_ANALOG_DOMICILE" \(--request-id-categories PREPARE_ANALOG_DOMICILE,PREPARE_SIMPLE_REGISTERED_LETTER\)/,
+    );
+    await assert.rejects(
+      prepare({ ...resume, requestIdAppendSuffix: false }),
+      /requestIdSuffix: "\.PCRETRY_0" → "" \(--request-id-suffix \.PCRETRY_0\)/,
+    );
+  });
+
+  it('reads a run.json written before the requestId settings with the categories and suffix of then', async () => {
+    const { dir, input } = await inputFixture();
+    const first = await prepare({ ...RAW_CONFIG, inputFile: input });
+    const {
+      requestIdCategories: _categories,
+      requestIdSuffix: _suffix,
+      ...legacyIdentity
+    } = first.options.parameters['identity'] as Readonly<Record<string, string>>;
+    const resumeDir = await previousRun(dir, input, { ...first.options.parameters, identity: legacyIdentity });
+    const resume = { ...RAW_CONFIG, inputFile: undefined, resume: resumeDir };
+
+    await assert.rejects(
+      prepare(resume),
+      (error: unknown) =>
+        error instanceof DispatchUsageError &&
+        /--request-id-categories PREPARE_ANALOG_DOMICILE,PREPARE_DIGITAL_DOMICILE/.test(error.message) &&
+        /--request-id-append-suffix=false/.test(error.message),
+    );
+    const { run } = await prepare({
+      ...resume,
+      requestIdCategories: ['PREPARE_ANALOG_DOMICILE', 'PREPARE_DIGITAL_DOMICILE'],
+      requestIdAppendSuffix: false,
+    });
+    assert.equal(run.runId, '20261103-100000-prev');
+  });
+
+  it('resumes a direct run.json written before the requestId settings with the same parameters', async () => {
+    const { dir, input } = await inputFixture();
+    const direct = { ...RAW_CONFIG, mode: 'direct', phases: ['send'], ecBaseUrl: 'http://localhost:8888' };
+    const target: DispatchTarget = {
+      name: 'consolidatore-test',
+      externalChannels: { baseUrl: 'http://localhost:8888', clientId: 'pn-cons-000' },
+      production: false,
+      defaults: new Map(),
+    };
+    const first = await prepare({ ...direct, inputFile: input }, target);
+    const identity = first.options.parameters['identity'] as Readonly<Record<string, string>>;
+    assert.equal(identity['requestIdCategories'], '');
+    assert.equal(identity['requestIdSuffix'], '');
+    const { requestIdCategories: _categories, requestIdSuffix: _suffix, ...legacyIdentity } = identity;
+    const resumeDir = await previousRun(dir, input, { ...first.options.parameters, identity: legacyIdentity });
+
+    const { run } = await prepare({ ...direct, inputFile: undefined, resume: resumeDir }, target);
+    assert.equal(run.runId, '20261103-100000-prev');
   });
 
   it('refuses to resume a run.json without the saved identity', async () => {

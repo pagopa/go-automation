@@ -5,7 +5,7 @@
  */
 
 import type { GOLogger } from '@pagopa/go-common/logging';
-import type { Dispatch } from '@go-automation/go-send';
+import { Dispatch } from '@go-automation/go-send';
 
 /** Events logged even without `--verbose`. */
 const ERROR_EVENTS: ReadonlySet<string> = new Set([
@@ -33,7 +33,7 @@ export class TransitionLogger {
    * @param entry - Journal entry just recorded
    */
   public handle(entry: Dispatch.JournalEntry): void {
-    if (ERROR_EVENTS.has(entry.event)) {
+    if (ERROR_EVENTS.has(entry.event) && entry.requestIdReason !== Dispatch.DIGITAL_SUCCESS_REASON) {
       this.logger.warning(TransitionLogger.format(entry));
     } else if (this.verbose && entry.rowKey !== undefined) {
       this.logger.info(TransitionLogger.format(entry));

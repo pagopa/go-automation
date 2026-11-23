@@ -27,7 +27,7 @@ export function selectRequestIds(
 
   for (const element of sortTimelineElements(elements)) {
     if (wanted.has(element.category) && !firstByCategory.has(element.category)) {
-      firstByCategory.set(element.category, element.timelineElementId);
+      firstByCategory.set(element.category, `${element.timelineElementId}${options.suffix}`);
     }
     if (endedBy === undefined && ends.has(element.category)) endedBy = element.category;
   }
