@@ -16,6 +16,8 @@
     "GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleExpression": "cron(0 12 * * ? *)",
     "GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabled": "DISABLED",
     "GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleEnabled": "DISABLED",
-    "GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleExpression": "cron(30 12,17 ? * MON-FRI *)"
+    "GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleExpression": "cron(30 12,17 ? * MON-FRI *)",
+    "GoSendMonitorAthenaQueryLambdaNationalRegistriesScheduleExpression": "cron(0 9 * * ? *)",
+    "GoSendMonitorAthenaQueryLambdaNationalRegistriesScheduleEnabled": "DISABLED"
   }
 }

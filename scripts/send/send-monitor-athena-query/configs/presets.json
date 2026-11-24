@@ -228,6 +228,64 @@
           "rules": []
         }
       }
+    },
+    {
+      "name": "national-registries-missing-response",
+      "description": "Chiamate ai registri nazionali della coorte giornaliera senza risposta visibile nei CDC dopo 96 ore.",
+      "values": {
+        "from": null,
+        "to": null,
+        "time": {
+          "lookback": {
+            "hours": 120
+          },
+          "zone": "UTC"
+        },
+        "athena": {
+          "database": "cdc_analytics_database",
+          "query": "WITH run AS (\n    SELECT with_timezone(TIMESTAMP '{{endDate}}', 'UTC') AS as_of\n),\nbounds AS (\n    SELECT\n        as_of,\n        date_add('hour', -120, as_of) AS cohort_start,\n        date_add('hour', -96, as_of) AS cohort_end\n    FROM run\n),\npartition_bounds AS (\n    SELECT\n        b.*,\n        date_format(cohort_start, '%Y') AS start_year,\n        date_format(cohort_start, '%m') AS start_month,\n        date_format(cohort_start, '%d') AS start_day,\n        date_format(cohort_start, '%H') AS start_hour,\n        date_format(as_of, '%Y') AS end_year,\n        date_format(as_of, '%m') AS end_month,\n        date_format(as_of, '%d') AS end_day,\n        date_format(as_of, '%H') AS end_hour\n    FROM bounds b\n),\nevents AS (\n    SELECT\n        t.iun,\n        t.timelineElementId AS event_id,\n        t.category,\n        from_iso8601_timestamp(t.\"timestamp\") AS event_ts,\n        b.cohort_start,\n        b.cohort_end,\n        b.as_of\n    FROM pn_timelines_json_view t\n    CROSS JOIN partition_bounds b\n    WHERE t.category IN ('PUBLIC_REGISTRY_CALL', 'PUBLIC_REGISTRY_RESPONSE')\n      AND t.p_year IN (b.start_year, b.end_year)\n      AND t.p_month IN (b.start_month, b.end_month)\n      AND (\n          (\n              t.p_year = b.start_year AND t.p_month = b.start_month\n              AND (\n                  t.p_day > b.start_day\n                  OR (t.p_day = b.start_day AND t.p_hour >= b.start_hour)\n              )\n          )\n          OR (\n              b.start_month <> b.end_month\n              AND t.p_year = b.end_year AND t.p_month = b.end_month\n          )\n      )\n      AND (\n          (\n              t.p_year = b.end_year AND t.p_month = b.end_month\n              AND (\n                  t.p_day < b.end_day\n                  OR (t.p_day = b.end_day AND t.p_hour <= b.end_hour)\n              )\n          )\n          OR (\n              b.start_month <> b.end_month\n              AND t.p_year = b.start_year AND t.p_month = b.start_month\n          )\n      )\n),\nmatched AS (\n    SELECT\n        iun,\n        CASE\n            WHEN category = 'PUBLIC_REGISTRY_CALL' THEN event_id\n            ELSE substr(\n                event_id,\n                length('NATIONAL_REGISTRY_RESPONSE.CORRELATIONID_') + 1\n            )\n        END AS call_id,\n        min(event_ts) FILTER (\n            WHERE category = 'PUBLIC_REGISTRY_CALL'\n              AND event_ts >= cohort_start\n              AND event_ts < cohort_end\n        ) AS call_ts,\n        max(event_ts) FILTER (\n            WHERE category = 'PUBLIC_REGISTRY_RESPONSE'\n              AND event_ts >= cohort_start\n              AND event_ts <= as_of\n        ) AS response_ts\n    FROM events\n    WHERE category = 'PUBLIC_REGISTRY_CALL'\n       OR starts_with(event_id, 'NATIONAL_REGISTRY_RESPONSE.CORRELATIONID_')\n    GROUP BY 1, 2\n)\nSELECT iun, call_id, call_ts\nFROM matched\nWHERE call_ts IS NOT NULL\n  AND (response_ts IS NULL OR response_ts < call_ts)\nORDER BY call_ts, iun, call_id;\n"
+        },
+        "template": {
+          "params": [],
+          "raw": [],
+          "legacy": {
+            "aliases": true
+          }
+        },
+        "output": {
+          "folder": "reports_national-registries-missing-response",
+          "format": "csv",
+          "file": {
+            "prefix": "report"
+          },
+          "attach": {
+            "when": {
+              "empty": false
+            }
+          }
+        },
+        "artifact": {
+          "s3": {
+            "location": "s3://pn-log-analytics-athena-results-eu-south-1-151559006927-001"
+          }
+        },
+        "slack": {
+          "token": null,
+          "channel": "C09S6NBBBQF",
+          "send": {
+            "on": {
+              "empty": false,
+              "error": true
+            }
+          },
+          "message": {
+            "template": "*Registri nazionali: chiamate senza risposta da oltre 96 ore*\n• Controllo UTC: {{endDate}}\n• Chiamate senza risposta visibile nei CDC: {{rowCount}}"
+          }
+        },
+        "analysis": {
+          "rules": []
+        }
+      }
     }
   ]
 }
