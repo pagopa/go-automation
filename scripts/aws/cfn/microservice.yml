@@ -347,4 +347,4 @@ Resources:
       Target:
         Arn: !GetAtt GoSendMonitorAthenaQueryLambda.Arn
         RoleArn: !GetAtt GoSendMonitorAthenaQueryLambdaSchedulerRole.Arn
-        Input: '{"body":{"script.preset.name":"national-registries-missing-response","to":"<aws.scheduler.scheduled-time>"}}'
+        Input: '{"body":{"script.preset.name":"national-registries-missing-response","time.zone":"UTC","to":"<aws.scheduler.scheduled-time>"}}'
