@@ -1,0 +1,81 @@
+{
+  "tables": {
+    "pn-AttachmentsConfig": {
+      "account": "core",
+      "keys": ["configKey", "startValidity"]
+    },
+    "pn-AuthJwtAttributes": {
+      "account": "core",
+      "keys": ["hashKey", "sortKey"]
+    },
+    "pn-AuthJwtIssuers": {
+      "account": "core",
+      "keys": ["hashKey", "sortKey"],
+      "syncMode": "merge"
+    },
+    "pn-EcAnagrafica": {
+      "account": "confinfo",
+      "keys": ["cxId"],
+      "protectedKey": {
+        "name": "cxId",
+        "values": ["pn-cons-000"]
+      }
+    },
+    "pn-PaperCost": {
+      "account": "core",
+      "keys": ["driverCode", "uuidCode"]
+    },
+    "pn-PaperDeliveryDriver": {
+      "account": "core",
+      "keys": ["tenderCode", "taxId"]
+    },
+    "pn-PaperTender": {
+      "account": "core",
+      "keys": ["tenderCode"]
+    },
+    "pn-PaperZone": {
+      "account": "core",
+      "keys": ["countryIt"]
+    },
+    "pn-SmStates": {
+      "account": "confinfo",
+      "keys": ["processClientId", "currStatus"]
+    },
+    "pn-SsAnagraficaClient": {
+      "account": "confinfo",
+      "keys": ["name"],
+      "protectedKey": {
+        "name": "name",
+        "values": ["pn-cons-000"]
+      }
+    },
+    "pn-SsTipologieDocumenti": {
+      "account": "confinfo",
+      "keys": ["tipoDocumento"]
+    },
+    "pn-TaxonomyCode": {
+      "account": "core",
+      "keys": ["key", "PAId"]
+    },
+    "pn-addressManager-AnagraficaClient": {
+      "account": "confinfo",
+      "keys": ["cxId"],
+      "protectedKey": {
+        "name": "cxId",
+        "values": ["pn-norm-000"]
+      }
+    },
+    "pn-addressManager-Cap": {
+      "account": "confinfo",
+      "keys": ["cap"]
+    },
+    "pn-addressManager-Country": {
+      "account": "confinfo",
+      "keys": ["country"]
+    },
+    "pn-helpdesk-roles": {
+      "account": "core",
+      "keys": ["email"]
+    }
+  }
+}

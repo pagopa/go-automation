@@ -1,0 +1,17 @@
+{
+  "accounts": {
+    "core": "core",
+    "confinfo": "confinfo"
+  },
+  "configuration": {
+    "confDir": "_conf",
+    "dynamodbDir": "dynamodb",
+    "tablesFile": "tables.json"
+  },
+  "environments": {
+    "allowed": ["test", "uat", "hotfix"]
+  },
+  "guard": {
+    "prodProfileMarkers": ["prod"]
+  }
+}

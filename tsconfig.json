@@ -151,6 +151,9 @@
       "path": "./scripts/send/send-report-dlq"
     },
     {
+      "path": "./scripts/send/send-sync-anagrafica"
+    },
+    {
       "path": "./scripts/send/send-upload-attachments"
     }
   ]
