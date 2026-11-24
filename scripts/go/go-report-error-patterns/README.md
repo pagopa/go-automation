@@ -24,6 +24,7 @@ Script per analizzare le occorrenze di attivazione di allarmi AWS CloudWatch ed 
   - **Report B — Pattern Coverage**: misura la trasversalità dei pattern contando in quante occorrenze distinte ciascun pattern è comparso nei log analizzati.
   - **Report C — Tied Pattern Combinations**: traccia le occorrenze con pareggi (pattern con ratio (%) massimo equivalente) e aggrega le combinazioni ricorrenti di pattern in pareggio.
 - **Flessibilità di profiling**: il profilo AWS associato ad un allarme può essere specificato tramite opportuna proprietà (`profile`) all'interno del file di configurazione e che, in assenza di questo, lo script verificherà la presenza di tale allarme tra tutti i profili forniti in input allo script tramite il parametro `--aws-profiles`.
+- **Risoluzione token statici (opt-in)**: se abilitato tramite il campo `resolve-static-tokens`, lo script esegue query di risoluzione sulle stesse finestre temporali delle occorrenze per determinare empiricamente quali token `<*>` nei pattern CloudWatch hanno valore costante. I token stabili vengono sostituiti con il loro valore reale nei report, migliorando la leggibilità diagnostica. I token genuinamente variabili mantengono il segnaposto `<*>`.
 - **Output dettagliato**: rendering tabellare a console ed esportazione automatica dei report in file JSON strutturati e indentati.
 
 ## Prerequisiti
@@ -80,7 +81,8 @@ Il file può contenere un singolo oggetto oppure un array di oggetti configurazi
     "alarm-history-start-date": "2026-11-01T00:00:00Z",
     "alarm-history-end-date": "2026-11-03T23:59:59Z",
     "query-aws-cloudwatch": "fields @timestamp, @message | filter @message like /ERROR/ | pattern @message",
-    "time-window-extra-seconds": 30
+    "time-window-extra-seconds": 30,
+    "resolve-static-tokens": true
   },
   {
     "profile": "dev-account",
@@ -89,7 +91,8 @@ Il file può contenere un singolo oggetto oppure un array di oggetti configurazi
     "alarm-history-start-date": "2026-11-01T00:00:00Z",
     "alarm-history-end-date": "2026-11-03T23:59:59Z",
     "query-aws-cloudwatch": "fields @timestamp, @message | pattern @message",
-    "time-window-extra-seconds": 0
+    "time-window-extra-seconds": 0,
+    "resolve-static-tokens": false
   }
 ]
 ```
@@ -105,6 +108,7 @@ Il file può contenere un singolo oggetto oppure un array di oggetti configurazi
 | `query-aws-cloudwatch`      | string           | Sì           | Query CloudWatch Logs Insights (deve contenere il comando `pattern`).                                 |
 | `profile`                   | string           | No           | Profilo AWS specifico per l'allarme. Se omesso, si utilizzano i profili passati via `--aws-profiles`. |
 | `time-window-extra-seconds` | number           | No           | Secondi extra da aggiungere prima e dopo la finestra temporale di analisi (default: `0`).             |
+| `resolve-static-tokens`     | boolean          | No           | Se `true`, abilita la risoluzione empirica dei token `<*>` statici nei pattern tramite query aggiuntive. Comporta costo CloudWatch aggiuntivo proporzionale al numero di pattern distinti e occorrenze. Default: `false`. |
 
 ### Priorità di Configurazione
 
@@ -282,6 +286,12 @@ pnpm build:common
 pnpm --filter=go-report-error-patterns build
 ```
 
+#### I pattern nei report contengono ancora `<*>` anche con `resolve-static-tokens: true`
+
+**Causa**: Il token varia genuinamente tra le occorrenze o tra i log nell'intervallo analizzato. La risoluzione è corretta: quel valore non è stabile.
+
+**Causa alternativa**: La query CloudWatch specificata in `query-aws-cloudwatch` non usa il comando `pattern`, oppure il campo `@pattern` non viene restituito correttamente.
+
 ### Debug Mode
 
 ```bash
@@ -294,5 +304,5 @@ pnpm exec tsc --noEmit
 
 ---
 
-**Ultima modifica**: 2026-11-06  
+**Ultima modifica**: 2026-11-24  
 **Maintainer**: Team GO - Gestione Operativa

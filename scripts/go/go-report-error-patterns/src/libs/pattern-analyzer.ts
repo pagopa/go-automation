@@ -366,3 +366,146 @@ export async function queryPatternsForOccurrence(
     patterns: foundPatterns,
   };
 }
+
+/**
+ * Builds a CloudWatch Logs Insights resolution query using parse, filter ispresent and stats.
+ * Returns null if the pattern does not contain any <*> tokens.
+ */
+export function buildPatternResolutionQuery(
+  pattern: string,
+): { query: string; tokenCount: number } | null {
+  const parts = pattern.split('<*>');
+  const tokenCount = parts.length - 1;
+
+  if (tokenCount <= 0) {
+    return null;
+  }
+
+  const globPattern = pattern.replaceAll('<*>', '*');
+  const quotedGlob = globPattern.includes('"') ? `'${globPattern}'` : `"${globPattern}"`;
+
+  const varNames = Array.from({ length: tokenCount }, (_, i) => `t${i}`).join(', ');
+  const statsClauses = Array.from(
+    { length: tokenCount },
+    (_, i) => `count_distinct(t${i}) as cd${i}, earliest(t${i}) as v${i}`,
+  ).join(', ');
+
+  const query = `parse @message ${quotedGlob} as ${varNames} | filter ispresent(t0) | stats ${statsClauses}`;
+
+  return {
+    query,
+    tokenCount,
+  };
+}
+
+/**
+ * Empirically resolves static <*> tokens in a pattern by running resolution queries across occurrence windows.
+ * Replaces tokens that remain constant (count_distinct = 1 and same value in all windows) with their actual value.
+ */
+export async function resolvePatternTokens(
+  logsService: AWSCloudWatchLogsService,
+  logGroup: string,
+  pattern: string,
+  occurrenceWindows: ReadonlyArray<{ start: Date; end: Date }>,
+): Promise<string> {
+  const resolutionQuery = buildPatternResolutionQuery(pattern);
+  if (resolutionQuery === null || occurrenceWindows.length === 0) {
+    return pattern;
+  }
+
+  const { query, tokenCount } = resolutionQuery;
+  const tokenValues: Array<string | null> = Array.from({ length: tokenCount }, () => null);
+  const tokenFailed: boolean[] = Array.from({ length: tokenCount }, () => false);
+
+  for (const window of occurrenceWindows) {
+    let rows: ReadonlyArray<ReadonlyArray<ResultField>>;
+    try {
+      rows = await logsService.query([logGroup], query, window);
+    } catch (err) {
+      console.warn(`[WARN] Impossibile eseguire query di risoluzione per pattern su finestra ${window.start.toISOString()}:`, err);
+      // Transient error on this window: cannot confirm stability
+      for (let i = 0; i < tokenCount; i++) {
+        tokenFailed[i] = true;
+      }
+      break;
+    }
+
+    if (rows.length === 0) {
+      // No rows returned: cannot confirm stability
+      for (let i = 0; i < tokenCount; i++) {
+        tokenFailed[i] = true;
+      }
+      break;
+    }
+
+    const firstRow = rows[0];
+    if (!firstRow) {
+      for (let i = 0; i < tokenCount; i++) {
+        tokenFailed[i] = true;
+      }
+      break;
+    }
+
+    for (let i = 0; i < tokenCount; i++) {
+      if (tokenFailed[i]) {
+        continue;
+      }
+
+      const cdVal = readRowField(firstRow, `cd${i}`);
+      const vVal = readRowField(firstRow, `v${i}`);
+
+      if (cdVal === undefined || Number(cdVal) !== 1 || vVal === undefined) {
+        tokenFailed[i] = true;
+        continue;
+      }
+
+      if (tokenValues[i] === null) {
+        tokenValues[i] = vVal;
+      } else if (tokenValues[i] !== vVal) {
+        tokenFailed[i] = true;
+      }
+    }
+  }
+
+  const resolvedTokens: string[] = [];
+  for (let i = 0; i < tokenCount; i++) {
+    if (!tokenFailed[i] && tokenValues[i] !== null) {
+      resolvedTokens.push(tokenValues[i]!);
+    } else {
+      resolvedTokens.push('<*>');
+    }
+  }
+
+  const parts = pattern.split('<*>');
+  let resolved = parts[0] ?? '';
+  for (let i = 0; i < tokenCount; i++) {
+    const token = resolvedTokens[i] ?? '<*>';
+    const part = parts[i + 1] ?? '';
+    resolved += token + part;
+  }
+
+  return resolved;
+}
+
+/**
+ * Applies resolved patterns to OccurrenceQueryResult array immutably.
+ */
+export function applyPatternResolutions(
+  results: ReadonlyArray<OccurrenceQueryResult>,
+  resolutionMap: ReadonlyMap<string, string>,
+): OccurrenceQueryResult[] {
+  return results.map((res) => ({
+    occurrence: res.occurrence,
+    patterns: res.patterns.map((p) => {
+      const resolved = resolutionMap.get(p.pattern);
+      if (resolved !== undefined && resolved !== p.pattern) {
+        return {
+          ...p,
+          pattern: resolved,
+        };
+      }
+      return { ...p };
+    }),
+  }));
+}
+

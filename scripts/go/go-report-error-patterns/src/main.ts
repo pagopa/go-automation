@@ -22,7 +22,7 @@ import type {
   OccurrenceQueryResult,
 } from './types/index.js';
 import { parseDateInput, extractAlarmOccurrenceWindow } from './libs/alarm-evaluator.js';
-import { queryPatternsForOccurrence } from './libs/pattern-analyzer.js';
+import { queryPatternsForOccurrence, resolvePatternTokens, applyPatternResolutions } from './libs/pattern-analyzer.js';
 import { buildAllReports, printAllReports, exportAllReports } from './libs/report.js';
 
 /**
@@ -100,7 +100,7 @@ export async function main(script: Core.GOScript): Promise<void> {
         }
       }
 
-      const occurrenceResults: OccurrenceQueryResult[] = [];
+      let occurrenceResults: OccurrenceQueryResult[] = [];
 
       for (let i = 0; i < occurrences.length; i++) {
         const occ = occurrences[i];
@@ -118,6 +118,35 @@ export async function main(script: Core.GOScript): Promise<void> {
           script.logger.warning(
             `Errore durante l'esecuzione della query per l'allarme ${occ.timestamp.toISOString()}: ${(error as Error).message}`,
           );
+        }
+      }
+
+      if (item['resolve-static-tokens'] === true) {
+        script.logger.info('Risoluzione token statici nei pattern...');
+
+        // Raccoglie pattern distinti e le finestre in cui sono apparsi
+        const patternWindowsMap = new Map<string, { start: Date; end: Date }[]>();
+        for (const res of occurrenceResults) {
+          for (const p of res.patterns) {
+            const windows = patternWindowsMap.get(p.pattern) ?? [];
+            windows.push({ start: res.occurrence.queryStartTime, end: res.occurrence.queryEndTime });
+            patternWindowsMap.set(p.pattern, windows);
+          }
+        }
+
+        // Risolve ogni pattern distinto
+        const resolutionMap = new Map<string, string>();
+        for (const [pattern, windows] of patternWindowsMap) {
+          const resolved = await resolvePatternTokens(logsService, logGroup, pattern, windows);
+          if (resolved !== pattern) {
+            resolutionMap.set(pattern, resolved);
+            script.logger.text(`  Pattern risolto: "${pattern}" → "${resolved}"`);
+          }
+        }
+
+        // Applica le risoluzioni agli occurrenceResults
+        if (resolutionMap.size > 0) {
+          occurrenceResults = applyPatternResolutions(occurrenceResults, resolutionMap);
         }
       }
 
