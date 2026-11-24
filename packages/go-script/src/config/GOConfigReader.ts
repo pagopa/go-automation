@@ -40,6 +40,9 @@ interface GOConfigProvideLog {
   value?: string | string[] | undefined;
 }
 
+/** Whether a provider, by name, may supply a value. */
+export type GOConfigProviderPredicate = (providerName: string) => boolean;
+
 export class GOConfigReader {
   private readonly providers: ReadonlyArray<GOConfigProvider>;
   private readonly accessLog: Map<string, GOConfigProvideLog>;
@@ -285,10 +288,15 @@ export class GOConfigReader {
    * a lower-priority provider with the primary key.
    *
    * @param keys - Keys to try (e.g., [param.name, ...param.aliases])
+   * @param acceptsProvider - When given, providers it rejects are skipped as if they had no key
    * @returns The raw value from the highest-priority provider that has any of the keys
    */
-  getRawValueForKeys(keys: ReadonlyArray<string>): string | string[] | undefined {
+  getRawValueForKeys(
+    keys: ReadonlyArray<string>,
+    acceptsProvider?: GOConfigProviderPredicate,
+  ): string | string[] | undefined {
     for (const provider of this.providers) {
+      if (acceptsProvider !== undefined && !acceptsProvider(provider.getName())) continue;
       for (const key of keys) {
         if (provider.hasKey(key)) {
           const value = provider.getValue(key);
@@ -302,6 +310,18 @@ export class GOConfigReader {
       this.logMissing(key);
     }
     return undefined;
+  }
+
+  /**
+   * The providers holding any of the keys, in priority order, without logging an access.
+   *
+   * @param keys - Keys to look for
+   * @returns The name of every provider that has at least one of the keys
+   */
+  getProviderNamesForKeys(keys: ReadonlyArray<string>): string[] {
+    return this.providers
+      .filter((provider) => keys.some((key) => provider.hasKey(key)))
+      .map((provider) => provider.getName());
   }
 
   /**

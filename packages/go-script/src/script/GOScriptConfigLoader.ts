@@ -11,12 +11,32 @@ import { GOConfigParameterType } from '../config/GOConfigParameterType.js';
 import { GOConfigTypeConverter } from '../config/GOConfigTypeConverter.js';
 
 /**
+ * A CLI-only parameter that a non-CLI source tried to set.
+ */
+export interface DiscardedCliOnlyParameter {
+  /** The parameter name, as declared */
+  readonly name: string;
+
+  /** The providers whose value was discarded */
+  readonly sources: ReadonlyArray<string>;
+}
+
+/**
  * Configuration loading result
  */
 export interface ConfigLoadResult {
   values: Record<string, unknown>;
   sources: Map<string, string>;
   missingRequired: string[];
+  discardedCliOnly: DiscardedCliOnlyParameter[];
+}
+
+/** The providers a CLI-only parameter accepts: the operator's own argv, or the event a Lambda was invoked with. */
+const CLI_ONLY_SOURCES: ReadonlyArray<string> = ['CommandLine', 'LambdaEvent'];
+
+/** Whether a provider may set a CLI-only parameter. */
+function isCliOnlySource(providerName: string): boolean {
+  return CLI_ONLY_SOURCES.includes(providerName);
 }
 
 /**
@@ -27,6 +47,7 @@ export class GOScriptConfigLoader {
   private readonly configSchema: GOConfigSchema;
   private readonly configReader: GOConfigReader;
   private readonly fallbackContext: GOConfigFallbackContext;
+  private readonly discardedCliOnly: DiscardedCliOnlyParameter[] = [];
 
   constructor(configSchema: GOConfigSchema, configReader: GOConfigReader, fallbackContext: GOConfigFallbackContext) {
     this.configSchema = configSchema;
@@ -53,6 +74,7 @@ export class GOScriptConfigLoader {
       values: configValues,
       sources,
       missingRequired,
+      discardedCliOnly: [...this.discardedCliOnly],
     };
   }
 
@@ -76,7 +98,9 @@ export class GOScriptConfigLoader {
     for (const param of params) {
       // Get raw value respecting provider priority across all keys (name + aliases)
       const keysToTry = [param.name, ...param.aliases];
-      const rawValue = this.configReader.getRawValueForKeys(keysToTry);
+      const rawValue = param.cliOnly
+        ? this.readCliOnlyValue(param.name, keysToTry)
+        : this.configReader.getRawValueForKeys(keysToTry);
 
       let value: unknown;
 
@@ -101,6 +125,18 @@ export class GOScriptConfigLoader {
     }
 
     return configValues;
+  }
+
+  /**
+   * Reads a CLI-only parameter, recording every other source that tried to set it.
+   */
+  private readCliOnlyValue(name: string, keys: ReadonlyArray<string>): string | string[] | undefined {
+    const rejected = this.configReader.getProviderNamesForKeys(keys).filter((source) => !isCliOnlySource(source));
+    if (rejected.length > 0) {
+      this.discardedCliOnly.push({ name, sources: rejected });
+    }
+
+    return this.configReader.getRawValueForKeys(keys, isCliOnlySource);
   }
 
   /**

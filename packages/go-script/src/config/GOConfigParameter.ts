@@ -139,6 +139,16 @@ export interface GOConfigParameterOptions {
   reserved?: boolean;
 
   /**
+   * Whether only the command line (or a Lambda event) may set this parameter.
+   *
+   * For the flags that approve a write, like `--yes`: a value found in an env
+   * var, a preset or a config file is discarded with a warning and the default
+   * applies, so an approval can never be left lying around in the environment.
+   * Default: false
+   */
+  cliOnly?: boolean;
+
+  /**
    * Async fallback function called when value is not found in providers.
    * Executed AFTER checking defaultValue.
    * If both defaultValue and asyncFallback are set, defaultValue takes precedence.
@@ -186,6 +196,7 @@ export class GOConfigParameter {
   readonly deprecationMessage?: string | undefined;
   readonly sensitive: boolean;
   readonly reserved: boolean;
+  readonly cliOnly: boolean;
   readonly asyncFallback?: GOConfigParameterFallbackFn | undefined;
 
   constructor(options: GOConfigParameterOptions) {
@@ -207,6 +218,7 @@ export class GOConfigParameter {
     this.deprecationMessage = options.deprecationMessage;
     this.sensitive = options.sensitive ?? false;
     this.reserved = options.reserved ?? false;
+    this.cliOnly = options.cliOnly ?? false;
     this.asyncFallback = options.asyncFallback;
   }
 

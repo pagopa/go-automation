@@ -530,6 +530,11 @@ export class GOScript {
 
     const loadResult = await this.configLoader.load();
     this.config = new GOConfig(loadResult.values, loadResult.sources);
+    for (const discarded of loadResult.discardedCliOnly) {
+      this.logger.warning(
+        `Ignored ${discarded.name} from ${discarded.sources.join(', ')}: it can only be given on the command line.`,
+      );
+    }
 
     // Mark loaded before the prepare hook so a hook calling getConfiguration()
     // reads the current config instead of re-entering loadConfig().

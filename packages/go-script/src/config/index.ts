@@ -17,6 +17,7 @@ export * from './GOSecretsSpecifier.js';
 // Schema & Parameters
 export * from './GOConfigParameter.js';
 export * from './GOConfigParameterType.js';
+export * from './yesParameter.js';
 export * from './GOConfigSchema.js';
 export * from './GOConfigHelpGenerator.js';
 
