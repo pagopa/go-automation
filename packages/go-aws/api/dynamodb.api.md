@@ -179,6 +179,9 @@ export declare class AWSDynamoDBService {
     getItem(tableName: string, key: Record<string, unknown>, signal?: AbortSignal): Promise<Record<string, unknown> | undefined>;
     updateItem(tableName: string, key: Record<string, unknown>, updateExpression: string, expressionAttributeValues: Record<string, unknown>, expressionAttributeNames?: Record<string, string>, signal?: AbortSignal): Promise<void>;
     putItem(tableName: string, item: Record<string, unknown>, signal?: AbortSignal): Promise<void>;
+    scanRaw(tableName: string, signal?: AbortSignal): Promise<ReadonlyArray<Record<string, unknown>>>;
+    updateItemRaw(tableName: string, key: Record<string, unknown>, attributes: Record<string, unknown>, signal?: AbortSignal): Promise<void>;
+    batchWriteItemRaw(tableName: string, items: ReadonlyArray<Record<string, unknown>>, options?: DynamoDBBatchWriteOptions): Promise<DynamoDBBatchWriteResult>;
 }
 ```
 
@@ -186,6 +189,32 @@ export declare class AWSDynamoDBService {
 
 ```ts
 const DYNAMODB_CLIENT: AWSClientFactory<DynamoDBClient>;
+```
+
+### `DynamoDBBatchWriteOptions` (type)
+
+```ts
+export interface DynamoDBBatchWriteOptions {
+    readonly batchSize?: number;
+    readonly maxRetries?: number;
+    readonly onRetry?: DynamoDBBatchWriteRetryHandler;
+    readonly signal?: AbortSignal;
+}
+```
+
+### `DynamoDBBatchWriteResult` (type)
+
+```ts
+export interface DynamoDBBatchWriteResult {
+    readonly written: number;
+    readonly unprocessed: ReadonlyArray<Record<string, unknown>>;
+}
+```
+
+### `DynamoDBBatchWriteRetryHandler` (type)
+
+```ts
+export type DynamoDBBatchWriteRetryHandler = (remaining: number, attempt: number) => void;
 ```
 
 ### `DynamoDBClient` (type)

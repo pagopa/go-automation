@@ -7,6 +7,11 @@ export { AWSDynamoDBService } from './AWSDynamoDBService.js';
 export { DynamoDBQueryService } from './DynamoDBQueryService.js';
 export type { DynamoDBQueryProgressHandler } from './DynamoDBQueryService.js';
 export type { DynamoDBQueryOptions, DynamoDBKeyType } from './models/DynamoDBQueryOptions.js';
+export type {
+  DynamoDBBatchWriteOptions,
+  DynamoDBBatchWriteResult,
+  DynamoDBBatchWriteRetryHandler,
+} from './models/DynamoDBBatchWriteResult.js';
 export type { DynamoDBQueryResult } from './models/DynamoDBQueryResult.js';
 export type {
   TableDescription,
