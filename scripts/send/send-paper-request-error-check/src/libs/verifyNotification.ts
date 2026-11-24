@@ -12,7 +12,7 @@ export interface TimelineEvent {
 
 export interface ExclusionCheckResult {
   readonly excluded: boolean;
-  readonly reason?: 'CANCELLED' | 'VIEWED_OVER_120D' | 'REFINEMENT_OVER_120D' | undefined;
+  readonly reason?: 'CANCELLED' | 'VIEWED_OVER_120D' | 'VIEWED_WITHOUT_ANALOG' | 'REFINEMENT_OVER_120D' | undefined;
   readonly eventTimestamp?: string | undefined;
 }
 
@@ -53,6 +53,7 @@ function get120DaysThresholdIso(referenceDate: Date = new Date()): string {
  * Criteri di scarto:
  * 1. Presenta un evento NOTIFICATION_CANCELLED
  * 2. Presenta un evento NOTIFICATION_VIEWED antecedente al limite temporale (es. > 120 giorni)
+ * 3. Presenta un evento NOTIFICATION_VIEWED con meno di 120 giorni e senza SEND_ANALOG_DOMICILE
  * 3. Presenta un evento REFINEMENT antecedente al limite temporale (es. > 120 giorni)
  *
  * Se scartata, gli allegati hanno il delete marker o sono annullati (non va fatto nulla).
@@ -67,9 +68,11 @@ export function isNotificationExcluded(
   timestampThreshold: string = get120DaysThresholdIso(),
 ): ExclusionCheckResult {
   if (!timeline || timeline.length === 0) {
-    // Senza timeline o in corso: non scartata
     return { excluded: false };
   }
+
+  // Verifichiamo se è presente SEND_ANALOG_DOMICILE
+  const hasSendAnalogDomicile = timeline.some((event) => event.category === 'SEND_ANALOG_DOMICILE');
 
   for (const event of timeline) {
     const { category, timestamp } = event;
@@ -84,13 +87,27 @@ export function isNotificationExcluded(
       };
     }
 
-    // 2. NOTIFICATION_VIEWED antecedente alla soglia (vecchia oltre 120 giorni)
-    if (category === 'NOTIFICATION_VIEWED' && timestamp !== undefined && timestamp < timestampThreshold) {
-      return {
-        excluded: true,
-        reason: 'VIEWED_OVER_120D',
-        eventTimestamp: timestamp,
-      };
+    // 2. NOTIFICATION_VIEWED
+    if (category === 'NOTIFICATION_VIEWED') {
+      // Caso > 120 giorni: sempre scartata
+      if (timestamp !== undefined && timestamp < timestampThreshold) {
+        return {
+          excluded: true,
+          reason: 'VIEWED_OVER_120D',
+          eventTimestamp: timestamp,
+        };
+      }
+
+      // Caso < 120 giorni: se NON c'è SEND_ANALOG_DOMICILE, non partirebbe comunque -> scartata
+      if (!hasSendAnalogDomicile) {
+        return {
+          excluded: true,
+          reason: 'VIEWED_WITHOUT_ANALOG',
+          eventTimestamp: timestamp,
+        };
+      }
+
+      // Se invece C'È SEND_ANALOG_DOMICILE: deve essere sottomessa, quindi NON viene esclusa qui
     }
 
     // 3. REFINEMENT antecedente alla soglia (vecchia oltre 120 giorni)
@@ -149,7 +166,7 @@ export async function processTimelines<
 
       if (check.reason === 'CANCELLED') {
         cancelledOutput.push(idToReport ?? 'UNKNOWN');
-      } else if (check.reason === 'VIEWED_OVER_120D') {
+      } else if (check.reason === 'VIEWED_OVER_120D' || check.reason === 'VIEWED_WITHOUT_ANALOG') {
         viewedOutput.push(idToReport ?? 'UNKNOWN');
       } else if (check.reason === 'REFINEMENT_OVER_120D') {
         refinementOutput.push(idToReport ?? 'UNKNOWN');

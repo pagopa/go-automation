@@ -2,6 +2,7 @@ import { mkdir } from 'node:fs/promises';
 import path from 'path';
 import type { GOScript } from '@go-automation/go-script';
 import { GOFileListExporter, GOJSONListExporter } from '@pagopa/go-common/exporters';
+import { extractIun, get } from '../utils/get.js';
 import type {
   CheckFeedbackResult,
   GetNotificationAttachmentsResult,
@@ -156,13 +157,47 @@ export class PaperRequestReporter {
     const timestamp = new Date().toISOString();
     const stepDetails: Record<string, unknown> = {};
 
+    let withFeedbackPath: string | undefined;
+    let withoutFeedbackPath: string | undefined;
+
     if (this.checkFeedbackResult) {
       const cf = this.checkFeedbackResult;
+
+      // 1. with_feedback.csv
+      withFeedbackPath = resolveOutputPath(script.paths, 'with_feedback.csv', outputDir);
+      const withFeedbackLines = [
+        'requestId,iun,feedbackType,timelineElementId,timestamp,details',
+        ...cf.foundRequestIds.map((item) => {
+          const iun = extractIun(item.requestId);
+          const category = get<string>(item.event, 'category', 'UNKNOWN');
+          const elementId = get<string>(item.event, 'timelineElementId', '');
+          const eventTimestamp = get<string>(item.event, 'timestamp', '');
+          const detailsObj = get<Record<string, unknown> | undefined>(item.event, 'details');
+          const detailsStr = detailsObj ? `"${JSON.stringify(detailsObj).replace(/"/g, '""')}"` : '';
+          return `"${item.requestId}","${iun}","${category}","${elementId}","${eventTimestamp}",${detailsStr}`;
+        }),
+      ];
+      const withFeedbackExporter = new GOFileListExporter({ outputPath: withFeedbackPath });
+      await withFeedbackExporter.export(withFeedbackLines);
+
+      // 2. without_feedback.csv
+      withoutFeedbackPath = resolveOutputPath(script.paths, 'without_feedback.csv', outputDir);
+      const withoutFeedbackLines = [
+        'requestId,iun',
+        ...cf.notFoundRequestIds.map((rid) => `"${rid}","${extractIun(rid)}"`),
+      ];
+      const withoutFeedbackExporter = new GOFileListExporter({ outputPath: withoutFeedbackPath });
+      await withoutFeedbackExporter.export(withoutFeedbackLines);
+
       stepDetails['checkFeedback'] = {
         totalChecked: cf.totalChecked,
         withFeedback: cf.foundCount,
         withoutFeedback: cf.notFoundCount,
         failed: cf.failedCount ?? cf.failedRequestIds?.length ?? 0,
+        files: {
+          withFeedback: withFeedbackPath,
+          withoutFeedback: withoutFeedbackPath,
+        },
       };
     }
 
@@ -273,6 +308,12 @@ export class PaperRequestReporter {
     script.logger.info(`📄 Report salvato in:`);
     script.logger.info(`   - JSON: ${jsonPath}`);
     script.logger.info(`   - CSV:  ${csvPath}`);
+    if (withFeedbackPath) {
+      script.logger.info(`   - With Feedback:    ${withFeedbackPath}`);
+    }
+    if (withoutFeedbackPath) {
+      script.logger.info(`   - Without Feedback: ${withoutFeedbackPath}`);
+    }
     script.logger.info('----------------------------------------------------');
     script.logger.info(`Total Initial RequestIDs / IUNs : ${this.metrics.totalInitialRequestIds}`);
     script.logger.info('----------------------------------------------------');
