@@ -126,8 +126,8 @@ Parameters:
 
   GoSendMonitorAthenaQueryLambdaNationalRegistriesScheduleExpression:
     Type: String
-    Default: 'cron(0 12 * * ? *)'
-    Description: 'Daily UTC schedule for the missing national registries responses report'
+    Default: 'cron(30 9 * * ? *)'
+    Description: 'Daily Europe/Rome schedule for the missing national registries responses report'
 
   GoSendMonitorAthenaQueryLambdaNationalRegistriesScheduleEnabled:
     Type: String
@@ -340,11 +340,11 @@ Resources:
       Name: 'MonitorAthenaQueryLambdaNationalRegistries-scheduler'
       Description: 'Scheduler for the national-registries-missing-response preset'
       ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaNationalRegistriesScheduleExpression
-      ScheduleExpressionTimezone: !Ref Timezone
+      ScheduleExpressionTimezone: 'Europe/Rome'
       State: !Ref GoSendMonitorAthenaQueryLambdaNationalRegistriesScheduleEnabled
       FlexibleTimeWindow:
         Mode: 'OFF'
       Target:
         Arn: !GetAtt GoSendMonitorAthenaQueryLambda.Arn
         RoleArn: !GetAtt GoSendMonitorAthenaQueryLambdaSchedulerRole.Arn
-        Input: !Sub '{"body":{"script.preset.name":"national-registries-missing-response"}}'
+        Input: '{"body":{"script.preset.name":"national-registries-missing-response","to":"<aws.scheduler.scheduled-time>"}}'
