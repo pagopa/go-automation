@@ -158,7 +158,7 @@
   ],
   "author": "Team GO - Gestione Operativa",
   "license": "EUPL-1.2",
-  "packageManager": "pnpm@12.16.1",
+  "packageManager": "pnpm@12.23.0",
   "engines": {
     "node": "^22.22.2 || ^24.15.0 || >=26.0.0",
     "pnpm": ">=10.28.0"
