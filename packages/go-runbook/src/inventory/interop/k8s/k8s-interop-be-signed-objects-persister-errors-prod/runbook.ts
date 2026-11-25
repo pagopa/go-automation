@@ -16,7 +16,7 @@ import { SIGNED_OBJECTS_PERSISTER_QUERY_PROFILE } from './queryProfile.js';
  */
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: ALARM.runbookKey,
+    alarm: ALARM,
     metadata: {
       name: 'k8s-interop-be-signed-objects-persister-errors-prod',
       description: 'Analizza gli errori del signed objects persister INTEROP nei log applicativi e nei CID correlati.',
@@ -25,8 +25,6 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'service', 'signed-objects', 'safe-storage'],
     },
-    service: { name: ALARM.podApp, logGroup: ALARM.logGroup, varPrefix: ALARM.varPrefix },
-    resolveAlarmContext: ALARM.resolveContext,
     queryProfile: SIGNED_OBJECTS_PERSISTER_QUERY_PROFILE,
     knownCases: KNOWN_CASES,
     analysisDefaults: {

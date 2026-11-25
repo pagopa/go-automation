@@ -1,0 +1,50 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+
+import { DescendToServiceStep } from '../DescendToServiceStep.js';
+import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
+
+const TRACE = '1-6789abcd-0123456789abcdef01234567';
+const FALLBACK = '0f3e2b4a-1c2d-4e5f-8a9b-0c1d2e3f4a5b';
+
+const step = new DescendToServiceStep({
+  id: 'descend-from-pn-a',
+  label: 'Discesa da pn-a',
+  service: { name: 'pn-a', varPrefix: 'pnA' },
+  servicesInRunbook: new Set(['pn-b']),
+  traceIdContextVar: 'xRayTraceId',
+});
+
+describe('DescendToServiceStep', () => {
+  it('follows the fallback UUID of the call when it has one', async () => {
+    const result = await step.execute(
+      createTestContext({ vars: { pnANextUrlTarget: 'pn-b', fallbackUuid: FALLBACK, xRayTraceId: TRACE } }),
+    );
+    assert.deepEqual(result.descend, [{ target: 'pn-b', identifier: { kind: 'fallbackUuid', value: FALLBACK } }]);
+  });
+
+  it('otherwise follows the canonical trace id, in lowercase and from an X-Ray header', async () => {
+    for (const raw of [TRACE, TRACE.toUpperCase(), `Self=1-00000000-111111111111111111111111;Root=${TRACE}`]) {
+      const result = await step.execute(
+        createTestContext({ vars: { pnANextUrlTarget: 'pn-b', fallbackUuid: '-', xRayTraceId: raw } }),
+      );
+      assert.deepEqual(result.descend, [{ target: 'pn-b', identifier: { kind: 'traceId', value: TRACE } }], raw);
+    }
+  });
+
+  it('follows no trace when the variable is not a trace id', async () => {
+    const result = await step.execute(
+      createTestContext({ vars: { pnANextUrlTarget: 'pn-b', fallbackUuid: '-', xRayTraceId: 'not-a-trace' } }),
+    );
+    assert.deepEqual(result.descend, [{ target: 'pn-b', identifier: { kind: 'traceId', value: '' } }]);
+  });
+
+  it('names a downstream outside the runbook without descending', async () => {
+    const result = await step.execute(
+      createTestContext({ vars: { pnANextUrlTarget: 'pn-external', pnAErrorMsg: 'call failed' } }),
+    );
+    assert.equal(result.descend, undefined);
+    assert.equal(result.vars?.['downstreamTarget'], 'pn-external');
+    assert.equal(result.vars?.['lastErrorMsg'], 'call failed');
+  });
+});

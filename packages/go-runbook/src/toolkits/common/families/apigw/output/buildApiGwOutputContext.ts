@@ -1,48 +1,50 @@
 import { readResultFieldRows } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { parseInteger } from '@pagopa/go-common/utils';
 import type { LogLine } from '../../../parsing/aws/cloudwatch-logs/LogLine.js';
-import type { Runbook } from '../../../../../engine/types/Runbook.js';
-import type { RunbookExecutionResult } from '../../../../../engine/types/RunbookExecutionResult.js';
-import {
-  toRunbookOutputDetails,
-  type RunbookEvidence,
-  type RunbookOutputContext,
-  type RunbookResultField,
-} from '../../../output/RunbookOutputContext.js';
+import type { Runbook, RunbookExecutionResult } from '../../../../../engine/index.js';
+import { toRunbookOutputDetails, type RunbookOutputContext } from '../../../output/RunbookOutputContext.js';
+import type { RunbookEvidence } from '../../../output/RunbookEvidence.js';
+import type { RunbookResultField } from '../../../output/RunbookResultField.js';
 import { buildAlarmOutput } from '../../../output/buildAlarmOutput.js';
 import { addResultField, optionalNumber, optionalString, normalizeOutputValue } from '../../../output/outputValues.js';
-import { extractRecentLogLines, logLineToRecord } from '../../../parsing/aws/cloudwatch-logs/resultRows.js';
-import type {
-  ApiGwAuthorizerOutcome,
-  ApiGwAuthorizerOutput,
-  ApiGwExecutionLogsOutput,
-  ApiGwOutputContext,
-  ApiGwServiceOutput,
-} from './ApiGwOutputContext.js';
+import { extractRecentLogLines } from '../../../parsing/aws/cloudwatch-logs/resultRows.js';
+import { DEFAULT_MAX_RECENT_LOGS } from '../../../output/DEFAULT_MAX_RECENT_LOGS.js';
+import type { LogSampleOptions } from '../../../output/LogSampleOptions.js';
+import { logSampleEvidence } from '../../../output/logSampleEvidence.js';
+import type { ApiGwOutputContext } from './ApiGwOutputContext.js';
+import type { ApiGwAuthorizerOutcome } from './ApiGwAuthorizerOutcome.js';
+import type { ApiGwAuthorizerOutput } from './ApiGwAuthorizerOutput.js';
+import type { ApiGwExecutionLogsOutput } from './ApiGwExecutionLogsOutput.js';
+import type { ApiGwServiceOutput } from './ApiGwServiceOutput.js';
 import { isApiGwRunbookContext } from './ApiGwRunbookContext.js';
+import { representativeContext } from '../../../output/resultContexts.js';
+import { ErrorTreeView } from '../../../output/tree/ErrorTreeView.js';
 
-const DEFAULT_MAX_RECENT_LOGS = 5;
-
-export interface BuildApiGwOutputContextOptions {
-  readonly maxRecentLogs?: number;
-}
-
+/**
+ * Builds the output context of an API Gateway runbook: access log, authorizer, execution log and services.
+ *
+ * @param runbook - The executed runbook
+ * @param result - Result of the execution
+ * @param options - Bounds of the log samples
+ * @returns The output context, or `undefined` when the runbook is not an API Gateway runbook
+ */
 export function buildApiGwOutputContext(
   runbook: Runbook,
   result: RunbookExecutionResult,
-  options: BuildApiGwOutputContextOptions = {},
+  options: LogSampleOptions = {},
 ): RunbookOutputContext | undefined {
   if (!isApiGwRunbookContext(runbook.runbookContext)) {
     return undefined;
   }
+  const context = representativeContext(result, new ErrorTreeView(result));
 
   const maxRecentLogs = options.maxRecentLogs ?? DEFAULT_MAX_RECENT_LOGS;
-  const vars = result.finalContext.vars;
-  const params = result.finalContext.params;
-  const accessLogRows = readResultFieldRows(result.finalContext.stepResults.get('query-api-gw-logs'));
+  const vars = context.vars;
+  const params = context.params;
+  const accessLogRows = readResultFieldRows(context.stepResults.get('query-api-gw-logs'));
   const apiGwRecentLogs = extractRecentLogLines(accessLogRows, maxRecentLogs);
   const serviceContexts = runbook.runbookContext.services.map((service) => {
-    const serviceRows = readResultFieldRows(result.finalContext.stepResults.get(`query-${service.name}`));
+    const serviceRows = readResultFieldRows(context.stepResults.get(`query-${service.name}`));
     return {
       name: service.name,
       logGroup: service.logGroup,
@@ -54,6 +56,8 @@ export function buildApiGwOutputContext(
     };
   });
 
+  const { traceIdVar } = runbook.runbookContext;
+  const traceId = traceIdVar === undefined ? undefined : normalizeOutputValue(vars.get(traceIdVar));
   const apiGwContext: ApiGwOutputContext = {
     alarm: buildAlarmOutput(params),
     apiGateway: {
@@ -63,8 +67,8 @@ export function buildApiGwOutputContext(
       ...optionalString('httpMethod', vars.get('apiGwHttpMethod')),
       ...optionalString('path', vars.get('apiGwPath')),
       ...optionalString('sourceIp', vars.get('apiGwSourceIp')),
-      ...optionalString('traceId', resolveTraceId(vars)),
-      ...optionalString('traceIdField', resolveTraceIdField(vars)),
+      ...optionalString('traceId', traceId),
+      ...optionalString('traceIdField', traceId === undefined ? undefined : traceIdVar),
       ...optionalString('fallbackUuid', vars.get('fallbackUuid')),
       ...optionalString('errorMessage', vars.get('apiGwErrorMessage')),
       recentLogs: apiGwRecentLogs,
@@ -75,7 +79,7 @@ export function buildApiGwOutputContext(
   };
 
   return {
-    fields: buildFields(vars, params),
+    fields: buildFields(vars, params, { label: runbook.runbookContext.traceIdLabel ?? 'Trace ID', value: traceId }),
     evidence: buildEvidence(apiGwRecentLogs, serviceContexts, maxRecentLogs, accessLogRows.length),
     details: toRunbookOutputDetails(apiGwContext),
   };
@@ -84,6 +88,7 @@ export function buildApiGwOutputContext(
 function buildFields(
   vars: ReadonlyMap<string, string>,
   params: ReadonlyMap<string, string>,
+  traceId: { readonly label: string; readonly value: string | undefined },
 ): ReadonlyArray<RunbookResultField> {
   const fields: RunbookResultField[] = [];
   addResultField(fields, 'alarmName', 'Alarm', params.get('alarmName'));
@@ -92,7 +97,7 @@ function buildFields(
   addResultField(fields, 'apiGwStatusCode', 'API Gateway status', vars.get('apiGwStatusCode'));
   addResultField(fields, 'apiGwSourceIp', 'Source IP', vars.get('apiGwSourceIp'));
   addResultField(fields, 'apiGwErrorMessage', 'API Gateway error message', vars.get('apiGwErrorMessage'));
-  addResultField(fields, 'traceId', resolveTraceIdLabel(vars), resolveTraceId(vars));
+  addResultField(fields, 'traceId', traceId.label, traceId.value);
   addResultField(fields, 'fallbackUuid', 'Fallback UUID', vars.get('fallbackUuid'));
   addResultField(fields, 'authorizerLambda', 'Lambda authorizer', vars.get('apiGwAuthorizerLambdaName'));
   addResultField(fields, 'authorizerStatus', 'authorizerStatus', vars.get('apiGwAuthorizerStatus'));
@@ -107,7 +112,6 @@ function buildFields(
     vars.get('apiGwExecutionLogUnavailableReason'),
   );
   addResultField(fields, 'lastErrorMsg', 'Ultimo errore', vars.get('lastErrorMsg'));
-  addResultField(fields, 'servicesVisited', 'Servizi analizzati', vars.get('apiGwServicesVisited'));
   return fields;
 }
 
@@ -117,30 +121,30 @@ function buildEvidence(
   maxRecentLogs: number,
   apiGwTotalRows: number,
 ): ReadonlyArray<RunbookEvidence> {
-  const evidence: RunbookEvidence[] = [];
-  if (apiGwRecentLogs.length > 0) {
-    evidence.push({
-      id: 'api-gw-recent-logs',
-      label: 'Ultimi log API Gateway',
-      type: 'log-sample',
-      sourceStep: 'query-api-gw-logs',
-      items: apiGwRecentLogs.map(logLineToRecord),
-      truncated: apiGwTotalRows > maxRecentLogs,
-    });
-  }
-
-  for (const service of services) {
-    if (service.recentLogs.length === 0) continue;
-    evidence.push({
-      id: `${service.name}-recent-errors`,
-      label: `Ultimi log errore ${service.name}`,
-      type: 'log-sample',
-      sourceStep: `query-${service.name}`,
-      items: service.recentLogs.map(logLineToRecord),
-      truncated: service.logCount > maxRecentLogs,
-    });
-  }
-  return evidence;
+  return [
+    ...logSampleEvidence(
+      {
+        id: 'api-gw-recent-logs',
+        label: 'Ultimi log API Gateway',
+        sourceStep: 'query-api-gw-logs',
+        logs: apiGwRecentLogs,
+        totalRows: apiGwTotalRows,
+      },
+      maxRecentLogs,
+    ),
+    ...services.flatMap((service) =>
+      logSampleEvidence(
+        {
+          id: `${service.name}-recent-errors`,
+          label: `Ultimi log errore ${service.name}`,
+          sourceStep: `query-${service.name}`,
+          logs: service.recentLogs,
+          totalRows: service.logCount,
+        },
+        maxRecentLogs,
+      ),
+    ),
+  ];
 }
 
 function optionalAuthorizer(vars: ReadonlyMap<string, string>): {
@@ -212,28 +216,6 @@ function optionalExecutionLogs(vars: ReadonlyMap<string, string>): {
       })),
     },
   };
-}
-
-function resolveTraceId(vars: ReadonlyMap<string, string>): string | undefined {
-  return (
-    normalizeOutputValue(vars.get('xRayTraceId')) ??
-    normalizeOutputValue(vars.get('traceId')) ??
-    normalizeOutputValue(vars.get('cid'))
-  );
-}
-
-function resolveTraceIdField(vars: ReadonlyMap<string, string>): string | undefined {
-  if (normalizeOutputValue(vars.get('xRayTraceId')) !== undefined) return 'xRayTraceId';
-  if (normalizeOutputValue(vars.get('traceId')) !== undefined) return 'traceId';
-  if (normalizeOutputValue(vars.get('cid')) !== undefined) return 'cid';
-  return undefined;
-}
-
-function resolveTraceIdLabel(vars: ReadonlyMap<string, string>): string {
-  const field = resolveTraceIdField(vars);
-  if (field === 'cid') return 'Correlation ID';
-  if (field === 'traceId') return 'Trace ID';
-  return 'X-Ray Trace ID';
 }
 
 function endpoint(vars: ReadonlyMap<string, string>): string | undefined {

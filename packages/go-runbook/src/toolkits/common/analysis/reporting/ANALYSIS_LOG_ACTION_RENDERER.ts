@@ -1,9 +1,7 @@
 import type { GOLogger } from '@pagopa/go-common/logging';
 
-import type { LogActionRenderer } from '../../../../engine/actions/LogActionRenderer.js';
-import type { LogActionValues } from '../../../../engine/actions/LogActionValues.js';
-import { interpolatePlaceholders } from '../../../../engine/context/templatePlaceholders.js';
-import type { LogAction } from '../../../../engine/types/CaseAction.js';
+import type { LogAction, LogActionRenderer, LogActionValues } from '../../../../engine/index.js';
+import { interpolatePlaceholders } from '../../../../engine/internal.js';
 import { renderLogActionText, resolveLogActionRows, UNAVAILABLE_VALUE } from './renderLogAction.js';
 
 /** Console block of a known or unknown case. */

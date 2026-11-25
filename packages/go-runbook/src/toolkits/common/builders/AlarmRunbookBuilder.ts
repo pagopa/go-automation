@@ -1,10 +1,7 @@
 import { omitUndefined } from '@pagopa/go-common/utils';
 
-import { RunbookBuilder } from '../../../engine/builders/RunbookBuilder.js';
-import type { RunbookExtensions } from '../../../engine/types/RunbookExtensions.js';
-import type { Step } from '../../../engine/types/Step.js';
-import type { StepDescriptor } from '../../../engine/types/StepDescriptor.js';
-import type { ValidationErrorEntry } from '../../../engine/validation/ValidationErrorEntry.js';
+import { RunbookBuilder } from '../../../engine/index.js';
+import type { RunbookExtensions, Step, StepDescriptor, ValidationErrorEntry } from '../../../engine/index.js';
 import type { RunbookAnalysisDefaults } from '../analysis/RunbookAnalysisDefaults.js';
 import type { AlarmRunbookContext } from '../output/AlarmRunbookContext.js';
 import type { RunbookOutputDefinition } from '../output/RunbookOutputDefinition.js';
@@ -37,13 +34,13 @@ export class AlarmRunbookBuilder extends RunbookBuilder {
   private occurrenceWindow?: OccurrenceTimeWindow;
 
   /**
-   * Creates a new alarm runbook builder.
+   * Creates a new alarm runbook builder, with the `partial` read policy of an alarm analysis.
    *
    * @param id - Unique runbook identifier
    * @returns New builder instance
    */
   static override create(id: string): AlarmRunbookBuilder {
-    return new AlarmRunbookBuilder(id);
+    return new AlarmRunbookBuilder(id).readPolicy('partial');
   }
 
   /**

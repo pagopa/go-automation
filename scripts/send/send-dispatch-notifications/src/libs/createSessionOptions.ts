@@ -206,6 +206,9 @@ export async function createSessionOptions(
     mappingProfileSha256: loaded.sha256 ?? '',
     rowKeyColumn: config.rowKeyColumn ?? '',
     directRequestIdTemplate: config.mode === 'direct' ? config.requestIdTemplate.template : '',
+    // In direct the requestId comes from the template: the requestId phase settings do not apply.
+    requestIdCategories: config.mode === 'e2e' ? config.requestIdCategories.join(',') : '',
+    requestIdSuffix: config.mode === 'e2e' ? config.requestIdSuffix : '',
     env: target.name,
     endpoint: target.b2b?.basePath ?? target.externalChannels?.baseUrl ?? '',
     cliValues: formatFieldValues(cliValues),
@@ -367,6 +370,7 @@ function requestIdOptions(
       select: config.requestIdSelect,
       wait: config.requestIdWait,
       endCategories: config.requestIdEndCategories ?? Dispatch.DEFAULT_REQUEST_ID_OPTIONS.endCategories,
+      suffix: config.requestIdSuffix,
     },
     initialDelayMs: config.durations.requestIdInitialDelayMs,
     timeoutMs: config.durations.requestIdTimeoutMs,

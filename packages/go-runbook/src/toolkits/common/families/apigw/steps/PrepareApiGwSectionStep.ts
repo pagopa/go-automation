@@ -1,7 +1,4 @@
-import type { Step } from '../../../../../engine/types/Step.js';
-import type { StepKind } from '../../../../../engine/types/StepKind.js';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
-import type { StepResult } from '../../../../../engine/types/StepResult.js';
+import type { RunbookContext, Step, StepKind, StepResult } from '../../../../../engine/index.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
 
 /**
@@ -16,6 +13,9 @@ export interface PrepareApiGwSectionConfig {
   readonly apiGwLogGroup: string;
 }
 
+/**
+ * Opens the API Gateway section of the report with its log group.
+ */
 export class PrepareApiGwSectionStep implements Step<undefined> {
   readonly id: string;
   readonly label: string;

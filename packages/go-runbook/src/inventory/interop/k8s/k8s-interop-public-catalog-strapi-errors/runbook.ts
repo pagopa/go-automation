@@ -19,7 +19,7 @@ const RUNBOOK_URL =
  */
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: alarm.runbookKey,
+    alarm,
     metadata: {
       name: alarm.runbookKey,
       description:
@@ -29,28 +29,15 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'public-catalog', 'strapi'],
     },
-    service: { name: alarm.podApp, logGroup: alarm.logGroup, varPrefix: alarm.varPrefix },
-    resolveAlarmContext: alarm.resolveContext,
     queryProfile: STRAPI_QUERY_PROFILE,
     knownCases: KNOWN_CASES,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 5 },
 
-    hooks: [
-      {
-        at: 'before-cid-analysis',
-        step: new interop.k8s.QueryInteropPodContextStep(POD_CONTEXT),
-        evidence: [
-          {
-            id: 'public-catalog-strapi-context',
-            label: 'Contesto di avvio e richieste HTTP Strapi',
-            type: 'log-sample',
-            messageFields: ['log', '@message'],
-            // The query rejects capped results: keep the whole episode, including its start.
-            retention: { mode: 'all' },
-          },
-        ],
-      },
-    ],
+    podContext: {
+      step: POD_CONTEXT,
+      evidenceId: 'public-catalog-strapi-context',
+      evidenceLabel: 'Contesto di avvio e richieste HTTP Strapi',
+    },
     analysisDefaults: {
       runbookName: alarm.runbookKey,
       links: [{ url: RUNBOOK_URL, name: alarm.runbookKey, type: 'CONFLUENCE' }],

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import type { InteropK8sAlarmContext } from '../../types/InteropK8sAlarmContext.js';
-import type { ResolveInteropK8sAlarmContextFn } from '../../types/ResolveInteropK8sAlarmContextFn.js';
+import type { ResolveInteropAlarmContextFn } from '../../../../alarms/ResolveInteropAlarmContextFn.js';
 import { ResolveInteropK8sAlarmContextStep } from '../ResolveInteropK8sAlarmContextStep.js';
 import { createTestContext } from '../../../../../../__tests__/helpers/createTestContext.js';
 
@@ -18,7 +18,9 @@ function context(params: ReadonlyArray<readonly [string, string]>): ReturnType<t
   return createTestContext({ params: Object.fromEntries(params) });
 }
 
-function step(resolveAlarmContext: ResolveInteropK8sAlarmContextFn): ResolveInteropK8sAlarmContextStep {
+function step(
+  resolveAlarmContext: ResolveInteropAlarmContextFn<InteropK8sAlarmContext>,
+): ResolveInteropK8sAlarmContextStep {
   return new ResolveInteropK8sAlarmContextStep({
     id: 'resolve-interop-alarm-context',
     label: 'Risoluzione contesto allarme INTEROP k8s',

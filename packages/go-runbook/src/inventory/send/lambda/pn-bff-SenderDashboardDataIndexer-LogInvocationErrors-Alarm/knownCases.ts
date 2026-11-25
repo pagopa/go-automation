@@ -4,7 +4,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'sender-dashboard-datalake-object-not-found',
     description: 'Oggetto sorgente della Dashboard Mittenti non trovato nel bucket DataLake',
-    priority: 130,
     condition: lambdaLogEvidenceMatches('Object not found:\\s*.+\\s+in bucket\\s+.+'),
     title: 'Dashboard Mittenti: oggetto DataLake non trovato',
     resolution: 'Risoluzione non documentata.',
@@ -23,7 +22,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'sender-dashboard-datalake-file-too-small',
     description: 'File sorgente della Dashboard Mittenti sotto la soglia minima configurata',
-    priority: 120,
     condition: lambdaLogEvidenceMatches('File size is less than the minimum size:\\s*\\d+\\s*bytes'),
     title: 'Dashboard Mittenti: file DataLake vuoto o troppo piccolo',
     resolution: 'Risoluzione non documentata.',
@@ -42,7 +40,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'sender-dashboard-data-older-than-threshold',
     description: 'I dati della Dashboard Mittenti sono più vecchi della soglia configurata',
-    priority: 110,
     condition: lambdaLogEvidenceMatches(
       'No data in the last\\s+\\d+\\s+days\\.\\s*Last data date:\\s*\\d{4}-\\d{2}-\\d{2}',
     ),

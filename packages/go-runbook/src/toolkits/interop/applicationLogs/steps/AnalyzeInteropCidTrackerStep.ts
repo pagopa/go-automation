@@ -1,27 +1,17 @@
+import { trimToUndefined } from '@pagopa/go-common/utils';
 import { readRowFields } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import type { RunbookContext } from '../../../../engine/types/RunbookContext.js';
-import type { Step } from '../../../../engine/types/Step.js';
-import type { StepKind } from '../../../../engine/types/StepKind.js';
-import type { StepResult } from '../../../../engine/types/StepResult.js';
-import type { InteropK8sCidTrackerResult } from './QueryInteropCidTrackerStep.js';
-
-export interface InteropK8sCidTrackerAnalysis {
-  readonly cidCount: number;
-  readonly logCount: number;
-  readonly podApps: ReadonlyArray<string>;
-  readonly messages: ReadonlyArray<string>;
-}
-
-export interface AnalyzeInteropCidTrackerStepConfig {
-  readonly id: string;
-  readonly label: string;
-  readonly fromStep: string;
-  readonly varPrefix?: string;
-}
+import type { RunbookContext, Step, StepKind, StepResult } from '../../../../engine/index.js';
+import { readCidTrackerResults } from '../helpers/readCidTrackerResults.js';
+import type { AnalyzeInteropCidTrackerStepConfig } from './AnalyzeInteropCidTrackerStepConfig.js';
+import type { InteropK8sCidTrackerAnalysis } from './InteropK8sCidTrackerAnalysis.js';
 
 const MAX_MESSAGES = 20;
 const DEFAULT_VAR_PREFIX = 'interopCidTracker';
 
+/**
+ * Summarizes the rows the CID tracker read: the pods they come from and some messages, published as variables with a
+ * prefix.
+ */
 export class AnalyzeInteropCidTrackerStep implements Step<InteropK8sCidTrackerAnalysis> {
   readonly id: string;
   readonly label: string;
@@ -39,7 +29,7 @@ export class AnalyzeInteropCidTrackerStep implements Step<InteropK8sCidTrackerAn
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<InteropK8sCidTrackerAnalysis>> {
-    const cidResults = readCidTrackerResults(context, this.fromStep);
+    const cidResults = readCidTrackerResults(context.stepResults.get(this.fromStep));
     if (cidResults === undefined) return { success: false, error: `Step output not found: "${this.fromStep}"` };
 
     const podApps = new Set<string>();
@@ -49,10 +39,10 @@ export class AnalyzeInteropCidTrackerStep implements Step<InteropK8sCidTrackerAn
     for (const cidResult of cidResults) {
       for (const row of cidResult.rows) {
         logCount += 1;
-        const podApp = normalize(readRowFields(row, ['pod_app'])[0]);
+        const podApp = trimToUndefined(readRowFields(row, ['pod_app'])[0]);
         if (podApp !== undefined) podApps.add(podApp);
 
-        const message = normalize(readRowFields(row, ['@message', 'message', 'log'])[0]);
+        const message = trimToUndefined(readRowFields(row, ['@message', 'message', 'log'])[0]);
         if (message !== undefined && messages.length < MAX_MESSAGES) messages.push(message);
       }
     }
@@ -78,29 +68,8 @@ export class AnalyzeInteropCidTrackerStep implements Step<InteropK8sCidTrackerAn
         [varName(this.varPrefix, 'Messages')]: JSON.stringify(analysis.messages),
         [varName(this.varPrefix, 'AnalysisCompleted')]: 'true',
       },
-      next: 'resolve',
     };
   }
-}
-
-function readCidTrackerResults(
-  context: RunbookContext,
-  stepId: string,
-): ReadonlyArray<InteropK8sCidTrackerResult> | undefined {
-  const value = context.stepResults.get(stepId);
-  if (!Array.isArray(value)) return undefined;
-  return value.filter(isCidTrackerResult);
-}
-
-function isCidTrackerResult(value: unknown): value is InteropK8sCidTrackerResult {
-  if (typeof value !== 'object' || value === null) return false;
-  const record = value as Readonly<Record<string, unknown>>;
-  return typeof record['cid'] === 'string' && Array.isArray(record['rows']);
-}
-
-function normalize(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed === undefined || trimmed === '' ? undefined : trimmed;
 }
 
 function varName(prefix: string, suffix: string): string {

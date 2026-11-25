@@ -1,15 +1,11 @@
 import type { RunbookProduct } from '../../../registration/RunbookProduct.js';
-import type { RunbookMetadata } from '../../../../../engine/types/RunbookMetadata.js';
+import type { CaseAction, KnownCase, PipelineHook, RunbookMetadata, Step } from '../../../../../engine/index.js';
 import type { RunbookAnalysisDefaults } from '../../../analysis/RunbookAnalysisDefaults.js';
-import type { KnownCase } from '../../../../../engine/types/KnownCase.js';
-import type { PipelineHook } from '../../../../../engine/types/PipelineHook.js';
 import type { LambdaPipelineAnchor } from './LambdaPipelineAnchor.js';
-import type { CaseAction } from '../../../../../engine/types/CaseAction.js';
 import type { LambdaFunction } from './LambdaFunction.js';
 import type { LambdaDownstream } from './LambdaDownstream.js';
 import type { DownstreamErrorPattern } from './DownstreamErrorPattern.js';
 import type { LambdaQueryProfile } from '../profiles/LambdaQueryProfile.js';
-import type { Step } from '../../../../../engine/types/Step.js';
 
 /**
  * Declarative configuration consumed by `createLambdaAlarmRunbook`.

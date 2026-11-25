@@ -55,14 +55,15 @@ export interface FileCategoryStyle {
 ```ts
 export declare class GOConsoleLoggerHandler implements GOLoggerHandler {
     private style;
-    private indentLevel;
-    private readonly indentSize;
+    private block;
+    private lastLineBlank;
     private readonly colorsEnabled;
     constructor(style?: GOConsoleLoggerStyle);
     private render;
     private redactEvent;
     handle(event: GOLogEvent): void;
-    private updateIndentLevel;
+    private openBlock;
+    private write;
     reset(): Promise<void>;
     getStyle(): GOConsoleLoggerStyle;
     setStyle(style: GOConsoleLoggerStyle): void;
@@ -196,6 +197,8 @@ export declare class GOLogger {
     table(options: GOTableOptions): void;
     simpleTable(data: Record<string, unknown>[], options?: Partial<GOTableOptions>): void;
     keyValueTable(data: Record<string, unknown>, options?: Partial<GOTableOptions>): void;
+    fields(entries: Readonly<Record<string, unknown>>): void;
+    tree(nodes: ReadonlyArray<TreeNode>, options?: RenderTreeOptions): void;
     private capitalizeFirstLetter;
 }
 ```
@@ -229,4 +232,14 @@ Package types used by the symbols above that no entrypoint exports. Export them 
 
 ```ts
 type GOTableValueFormatter = (value: unknown) => string;
+```
+
+### `TreeChars` (dist/render/treeRenderer/TreeChars.d.ts)
+
+```ts
+export interface TreeChars {
+    readonly tee: string;
+    readonly elbow: string;
+    readonly pipe: string;
+}
 ```

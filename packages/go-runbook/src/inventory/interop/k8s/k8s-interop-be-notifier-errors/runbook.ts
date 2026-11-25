@@ -3,9 +3,14 @@ import type { Runbook } from '../../../../engine/index.js';
 import { NOTIFIER_ALARM } from './alarmDefinition.js';
 import { KNOWN_CASES } from './knownCases.js';
 
+/**
+ * Builds the k8s-interop-be-notifier-errors runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: NOTIFIER_ALARM.runbookKey,
+    alarm: NOTIFIER_ALARM,
     metadata: {
       name: NOTIFIER_ALARM.runbookKey,
       description:
@@ -15,12 +20,6 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'service', 'notifier', 'sqs'],
     },
-    service: {
-      name: NOTIFIER_ALARM.podApp,
-      logGroup: NOTIFIER_ALARM.logGroup,
-      varPrefix: NOTIFIER_ALARM.varPrefix,
-    },
-    resolveAlarmContext: NOTIFIER_ALARM.resolveContext,
     knownCases: KNOWN_CASES,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
   });

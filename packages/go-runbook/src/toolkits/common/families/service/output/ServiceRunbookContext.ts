@@ -11,6 +11,12 @@ export interface ServiceRunbookContext {
   readonly queryProfileId: string;
 }
 
+/**
+ * Whether a runbook context is the one a service pipeline declares.
+ *
+ * @param value - The `runbookContext` of a runbook
+ * @returns `true` when the value is a {@link ServiceRunbookContext}
+ */
 export function isServiceRunbookContext(value: unknown): value is ServiceRunbookContext {
   if (!isPlainObject(value)) return false;
   if (value['kind'] !== 'service') return false;

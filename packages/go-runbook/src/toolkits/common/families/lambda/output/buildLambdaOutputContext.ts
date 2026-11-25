@@ -1,26 +1,23 @@
-import { type GOLogsInsightsResultField, readResultFieldRows } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { readResultFieldRows } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { omitUndefined, parseFiniteNumber, parseInteger } from '@pagopa/go-common/utils';
 import type { LogLine } from '../../../parsing/aws/cloudwatch-logs/LogLine.js';
 
-import type { Runbook } from '../../../../../engine/types/Runbook.js';
-import type { RunbookExecutionResult } from '../../../../../engine/types/RunbookExecutionResult.js';
-import {
-  toRunbookOutputDetails,
-  type RunbookEvidence,
-  type RunbookOutputContext,
-  type RunbookResultField,
-} from '../../../output/RunbookOutputContext.js';
+import type { Runbook, RunbookExecutionResult } from '../../../../../engine/index.js';
+import { toRunbookOutputDetails, type RunbookOutputContext } from '../../../output/RunbookOutputContext.js';
+import type { RunbookEvidence } from '../../../output/RunbookEvidence.js';
+import type { RunbookResultField } from '../../../output/RunbookResultField.js';
 import { buildAlarmOutput } from '../../../output/buildAlarmOutput.js';
 import { addResultField, optionalNumber, optionalString, normalizeOutputValue } from '../../../output/outputValues.js';
-import { extractRecentLogLines, logLineToRecord } from '../../../parsing/aws/cloudwatch-logs/resultRows.js';
-import type { LambdaDownstreamOutput, LambdaOutputContext } from './LambdaOutputContext.js';
+import { extractRecentLogLines } from '../../../parsing/aws/cloudwatch-logs/resultRows.js';
+import { DEFAULT_MAX_RECENT_LOGS } from '../../../output/DEFAULT_MAX_RECENT_LOGS.js';
+import type { LogSampleOptions } from '../../../output/LogSampleOptions.js';
+import { logSampleEvidence } from '../../../output/logSampleEvidence.js';
+import type { LambdaOutputContext } from './LambdaOutputContext.js';
+import type { LambdaDownstreamOutput } from './LambdaDownstreamOutput.js';
 import { isLambdaRunbookContext } from './LambdaRunbookContext.js';
-
-const DEFAULT_MAX_RECENT_LOGS = 5;
-
-export interface BuildLambdaOutputContextOptions {
-  readonly maxRecentLogs?: number;
-}
+import { representativeContext } from '../../../output/resultContexts.js';
+import { ErrorTreeView } from '../../../output/tree/ErrorTreeView.js';
+import type { CloudWatchLogsRows } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRows.js';
 
 /**
  * Builds the compact result context for a Lambda runbook. Returns
@@ -35,23 +32,30 @@ export interface BuildLambdaOutputContextOptions {
 export function buildLambdaOutputContext(
   runbook: Runbook,
   result: RunbookExecutionResult,
-  options: BuildLambdaOutputContextOptions = {},
+  options: LogSampleOptions = {},
 ): RunbookOutputContext | undefined {
   if (!isLambdaRunbookContext(runbook.runbookContext)) {
     return undefined;
   }
+  const executionContext = representativeContext(result, new ErrorTreeView(result));
 
   const maxRecentLogs = options.maxRecentLogs ?? DEFAULT_MAX_RECENT_LOGS;
-  const vars = result.finalContext.vars;
-  const params = result.finalContext.params;
+  const vars = executionContext.vars;
+  const params = executionContext.params;
   const context = runbook.runbookContext;
 
-  const errorRows = readResultFieldRows(result.finalContext.stepResults.get('query-lambda-errors'));
-  const invocationRows = readResultFieldRows(result.finalContext.stepResults.get('query-lambda-invocation'));
+  const errorRows = readResultFieldRows(executionContext.stepResults.get('query-lambda-errors'));
+  const invocationRows = readResultFieldRows(executionContext.stepResults.get('query-lambda-invocation'));
   const recentErrors = extractRecentLogLines(errorRows, maxRecentLogs);
 
   const downstreamTarget = normalizeOutputValue(vars.get('lambdaDownstreamTarget'));
-  const downstream = buildDownstream(context.downstreams, downstreamTarget, result, vars, maxRecentLogs);
+  const downstream = buildDownstream(
+    context.downstreams,
+    downstreamTarget,
+    executionContext.stepResults,
+    vars,
+    maxRecentLogs,
+  );
 
   const lambdaContext: LambdaOutputContext = {
     alarm: buildAlarmOutput(params),
@@ -85,13 +89,13 @@ export function buildLambdaOutputContext(
 function buildDownstream(
   downstreams: ReadonlyArray<{ readonly name: string; readonly logGroup?: string; readonly varPrefix: string }>,
   target: string | undefined,
-  result: RunbookExecutionResult,
+  stepResults: ReadonlyMap<string, unknown>,
   vars: ReadonlyMap<string, string>,
   maxRecentLogs: number,
 ): LambdaDownstreamOutput | undefined {
   if (target === undefined) return undefined;
   const declared = downstreams.find((entry) => entry.name === target);
-  const rows = readResultFieldRows(result.finalContext.stepResults.get(`query-${target}`));
+  const rows = readResultFieldRows(stepResults.get(`query-${target}`));
   const recentLogs = extractRecentLogLines(rows, maxRecentLogs);
   const varPrefix = declared?.varPrefix;
   const errorMessage = varPrefix !== undefined ? normalizeOutputValue(vars.get(`${varPrefix}ErrorMsg`)) : undefined;
@@ -130,44 +134,45 @@ function buildFields(
 
 function buildEvidence(
   recentErrors: ReadonlyArray<LogLine>,
-  invocationRows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
+  invocationRows: CloudWatchLogsRows,
   downstream: LambdaDownstreamOutput | undefined,
   maxRecentLogs: number,
   errorTotalRows: number,
 ): ReadonlyArray<RunbookEvidence> {
-  const evidence: RunbookEvidence[] = [];
-  if (recentErrors.length > 0) {
-    evidence.push({
-      id: 'lambda-recent-errors',
-      label: 'Ultimi errori Lambda',
-      type: 'log-sample',
-      sourceStep: 'query-lambda-errors',
-      items: recentErrors.map(logLineToRecord),
-      truncated: errorTotalRows > maxRecentLogs,
-    });
-  }
-  const invocationLogs = extractRecentLogLines(invocationRows, maxRecentLogs);
-  if (invocationLogs.length > 0) {
-    evidence.push({
-      id: 'lambda-invocation-flow',
-      label: 'Flusso invocazione',
-      type: 'log-sample',
-      sourceStep: 'query-lambda-invocation',
-      items: invocationLogs.map(logLineToRecord),
-      truncated: invocationRows.length > maxRecentLogs,
-    });
-  }
-  if (downstream !== undefined && downstream.recentLogs.length > 0) {
-    evidence.push({
-      id: `${downstream.target}-recent-errors`,
-      label: `Ultimi log errore ${downstream.target}`,
-      type: 'log-sample',
-      sourceStep: `query-${downstream.target}`,
-      items: downstream.recentLogs.map(logLineToRecord),
-      truncated: (downstream.logCount ?? downstream.recentLogs.length) > maxRecentLogs,
-    });
-  }
-  return evidence;
+  return [
+    ...logSampleEvidence(
+      {
+        id: 'lambda-recent-errors',
+        label: 'Ultimi errori Lambda',
+        sourceStep: 'query-lambda-errors',
+        logs: recentErrors,
+        totalRows: errorTotalRows,
+      },
+      maxRecentLogs,
+    ),
+    ...logSampleEvidence(
+      {
+        id: 'lambda-invocation-flow',
+        label: 'Flusso invocazione',
+        sourceStep: 'query-lambda-invocation',
+        logs: extractRecentLogLines(invocationRows, maxRecentLogs),
+        totalRows: invocationRows.length,
+      },
+      maxRecentLogs,
+    ),
+    ...(downstream === undefined
+      ? []
+      : logSampleEvidence(
+          {
+            id: `${downstream.target}-recent-errors`,
+            label: `Ultimi log errore ${downstream.target}`,
+            sourceStep: `query-${downstream.target}`,
+            logs: downstream.recentLogs,
+            totalRows: downstream.logCount ?? downstream.recentLogs.length,
+          },
+          maxRecentLogs,
+        )),
+  ];
 }
 
 function durationLabel(vars: ReadonlyMap<string, string>): string | undefined {

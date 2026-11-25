@@ -88,7 +88,10 @@ describe('checkRunbookCoverage', () => {
     ];
 
     for (const [code, options] of cases) {
-      assert.ok((await run(options)).errors.some((issue) => issue.code === code), code);
+      assert.ok(
+        (await run(options)).errors.some((issue) => issue.code === code),
+        code,
+      );
     }
   });
 
@@ -122,7 +125,10 @@ describe('checkRunbookCoverage', () => {
     ];
 
     for (const [code, options] of cases) {
-      assert.ok((await run(options)).errors.some((issue) => issue.code === code), code);
+      assert.ok(
+        (await run(options)).errors.some((issue) => issue.code === code),
+        code,
+      );
     }
   });
 
@@ -164,7 +170,10 @@ describe('checkRunbookCoverage', () => {
       const report = await run(options);
       assert.deepStrictEqual(report.errors, [], codes.join());
       for (const code of codes) {
-        assert.ok(report.warnings.some((issue) => issue.code === code), code);
+        assert.ok(
+          report.warnings.some((issue) => issue.code === code),
+          code,
+        );
       }
     }
   });
@@ -207,7 +216,12 @@ interface RunOptions {
 /** Checks one SEND runbook (or `registrations`) against the SEND and INTEROP census. */
 async function run(options: RunOptions = {}): ReturnType<typeof checkRunbookCoverage> {
   const registrations = options.registrations ?? [
-    registration('rb', 'SEND', options.alarmNames ?? [ALARM], runbookOf(options.defaults ?? {}, options.analysis ?? {})),
+    registration(
+      'rb',
+      'SEND',
+      options.alarmNames ?? [ALARM],
+      runbookOf(options.defaults ?? {}, options.analysis ?? {}),
+    ),
   ];
   return await checkRunbookCoverage({
     registry: registryOf(registrations),
@@ -265,7 +279,6 @@ function knownCase(analysis: Partial<KnownCaseAnalysis>): KnownCase {
   return {
     id: 'primary',
     description: 'primary',
-    priority: 100,
     condition: { type: 'contains', ref: 'steps.query', regex: 'boom' },
     action: { type: 'log', level: 'info', renderAs: 'known-case', title: 'primary' },
     analysis: {

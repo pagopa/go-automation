@@ -46,7 +46,7 @@ describe('pn-cdc preprocessing known cases', () => {
 
     assert.strictEqual(evaluator.evaluate(specific.condition, contextWithMessages([otherDqLog])), false);
     assert.strictEqual(evaluator.evaluate(generic.condition, contextWithMessages([otherDqLog])), true);
-    assert.ok(specific.priority > generic.priority);
+    assert.deepStrictEqual(specific.supersedes, ['cdc-preproc-other-dq-quarantine']);
   });
 
   it('does not mistake a processing failure or a wrong table for the documented quarantine', () => {
@@ -100,9 +100,7 @@ describe('pn-cdc preprocessing known cases', () => {
     ] as const) {
       for (const applicationLog of [INVALID_CONSENTS_LOG, technicalLog]) {
         const ctx = contextWithMessages([applicationLog, runtimeLog]);
-        const matches = KNOWN_CASES.filter(({ condition }) => evaluator.evaluate(condition, ctx)).sort(
-          (left, right) => right.priority - left.priority,
-        );
+        const matches = KNOWN_CASES.filter(({ condition }) => evaluator.evaluate(condition, ctx));
         assert.deepStrictEqual(
           matches.map(({ id }) => id),
           [expectedCaseId],

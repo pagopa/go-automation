@@ -1,7 +1,7 @@
 /**
  * Known cases for the pn-national-registries-IPA-downstream-detection-Alarm runbook.
  */
-import { knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import { downstreamMarkerPattern, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
 import { type KnownCase, stepEvidenceMatches } from '../../../../engine/index.js';
 const IPA_WS23_ENDPOINT = 'https://www.indicepa.gov.it/ws/WS23DOMDIGCFServices/api/WS23_DOM_DIG_CF';
 /** Known IPA failures evaluated against the pn-national-registries log query. */
@@ -9,11 +9,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'ipa-service-unavailable-503',
     description: '[DOWNSTREAM IPA] Indice PA temporaneamente non disponibile (HTTP 503)',
-    priority: 100,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service IPA returned errors=503 Service Unavailable from POST ' +
-        'https://www\\.indicepa\\.gov\\.it/ws/WS23DOMDIGCFServices/api/WS23_DOM_DIG_CF',
+      downstreamMarkerPattern('IPA', {
+        status: '503 Service Unavailable',
+        method: 'POST',
+        endpoint: 'https://www.indicepa.gov.it/ws/WS23DOMDIGCFServices/api/WS23_DOM_DIG_CF',
+      }),
     ),
     title: '[DOWNSTREAM IPA] Indice PA non disponibile (HTTP 503)',
     resolution:
@@ -36,10 +38,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'ipa-connection-prematurely-closed',
     description: '[DOWNSTREAM IPA] Connessione chiusa prematuramente dal downstream',
-    priority: 120,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service IPA returned errors=Connection prematurely closed BEFORE response\\b',
+      `${downstreamMarkerPattern('IPA')}Connection prematurely closed BEFORE response\\b`,
     ),
     title: '[DOWNSTREAM IPA] Connessione chiusa prima della risposta',
     resolution:

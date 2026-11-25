@@ -11,4 +11,5 @@ export interface RequestIdSelectionOptions {
   readonly wait: RequestIdWait;
   /** Categories that end the workflow: no further `PREPARE_*` will appear. */
   readonly endCategories: ReadonlyArray<string>;
+  readonly suffix: string;
 }

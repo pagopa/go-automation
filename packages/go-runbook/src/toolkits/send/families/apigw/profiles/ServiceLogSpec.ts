@@ -37,6 +37,8 @@ export interface ServiceLogSpec {
    */
   readonly tracePredicateTemplate: string;
 
+  readonly tracePatternTemplate?: string;
+
   /**
    * Template del predicate quando l'identificatore attivo è un fallback UUID.
    * Stessa forma di `tracePredicateTemplate`.

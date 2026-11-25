@@ -121,14 +121,14 @@ export interface RunbookRegistration {
 ### `validateCloudRunbookRegistry` (value)
 
 ```ts
-export declare function validateCloudRunbookRegistry(registry?: ReadonlyMap<string, RunbookBuilderFn>): void;
+export declare function validateCloudRunbookRegistry(): void;
 ```
 
 ## Referenced but not exported
 
 Package types used by the symbols above that no entrypoint exports. Export them or make them internal before `1.0.0`.
 
-### `ContainsCondition` (dist/engine/types/Condition.d.ts)
+### `ContainsCondition` (dist/engine/types/ContainsCondition.d.ts)
 
 ```ts
 export type ContainsCondition = {
@@ -144,10 +144,10 @@ export type ContainsCondition = {
 };
 ```
 
-### `EvidenceRetention` (dist/toolkits/common/output/StepEvidence.d.ts)
+### `EvidenceRetention` (dist/toolkits/common/output/EvidenceRetention.d.ts)
 
 ```ts
-type EvidenceRetention = {
+export type EvidenceRetention = {
     readonly mode: 'all';
 } | {
     readonly mode: 'latest';
@@ -168,15 +168,6 @@ export type ExecutionEnvironmentExtensionsAugmentation = 'executionEnvironment';
 export type KnownCaseExtensionsAugmentation = 'knownCase';
 ```
 
-### `LogActionRow` (dist/engine/types/CaseAction.d.ts)
-
-```ts
-export type LogActionRow = readonly [
-    label: string,
-    template: string
-];
-```
-
 ### `RunbookExtensionsAugmentation` (dist/toolkits/common/augmentations/RunbookExtensions.d.ts)
 
 ```ts
@@ -192,10 +183,10 @@ export interface RunbookOutputDefinition {
 }
 ```
 
-### `RunbookOutputField` (dist/toolkits/common/output/RunbookOutputDefinition.d.ts)
+### `RunbookOutputField` (dist/toolkits/common/output/RunbookOutputField.d.ts)
 
 ```ts
-interface RunbookOutputField {
+export interface RunbookOutputField {
     readonly name: string;
     readonly label: string;
     readonly ref: `vars.${string}` | `params.${string}`;
@@ -226,10 +217,10 @@ export type StepEvidence = (StepEvidenceBase & {
 });
 ```
 
-### `StepEvidenceBase` (dist/toolkits/common/output/StepEvidence.d.ts)
+### `StepEvidenceBase` (dist/toolkits/common/output/StepEvidenceBase.d.ts)
 
 ```ts
-interface StepEvidenceBase {
+export interface StepEvidenceBase {
     readonly id: string;
     readonly label: string;
     readonly retention: EvidenceRetention;

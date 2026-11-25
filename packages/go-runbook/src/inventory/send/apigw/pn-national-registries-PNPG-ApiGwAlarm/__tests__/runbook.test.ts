@@ -57,7 +57,10 @@ describe('PNPG national registries diagnosis', () => {
     ];
     const { result, queries, draft } = await execute(completion);
     assert.strictEqual(result.status, 'completed');
-    assert.strictEqual(result.matchedCases[0]?.id, 'apigw-504-legal-institutions-completion-observed');
+    // Every case of the request is reported, the ones read from variables at the time of the request.
+    assert.ok(
+      result.detections.some(({ knownCase }) => knownCase.id === 'apigw-504-legal-institutions-completion-observed'),
+    );
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
     assert.deepStrictEqual(draft.downstreams, []);
@@ -139,14 +142,16 @@ describe('PNPG national registries diagnosis', () => {
     assert.ok(queries.some((query) => query.includes("level == 'ERROR'")));
     assert.ok(!serialized.context.evidence.some(({ sourceStep }) => sourceStep === 'query-pn-national-registries'));
     assert.strictEqual(serialized.outcome.kind, 'known-case-matched');
-    assert.strictEqual(serialized.outcome.primaryCaseId, 'apigw-504-legal-institutions-completion-observed');
+    assert.ok(
+      serialized.outcome.detections.some(({ caseId }) => caseId === 'apigw-504-legal-institutions-completion-observed'),
+    );
     assert.strictEqual(serialized.analysis?.kind, 'KNOWN_CASE');
     assert.strictEqual(serialized.analysis.proposedStatus, 'IN_PROGRESS');
   });
 
   it('keeps a 504 with no application evidence open without assigning INAD or InfoCamere as cause', async () => {
     const { result, draft } = await execute();
-    assert.ok(result.matchedCases.some(({ id }) => id === 'apigw-504-infocamere-inad-timeout'));
+    assert.ok(result.detections.some(({ knownCase }) => knownCase.id === 'apigw-504-infocamere-inad-timeout'));
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
     assert.deepStrictEqual(draft.downstreams, []);
@@ -155,7 +160,7 @@ describe('PNPG national registries diagnosis', () => {
   it('keeps the generic gateway timeout open instead of declaring a transient recovered error', async () => {
     const { result, draft } = await execute([], 'Execution failed due to a timeout error');
     assert.deepStrictEqual(
-      result.matchedCases.map(({ id }) => id),
+      result.detections.map(({ knownCase }) => knownCase.id),
       ['apigw-504-timeout'],
     );
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');

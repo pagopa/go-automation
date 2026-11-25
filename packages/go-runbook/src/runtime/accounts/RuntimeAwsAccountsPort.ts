@@ -2,6 +2,7 @@ import { AWSAccountProfileSet, type AWSActiveOperationRegistry, type AWSProfileS
 import { AWSCloudWatchLogsService } from '@pagopa/go-aws/cloudwatch-logs';
 import type { AWSCloudWatchLogsQueryService, AWSCloudWatchLogsTarget } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { permissionSetOfArn } from '@pagopa/go-aws/profiles';
+import { getErrorMessage } from '@pagopa/go-common/errors';
 
 import { AwsAccountError } from '../../toolkits/common/accounts/AwsAccountError.js';
 import { AwsAccountsDirectoryPort } from '../../toolkits/common/accounts/AwsAccountsDirectoryPort.js';
@@ -9,6 +10,7 @@ import type { AwsAccountsOccurrence } from '../../toolkits/common/accounts/AwsAc
 import type { ResolvedAwsAccount } from '../../toolkits/common/accounts/ResolvedAwsAccount.js';
 import type { RuntimeAwsAccountsPortOptions } from './RuntimeAwsAccountsPortOptions.js';
 import { withScrubbedErrors } from './withScrubbedErrors.js';
+import type { AccountReaderFactoryFn } from './AccountReaderFactoryFn.js';
 
 /** A configured profile and the account and permission set STS reports for it. */
 interface ProfileIdentity {
@@ -31,17 +33,15 @@ interface ProfileIdentity {
  * errors carry no local profile name (the original goes to the diagnostics).
  */
 export class RuntimeAwsAccountsPort extends AwsAccountsDirectoryPort {
+  private readonly readerOf: AccountReaderFactoryFn;
+
   /**
    * @param runtimeOptions - Directory, binding, credentials and occurrence of the execution
+   * @throws Error when the binding lacks its credentials
    */
   constructor(private readonly runtimeOptions: RuntimeAwsAccountsPortOptions) {
     super(runtimeOptions);
-    if (runtimeOptions.binding === 'profiles' && runtimeOptions.profiles === undefined) {
-      throw new Error('The profiles account binding needs the configured AWS profiles');
-    }
-    if (runtimeOptions.binding === 'oam' && runtimeOptions.monitoring === undefined) {
-      throw new Error('The oam account binding needs the monitoring CloudWatch Logs reader');
-    }
+    this.readerOf = this.accountReaderFactory();
   }
 
   /**
@@ -68,20 +68,25 @@ export class RuntimeAwsAccountsPort extends AwsAccountsDirectoryPort {
    *   retryable; the message names no profile, the details go to the local diagnostics)
    */
   protected override async createReader(account: ResolvedAwsAccount): Promise<AWSCloudWatchLogsQueryService> {
-    const target: AWSCloudWatchLogsTarget = { accountId: account.accountId, region: account.region };
-    const { monitoring, profiles, activeOperations } = this.runtimeOptions;
+    return await this.readerOf(account);
+  }
+
+  /** The reader factory of the binding, with the credentials it needs, checked once. */
+  private accountReaderFactory(): AccountReaderFactoryFn {
+    const { monitoring, profiles, activeOperations, diagnostics } = this.runtimeOptions;
     if (this.runtimeOptions.binding === 'oam') {
       if (monitoring === undefined)
         throw new Error('The oam account binding needs the monitoring CloudWatch Logs reader');
-      return withScrubbedErrors(monitoring.forTarget(target, activeOperations), this.runtimeOptions.diagnostics);
+      return (account) => withScrubbedErrors(monitoring.forTarget(targetOf(account), activeOperations), diagnostics);
     }
     if (profiles === undefined) throw new Error('The profiles account binding needs the configured AWS profiles');
-    const profileSet = profiles;
-    const profile = await this.chooseProfile(profileSet, account);
-    return withScrubbedErrors(
-      this.createExactReader(new AWSAccountProfileSet(profileSet, [profile]), target),
-      this.runtimeOptions.diagnostics,
-    );
+    return async (account) => {
+      const profile = await this.chooseProfile(profiles, account);
+      return withScrubbedErrors(
+        this.createExactReader(new AWSAccountProfileSet(profiles, [profile]), targetOf(account)),
+        diagnostics,
+      );
+    };
   }
 
   /**
@@ -120,9 +125,7 @@ export class RuntimeAwsAccountsPort extends AwsAccountsDirectoryPort {
 
     const failures = settled.flatMap((outcome, index): string[] =>
       outcome.status === 'rejected'
-        ? [
-            `${profileSet.profileNames[index] ?? '?'}: ${outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason)}`,
-          ]
+        ? [`${profileSet.profileNames[index] ?? '?'}: ${getErrorMessage(outcome.reason)}`]
         : [],
     );
     if (failures.length > 0) {
@@ -157,4 +160,8 @@ export class RuntimeAwsAccountsPort extends AwsAccountsDirectoryPort {
     };
     return identities.toSorted((a, b) => rank(a) - rank(b));
   }
+}
+
+function targetOf(account: ResolvedAwsAccount): AWSCloudWatchLogsTarget {
+  return { accountId: account.accountId, region: account.region };
 }

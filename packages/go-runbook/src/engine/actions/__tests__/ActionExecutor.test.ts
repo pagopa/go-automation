@@ -76,4 +76,19 @@ describe('ActionExecutor', () => {
     assert.strictEqual(notify.resolvedMessage, 'to GO');
     assert.strictEqual(escalate.resolvedMessage, 'page GO');
   });
+
+  it('returns a failed result when the message cannot be rendered', async () => {
+    const renderer: LogActionRenderer = {
+      renderText: () => {
+        throw new Error('render failed');
+      },
+    };
+    const result = await new ActionExecutor(new GOLogger(), renderer).execute(
+      { type: 'log', level: 'info', title: 'boom' },
+      createTestContext(),
+    );
+    assert.strictEqual(result.status, 'failed');
+    assert.strictEqual(result.error, 'render failed');
+    assert.strictEqual(result.resolvedMessage, undefined);
+  });
 });

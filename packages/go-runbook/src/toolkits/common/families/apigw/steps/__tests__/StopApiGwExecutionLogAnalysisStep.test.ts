@@ -21,13 +21,19 @@ describe('stopApiGwExecutionLogAnalysis', () => {
   it('stops with execution-log termination vars when execution logs were queried', async () => {
     const result = await step.execute(
       createTestContext({
-        vars: { apiGwExecutionLogMode: 'queried', lastErrorMsg: 'Execution log analysis unresolved' },
+        vars: {
+          apiGwExecutionLogMode: 'queried',
+          lastErrorMsg: "API Gateway execution log analizzati, ma non e' stato possibile determinare il problema.",
+        },
       }),
     );
 
     assert.strictEqual(result.success, true);
     assert.strictEqual(result.next, 'stop');
     assert.strictEqual(result.vars?.['terminationReason'], 'api-gw-execution-log-unresolved');
-    assert.strictEqual(result.vars?.['lastErrorMsg'], 'Execution log analysis unresolved');
+    assert.strictEqual(
+      result.vars?.['lastErrorMsg'],
+      "API Gateway execution log analizzati, ma non e' stato possibile determinare il problema.",
+    );
   });
 });

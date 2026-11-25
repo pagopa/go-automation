@@ -4,6 +4,7 @@ import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/i
 import { QueryStreamLambdaLogsStep } from '../QueryStreamLambdaLogsStep.js';
 import { createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
 import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
+import { EMPTY_RUNBOOK_READS } from '../../../../../engine/reads/EMPTY_RUNBOOK_READS.js';
 
 const ID = 'a2240f30-32dc-407d-80d9-4fd363aeaeb4';
 const OTHER_ID = 'b2240f30-32dc-407d-80d9-4fd363aeaeb4';
@@ -27,8 +28,9 @@ function context(
     executionId: 'test',
     startedAt: new Date(),
     vars: new Map(),
-    logs: [],
     recoveredErrors: [],
+    reads: EMPTY_RUNBOOK_READS,
+    readPolicy: 'partial',
     params: new Map([
       ['startTime', '2026-10-16T08:10:00Z'],
       ['endTime', '2026-10-16T08:20:00Z'],
@@ -51,7 +53,7 @@ describe('QueryStreamLambdaLogsStep', () => {
         assert.match(query, new RegExp(ID));
         assert.equal(query.split(ID).length, 2);
         assert.ok(!query.includes(OTHER_ID));
-        assert.deepEqual(options, { logGroupResolutionMode: 'search-configured-profiles' });
+        assert.deepEqual(options, { partialResults: true, logGroupResolutionMode: 'search-configured-profiles' });
         return [
           row({ '@requestId': ID, '@message': 'REPORT RequestId: test Status: timeout' }),
           row({ '@requestId': OTHER_ID, '@message': 'Unrelated error' }),
@@ -62,7 +64,7 @@ describe('QueryStreamLambdaLogsStep', () => {
     assert.equal(result.success, true);
     assert.equal(result.output?.length, 1);
     assert.equal(result.vars?.['lambda'], 'queried');
-    assert.equal(result.next, 'resolve');
+    assert.equal(result.next, undefined);
     assert.equal(calls, 1);
     assert.deepEqual(step.getTraceInfo()['logGroups'], ['/aws/lambda/stream-test']);
   });
@@ -116,19 +118,35 @@ describe('QueryStreamLambdaLogsStep', () => {
     assert.equal(result.vars?.['versioning'], 'queried');
   });
 
-  it('does not scan successful requests or silently truncate too many identifiers', async () => {
+  it('does not scan successful requests and reads more than 100 identifiers in batches', async () => {
     const success = await step.execute(
       context([row({ authorizerStatus: '200', authorizerRequestId: ID })], () => assert.fail('Unexpected query')),
     );
     assert.equal(success.vars?.['lambda'], 'no-request-id');
-    const many = Array.from({ length: 101 }, (_, index) =>
-      row({
-        authorizerStatus: '500',
-        authorizerRequestId: `${index.toString(16).padStart(8, '0')}-32dc-407d-80d9-4fd363aeaeb4`,
-      }),
+    const ids = Array.from(
+      { length: 101 },
+      (_, index) => `${index.toString(16).padStart(8, '0')}-32dc-407d-80d9-4fd363aeaeb4`,
     );
-    const result = await step.execute(context(many, () => assert.fail('Unexpected query')));
-    assert.equal(result.vars?.['lambda'], 'too-many-request-ids');
+    const queries: string[] = [];
+    const result = await step.execute(
+      context(
+        ids.map((id) => row({ authorizerStatus: '500', authorizerRequestId: id })),
+        async (_groups: unknown, query: string) => {
+          await Promise.resolve();
+          queries.push(query);
+          if (queries.length === 2) throw new Error('ThrottlingException');
+          return [row({ '@requestId': ids[0] ?? '', '@message': 'REPORT RequestId: test Status: timeout' })];
+        },
+      ),
+    );
+    assert.equal(queries.length, 2);
+    assert.equal(result.vars?.['lambda'], 'queried');
+    assert.equal(result.output?.length, 1);
+    // The batch that failed is unavailable for its identifier only.
+    assert.deepEqual(
+      result.coverage?.map(({ reason, identifiers }) => [reason, identifiers]),
+      [['unavailable', [{ kind: 'requestId', value: ids[100] }]]],
+    );
   });
 
   it('reports missing upstream output and invalid time ranges', async () => {

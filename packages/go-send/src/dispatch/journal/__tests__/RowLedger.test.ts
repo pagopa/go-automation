@@ -68,6 +68,24 @@ describe('applyJournalEntry', () => {
     assert.equal(state?.requestIdReason, 'FOUND');
   });
 
+  it('clears the error of a timed-out lookup when the requestId is found', () => {
+    const entries: ReadonlyArray<JournalEntry> = [
+      {
+        ts: 't1',
+        event: 'REQUEST_ID_NOT_FOUND',
+        ...ROW,
+        requestIdReason: 'TIMEOUT',
+        error: { code: 'TIMELINE_QUERY_FAILED', message: 'm' },
+      },
+      { ts: 't2', event: 'REQUEST_ID_FOUND', ...ROW, requestId: 'R' },
+    ];
+    const timedOut = applyJournalEntry(undefined, entries[0]!); // Safe: two entries above
+    assert.equal(timedOut?.error?.code, 'TIMELINE_QUERY_FAILED');
+    const found = entries.reduce<RowState | undefined>((state, entry) => applyJournalEntry(state, entry), undefined);
+    assert.equal(found?.status, 'REQUEST_ID_FOUND');
+    assert.equal(found?.error, undefined);
+  });
+
   it('keeps the acceptance read from the timeline across later requestId entries', () => {
     const found = applyJournalEntry(undefined, {
       ts: 't1',
@@ -148,6 +166,30 @@ describe('RowLedger.countByStatus', () => {
       undefined,
     );
     assert.deepEqual([...replayed.countByStatus()], [['SENT', 1]]);
+  });
+});
+
+describe('RowLedger.countPaperNotExpected', () => {
+  it('counts the rows closed by a digital workflow that succeeded, live and on replay', async () => {
+    const sink = new MemorySink();
+    const ledger = new RowLedger(sink);
+    const digitalSuccess = 'WORKFLOW_ENDED:DIGITAL_SUCCESS_WORKFLOW';
+    await ledger.record({ event: 'REQUEST_ID_NOT_FOUND', rowIndex: 0, rowKey: 'A', requestIdReason: digitalSuccess });
+    await ledger.record({ event: 'REQUEST_ID_NOT_FOUND', rowIndex: 1, rowKey: 'B', requestIdReason: digitalSuccess });
+    await ledger.record({ event: 'REQUEST_ID_NOT_FOUND', rowIndex: 2, rowKey: 'C', requestIdReason: 'TIMEOUT' });
+    await ledger.record({
+      event: 'REQUEST_ID_NOT_FOUND',
+      rowIndex: 3,
+      rowKey: 'D',
+      requestIdReason: 'WORKFLOW_ENDED:COMPLETELY_UNREACHABLE',
+    });
+    assert.equal(ledger.countPaperNotExpected(), 2);
+
+    await ledger.record({ event: 'REQUEST_ID_FOUND', rowIndex: 1, rowKey: 'B', requestId: 'R' });
+    assert.equal(ledger.countPaperNotExpected(), 1, 'a row that leaves the state is no longer counted');
+
+    const replayed = await RowLedger.replay(sink.entries, undefined);
+    assert.equal(replayed.countPaperNotExpected(), 1);
   });
 });
 

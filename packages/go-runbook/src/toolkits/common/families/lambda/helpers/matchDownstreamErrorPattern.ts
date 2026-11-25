@@ -1,7 +1,8 @@
-import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { isValidRegex } from '@pagopa/go-common/utils';
 
 import type { DownstreamErrorPattern } from '../types/DownstreamErrorPattern.js';
+import type { DownstreamFinderFn } from '../types/DownstreamFinderFn.js';
 
 /** A downstream pattern compiled once, case-insensitive. */
 interface CompiledDownstreamPattern {
@@ -49,34 +50,31 @@ export function matchDownstreamErrorPattern(
   return firstMatchingTarget(message, compileDownstreamPatterns(patterns));
 }
 
-/** A downstream routing match: the routed target and the line that matched. */
-export interface DownstreamMatch {
-  readonly target: string;
-  readonly message: string;
-}
-
 /**
- * Scans CloudWatch result rows for the first `@message` that matches a
- * downstream error pattern, returning the routed target and the matching
- * line. Unlike {@link matchDownstreamErrorPattern}, this lets routing
- * consider every row (the error scan or the full invocation flow), not just
- * a single representative message.
+ * Binds the downstream patterns, compiled once, to a finder of the first `@message` of the rows that matches one of
+ * them: routing considers every row (the error scan or the full invocation flow), not just a representative message.
  *
- * @param rows - CloudWatch Logs Insights result rows
+ * Complexity: O(P) to compile, then O(R × P) per call over R rows and P patterns.
+ *
  * @param patterns - Source-controlled downstream error patterns
- * @returns The first match, or `undefined`
+ * @returns The finder, returning the routed target and the matching line, or `undefined`
+ *
+ * @example
+ * ```typescript
+ * const findDownstream = downstreamFinder(patterns);
+ * const target = findDownstream(rows)?.target;
+ * ```
  */
-export function findDownstreamInRows(
-  rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
-  patterns: ReadonlyArray<DownstreamErrorPattern>,
-): DownstreamMatch | undefined {
-  if (patterns.length === 0) return undefined;
+export function downstreamFinder(patterns: ReadonlyArray<DownstreamErrorPattern>): DownstreamFinderFn {
   const compiled = compileDownstreamPatterns(patterns);
-  for (const row of rows) {
-    const message = (readRowField(row, '@message') ?? '').trim();
-    if (message === '') continue;
-    const target = firstMatchingTarget(message, compiled);
-    if (target !== undefined) return { target, message };
-  }
-  return undefined;
+  return (rows) => {
+    if (compiled.length === 0) return undefined;
+    for (const row of rows) {
+      const message = (readRowField(row, '@message') ?? '').trim();
+      if (message === '') continue;
+      const target = firstMatchingTarget(message, compiled);
+      if (target !== undefined) return { target, message };
+    }
+    return undefined;
+  };
 }

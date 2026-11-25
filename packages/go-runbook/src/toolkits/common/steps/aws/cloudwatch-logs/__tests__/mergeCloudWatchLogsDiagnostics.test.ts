@@ -22,8 +22,11 @@ describe('mergeCloudWatchLogsDiagnostics', () => {
     assert.equal(merged?.cloudWatchLogs?.statistics.recordsMatched, 5);
   });
 
-  it('reports nothing without queries or when one query has no statistics', () => {
+  it('keeps the statistics of the other queries when one has none, and reports nothing without any', () => {
     assert.equal(mergeCloudWatchLogsDiagnostics([]), undefined);
-    assert.equal(mergeCloudWatchLogsDiagnostics([diagnostics(1, 1), undefined]), undefined);
+    assert.equal(mergeCloudWatchLogsDiagnostics([undefined]), undefined);
+    const partial = mergeCloudWatchLogsDiagnostics([diagnostics(1, 1), undefined, diagnostics(2, 3)]);
+    assert.equal(partial?.cloudWatchLogs?.statistics.recordsScanned, 4);
+    assert.equal(partial?.cloudWatchLogs?.rowsReturned, 3);
   });
 });

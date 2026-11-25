@@ -19,7 +19,6 @@ describe('RunbookEngine with WorkflowServices only', () => {
         {
           id: 'known',
           description: 'Known outcome',
-          priority: 1,
           condition: { type: 'compare', ref: 'vars.outcome', operator: '==', value: 'known' },
           action: { type: 'log', level: 'info', title: 'Known outcome' },
         },
@@ -30,7 +29,7 @@ describe('RunbookEngine with WorkflowServices only', () => {
 
     assert.strictEqual(result.status, 'completed');
     assert.deepStrictEqual(
-      result.matchedCases.map((knownCase) => knownCase.id),
+      result.detections.map((knownCase) => knownCase.knownCase.id),
       ['known'],
     );
     assert.strictEqual(result.finalContext.vars.get('outcome'), 'known');

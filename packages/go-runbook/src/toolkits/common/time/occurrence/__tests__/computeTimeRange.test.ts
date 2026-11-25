@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 
 import { computeTimeRange } from '../computeTimeRange.js';
 
+const FIVE = { beforeMinutes: 5, afterMinutes: 5 };
+
 describe('computeTimeRange', () => {
   describe('single reference', () => {
     it('produces a symmetric window around the alarm timestamp', () => {
-      const { startTime, endTime } = computeTimeRange({ kind: 'single', at: '2026-05-11T14:00:00.000Z' }, 5);
+      const { startTime, endTime } = computeTimeRange({ kind: 'single', at: '2026-05-11T14:00:00.000Z' }, FIVE);
       assert.strictEqual(startTime, '2026-05-11T13:55:00.000Z');
       assert.strictEqual(endTime, '2026-05-11T14:05:00.000Z');
     });
@@ -21,14 +23,17 @@ describe('computeTimeRange', () => {
     });
 
     it('honours a zero window', () => {
-      const { startTime, endTime } = computeTimeRange({ kind: 'single', at: '2026-05-11T14:00:00.000Z' }, 0);
+      const { startTime, endTime } = computeTimeRange(
+        { kind: 'single', at: '2026-05-11T14:00:00.000Z' },
+        { beforeMinutes: 0, afterMinutes: 0 },
+      );
       assert.strictEqual(startTime, '2026-05-11T14:00:00.000Z');
       assert.strictEqual(endTime, '2026-05-11T14:00:00.000Z');
     });
 
     it('throws on an invalid ISO datetime', () => {
       assert.throws(
-        () => computeTimeRange({ kind: 'single', at: 'not-a-date' }, 5),
+        () => computeTimeRange({ kind: 'single', at: 'not-a-date' }, FIVE),
         /Invalid alarmDatetime: "not-a-date"/,
       );
     });
@@ -38,7 +43,7 @@ describe('computeTimeRange', () => {
     it('anchors the window to first/last occurrence', () => {
       const { startTime, endTime } = computeTimeRange(
         { kind: 'multi', first: '2026-05-11T14:00:00.000Z', last: '2026-05-11T14:30:00.000Z' },
-        5,
+        FIVE,
       );
       assert.strictEqual(startTime, '2026-05-11T13:55:00.000Z');
       assert.strictEqual(endTime, '2026-05-11T14:35:00.000Z');
@@ -56,7 +61,7 @@ describe('computeTimeRange', () => {
     it('accepts a single-point multi range', () => {
       const { startTime, endTime } = computeTimeRange(
         { kind: 'multi', first: '2026-05-11T14:00:00.000Z', last: '2026-05-11T14:00:00.000Z' },
-        5,
+        FIVE,
       );
       assert.strictEqual(startTime, '2026-05-11T13:55:00.000Z');
       assert.strictEqual(endTime, '2026-05-11T14:05:00.000Z');
@@ -65,29 +70,36 @@ describe('computeTimeRange', () => {
     it('rejects an inverted range', () => {
       assert.throws(
         () =>
-          computeTimeRange({ kind: 'multi', first: '2026-05-11T14:30:00.000Z', last: '2026-05-11T14:00:00.000Z' }, 5),
+          computeTimeRange(
+            { kind: 'multi', first: '2026-05-11T14:30:00.000Z', last: '2026-05-11T14:00:00.000Z' },
+            FIVE,
+          ),
         /last \([^)]+\) is before first/,
       );
     });
 
     it('throws on an invalid first/last timestamp', () => {
       assert.throws(
-        () => computeTimeRange({ kind: 'multi', first: 'bad', last: '2026-05-11T14:00:00.000Z' }, 5),
+        () => computeTimeRange({ kind: 'multi', first: 'bad', last: '2026-05-11T14:00:00.000Z' }, FIVE),
         /Invalid alarmDatetime \(first occurrence\)/,
       );
       assert.throws(
-        () => computeTimeRange({ kind: 'multi', first: '2026-05-11T14:00:00.000Z', last: 'bad' }, 5),
+        () => computeTimeRange({ kind: 'multi', first: '2026-05-11T14:00:00.000Z', last: 'bad' }, FIVE),
         /Invalid alarmDatetime \(last occurrence\)/,
       );
     });
   });
 
-  describe('timeWindowMinutes validation', () => {
+  describe('timeWindow validation', () => {
     const ref = { kind: 'single' as const, at: '2026-05-11T14:00:00.000Z' };
 
     it('rejects a negative, NaN or infinite window', () => {
       for (const minutes of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
-        assert.throws(() => computeTimeRange(ref, minutes), /Invalid timeWindowMinutes/, String(minutes));
+        assert.throws(
+          () => computeTimeRange(ref, { beforeMinutes: minutes, afterMinutes: minutes }),
+          /Invalid timeWindow\.beforeMinutes/,
+          String(minutes),
+        );
       }
     });
 

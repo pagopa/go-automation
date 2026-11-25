@@ -9,8 +9,6 @@ export const NOW = '2026-01-01T00:00:00.000Z';
 /** Runbook check that matched the `lambda-timeout` known case. */
 export const HIT: RunbookCheck = {
   status: 'HIT',
-  primaryCaseId: 'lambda-timeout',
-  primaryCaseDescription: 'Timeout runtime della Lambda',
   matchedCaseIds: ['lambda-timeout'],
 };
 
@@ -22,7 +20,7 @@ export const HIT: RunbookCheck = {
  */
 export function runbookOutputFixture(requestId: string): RunbookOutput {
   return {
-    schemaVersion: '1.0.0',
+    schemaVersion: '4.0.0',
     generatedAt: NOW,
     runbook: { id: 'r', name: 'r', type: 'alarm-resolution', version: '1.0.0', team: 'GO' },
     execution: {
@@ -32,19 +30,25 @@ export function runbookOutputFixture(requestId: string): RunbookOutput {
       durationMs: 1,
       status: 'completed',
       stepsExecuted: 1,
-      earlyResolution: false,
       recoveredErrors: [],
     },
     input: {},
     outcome: {
       kind: 'known-case-matched',
-      primaryCaseId: 'lambda-timeout',
-      primaryCaseDescription: 'Timeout runtime della Lambda',
-      matchedCases: [
-        { id: 'lambda-timeout', description: 'Timeout', priority: 100, resolvedMessage: 'Timeout Lambda' },
+      detections: [
+        {
+          caseId: 'lambda-timeout',
+          description: 'Timeout runtime della Lambda',
+          evidenceRows: 1,
+          errors: 1,
+          resolvedMessage: 'Timeout Lambda',
+          observations: [],
+        },
       ],
       message: 'La Lambda ha superato il timeout configurato.',
     },
+    chains: [],
+    coverage: { complete: true, sources: [] },
     context: { fields: [{ name: 'lambdaRequestId', label: 'requestId', value: requestId }], evidence: [] },
   };
 }

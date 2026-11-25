@@ -12,6 +12,8 @@ export type RunIdentityKey =
   | 'mappingProfileSha256'
   | 'rowKeyColumn'
   | 'directRequestIdTemplate'
+  | 'requestIdCategories'
+  | 'requestIdSuffix'
   | 'env'
   | 'endpoint'
   | 'cliValues'

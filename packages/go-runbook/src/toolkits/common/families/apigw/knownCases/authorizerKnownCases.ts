@@ -1,4 +1,4 @@
-import type { KnownCase } from '../../../../../engine/types/KnownCase.js';
+import type { KnownCase } from '../../../../../engine/index.js';
 import type { ApiGwAuthorizerFailureCheckConfig } from '../types/ApiGwAuthorizerFailureCheckConfig.js';
 
 /**
@@ -24,7 +24,6 @@ export function builtinApiGwAuthorizerKnownCases(
     {
       id: 'api-gw-authorizer-timeout',
       description: 'Timeout Lambda authorizer API Gateway',
-      priority: 10_000,
       condition: { type: 'compare', ref: 'vars.apiGwAuthorizerOutcome', operator: '==', value: 'timeout' },
       action: {
         type: 'log',
@@ -33,7 +32,7 @@ export function builtinApiGwAuthorizerKnownCases(
         title: 'Timeout Lambda authorizer API Gateway',
         details: [
           ['Lambda', '{{vars.apiGwAuthorizerLambdaName}}'],
-          ['Dettaglio', '{{vars.lastErrorMsg}}'],
+          ['Dettaglio', '{{vars.apiGwAuthorizerDetail}}'],
           ['authorizerRequestId', '{{vars.apiGwAuthorizerRequestId}}'],
           ['Endpoint', '{{vars.apiGwAuthorizerHttpMethod}} {{vars.apiGwAuthorizerPath}}'],
         ],
@@ -48,7 +47,6 @@ export function builtinApiGwAuthorizerKnownCases(
     {
       id: 'api-gw-authorizer-error',
       description: 'Errore Lambda authorizer API Gateway',
-      priority: 9_999,
       condition: { type: 'compare', ref: 'vars.apiGwAuthorizerOutcome', operator: '==', value: 'error' },
       action: {
         type: 'log',
@@ -57,7 +55,7 @@ export function builtinApiGwAuthorizerKnownCases(
         title: 'Errore Lambda authorizer API Gateway',
         details: [
           ['Lambda', '{{vars.apiGwAuthorizerLambdaName}}'],
-          ['Dettaglio', '{{vars.lastErrorMsg}}'],
+          ['Dettaglio', '{{vars.apiGwAuthorizerDetail}}'],
           ['authorizerRequestId', '{{vars.apiGwAuthorizerRequestId}}'],
           ['Endpoint', '{{vars.apiGwAuthorizerHttpMethod}} {{vars.apiGwAuthorizerPath}}'],
         ],

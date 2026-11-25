@@ -1,5 +1,6 @@
 import { acceptanceOf } from '../model/acceptanceOf.js';
 import type { RowAcceptance } from '../model/RowAcceptance.js';
+import { DIGITAL_SUCCESS_REASON } from '../model/requestIdReasons.js';
 import type { RowState } from '../model/RowState.js';
 import type { RowStatus } from '../model/RowStatus.js';
 import { applyJournalEntry } from './applyJournalEntry.js';
@@ -21,6 +22,7 @@ export class RowLedger {
   private readonly statusCounts = new Map<RowStatus, number>();
   private readonly acceptanceCounts = new Map<RowAcceptance, number>();
   private readonly uploads: RecordedUpload[] = [];
+  private paperNotExpected = 0;
 
   constructor(
     private readonly sink: JournalSink | undefined,
@@ -97,6 +99,16 @@ export class RowLedger {
     return new Map(this.acceptanceCounts);
   }
 
+  /**
+   * Number of rows closed by a digital workflow that succeeded, which expect
+   * no paper requestId. O(1).
+   *
+   * @returns The count
+   */
+  public countPaperNotExpected(): number {
+    return this.paperNotExpected;
+  }
+
   private apply(entry: JournalEntry): RowState | undefined {
     if (entry.event === 'DOCUMENT_UPLOADED' && entry.upload !== undefined) {
       this.uploads.push({ ...entry.upload, ts: entry.ts });
@@ -117,9 +129,15 @@ export class RowLedger {
         if (previousAcceptance !== undefined) adjustCount(this.acceptanceCounts, previousAcceptance, -1);
         adjustCount(this.acceptanceCounts, nextAcceptance, 1);
       }
+      const wasPaperNotExpected = previous !== undefined && isPaperNotExpected(previous);
+      if (wasPaperNotExpected !== isPaperNotExpected(next)) this.paperNotExpected += wasPaperNotExpected ? -1 : 1;
     }
     return next;
   }
+}
+
+function isPaperNotExpected(state: RowState): boolean {
+  return state.status === 'REQUEST_ID_NOT_FOUND' && state.requestIdReason === DIGITAL_SUCCESS_REASON;
 }
 
 /** Adds `delta` to the count of `key`, dropping keys that reach zero. */

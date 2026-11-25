@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import type { RunbookContext } from '../types/RunbookContext.js';
 import type { StepResult } from '../types/StepResult.js';
-import type { LogEntry } from '../types/LogEntry.js';
 import type { ErrorRecoveryInfo } from '../types/ErrorRecoveryInfo.js';
 import type { GORegexCache } from '@pagopa/go-common/utils';
 import type { WorkflowServices } from '../types/WorkflowServices.js';
+import { EMPTY_RUNBOOK_READS } from '../reads/EMPTY_RUNBOOK_READS.js';
 
 /**
  * Helper functions for immutable RunbookContext operations.
@@ -32,9 +32,9 @@ export function createInitialContext<TServices extends WorkflowServices>(
     stepResults: new Map(),
     vars: new Map(),
     params,
-    logs: [],
     services,
     recoveredErrors: [],
+    reads: EMPTY_RUNBOOK_READS,
     ...(signal ? { signal } : {}),
     ...(regexCache ? { regexCache } : {}),
   };
@@ -76,20 +76,6 @@ export function updateContextWithStepResult(
 }
 
 /**
- * Adds a log entry to the context.
- *
- * @param context - Current context
- * @param entry - Log entry to add
- * @returns A new context with the log entry appended
- */
-export function addLogEntry(context: RunbookContext, entry: LogEntry): RunbookContext {
-  return {
-    ...context,
-    logs: [...context.logs, entry],
-  };
-}
-
-/**
  * Adds a recovered error to the context.
  *
  * @param context - Current context
@@ -100,33 +86,5 @@ export function addRecoveredError(context: RunbookContext, recovery: ErrorRecove
   return {
     ...context,
     recoveredErrors: [...context.recoveredErrors, recovery],
-  };
-}
-
-/**
- * Merges a child context (from sub-pipeline) back into the parent context.
- * Carries over stepResults, vars, logs, and recoveredErrors.
- *
- * @param parent - Parent context
- * @param child - Child context from sub-pipeline
- * @returns A new merged context
- */
-export function mergeChildContext(parent: RunbookContext, child: RunbookContext): RunbookContext {
-  const mergedStepResults = new Map(parent.stepResults);
-  for (const [key, value] of child.stepResults) {
-    mergedStepResults.set(key, value);
-  }
-
-  const mergedVars = new Map(parent.vars);
-  for (const [key, value] of child.vars) {
-    mergedVars.set(key, value);
-  }
-
-  return {
-    ...parent,
-    stepResults: mergedStepResults,
-    vars: mergedVars,
-    logs: [...parent.logs, ...child.logs],
-    recoveredErrors: [...parent.recoveredErrors, ...child.recoveredErrors],
   };
 }

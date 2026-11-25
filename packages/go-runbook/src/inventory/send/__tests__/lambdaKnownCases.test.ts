@@ -2,7 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { Condition, KnownCase } from '../../../engine/index.js';
-import { lambda, SEND_DOWNSTREAMS } from '../../../toolkits/send/index.js';
+import { SEND_DOWNSTREAMS } from '../../../toolkits/send/index.js';
+import { matchDownstreamErrorPattern } from '../../../toolkits/common/families/lambda/helpers/matchDownstreamErrorPattern.js';
 
 import { KNOWN_CASES as TOKEN_EXCHANGE_CASES } from '../lambda/pn-tokenExchangeLambda-LogInvocationErrors-Alarm/knownCases.js';
 import { KNOWN_CASES as IO_AUTHORIZER_CASES } from '../lambda/pn-ioAuthorizerLambda-LogInvocationErrors-Alarm/knownCases.js';
@@ -100,18 +101,17 @@ describe('lambda runbook known cases', () => {
     }
   });
 
-  it('classifies BE IO as AppIO ahead of the runtime timeout', () => {
+  it('classifies BE IO as AppIO', () => {
     const appIoCase = LOLLIPOP_AUTHORIZER_CASES.find(({ id }) => id === 'app-io-backend-idp-keys-unavailable');
     const runtimeTimeout = LOLLIPOP_AUTHORIZER_CASES.find(({ id }) => id === 'lambda-timeout');
     assert.ok(appIoCase !== undefined && runtimeTimeout !== undefined);
-    assert.ok(appIoCase.priority > runtimeTimeout.priority);
     assert.strictEqual(
       caseMatches(knownCaseById(LOLLIPOP_AUTHORIZER_CASES, appIoCase.id), invocationContext([CIE_KEYS_TIMEOUT])),
       true,
     );
     for (const message of [SPID_KEYS_TIMEOUT, IDP_CERT_ERROR]) {
       assert.strictEqual(
-        lambda.matchDownstreamErrorPattern(message, LOLLIPOP_AUTHORIZER_DOWNSTREAM_PATTERNS),
+        matchDownstreamErrorPattern(message, LOLLIPOP_AUTHORIZER_DOWNSTREAM_PATTERNS),
         SEND_DOWNSTREAMS.APP_IO,
       );
     }

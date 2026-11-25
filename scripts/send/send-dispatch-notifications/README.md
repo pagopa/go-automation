@@ -53,11 +53,12 @@ pnpm send:dispatch:notifications:dev --env ente-test --mapping-profile qa-test \
 
 - `--resume` accetta il nome della directory di esecuzione (sotto `data/send-dispatch-notifications/outputs/`) o un path assoluto. Solo un run con `--dry-run=false` scrive `run.json`: un dry run non si riprende.
 - Le chiavi di idempotenza di una riga dipendono da `runId` e chiave di riga (in `direct` anche dal template del `requestId`); il contenuto della notifica da profilo, valori di default e documenti. Per non creare **notifiche o raccomandate duplicate**, la ripresa si rifiuta se queste impostazioni sono diverse da quelle del run originale (salvate in `run.json`, `parameters.identity`) ed elenca quelle cambiate:
-  - sempre: `--mode`, formato dell'input, `--mapping-profile` (per un profilo JSON anche lo SHA-256 del contenuto), `--row-key-column`, `--direct-request-id-template`;
+  - sempre: `--mode`, formato dell'input, `--mapping-profile` (per un profilo JSON anche lo SHA-256 del contenuto), `--row-key-column`, `--direct-request-id-template`; in `e2e` anche le categorie e il suffisso del `requestId` (`--request-id-categories`, `--request-id-append-suffix`, `--request-id-suffix`), perché lo stesso output non mescoli id trovati con due regole;
   - con `send` o `verify`: ambiente (`--env`, o `ad-hoc`/`direct`) e host (`--base-path`, `--ec-base-url`);
   - con `send`: `--defaults`, `--group-id`, `--sender-tax-id`, `--sender-denomination`, valori dell'ambiente (`sender`, `groupId`, `defaults`), documento condiviso (`--document-file`, `--document-title` o quello dell'ambiente), `--documents-dir`, `--attachments-file`.
 - Possono cambiare: `--phases`, retry (`--retry-failed`, `--retry-uncertain`, `--send-retry-ambiguous`), throughput (`--rate`, `--burst`, `--max-in-flight`…), timeout, `--aws-profiles` e le opzioni di output.
 - Un `run.json` scritto da una versione precedente dello script non contiene queste impostazioni: la ripresa viene rifiutata (avviare un nuovo run sulle righe rimaste).
+- Un `run.json` scritto prima che categorie e suffisso del `requestId` entrassero fra queste impostazioni vale con i valori di allora (`PREPARE_ANALOG_DOMICILE,PREPARE_DIGITAL_DOMICILE`, nessun suffisso): per riprenderlo in `e2e` si aggiungono `--request-id-categories PREPARE_ANALOG_DOMICILE,PREPARE_DIGITAL_DOMICILE --request-id-append-suffix=false`, come indica il messaggio d'errore.
 - Il file di input deve essere identico (SHA-256), altrimenti la ripresa si ferma con `RESUME_INPUT_CHANGED`.
 - Cosa riparte: le righe `SENDING` senza esito diventano `SEND_UNCERTAIN` e si riconciliano; `SENT`/`ACCEPTED` non concluse e `VERIFY_TIMEOUT`/`REQUEST_ID_NOT_FOUND` rientrano nella verifica / nel `requestId`; una riga `REQUEST_ID_FOUND`/`REQUEST_ID_NOT_FOUND` di cui non si conosce l'accettazione (run con `--phases request-id`, o categorie che precedono l'accettazione) con la fase `verify` attiva viene prima verificata; le `SEND_FAILED` ripetibili (compresa `THROTTLED`, vedi sotto) si reinviano solo con `--retry-failed`; una riga fermata dall'interruzione mentre aspettava di riprovare dopo un `429` è tornata `PENDING` e si invia senza flag; una riga `INVALID` in una sessione precedente che ora risulta valida (input o documenti corretti) viene inviata.
 - `--dry-run` con `--resume` rilegge il journal del run precedente (e controlla l'hash dell'input) senza scrivere nulla: il piano mostra le righe ancora da inviare e da elaborare.
@@ -212,18 +213,20 @@ I documenti servono solo con la fase `send`: senza, il documento condiviso non v
 
 ### Verifica e requestId
 
-| Parametro                     | Default                                            | Descrizione                                                                     |
-| ----------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `--verify-initial-delay`      | `10s`                                              | primo controllo di stato dopo l'invio                                           |
-| `--verify-timeout`            | `15m`                                              | timeout della verifica per riga                                                 |
-| `--aws-profiles`              | —                                                  | profili AWS SSO (obbligatorio con `request-id`), validati da GOScript all'avvio |
-| `--request-id-categories`     | `PREPARE_ANALOG_DOMICILE,PREPARE_DIGITAL_DOMICILE` | categorie cercate, in ordine di priorità                                        |
-| `--request-id-select`         | `per-category`                                     | colonna `requestId`: `per-category` o `priority`                                |
-| `--request-id-wait`           | `any`                                              | chiusura della riga: alla prima categoria (`any`) o a tutte (`all`)             |
-| `--request-id-end-categories` | categorie di fine workflow                         | chiusura anticipata senza `requestId`                                           |
-| `--request-id-initial-delay`  | `60s`                                              | primo controllo della timeline                                                  |
-| `--request-id-timeout`        | `2h`                                               | timeout del `requestId` per riga                                                |
-| `--dynamodb-concurrency`      | `10`                                               | query DynamoDB in parallelo                                                     |
+| Parametro                     | Default                                                    | Descrizione                                                                     |
+| ----------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `--verify-initial-delay`      | `10s`                                                      | primo controllo di stato dopo l'invio                                           |
+| `--verify-timeout`            | `15m`                                                      | timeout della verifica per riga                                                 |
+| `--aws-profiles`              | —                                                          | profili AWS SSO (obbligatorio con `request-id`), validati da GOScript all'avvio |
+| `--request-id-categories`     | `PREPARE_ANALOG_DOMICILE,PREPARE_SIMPLE_REGISTERED_LETTER` | categorie cercate, in ordine di priorità                                        |
+| `--request-id-append-suffix`  | `true`                                                     | aggiunge il suffisso agli id trovati                                            |
+| `--request-id-suffix`         | `.PCRETRY_0`                                               | suffisso degli id trovati: non vuoto, senza spazi né `\|`                       |
+| `--request-id-select`         | `per-category`                                             | colonna `requestId`: `per-category` o `priority`                                |
+| `--request-id-wait`           | `any`                                                      | chiusura della riga: alla prima categoria (`any`) o a tutte (`all`)             |
+| `--request-id-end-categories` | categorie di fine workflow                                 | chiusura anticipata senza `requestId`                                           |
+| `--request-id-initial-delay`  | `60s`                                                      | primo controllo della timeline                                                  |
+| `--request-id-timeout`        | `2h`                                                       | timeout del `requestId` per riga                                                |
+| `--dynamodb-concurrency`      | `10`                                                       | query DynamoDB in parallelo                                                     |
 
 ### Output
 
@@ -253,7 +256,11 @@ Le righe `REFUSED` restano solo nel report, e nel file principale hanno la colon
 6. **Verifica** (`ACCEPTED`/`REFUSED`) a priorità bassa: non rallenta l'invio.
 7. **requestId** (`--phases …,request-id`):
    - una query su `pn-Timelines` per IUN, ripetuta con backoff fino a 2 h;
-   - stessa regola del `jq`: primo `PREPARE_ANALOG_DOMICILE`, poi `PREPARE_DIGITAL_DOMICILE`;
+   - per ogni categoria il primo elemento in ordine di `timestamp`: `PREPARE_ANALOG_DOMICILE`, poi `PREPARE_SIMPLE_REGISTERED_LETTER` (la raccomandata semplice che segue un workflow digitale fallito);
+   - all'id della timeline si aggiunge il suffisso `.PCRETRY_0`, l'id con cui la spedizione arriva a pn-external-channels e al consolidatore: `PREPARE_SIMPLE_REGISTERED_LETTER.IUN_<iun>.RECINDEX_0.PCRETRY_0`. Journal, output e report portano l'id con il suffisso; `--request-id-append-suffix=false` lo toglie, `--request-id-suffix` lo cambia;
+   - una notifica consegnata in digitale (`DIGITAL_SUCCESS_WORKFLOW`) non ha spedizione cartacea: la riga chiude `REQUEST_ID_NOT_FOUND` con `WORKFLOW_ENDED:DIGITAL_SUCCESS_WORKFLOW`, il riepilogo la conta a parte e non è un problema del run;
+   - il report ha le colonne `analogRequestId`, `simpleRegisteredLetterRequestId` e `requestIds` (tutte le categorie trovate);
+   - chi vuole ancora l'id digitale lo chiede con `--request-id-categories` (e di solito `--request-id-append-suffix=false`);
    - se le credenziali AWS scadono durante l'attesa: `aws sso login`, poi `--resume` con gli stessi parametri.
 8. **Output** nella directory di esecuzione `data/send-dispatch-notifications/outputs/send-dispatch-notifications_<timestamp>/`:
    - `output.<fmt>`: l'input più `iun` e `requestId`;
@@ -279,15 +286,15 @@ Gli errori di riga finiscono sempre nel log, sia in console sia in `execution.lo
 
 ## Codici di uscita
 
-| Codice | Significato                                                                                                                                                                                                                             |
-| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `0`    | tutto ok (anche: dry run senza righe non valide; ripresa senza righe da elaborare e senza righe rimaste con problemi)                                                                                                                   |
-| `2`    | run concluso con righe non valide, fallite, incerte, rifiutate, in timeout o non inviate; credenziali AWS scadute durante l'attesa del `requestId`                                                                                      |
-| `1`    | errore globale (API key, gruppo, quota, SafeStorage…), parametri non validi, ripresa con parametri diversi, chiavi o `requestId` duplicati, `--fail-fast` con righe non valide, `--confirm-production` mancante o diverso in produzione |
-| `3`    | conferma interattiva negata (o abbandonata con Esc): nessun invio                                                                                                                                                                       |
-| `130`  | interrotto con Ctrl-C (SIGINT) dopo la chiusura ordinata; riprendibile con `--resume`                                                                                                                                                   |
-| `143`  | interrotto con SIGTERM (es. `kill`, stop del container), come sopra                                                                                                                                                                     |
-| `131`  | interrotto con SIGQUIT (Ctrl-\\), come sopra                                                                                                                                                                                            |
-| `1`    | anche: secondo Ctrl-C durante la chiusura, o chiusura ordinata fallita                                                                                                                                                                  |
+| Codice | Significato                                                                                                                                                                                                                                      |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `0`    | tutto ok (anche: dry run senza righe non valide; ripresa senza righe da elaborare e senza righe rimaste con problemi)                                                                                                                            |
+| `2`    | run concluso con righe non valide, fallite, incerte, rifiutate, in timeout, senza `requestId` o non inviate (non conta una notifica consegnata in digitale, senza spedizione cartacea); credenziali AWS scadute durante l'attesa del `requestId` |
+| `1`    | errore globale (API key, gruppo, quota, SafeStorage…), parametri non validi, ripresa con parametri diversi, chiavi o `requestId` duplicati, `--fail-fast` con righe non valide, `--confirm-production` mancante o diverso in produzione          |
+| `3`    | conferma interattiva negata (o abbandonata con Esc): nessun invio                                                                                                                                                                                |
+| `130`  | interrotto con Ctrl-C (SIGINT) dopo la chiusura ordinata; riprendibile con `--resume`                                                                                                                                                            |
+| `143`  | interrotto con SIGTERM (es. `kill`, stop del container), come sopra                                                                                                                                                                              |
+| `131`  | interrotto con SIGQUIT (Ctrl-\\), come sopra                                                                                                                                                                                                     |
+| `1`    | anche: secondo Ctrl-C durante la chiusura, o chiusura ordinata fallita                                                                                                                                                                           |
 
 Con un segnale il codice è quello di GOScript (`128 + numero del segnale`), indipendentemente dall'esito delle righe.

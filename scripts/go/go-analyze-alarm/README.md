@@ -20,8 +20,8 @@ Dato un allarme CloudWatch e il momento in cui e scattato, esegue automaticament
 2. **Modalità analisi**: con `analysis.mode=single` analizza una singola occorrenza; con `analysis.mode=range` recupera da CloudWatch History tutte le transizioni `OK → ALARM` dello stesso allarme nel range indicato; con `analysis.mode=stats` non analizza nulla e produce solo statistiche offline sul catalogo runbook locale
 3. **Calcolo time window**: applica la finestra dichiarata dal runbook, con padding indipendente prima e dopo l'allarme. Il default resta `-5min/+5min`; per esempio, il runbook IPA usa `-10min/+5min`. In `single`, se viene fornito anche `--alarm-datetime-end`, il padding precedente è applicato alla prima occorrenza e quello successivo all'ultima
 4. **Esecuzione step-by-step**: ogni step del runbook interroga CloudWatch Logs, DynamoDB, Athena o altri servizi in base alle esigenze del runbook; le variabili estratte passano agli step successivi
-5. **Match casi noti**: al termine degli step, il RunbookEngine confronta i dati raccolti con i pattern dei casi noti e restituisce il primo match (o un fallback)
-6. **Salvataggio output**: salva sia il trace completo (`trace-{alarmName}.json`) sia il risultato sintetico (`result-{runbookId}.json`). In `range`, ogni occorrenza aggiunge il timestamp al nome file per evitare overwrite
+5. **Match casi noti**: al termine degli step, il RunbookEngine valuta tutti i casi noti sui dati raccolti e riporta **ogni** caso trovato, in ordine di tempo della prima evidenza (o il fallback, se nessuno corrisponde). Se una lettura fallisce dopo che un'altra è riuscita, l'analisi prosegue con l'evidenza raccolta e lo segnala come copertura incompleta
+6. **Salvataggio output**: salva il risultato essenziale (`result-{runbookId}.json`, `--output-result`, attivo per default) e, solo se richiesto, la traccia completa (`trace-{alarmName}.json`, `--output-trace`, spento per default), entrambi senza i nomi dei profili AWS. In `range`, ogni occorrenza aggiunge il timestamp al nome file per evitare overwrite
 
 ## Runbook disponibili
 
@@ -33,16 +33,17 @@ Dato un allarme CloudWatch e il momento in cui e scattato, esegue automaticament
 
 Analizza gli errori HTTP sull'API Gateway del microservizio `pn-user-attributes` (rubrica AppIO).
 
-**Catena di analisi** (10 step):
+**Analisi** (albero degli errori, vedi [RUNBOOKENGINE.md §19.12](../../../docs/RUNBOOKENGINE.md#1912-famiglia-send-api-gateway)):
 
 1. Query API GW AccessLog — filtra `status >= 400` nella time window
-2. Parse errori API GW — estrae `errorCount`, `xRayTraceId`, `statusCode`; si ferma se non ci sono errori
-3. Query + analisi `pn-ioAuthorizerLambda` — cerca timeout lambda (`duration >= 5000ms`)
-4. Query + analisi `pn-user-attributes` — segue il trace ID estratto dall'API GW
-5. Query + analisi `pn-data-vault` — cerca lo stesso trace ID (continueOnFailure)
-6. Query + analisi `pn-external-registries` — cerca lo stesso trace ID (continueOnFailure)
+2. Per **ogni** richiesta in errore: estrae trace id, stato e metadati; controlla la Lambda authorizer
+   `pn-ioAuthorizerLambda` (un errore dell'authorizer ferma la richiesta)
+3. Scende in `pn-user-attributes` con il trace id della richiesta: una query a lotti per tutte le richieste, un nodo
+   per ogni riga d'errore
+4. Da ogni errore di `pn-user-attributes` scende in `pn-data-vault` o `pn-external-registries` quando la riga chiama
+   un loro URL noto
 
-**Casi noti riconosciuti** (in ordine di priorita):
+**Casi noti riconosciuti** (i principali; si valutano tutti, in ordine di dichiarazione, e il risultato riporta ogni caso trovato):
 
 | ID                              | Descrizione                                       | Risoluzione                         |
 | ------------------------------- | ------------------------------------------------- | ----------------------------------- |
@@ -91,6 +92,8 @@ Lo script non include un file di configurazione dedicato: la configurazione oper
 | `--aws-account-permission-sets` | `-aaps` | string[] | No           | Permission set SSO preferiti quando più profili raggiungono lo stesso account                        |
 | `--stats-detail`                | `-sdt`  | bool     | No           | Solo `stats`: stampa la tabella di dettaglio per runbook. Default: `true`                            |
 | `--stats-product`               | `-spr`  | string   | No           | Solo `stats`: limita il report a un prodotto (`SEND`, `INTEROP`)                                     |
+| `--output-trace`                | `-otr`  | bool     | No           | Salva la traccia completa `trace-{alarmName}.json` (può pesare GB). Default: `false`                 |
+| `--output-result`               | `-ors`  | bool     | No           | Salva il risultato essenziale `result-{runbookId}.json`. Default: `true`                             |
 | `--stats-save`                  | `-ssv`  | bool     | No           | Solo `stats`: salva il report JSON in `data/`. Default: `false`                                      |
 
 \* Obbligatori per `--analysis-mode single` e `range`; ignorati da `--analysis-mode stats`, che gira interamente offline.
@@ -270,33 +273,62 @@ pnpm go:analyze:alarm:prod -- \
 
 ### Console
 
-Lo script stampa il risultato dell'analisi in tre sezioni:
+Lo script stampa il risultato dell'analisi nelle sue sezioni:
 
 ```
-=== Go Analyze Alarm ===
-Alarm:    pn-address-book-io-IO-ApiGwAlarm
-Datetime: 2025-02-20T14:30:00Z
-AWS Profiles: sso_pn-core-prod
-Time range: 2025-02-20T14:25:00.000Z → 2025-02-20T14:35:00.000Z
-
-=== Executing Runbook ===
-[OK] query-api-gw-logs         — 3 results
-[OK] evaluate-api-gw-authorizer-failure — no authorizer failure
-[OK] parse-api-gw-errors       — errors: 3, statusCode: 500, traceId: 1-abc123
-...
-
-=== Runbook Result ===
-Status:         completed
-Steps executed: 10
-Duration:       4823ms
-Matched case:   PDV 404 - Record mancante su Personal Data Vault
-
-[CASO NOTO] Record mancante su PDV (Personal Data Vault)
-Risoluzione: Scenario di errore già noto ed in via di risoluzione sul codice applicativo
-Task JIRA: PN-15981
+◆ Go Analyze Alarm
+│  Alarm:    pn-address-book-io-IO-ApiGwAlarm
+│  Datetime: 2025-02-20T14:30:00Z
+│  AWS Profiles: sso_pn-core-prod
+│  Time range: 2025-02-20T14:25:00.000Z → 2025-02-20T14:35:00.000Z
+│
+◆ Executing Runbook
+│  [OK] query-api-gw-logs         — 3 results
+│  [OK] evaluate-api-gw-authorizer-failure — no authorizer failure
+│  [OK] parse-api-gw-errors       — errors: 3, statusCode: 500, traceId: 1-abc123
+│  ...
+│
+│  [CASO NOTO] Record mancante su PDV (Personal Data Vault)
+│  Risoluzione: Scenario di errore già noto ed in via di risoluzione sul codice applicativo
+│  Task JIRA: PN-15981
+│
+◆ Runbook Result
+│  Status          completed
+│  Steps executed  10
+│  Duration        4823ms
+│
+│  Trovati gli errori noti (2):
+│  ├─ 14:27 → 14:29 · 2 volte
+│  │  ├─ ? non riconosciuto
+│  │  │  └─ api-gateway · 500 PUT /address-book-io/v1/digital-address/courtesy
+│  │  └─ ✓ Record mancante su PDV (Personal Data Vault)
+│  │     └─ pn-user-attributes · [DOWNSTREAM] Service PersonalDataVault_Tokenizer returned errors=404 Not Found
+│  └─ 14:31 ✓ Gateway Timeout 504 senza log applicativi su pn-user-attributes
+│     └─ api-gateway · 504 GET /address-book-io/v1/digital-address
+│  ⚠ WARNING: Evidenza incompleta: 1 fonti (non disponibili 1)
+│
+◆ Output
+│  Directory  data/go-analyze-alarm/outputs/go-analyze-alarm_<timestamp>/
+│  Trace      trace-pn-address-book-io-IO-ApiGwAlarm.json
+│  Result     result-<runbook-id>.json
 ```
 
-Se nessun caso noto e riconosciuto, lo script stampa un **fallback** con tutti i valori raccolti:
+Sotto `Trovati gli errori noti (N):` c'è un ramo per ogni gruppo di catene d'errore, con l'ora UTC della prima evidenza,
+dal più vecchio al più recente. Nei runbook API Gateway SEND ogni richiesta in errore è una catena, dalla richiesta
+fino all'ultimo servizio in cui si è trovato un errore: ogni nodo è un figlio del ramo: un nodo riconosciuto
+mostra il caso (`✓`), uno non riconosciuto `? non riconosciuto`, e sotto c'è il servizio con il testo del log (il campo
+`message` per un log JSON), accorciato con `…` alla larghezza del terminale (120 colonne fuori da un terminale); il
+testo completo resta nel file `result-*.json`. Le catene uguali sono un ramo solo, con l'intervallo orario e il numero
+di volte; un gruppo di un solo nodo mostra il nodo sul ramo stesso. Nei runbook di finestra ogni
+caso trovato è una catena di un nodo. Si esegue l'azione di ogni caso trovato, una volta per riga. Le righe finali
+dicono cosa il runbook non ha potuto vedere:
+
+- `Non esaminati: K <unità>`: il runbook ha osservato più errori di quanti ne abbia seguiti (per esempio le invocazioni
+  Lambda diverse da quella rappresentativa);
+- `Evidenza incompleta: K fonti (…)`: letture sature (righe pari al limite della query o pagine non lette), non
+  disponibili (lettura fallita), saltate o a correlazione manuale.
+
+Se nessun caso noto e riconosciuto, lo script stampa `No known case matched` e un **fallback** con tutti i valori raccolti:
 
 ```
 [CASO NON RICONOSCIUTO] Impossibile identificare univocamente la causa dell'errore.
@@ -308,12 +340,14 @@ User Attributes: <messaggio di errore grezzo>
 
 ### File output
 
-Ogni esecuzione produce due file JSON nella directory output dell'esecuzione:
+Ogni esecuzione produce, nella directory output dell'esecuzione, i file JSON richiesti con `--output-result` (default `true`) e `--output-trace` (default `false`):
 
-| File                      | Contenuto                                                                | Uso                                  |
-| ------------------------- | ------------------------------------------------------------------------ | ------------------------------------ |
-| `trace-{alarmName}.json`  | Traccia completa: pipeline, step, variabili, case matching, action trace | Audit, debug e post-mortem           |
-| `result-{runbookId}.json` | Esito sintetico versionato con contesto operativo ed evidenze limitate   | Dashboard, notifiche, lettura rapida |
+| File                      | Contenuto                                                                                                                                                                                           | Uso                                  |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| `trace-{alarmName}.json`  | Traccia completa: pipeline, step, variabili, case matching, action trace; per un albero d'errore anche `errorTree` (i nodi, con `occurrences` degli errori uniti, e le catene con tutti i percorsi) | Audit, debug e post-mortem           |
+| `result-{runbookId}.json` | Esito essenziale versionato (schema `4.0.0`): rilevazioni per caso e richiesta, catene senza l'elenco dei percorsi, copertura, contesto                                                             | Dashboard, notifiche, lettura rapida |
+
+I nomi dei profili AWS configurati vengono tolti da entrambi i file prima di salvarli.
 
 Esempio:
 
@@ -333,12 +367,16 @@ result-k8s-interop-be-backend-for-frontend-errors-2026-07-09T09-30-00.000Z.json
 
 Il result distingue esplicitamente:
 
-- `known-case-matched`: individuato un caso noto;
-- `unknown-case`: esecuzione completata, ma nessun caso noto ha matchato;
+- `known-case-matched`: individuato almeno un caso noto; `detections` ha una voce per caso e richiesta (in un albero d'errore; una per rilevazione nei runbook di finestra), in ordine di tempo, con il numero di errori (`errors`), il primo messaggio (`resolvedMessage`) e le varianti distinte (`resolvedMessages`);
+- `unknown-case`: esecuzione completata con evidenza completa, ma nessun caso noto ha matchato;
+- `inconclusive`: nessun caso noto, ma l'evidenza è incompleta (una lettura fallita, saltata o satura);
 - `failed` / `aborted`: errore tecnico o interruzione;
 - `procedure-success` / `procedure-failure`: esiti per runbook procedurali.
 
-Per i runbook API Gateway il result include anche un contesto sintetico: endpoint, status API Gateway, trace id, blocco Lambda authorizer, blocco execution log e ultimi log rilevanti per servizio. I log nel result sono campionati; il dettaglio completo resta nel trace.
+Ogni result contiene anche `chains` (le catene d'errore, in ordine di tempo, con conteggi, rotte e 10 campioni per gruppo: l'elenco di tutti i percorsi è nella traccia) e `coverage` (`complete`, le fonti
+incomplete e, se c'è, il conteggio degli errori osservati ed esaminati).
+
+Per i runbook API Gateway il result include anche un contesto sintetico: endpoint, status API Gateway, trace id, blocco Lambda authorizer, blocco execution log e ultimi log rilevanti per servizio. I log nel result sono campionati; il dettaglio completo resta nel trace. Nei runbook API Gateway SEND l'evidenza è raccolta per ogni nodo dell'albero degli errori, con il campo `node` (`<request-id> > e1`).
 
 ## Troubleshooting
 

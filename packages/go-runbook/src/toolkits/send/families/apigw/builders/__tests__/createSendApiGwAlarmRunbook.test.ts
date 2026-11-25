@@ -13,7 +13,10 @@ import type { Condition } from '../../../../../../engine/types/Condition.js';
 import type { KnownCase } from '../../../../../../engine/types/KnownCase.js';
 import type { StepResult } from '../../../../../../engine/types/StepResult.js';
 import type { Runbook } from '../../../../../../engine/types/Runbook.js';
+import type { TreeLevel } from '../../../../../../engine/types/TreeLevel.js';
+import { treeNodeVars } from '../../../../../../__tests__/helpers/treeNodeVars.js';
 import type { RunbookExecutionResult } from '../../../../../../engine/types/RunbookExecutionResult.js';
+import type { ErrorTreeNode } from '../../../../../../engine/types/ErrorTreeNode.js';
 import { RunbookEngine } from '../../../../../../engine/core/RunbookEngine.js';
 import { SEND_API_GW_PROFILE } from '../../profiles/SEND_API_GW_PROFILE.js';
 import { createTestServiceRegistry } from '../../../../../common/testing/createTestServiceRegistry.js';
@@ -52,14 +55,24 @@ function stepIds(runbook: Runbook): ReadonlyArray<string> {
   return runbook.steps.map((descriptor) => descriptor.step.id);
 }
 
+/** The steps every request of the root level runs. */
+function requestStepIds(runbook: Runbook): ReadonlyArray<string> {
+  return (runbook.tree?.root.perNode ?? []).map((descriptor) => descriptor.step.id);
+}
+
+/** The level of a service. */
+function serviceLevel(runbook: Runbook, service: string): TreeLevel | undefined {
+  return runbook.tree?.levels.find((level) => level.target === service);
+}
+
 /** A `trace info` field of a pipeline step, rendered against the default time range. */
 function traceField(runbook: Runbook, stepId: string, field: string): string {
   const step = runbook.steps.find((descriptor) => descriptor.step.id === stepId)?.step;
   return String(step?.getTraceInfo?.(createTestContext({ params: TEST_TIME_RANGE_PARAMS }))?.[field]);
 }
 
-function knownCase(id: string, priority: number, condition: Condition): KnownCase {
-  return { id, description: id, priority, condition, action: { type: 'log', level: 'info', title: id } };
+function knownCase(id: string, condition: Condition): KnownCase {
+  return { id, description: id, condition, action: { type: 'log', level: 'info', title: id } };
 }
 
 function hook(
@@ -112,40 +125,49 @@ function groupsOf(calls: ReadonlyArray<LogsCall>): ReadonlyArray<string> {
 }
 
 describe('createSendApiGwAlarmRunbook structure', () => {
-  it('builds the canonical silent pipeline, with the execution-log guard only in terminal mode', () => {
+  it('reads the window, then investigates each request and each service as levels, all silent', () => {
     const runbook = createSendApiGwAlarmRunbook(baseConfig());
     assert.deepStrictEqual(stepIds(runbook), [
       'prepare-api-gw-section',
       'query-api-gw-logs',
-      'parse-api-gw-errors',
       'query-api-gw-execution-logs',
-      'stop-api-gw-execution-log-unresolved',
-      'query-pn-a',
-      'analyze-pn-a',
-      'decide-pn-a',
-      'query-pn-b',
-      'analyze-pn-b',
-      'decide-pn-b',
     ]);
+    assert.deepStrictEqual(requestStepIds(runbook), [
+      'parse-api-gw-errors',
+      'stop-api-gw-execution-log-unresolved',
+      'descend-api-gateway',
+    ]);
+    assert.deepStrictEqual(runbook.tree?.root.scopedSteps, ['query-api-gw-logs', 'query-api-gw-execution-logs']);
+    assert.deepStrictEqual(
+      runbook.tree?.levels.map((level) => [level.target, level.read?.id, level.perNode?.map(({ step }) => step.id)]),
+      [
+        ['pn-a', 'query-pn-a', ['descend-pn-a']],
+        ['pn-b', 'query-pn-b', ['descend-pn-b']],
+      ],
+    );
     // Every step renders its own narrative: engine logging would double it.
-    assert.ok(runbook.steps.every((descriptor) => descriptor.silent === true));
+    const descriptors = [
+      ...runbook.steps,
+      ...(runbook.tree?.root.perNode ?? []),
+      ...(runbook.tree?.levels ?? []).flatMap((level) => level.perNode ?? []),
+    ];
+    assert.ok(descriptors.every((descriptor) => descriptor.silent === true));
 
-    const bestEffort = stepIds(createSendApiGwAlarmRunbook(baseConfig({ executionLogAnalysisMode: 'best-effort' })));
-    assert.ok(bestEffort.includes('query-api-gw-execution-logs'));
-    assert.ok(!bestEffort.includes('stop-api-gw-execution-log-unresolved'));
+    const bestEffort = createSendApiGwAlarmRunbook(baseConfig({ executionLogAnalysisMode: 'best-effort' }));
+    assert.ok(stepIds(bestEffort).includes('query-api-gw-execution-logs'));
+    assert.ok(!requestStepIds(bestEffort).includes('stop-api-gw-execution-log-unresolved'));
   });
 
-  it('wires the authorizer gate after access-log parsing, with its known cases, when configured', () => {
+  it('wires the authorizer gate after the parse of each request, with its known cases, when configured', () => {
     const runbook = createSendApiGwAlarmRunbook(
       baseConfig({
         authorizerFailureCheck: AUTHORIZER_CHECK,
-        knownCases: [knownCase('demo', 1, { type: 'exists', ref: 'vars.x' })],
+        knownCases: [knownCase('demo', { type: 'exists', ref: 'vars.x' })],
       }),
     );
-    assert.deepStrictEqual(stepIds(runbook).slice(2, 5), [
+    assert.deepStrictEqual(requestStepIds(runbook).slice(0, 2), [
       'parse-api-gw-errors',
       'evaluate-api-gw-authorizer-failure',
-      'query-api-gw-execution-logs',
     ]);
     const caseIds = runbook.knownCases.map((c) => c.id);
     assert.ok(['demo', 'api-gw-authorizer-timeout', 'api-gw-authorizer-error'].every((id) => caseIds.includes(id)));
@@ -153,9 +175,10 @@ describe('createSendApiGwAlarmRunbook structure', () => {
 
   it('accepts an entry-only configuration and forwards maxIterations', () => {
     const runbook = createSendApiGwAlarmRunbook(baseConfig({ services: [], maxIterations: 42 }));
-    const ids = stepIds(runbook);
-    assert.ok(ids.includes('decide-pn-a'));
-    assert.ok(!ids.includes('query-pn-b'));
+    assert.deepStrictEqual(
+      runbook.tree?.levels.map((level) => level.target),
+      ['pn-a'],
+    );
     assert.strictEqual(runbook.maxIterations, 42);
   });
 
@@ -209,26 +232,34 @@ describe('createSendApiGwAlarmRunbook structure', () => {
 });
 
 describe('createSendApiGwAlarmRunbook hooks', () => {
-  it('splices hooks before the service traversal and after the entry analysis, with their options', () => {
+  it('runs the hooks on each request, on each error of the entry service and after the entry read', () => {
     const runbook = createSendApiGwAlarmRunbook(
       baseConfig({
         hooks: [
           hook('pre-1', 'before-service-traversal', { continueOnFailure: true }),
           hook('enrich-entry', 'after-entry-analysis', { silent: true }),
+          hook('after-read', 'after-entry-read'),
         ],
       }),
     );
 
-    assert.deepStrictEqual(stepIds(runbook).slice(4, 10), [
-      'stop-api-gw-execution-log-unresolved',
-      'pre-1',
-      'query-pn-a',
-      'analyze-pn-a',
-      'enrich-entry',
-      'decide-pn-a',
-    ]);
-    assert.strictEqual(runbook.steps.find((d) => d.step.id === 'pre-1')?.continueOnFailure, true);
-    assert.strictEqual(runbook.steps.find((d) => d.step.id === 'enrich-entry')?.silent, true);
+    assert.deepStrictEqual(requestStepIds(runbook).slice(-2), ['pre-1', 'descend-api-gateway']);
+    assert.strictEqual(runbook.tree?.root.perNode?.find((d) => d.step.id === 'pre-1')?.continueOnFailure, true);
+    assert.deepStrictEqual(
+      serviceLevel(runbook, 'pn-a')?.perNode?.map(({ step, silent }) => [step.id, silent]),
+      [
+        ['enrich-entry', true],
+        ['descend-pn-a', true],
+      ],
+    );
+    assert.deepStrictEqual(
+      serviceLevel(runbook, 'pn-b')?.perNode?.map(({ step }) => step.id),
+      ['descend-pn-b'],
+    );
+    assert.deepStrictEqual(
+      runbook.tree?.root.afterDescend?.map(({ step }) => step.id),
+      ['after-read'],
+    );
   });
 
   it('rejects hook ids that clash with each other or with the canonical pipeline', () => {
@@ -241,8 +272,8 @@ describe('createSendApiGwAlarmRunbook hooks', () => {
       /hook id "same" is declared more than once/,
     );
     assert.throws(
-      () => createSendApiGwAlarmRunbook(baseConfig({ hooks: [hook('decide-pn-a', 'after-entry-analysis')] })),
-      /hook id "decide-pn-a" collides/,
+      () => createSendApiGwAlarmRunbook(baseConfig({ hooks: [hook('descend-pn-a', 'after-entry-analysis')] })),
+      /hook id "descend-pn-a" collides/,
     );
   });
 });
@@ -312,7 +343,7 @@ describe('createSendApiGwAlarmRunbook execution', () => {
             { url: 'http://internal/service-b/', target: 'pn-b' },
           ],
           knownCases: [
-            knownCase('downstream-b-failure', 1, { type: 'contains', ref: 'steps.query-pn-b', regex: 'Failure in B' }),
+            knownCase('downstream-b-failure', { type: 'contains', ref: 'steps.query-pn-b', regex: 'Failure in B' }),
           ],
         }),
         (group) => {
@@ -322,12 +353,23 @@ describe('createSendApiGwAlarmRunbook execution', () => {
             return [
               logRow({
                 level: 'INFO',
+                trace_id: ORIGINAL_TRACE,
                 '@message': `Invoking http://internal/service-a/call FALLBACK-UUID:${FIRST_UUID}`,
               }),
-              logRow({ level: 'ERROR', '@message': `Error calling http://internal/service-b/call${uuid}` }),
+              logRow({
+                level: 'ERROR',
+                trace_id: ORIGINAL_TRACE,
+                '@message': `Error calling http://internal/service-b/call${uuid}`,
+              }),
             ];
           }
-          return [logRow({ level: 'ERROR', '@message': 'Failure in B' })];
+          return [
+            logRow({
+              level: 'ERROR',
+              ...(useFallback ? {} : { trace_id: ORIGINAL_TRACE }),
+              '@message': `Failure in B${useFallback ? ` FALLBACK-UUID:${SECOND_UUID}` : ''}`,
+            }),
+          ];
         },
       );
 
@@ -336,29 +378,35 @@ describe('createSendApiGwAlarmRunbook execution', () => {
       assert.ok(downstreamQuery.includes(useFallback ? SECOND_UUID : ORIGINAL_TRACE));
       assert.ok(!downstreamQuery.includes(FIRST_UUID));
       if (useFallback) assert.ok(!downstreamQuery.includes(ORIGINAL_TRACE));
-      assert.equal(result.matchedCases[0]?.id, 'downstream-b-failure');
+      assert.equal(result.detections[0]?.knownCase.id, 'downstream-b-failure');
     });
   }
 
-  it('stops on every matching known case before following a KnownUrl target', async () => {
+  it('keeps every matching known case and still follows the KnownUrl target', async () => {
     const targetsB = { type: 'compare', ref: 'vars.aNextUrlTarget', operator: '==', value: 'pn-b' } as const;
     const { result, calls } = await run(
       baseConfig({
-        knownCases: [knownCase('primary', 20, targetsB), knownCase('secondary', 10, targetsB)],
+        knownCases: [knownCase('primary', targetsB), knownCase('secondary', targetsB)],
         knownUrls: [{ url: 'http://internal/pn-b/', target: 'pn-b' }],
       }),
       (group) =>
         group === ACCESS_LOG
-          ? [logRow({ status: '500', xrayTraceId: 'Root=1-abc' })]
-          : [logRow({ level: 'ERROR', '@message': 'boom calling http://internal/pn-b/resource' })],
+          ? [logRow({ status: '500', xrayTraceId: 'Root=1-6ad1eae3-493a74b231f3e345492729e9' })]
+          : [
+              logRow({
+                level: 'ERROR',
+                trace_id: '1-6ad1eae3-493a74b231f3e345492729e9',
+                '@message': 'boom calling http://internal/pn-b/resource',
+              }),
+            ],
     );
 
     assert.deepStrictEqual(
-      result.matchedCases.map((c) => c.id),
+      result.detections.map((c) => c.knownCase.id),
       ['primary', 'secondary'],
     );
-    assert.strictEqual(result.resolvedAtStep, 'analyze-pn-a');
-    assert.deepStrictEqual(groupsOf(calls), [ACCESS_LOG, '/aws/ecs/pn-a']);
+    // A known case no longer ends the traversal: the chain goes on to the downstream service.
+    assert.deepStrictEqual(groupsOf(calls), [ACCESS_LOG, '/aws/ecs/pn-a', '/aws/ecs/pn-b']);
   });
 
   it('stops at the authorizer gate on a timeout, before execution logs and service traversal', async () => {
@@ -378,32 +426,45 @@ describe('createSendApiGwAlarmRunbook execution', () => {
     );
 
     assert.deepStrictEqual(
-      result.matchedCases.map((c) => c.id),
+      result.detections.map((c) => c.knownCase.id),
       ['api-gw-authorizer-timeout'],
     );
-    assert.strictEqual(result.resolvedAtStep, 'evaluate-api-gw-authorizer-failure');
-    assert.strictEqual(result.finalContext.vars.get('apiGwAuthorizerRequestId'), 'auth-req-1');
+    assert.strictEqual(treeNodeVars(result).get('apiGwAuthorizerRequestId'), 'auth-req-1');
     assert.deepStrictEqual(groupsOf(calls), [ACCESS_LOG]);
   });
 
   it('continues past the authorizer gate when authorizerStatus is missing', async () => {
-    const { result, calls } = await run(baseConfig({ authorizerFailureCheck: AUTHORIZER_CHECK }), (group) =>
-      group === ACCESS_LOG
-        ? [
-            logRow({
-              status: '500',
-              authorizerRequestId: 'auth-req-2',
-              requestId: 'api-gw-req-1',
-              xrayTraceId: 'Root=1-abcdef01-234567890abcdef012345678',
-            }),
-          ]
-        : [logRow({ level: 'ERROR', '@message': 'application error' })],
+    const { result, calls } = await run(
+      // Best effort: the execution log of the request does not end its chain.
+      baseConfig({ authorizerFailureCheck: AUTHORIZER_CHECK, executionLogAnalysisMode: 'best-effort' }),
+      (group) =>
+        group === ACCESS_LOG
+          ? [
+              logRow({
+                status: '500',
+                authorizerRequestId: 'auth-req-2',
+                requestId: 'api-gw-req-1',
+                xrayTraceId: 'Root=1-abcdef01-234567890abcdef012345678',
+              }),
+            ]
+          : [
+              logRow({
+                level: 'ERROR',
+                trace_id: '1-abcdef01-234567890abcdef012345678',
+                '@message': 'application error',
+              }),
+            ],
     );
 
-    assert.deepStrictEqual(result.matchedCases, []);
-    assert.strictEqual(result.finalContext.vars.get('apiGwAuthorizerRequestId'), 'auth-req-2');
-    assert.strictEqual(result.finalContext.vars.get('terminationReason'), 'no-match');
-    assert.deepStrictEqual(groupsOf(calls), [ACCESS_LOG, '/aws/ecs/pn-a']);
+    assert.deepStrictEqual(result.detections, []);
+    assert.strictEqual(treeNodeVars(result).get('apiGwAuthorizerRequestId'), 'auth-req-2');
+    // The request descended to the entry service and found an error nobody recognizes.
+    assert.deepStrictEqual(
+      result.chains?.map((group) => group.members[0]?.end),
+      ['leaf'],
+    );
+    assert.strictEqual(result.tree?.length, 2);
+    assert.deepStrictEqual(groupsOf(calls), [ACCESS_LOG, EXECUTION_LOG, '/aws/ecs/pn-a']);
   });
 
   it('queries the execution logs once for every unique requestId, before the service traversal', async () => {
@@ -412,7 +473,7 @@ describe('createSendApiGwAlarmRunbook execution', () => {
     const { result, calls } = await run(
       baseConfig({
         knownCases: [
-          knownCase('execution-known-failure', 10, {
+          knownCase('execution-known-failure', {
             type: 'contains',
             ref: 'steps.query-api-gw-execution-logs',
             regex: 'ExecutionKnownFailure',
@@ -421,16 +482,22 @@ describe('createSendApiGwAlarmRunbook execution', () => {
       }),
       (group, query) => {
         if (group === ACCESS_LOG) return [failure('req-a-1', '/a'), failure('req-a-2', '/a'), failure('req-b-1', '/b')];
-        const message = query.includes('req-b-1') ? 'ExecutionKnownFailure' : 'execution detail';
-        return [logRow({ '@timestamp': '2026-01-01T00:00:01.000Z', '@message': message })];
+        // Each line carries the request id of its request.
+        return ['req-a-1', 'req-a-2', 'req-b-1']
+          .filter((requestId) => query.includes(requestId))
+          .map((requestId) =>
+            logRow({
+              '@timestamp': '2026-01-01T00:00:01.000Z',
+              '@message': `(${requestId}) ${requestId === 'req-b-1' ? 'ExecutionKnownFailure' : 'execution detail'}`,
+            }),
+          );
       },
     );
 
     assert.deepStrictEqual(
-      result.matchedCases.map((c) => c.id),
+      result.detections.map((c) => c.knownCase.id),
       ['execution-known-failure'],
     );
-    assert.strictEqual(result.resolvedAtStep, 'query-api-gw-execution-logs');
     // One AWS call for every requestId (OR clause), even when two failures share an endpoint.
     assert.deepStrictEqual(groupsOf(calls), [ACCESS_LOG, EXECUTION_LOG]);
     for (const requestId of ['req-a-1', 'req-a-2', 'req-b-1']) assert.ok(calls[1]?.query.includes(requestId));
@@ -443,8 +510,8 @@ describe('createSendApiGwAlarmRunbook execution', () => {
         : [logRow({ '@timestamp': '2026-01-01T00:00:00.000Z', '@message': 'unknown execution detail' })],
     );
 
-    assert.deepStrictEqual(result.matchedCases, []);
-    assert.strictEqual(result.finalContext.vars.get('terminationReason'), 'api-gw-execution-log-unresolved');
+    assert.deepStrictEqual(result.detections, []);
+    assert.strictEqual(treeNodeVars(result).get('terminationReason'), 'api-gw-execution-log-unresolved');
     assert.deepStrictEqual(groupsOf(calls), [ACCESS_LOG, EXECUTION_LOG]);
   });
 
@@ -464,8 +531,167 @@ describe('createSendApiGwAlarmRunbook execution', () => {
       return [];
     });
 
-    assert.strictEqual(result.finalContext.vars.get('apiGwExecutionLogMode'), 'no-request-id');
-    assert.strictEqual(result.finalContext.vars.get('terminationReason'), 'no-match');
+    assert.strictEqual(treeNodeVars(result).get('apiGwExecutionLogMode'), 'no-request-id');
+    assert.strictEqual(treeNodeVars(result, 'pn-a').get('aErrorMsg'), `${trace} application error`);
     assert.deepStrictEqual(groupsOf(calls), [ACCESS_LOG, '/aws/ecs/pn-a']);
+  });
+});
+
+describe('createSendApiGwAlarmRunbook execution log per request', () => {
+  const executionStep = 'query-api-gw-execution-logs';
+
+  /** A request in error of the access log. */
+  function request(requestId: string, trace: string): GOLogsInsightsResultField[] {
+    return logRow({
+      status: '500',
+      errorMessage: 'Endpoint request timed out',
+      requestId,
+      xrayTraceId: `Root=${trace}`,
+    });
+  }
+
+  /** Answers a query with its rows and whether pages of its result were left unread; throws for a failed read. */
+  type StatisticsResponderFn = (
+    group: string,
+    query: string,
+  ) => { readonly rows: ReadonlyArray<GOLogsInsightsResultField[]>; readonly unread?: boolean };
+
+  /** Runs the runbook on fake logs that report the rows of every physical query. */
+  async function runWithStatistics(
+    config: ApiGwAlarmConfig,
+    respond: StatisticsResponderFn,
+  ): Promise<{ readonly result: RunbookExecutionResult; readonly groups: ReadonlyArray<string> }> {
+    const groups: string[] = [];
+    const statistics = { bytesScanned: 0, recordsScanned: 0, recordsMatched: 0 };
+    const services = createTestServiceRegistry({
+      cloudWatchLogs: {
+        queryWithStatistics: async (logGroups: ReadonlyArray<string>, query: string) => {
+          await Promise.resolve();
+          const group = logGroups[0] ?? '';
+          groups.push(group);
+          const { rows, unread } = respond(group, query);
+          return {
+            rows,
+            statistics,
+            queryExecutions: [
+              {
+                queryId: String(groups.length),
+                profile: 'test',
+                logGroups: [group],
+                statistics,
+                rowsReturned: rows.length,
+                ...(unread === true ? { unreadPages: 'budget' as const } : {}),
+              },
+            ],
+          };
+        },
+      },
+    });
+    const result = await new RunbookEngine(new GOLogger()).execute(
+      createSendApiGwAlarmRunbook(config),
+      new Map(Object.entries(TEST_TIME_RANGE_PARAMS)),
+      services,
+    );
+    return { result, groups };
+  }
+
+  /** The root node of a request, with its variables. */
+  function requestNode(
+    result: RunbookExecutionResult,
+    key: string,
+  ): { readonly node: ErrorTreeNode; readonly vars: ReadonlyMap<string, string> } {
+    const node = result.tree?.find((candidate) => candidate.parentId === undefined && candidate.key === key);
+    assert.ok(node, `request ${key}`);
+    return { node, vars: result.nodeContexts?.get(node.id)?.vars ?? new Map() };
+  }
+
+  it('gives each request the mode of its batch: complete, saturated, without request id', async () => {
+    const { result } = await runWithStatistics(baseConfig({ executionLogMaxRequestIds: 1 }), (group, query) => {
+      if (group === ACCESS_LOG) {
+        return {
+          rows: [
+            request('req-ok', '1-abcdef01-000000000000000000000001'),
+            request('req-sat', '1-abcdef01-000000000000000000000002'),
+            request('-', '1-abcdef01-000000000000000000000003'),
+          ],
+        };
+      }
+      if (group === EXECUTION_LOG) {
+        const id = query.includes('req-ok') ? 'req-ok' : 'req-sat';
+        const count = id === 'req-sat' ? 10_000 : 1;
+        return { rows: Array.from({ length: count }, () => logRow({ '@message': `(${id}) execution detail` })) };
+      }
+      return { rows: [] };
+    });
+
+    const complete = requestNode(result, 'req-ok');
+    assert.strictEqual(complete.vars.get('apiGwExecutionLogMode'), 'queried');
+    assert.strictEqual(complete.vars.get('terminationReason'), 'api-gw-execution-log-unresolved');
+    assert.strictEqual(complete.node.incompleteEvidence, undefined);
+    const saturated = requestNode(result, 'req-sat');
+    assert.strictEqual(saturated.vars.get('apiGwExecutionLogMode'), 'incomplete');
+    assert.strictEqual(saturated.vars.get('terminationReason'), undefined);
+    assert.strictEqual(saturated.node.incompleteEvidence, true);
+    assert.strictEqual(requestNode(result, 'row:2').vars.get('apiGwExecutionLogMode'), 'no-request-id');
+    // The errors without request id leave the whole window incomplete, as before.
+    assert.strictEqual(result.windowIncomplete, true);
+    assert.deepStrictEqual(
+      result.coverage
+        .filter((entry) => entry.stepId === executionStep)
+        .map((entry) => [entry.reason, entry.identifiers]),
+      [
+        ['saturated', [{ kind: 'requestId', value: 'req-sat' }]],
+        ['skipped', undefined],
+      ],
+    );
+  });
+
+  it('names the requests of a single batch with an unread page: they are incomplete and go on', async () => {
+    const { result, groups } = await runWithStatistics(baseConfig(), (group) => {
+      if (group === ACCESS_LOG) {
+        return {
+          rows: [
+            request('req-1', '1-abcdef01-000000000000000000000001'),
+            request('req-2', '1-abcdef01-000000000000000000000002'),
+          ],
+        };
+      }
+      if (group === EXECUTION_LOG) return { rows: [logRow({ '@message': '(req-1) execution detail' })], unread: true };
+      return { rows: [] };
+    });
+
+    for (const key of ['req-1', 'req-2']) {
+      const { node, vars } = requestNode(result, key);
+      assert.strictEqual(vars.get('apiGwExecutionLogMode'), 'incomplete', key);
+      assert.strictEqual(vars.get('terminationReason'), undefined, key);
+      assert.strictEqual(node.incompleteEvidence, true, key);
+    }
+    assert.strictEqual(result.windowIncomplete, false);
+    assert.ok(groups.includes('/aws/ecs/pn-a'));
+  });
+
+  it('keeps the mode of the window when no batch answered, with the errors without request id skipped', async () => {
+    const { result } = await runWithStatistics(baseConfig(), (group) => {
+      if (group === EXECUTION_LOG) throw new Error('ThrottlingException');
+      if (group === ACCESS_LOG) {
+        return {
+          rows: [
+            request('req-1', '1-abcdef01-000000000000000000000001'),
+            request('-', '1-abcdef01-000000000000000000000002'),
+          ],
+        };
+      }
+      return { rows: [] };
+    });
+
+    const { node, vars } = requestNode(result, 'req-1');
+    assert.strictEqual(vars.get('apiGwExecutionLogMode'), 'unavailable');
+    const reads = result.nodeContexts?.get(node.id)?.reads;
+    assert.ok(reads);
+    assert.strictEqual(reads.stateOf(executionStep), 'skipped');
+    assert.strictEqual(reads.stateOf(executionStep, { kind: 'requestId', value: 'req-1' }), 'skipped');
+    assert.strictEqual(reads.hasGapFor(executionStep, { kind: 'requestId', value: 'req-1' }), false);
+    assert.strictEqual(requestNode(result, 'row:1').vars.get('apiGwExecutionLogMode'), 'no-request-id');
+    assert.strictEqual(result.windowIncomplete, true);
   });
 });

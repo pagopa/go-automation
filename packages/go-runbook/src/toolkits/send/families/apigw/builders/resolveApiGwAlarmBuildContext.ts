@@ -1,5 +1,5 @@
 import { RunbookProducts } from '../../../../common/registration/RunbookProduct.js';
-import type { PipelineHook } from '../../../../../engine/types/PipelineHook.js';
+import type { PipelineHook } from '../../../../../engine/index.js';
 import type { ApiGwPipelineAnchor } from '../types/ApiGwPipelineAnchor.js';
 import type { ApiGwRunbookContext } from '../../../../common/families/apigw/output/ApiGwRunbookContext.js';
 import type { ApiGwQueryProfile } from '../profiles/ApiGwQueryProfile.js';
@@ -28,6 +28,14 @@ export interface ApiGwAlarmBuildContext {
   readonly runbookContext: ApiGwRunbookContext;
 }
 
+/**
+ * Validates the configuration of a SEND API Gateway alarm and resolves what its pipeline needs: query profile,
+ * access-log queries, services, known URLs and execution log.
+ *
+ * @param config - Configuration of the alarm
+ * @returns The build context of the pipeline
+ * @throws Error when the configuration is invalid
+ */
 export function resolveApiGwAlarmBuildContext(config: ApiGwAlarmConfig): ApiGwAlarmBuildContext {
   const profile = resolveApiGwQueryProfile(config);
 
@@ -71,6 +79,8 @@ export function resolveApiGwAlarmBuildContext(config: ApiGwAlarmConfig): ApiGwAl
       services: allServices,
       apiGwLogGroup: config.apiGwLogGroup,
       queryProfileId: profile.id,
+      traceIdVar: profile.accessLog.schema.traceIdContextVar,
+      traceIdLabel: profile.accessLog.schema.traceIdLabel,
     },
   };
 

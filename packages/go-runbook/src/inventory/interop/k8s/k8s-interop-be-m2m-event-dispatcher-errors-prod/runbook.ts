@@ -3,9 +3,14 @@ import type { Runbook } from '../../../../engine/index.js';
 import { M2M_EVENT_DISPATCHER_ALARM } from './alarmDefinition.js';
 import { KNOWN_CASES } from './knownCases.js';
 
+/**
+ * Builds the k8s-interop-be-m2m-event-dispatcher-errors-prod runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: M2M_EVENT_DISPATCHER_ALARM.runbookKey,
+    alarm: M2M_EVENT_DISPATCHER_ALARM,
     metadata: {
       name: M2M_EVENT_DISPATCHER_ALARM.runbookKey,
       description: 'Diagnosi degli errori Kafka del servizio interop-be-m2m-event-dispatcher in produzione',
@@ -14,12 +19,6 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'kafka', 'm2m'],
     },
-    service: {
-      name: M2M_EVENT_DISPATCHER_ALARM.podApp,
-      logGroup: M2M_EVENT_DISPATCHER_ALARM.logGroup,
-      varPrefix: M2M_EVENT_DISPATCHER_ALARM.varPrefix,
-    },
-    resolveAlarmContext: M2M_EVENT_DISPATCHER_ALARM.resolveContext,
     queryProfile: {
       ...interop.k8s.INTEROP_K8S_QUERY_PROFILE,
       id: 'interop-m2m-event-dispatcher-prod',

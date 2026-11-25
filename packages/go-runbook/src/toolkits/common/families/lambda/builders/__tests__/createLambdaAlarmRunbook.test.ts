@@ -39,15 +39,16 @@ describe('createLambdaAlarmRunbook', () => {
     );
   });
 
-  it('adds a per-downstream query step', () => {
+  it('adds a level for each downstream with logs, read by request id', () => {
     const runbook = createLambdaAlarmRunbook(
       baseConfig({
         downstreams: [{ name: 'pn-emd-integration', varPrefix: 'emd', logGroup: '/aws/ecs/pn-emd-integration' }],
         downstreamErrorPatterns: [{ pattern: 'External service pn-emd-integration', target: 'pn-emd-integration' }],
       }),
     );
-    const ids = runbook.steps.map((descriptor) => descriptor.step.id);
-    assert.ok(ids.includes('query-pn-emd-integration'));
+    const level = runbook.tree?.levels.find(({ target }) => target === 'pn-emd-integration');
+    assert.strictEqual(level?.read?.id, 'query-pn-emd-integration');
+    assert.strictEqual(level.varPrefix, 'emd');
   });
 
   it('rejects a downstream error pattern with an invalid regex', () => {
@@ -95,7 +96,6 @@ describe('createLambdaAlarmRunbook', () => {
               {
                 id: 'k',
                 description: 'd',
-                priority: 1,
                 condition: { type: 'contains', ref: 'steps.query-nope', regex: 'x' },
                 action: { type: 'log', level: 'info', title: 'm' },
               },

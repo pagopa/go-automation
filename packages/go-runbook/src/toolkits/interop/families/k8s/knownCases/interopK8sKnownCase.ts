@@ -1,99 +1,98 @@
 /**
- * Shared helpers for INTEROP k8s known cases: conditions that scan both the
- * application-logs query and the CID tracker query of a runbook, and log
- * actions rendered with the runbook's INTEROP context vars.
+ * Shared helpers for INTEROP k8s known cases: conditions that scan the
+ * application-logs query and, unless told otherwise, the CID tracker query of a
+ * runbook, and log actions rendered with the runbook's INTEROP context vars.
  */
-import type { AnalysisLinkRef } from '../../../../common/analysis/AnalysisLinkRef.js';
-import type { CaseAction } from '../../../../../engine/types/CaseAction.js';
-import type { Condition } from '../../../../../engine/types/Condition.js';
-import type { InteropDownstream } from '../../../analysis/INTEROP_DOWNSTREAMS.js';
-import type { KnownCase } from '../../../../../engine/types/KnownCase.js';
-import { anyStepEvidenceMatches } from '../../../../../engine/conditions/evidenceConditions.js';
+import { omitUndefined } from '@pagopa/go-common/utils';
 
-/** Per-runbook references needed to build INTEROP known cases. */
-export interface InteropK8sKnownCaseRefs {
-  readonly applicationLogsStepId: string;
-  readonly cidTrackerStepId: string;
-  readonly varPrefix: string;
-}
-
-/** Declarative single-regex known case. */
-export interface InteropK8sKnownCaseConfig {
-  readonly id: string;
-  readonly description: string;
-  readonly priority: number;
-  readonly regex: string;
-  readonly resolution: string;
-  /** Proposed state: the apply persists IN_PROGRESS, a CONFIRMED review promotes it. */
-  readonly proposedStatus: 'IN_PROGRESS' | 'COMPLETED';
-  readonly analysisType: 'ANALYZABLE' | 'IGNORABLE';
-  readonly ignoreReasonCode?: string;
-  readonly errorDetails?: string;
-  /** Declared only through `INTEROP_DOWNSTREAMS`, never as raw strings. */
-  readonly downstreams?: ReadonlyArray<InteropDownstream>;
-  readonly finalActions?: ReadonlyArray<string>;
-  readonly links?: ReadonlyArray<AnalysisLinkRef>;
-}
+import { knownCase } from '../../../../common/analysis/knownCase.js';
+import type { Condition, KnownCase, LogActionRow } from '../../../../../engine/index.js';
+import { all, anyStepEvidenceMatches, stepEvidenceMatches, varEquals } from '../../../../../engine/index.js';
+import type { InteropEnvironment } from '../../../environment/InteropEnvironment.js';
+import type { InteropK8sKnownCaseConfig } from './InteropK8sKnownCaseConfig.js';
+import type { InteropK8sKnownCaseRefs } from './InteropK8sKnownCaseRefs.js';
 
 /**
- * Builds a known case whose condition matches the regex against both the
- * application-logs evidence and the CID tracker evidence of the runbook.
+ * Builds an INTEROP k8s known case.
+ *
+ * - The condition is `condition`, or the regex matched against the application logs and the CID tracker
+ *   (`evidence: 'ANY'`, the default) or against the application logs only (`'APPLICATION_LOGS'`: the tracker
+ *   spans other services).
+ * - `environments` restricts the case to the INTEROP environments where it is documented.
+ * - The console rows are environment, log group, service and analysed CIDs, followed by `extraDetails`; `details`
+ *   replaces the standard rows when the runbook shows others.
  *
  * @param refs - Step ids and var prefix of the owning runbook
- * @param config - Known case id, priority, regex and resolution text
+ * @param config - Known case id, condition and resolution
  * @returns The assembled known case
+ * @throws Error when the case declares neither a regex nor a condition
+ *
+ * @example
+ * ```typescript
+ * interopK8sKnownCase(REFS, {
+ *   id: 'notifier-organization-id-not-found',
+ *   description: 'Organization ID non trovato',
+ *   regex: 'No organizationId found',
+ *   environments: ['prod'],
+ *   resolution: 'PIN-10910',
+ *   proposedStatus: 'IN_PROGRESS',
+ *   analysisType: 'ANALYZABLE',
+ * });
+ * ```
  */
 export function interopK8sKnownCase(refs: InteropK8sKnownCaseRefs, config: InteropK8sKnownCaseConfig): KnownCase {
-  return {
+  return knownCase({
     id: config.id,
     description: config.description,
-    priority: config.priority,
-    condition: anyInteropEvidenceMatches(refs, config.regex),
-    action: interopKnownCaseAction(refs, config.description, config.resolution),
+    ...omitUndefined({ title: config.title, level: config.level, supersedes: config.supersedes }),
+    condition: withEnvironments(matchCondition(refs, config), config.environments),
+    resolution: config.resolution,
+    details: [...(config.details ?? standardDetails(refs)), ...(config.extraDetails ?? [])],
     analysis: {
-      resolution: config.resolution,
       proposedStatus: config.proposedStatus,
       analysisType: config.analysisType,
-      ...(config.ignoreReasonCode === undefined ? {} : { ignoreReasonCode: config.ignoreReasonCode }),
-      ...(config.errorDetails === undefined ? {} : { errorDetails: config.errorDetails }),
-      ...(config.downstreams === undefined ? {} : { downstreams: config.downstreams }),
-      ...(config.finalActions === undefined ? {} : { finalActions: config.finalActions }),
-      ...(config.links === undefined ? {} : { links: config.links }),
+      ...omitUndefined({
+        ignoreReasonCode: config.ignoreReasonCode,
+        errorDetails: config.errorDetails,
+        downstreams: config.downstreams,
+        finalActions: config.finalActions,
+        links: config.links,
+      }),
     },
-  };
+  });
 }
 
-/**
- * Condition matching a regex against either query step of the runbook.
- *
- * @param refs - Step ids of the owning runbook
- * @param regex - Pattern evaluated against the JSON-stringified evidence rows
- * @returns An `or` condition over both query steps
- */
-function anyInteropEvidenceMatches(refs: InteropK8sKnownCaseRefs, regex: string): Condition {
-  return anyStepEvidenceMatches([refs.applicationLogsStepId, refs.cidTrackerStepId], regex);
+/** The condition of the case: its own, or the regex on the evidence it names. */
+function matchCondition(refs: InteropK8sKnownCaseRefs, config: InteropK8sKnownCaseConfig): Condition {
+  if (config.condition !== undefined) return config.condition;
+  if (config.regex === undefined) {
+    throw new Error(`interopK8sKnownCase "${config.id}": declare a regex or a condition.`);
+  }
+  return config.evidence === 'APPLICATION_LOGS'
+    ? stepEvidenceMatches(refs.applicationLogsStepId, config.regex)
+    : anyStepEvidenceMatches([refs.applicationLogsStepId, refs.cidTrackerStepId], config.regex);
 }
 
-/**
- * Standard log action for a matched INTEROP known case.
- *
- * @param refs - Var prefix of the owning runbook
- * @param title - Case title rendered in the log message
- * @param resolution - Operational resolution text
- * @returns The log action
- */
-function interopKnownCaseAction(refs: InteropK8sKnownCaseRefs, title: string, resolution: string): CaseAction {
-  return {
-    type: 'log',
-    level: 'info',
-    renderAs: 'known-case',
-    title,
-    details: [
-      ['Risoluzione', resolution],
-      ['Ambiente', '{{vars.interopEnvironment}}'],
-      ['Log group', '{{vars.interopLogGroup}}'],
-      ['Servizio', '{{vars.interopPodApp}}'],
-      ['CID analizzati', `{{vars.${refs.varPrefix}CidCount}}`],
-    ],
-  };
+/** The condition restricted to the environments of the case: one compared exactly, several as a list. */
+function withEnvironments(
+  condition: Condition,
+  environments: ReadonlyArray<InteropEnvironment> | undefined,
+): Condition {
+  if (environments === undefined) return condition;
+  const [only, ...others] = environments;
+  const scope: Condition =
+    only !== undefined && others.length === 0
+      ? varEquals('interopEnvironment', only)
+      : { type: 'contains', ref: 'vars.interopEnvironment', value: environments };
+  return all(scope, condition);
+}
+
+/** The standard rows of an INTEROP k8s case, rendered with the runbook's context vars. */
+function standardDetails(refs: InteropK8sKnownCaseRefs): ReadonlyArray<LogActionRow> {
+  return [
+    ['Ambiente', '{{vars.interopEnvironment}}'],
+    ['Log group', '{{vars.interopLogGroup}}'],
+    ['Servizio', '{{vars.interopPodApp}}'],
+    ['CID analizzati', `{{vars.${refs.varPrefix}CidCount}}`],
+  ];
 }

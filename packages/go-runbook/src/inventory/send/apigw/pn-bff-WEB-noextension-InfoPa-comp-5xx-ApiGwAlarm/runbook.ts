@@ -4,8 +4,14 @@ import { KNOWN_CASES } from './knownCases.js';
 import { API_GW_LOG_GROUP, ENTRY_SERVICE, REACHABLE_SERVICES } from './knownServices.js';
 import { KNOWN_URLS } from './knownUrls.js';
 import { INFO_PA_QUERY_PROFILE } from './queryProfile.js';
+import { FlagBffReadTimeoutStep } from './FlagBffReadTimeoutStep.js';
 export const INFO_PA_ALARM = 'pn-bff-WEB-noextension-InfoPa-comp-5xx-ApiGwAlarm';
 const RUNBOOK_URL: string = `https://pagopa.atlassian.net/wiki/spaces/GO/pages/2913599691/${INFO_PA_ALARM}`;
+/**
+ * Builds the pn-bff-WEB-noextension-InfoPa-comp-5xx-ApiGwAlarm runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return apigw.createSendApiGwAlarmRunbook({
     id: INFO_PA_ALARM,
@@ -29,6 +35,7 @@ export function buildRunbook(): Runbook {
     // The BFF and downstream generate different FALLBACK-UUIDs for the same
     // X-Ray root. Keep the BFF UUID as evidence and traverse using the root.
     hooks: [
+      { at: 'after-entry-analysis', step: new FlagBffReadTimeoutStep(), silent: true },
       {
         at: 'after-entry-analysis',
         step: new SetVarStep({

@@ -10,7 +10,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'duplicated-event-400-02',
     description: 'Richieste duplicate inviate dai recapitisti',
-    priority: 100,
+    supersedes: ['duplicated-event-err-cons'],
     condition: all(
       stepEvidenceMatches('query-pn-external-channel', 'sendPaperProgressStatusRequest syntax/semantic errors'),
       stepEvidenceMatches('query-pn-external-channel', "result code = '400\\.02'"),
@@ -34,7 +34,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'duplicated-event-err-cons',
     description: 'Richieste duplicate inviate dai recapitisti',
-    priority: 99,
     condition: stepEvidenceMatches('query-pn-external-channel', 'ERR_CONS_DUPLICATED_EVENT'),
     resolution:
       "[SNDA-2371] analisi su grande numero di eventi di recapito duplicati nella notte tra l'11/05 e il 12/05 - Jira",

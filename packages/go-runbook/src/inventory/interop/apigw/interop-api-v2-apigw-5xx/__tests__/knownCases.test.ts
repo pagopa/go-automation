@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { executeAlarmWithLogs, isCidTrackerQuery } from '../../../shared/__tests__/helpers/runbookExecution.js';
+import {
+  cidTrackerRows,
+  executeAlarmWithLogs,
+  isCidTrackerQuery,
+} from '../../../shared/__tests__/helpers/runbookExecution.js';
 import type { LogRows } from '../../../../../__tests__/helpers/LogRows.js';
 import type { RunbookLogsExecution } from '../../../../../__tests__/helpers/RunbookLogsExecution.js';
 import { INTEROP_API_V2_5XX_ALARM as alarm } from '../alarmDefinition.js';
@@ -24,7 +28,7 @@ async function run(scenario: {
       if (groups[0]?.startsWith('amazon-apigateway') === true) {
         return scenario.access ?? [row({ count: '1', status: '500', integrationError: '' })];
       }
-      return (isCidTrackerQuery(query) ? scenario.tracker : scenario.application) ?? [];
+      return isCidTrackerQuery(query) ? cidTrackerRows(query, scenario.tracker ?? []) : (scenario.application ?? []);
     },
   );
 }
@@ -68,7 +72,7 @@ describe('INTEROP API v2 5xx known cases', () => {
       ],
     });
     assert.deepStrictEqual(matchedIds, ['api-v2-duplicate-event-version']);
-    assert.match(queries[2]?.query ?? '', /filter cid = "purpose-cid"/u);
+    assert.match(queries[2]?.query ?? '', /filter cid in \["purpose-cid"\]/u);
   });
 
   it('limits the documented connection-closed example to test', async () => {

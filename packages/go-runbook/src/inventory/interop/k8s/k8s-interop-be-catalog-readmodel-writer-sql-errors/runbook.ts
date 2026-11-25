@@ -8,9 +8,14 @@ import { CATALOG_READMODEL_WRITER_SQL_QUERY_PROFILE } from './queryProfile.js';
 const CONFLUENCE_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3298033829/k8s-interop-be-catalog-readmodel-writer-sql-errors';
 
+/**
+ * Builds the k8s-interop-be-catalog-readmodel-writer-sql-errors runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: CATALOG_READMODEL_WRITER_SQL_ALARM.runbookKey,
+    alarm: CATALOG_READMODEL_WRITER_SQL_ALARM,
     metadata: {
       name: CATALOG_READMODEL_WRITER_SQL_ALARM.runbookKey,
       description:
@@ -22,12 +27,6 @@ export function buildRunbook(): Runbook {
       tags: ['interop', 'k8s', 'service', 'catalog', 'readmodel', 'sql', 'kafka'],
     },
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
-    service: {
-      name: CATALOG_READMODEL_WRITER_SQL_ALARM.podApp,
-      logGroup: CATALOG_READMODEL_WRITER_SQL_ALARM.logGroup,
-      varPrefix: CATALOG_READMODEL_WRITER_SQL_ALARM.varPrefix,
-    },
-    resolveAlarmContext: CATALOG_READMODEL_WRITER_SQL_ALARM.resolveContext,
     queryProfile: CATALOG_READMODEL_WRITER_SQL_QUERY_PROFILE,
     knownCases: KNOWN_CASES,
     analysisDefaults: {

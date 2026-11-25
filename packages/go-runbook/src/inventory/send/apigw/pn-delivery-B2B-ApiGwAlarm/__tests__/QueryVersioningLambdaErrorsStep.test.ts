@@ -15,6 +15,7 @@ import {
   VERSIONING_LAMBDA_UNAVAILABLE_REASON_VAR,
 } from '../versioningLambdaProbe.js';
 import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
+import { EMPTY_RUNBOOK_READS } from '../../../../../engine/reads/EMPTY_RUNBOOK_READS.js';
 
 type CloudWatchQueryFn = (
   logGroups: ReadonlyArray<string>,
@@ -25,7 +26,11 @@ function row(fields: Record<string, string>): GOLogsInsightsResultField[] {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
 }
 
-function buildContext(vars: Readonly<Record<string, string>>, query: CloudWatchQueryFn): OperationalContext {
+function buildContext(
+  vars: Readonly<Record<string, string>>,
+  query: CloudWatchQueryFn,
+  sharedReads?: Map<string, Promise<unknown>>,
+): OperationalContext {
   return {
     executionId: 'versioning-lambda-probe-test',
     startedAt: new Date('2026-09-01T10:00:00.000Z'),
@@ -35,9 +40,10 @@ function buildContext(vars: Readonly<Record<string, string>>, query: CloudWatchQ
       ['startTime', '2026-09-01T09:55:00.000Z'],
       ['endTime', '2026-09-01T10:05:00.000Z'],
     ]),
-    logs: [],
     services: createTestServiceRegistry({ cloudWatchLogs: { query } }),
     recoveredErrors: [],
+    reads: EMPTY_RUNBOOK_READS,
+    ...(sharedReads !== undefined ? { sharedReads } : {}),
   };
 }
 
@@ -57,7 +63,7 @@ describe('QueryVersioningLambdaErrorsStep', () => {
       {
         apiGwStatusCode: '504',
         deliveryLogCount: '0',
-        apiGwCurrentQueryIdentifierMode: 'trace',
+        deliveryLookupState: 'queried',
       },
       async () => {
         queryCalls += 1;
@@ -85,7 +91,7 @@ describe('QueryVersioningLambdaErrorsStep', () => {
       {
         apiGwStatusCode: '500',
         deliveryLogCount: '0',
-        apiGwCurrentQueryIdentifierMode: 'none',
+        deliveryLookupState: 'queried',
       },
       async () => {
         queryCalls += 1;
@@ -106,7 +112,7 @@ describe('QueryVersioningLambdaErrorsStep', () => {
       {
         apiGwStatusCode: '500',
         deliveryLogCount: '0',
-        apiGwCurrentQueryIdentifierMode: 'trace',
+        deliveryLookupState: 'queried',
       },
       async (logGroups, query) => {
         calls.push({ logGroups, query });
@@ -117,7 +123,7 @@ describe('QueryVersioningLambdaErrorsStep', () => {
     const result = await step().execute(context);
 
     assert.strictEqual(result.success, true);
-    assert.strictEqual(result.next, 'resolve');
+    assert.strictEqual(result.next, undefined);
     assert.deepStrictEqual(calls[0]?.logGroups, [VERSIONING_LAMBDA_LOG_GROUP]);
     assert.match(calls[0]?.query ?? '', /Status:\\s\*error/);
     assert.strictEqual(result.vars?.[VERSIONING_LAMBDA_PROBE_STATE_VAR], 'queried');
@@ -132,7 +138,7 @@ describe('QueryVersioningLambdaErrorsStep', () => {
       {
         apiGwStatusCode: '500',
         deliveryLogCount: '0',
-        apiGwCurrentQueryIdentifierMode: 'trace',
+        deliveryLookupState: 'queried',
       },
       async () => Promise.resolve([row({ '@message': message, '@requestId': 'lambda-request-id' })]),
     );
@@ -149,7 +155,7 @@ describe('QueryVersioningLambdaErrorsStep', () => {
       {
         apiGwStatusCode: '500',
         deliveryLogCount: '0',
-        apiGwCurrentQueryIdentifierMode: 'trace',
+        deliveryLookupState: 'queried',
       },
       async () => Promise.reject(new Error('CloudWatch retention unavailable')),
     );
@@ -163,5 +169,39 @@ describe('QueryVersioningLambdaErrorsStep', () => {
     assert.strictEqual(result.vars?.[VERSIONING_LAMBDA_PROBE_STATE_VAR], 'unavailable');
     assert.strictEqual(result.vars?.[VERSIONING_LAMBDA_ERROR_COUNT_VAR], '');
     assert.match(result.vars?.[VERSIONING_LAMBDA_UNAVAILABLE_REASON_VAR] ?? '', /retention unavailable/);
+  });
+
+  it('does not probe when the pn-delivery read is incomplete: zero errors would not be proven', async () => {
+    let queryCalls = 0;
+    const context = buildContext(
+      { apiGwStatusCode: '500', deliveryLogCount: '0', deliveryLookupState: 'saturated' },
+      async () => {
+        queryCalls += 1;
+        return Promise.resolve([]);
+      },
+    );
+
+    const result = await step().execute(context);
+
+    assert.strictEqual(queryCalls, 0);
+    assert.strictEqual(result.vars?.[VERSIONING_LAMBDA_PROBE_STATE_VAR], 'skipped');
+  });
+
+  it('reads the Lambda once for the execution, and gives its coverage to every request that shares it', async () => {
+    let queryCalls = 0;
+    const sharedReads = new Map<string, Promise<unknown>>();
+    const vars = { apiGwStatusCode: '500', deliveryLogCount: '0', deliveryLookupState: 'queried' };
+    const query: CloudWatchQueryFn = async () => {
+      queryCalls += 1;
+      return Promise.reject(new Error('CloudWatch retention unavailable'));
+    };
+
+    const first = await step().execute(buildContext(vars, query, sharedReads));
+    const second = await step().execute(buildContext(vars, query, sharedReads));
+
+    assert.strictEqual(queryCalls, 1);
+    assert.strictEqual(first.coverage?.length, 1);
+    assert.deepStrictEqual(second.coverage, first.coverage);
+    assert.strictEqual(second.vars?.[VERSIONING_LAMBDA_PROBE_STATE_VAR], 'unavailable');
   });
 });

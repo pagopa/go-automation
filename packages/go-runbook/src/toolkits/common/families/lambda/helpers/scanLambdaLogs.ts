@@ -1,10 +1,12 @@
-import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { omitUndefined } from '@pagopa/go-common/utils';
+import { readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { LambdaErrorCategory } from '../types/LambdaErrorCategory.js';
 import { extractLambdaRequestId } from './extractLambdaRequestId.js';
 import { parseLambdaReportLine } from './parseLambdaReportLine.js';
 import type { LambdaReportInfo } from './parseLambdaReportLine.js';
 import { classifyLambdaError } from './classifyLambdaError.js';
+import type { CloudWatchLogsRows } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRows.js';
 
 /** Outcome of scanning a Lambda error-query result set. */
 export interface LambdaErrorScan {
@@ -29,7 +31,7 @@ function isRuntimeLine(message: string): boolean {
  * across the rows. This field is reliably populated for Lambda log groups and
  * is preferred over parsing the message text.
  */
-function firstRequestIdField(rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>): string | undefined {
+function firstRequestIdField(rows: CloudWatchLogsRows): string | undefined {
   for (const row of rows) {
     const value = (readRowField(row, '@requestId') ?? '').trim();
     if (value !== '') return value;
@@ -53,7 +55,7 @@ function firstRequestIdField(rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsRes
  * @returns The scan result, or `undefined` when there are no rows
  */
 export function scanLambdaLogs(
-  rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
+  rows: CloudWatchLogsRows,
   downstreamSignatures: ReadonlyArray<RegExp>,
 ): LambdaErrorScan | undefined {
   if (rows.length === 0) return undefined;
@@ -86,7 +88,6 @@ export function scanLambdaLogs(
     errorCount: rows.length,
     message: representative,
     category,
-    ...(requestId !== undefined ? { requestId } : {}),
-    ...(report !== undefined ? { report } : {}),
+    ...omitUndefined({ requestId, report }),
   };
 }

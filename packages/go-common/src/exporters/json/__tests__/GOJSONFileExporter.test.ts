@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'fs/promises';
+import * as path from 'path';
 
 import { GOJSONFileExporter } from '../GOJSONFileExporter.js';
 import type { GOJSONFileExporterOptions } from '../GOJSONFileExporterOptions.js';
@@ -35,10 +36,27 @@ describe('GOJSONFileExporter', () => {
     assert.strictEqual(await fs.readFile(freshPath, 'utf-8'), 'null');
   });
 
-  it('rejects a circular structure', async () => {
+  it('rejects a circular structure, keeping the previous file and leaving nothing behind', async () => {
     const circular: Record<string, unknown> = { name: 'loop' };
     circular['self'] = circular;
+    const outputPath = await tmp.write('failed/previous.json', '{"previous": true}');
 
-    await assert.rejects(new GOJSONFileExporter({ outputPath: tmp.file('circular.json') }).export(circular), TypeError);
+    await assert.rejects(new GOJSONFileExporter({ outputPath }).export({ rows: [1, 2], circular }), TypeError);
+    await assert.rejects(
+      new GOJSONFileExporter({ outputPath: tmp.file('failed/first.json') }).export(circular),
+      TypeError,
+    );
+
+    assert.strictEqual(await fs.readFile(outputPath, 'utf-8'), '{"previous": true}');
+    assert.deepStrictEqual(await fs.readdir(path.dirname(outputPath)), ['previous.json']);
+  });
+
+  it('writes a value whose text is longer than one write, with the same text as JSON.stringify', async () => {
+    const outputPath = tmp.file('large.json');
+    const rows = Array.from({ length: 3000 }, (_, index) => ({ index, text: 'x'.repeat(1000) }));
+
+    await new GOJSONFileExporter({ outputPath }).export({ rows });
+
+    assert.strictEqual(await fs.readFile(outputPath, 'utf-8'), JSON.stringify({ rows }, null, 2));
   });
 });

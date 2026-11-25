@@ -8,9 +8,14 @@ import { ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_QUERY_PROFILE } from './queryPr
 const CONFLUENCE_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3294068772/k8s-interop-be-attribute-registry-readmodel-writer-sql-errors';
 
+/**
+ * Builds the k8s-interop-be-attribute-registry-readmodel-writer-sql-errors runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM.runbookKey,
+    alarm: ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM,
     metadata: {
       name: ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM.runbookKey,
       description:
@@ -22,12 +27,6 @@ export function buildRunbook(): Runbook {
       tags: ['interop', 'k8s', 'service', 'attribute-registry', 'readmodel', 'sql', 'kafka'],
     },
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
-    service: {
-      name: ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM.podApp,
-      logGroup: ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM.logGroup,
-      varPrefix: ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM.varPrefix,
-    },
-    resolveAlarmContext: ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM.resolveContext,
     queryProfile: ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_QUERY_PROFILE,
     knownCases: KNOWN_CASES,
     analysisDefaults: {

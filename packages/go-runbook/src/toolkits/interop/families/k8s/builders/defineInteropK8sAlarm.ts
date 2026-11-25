@@ -1,56 +1,20 @@
-import * as interop from '../../index.js';
-
+import type { InteropK8sAlarm } from '../types/InteropK8sAlarm.js';
 import type { InteropK8sAlarmContext } from '../types/InteropK8sAlarmContext.js';
-import type { InteropEnvironment } from '../../../environment/InteropEnvironment.js';
 import { INTEROP_ENVIRONMENTS } from '../../../environment/INTEROP_ENVIRONMENTS.js';
-import { isInteropEnvironment } from '../../../environment/isInteropEnvironment.js';
-
-/** Builds the CloudWatch alarm name a runbook answers to, for one environment. */
-type InteropK8sAlarmNameFn = (runbookKey: string, environment: InteropEnvironment) => string;
+import { interopAlarmEnvironment } from '../../../alarms/interopAlarmEnvironment.js';
+import {
+  buildInteropK8sApplicationLogGroup,
+  INTEROP_K8S_APPLICATION_LOG_GROUP_TEMPLATE,
+} from '../../../applicationLogs/helpers/buildInteropK8sApplicationLogGroup.js';
+import { defaultInteropK8sRunbookStepIds } from './createInteropK8sAlarmRunbook.js';
+import type { InteropK8sAlarmNameFn } from './InteropK8sAlarmNameFn.js';
+import type { InteropK8sAlarmSpec } from './InteropK8sAlarmSpec.js';
 
 /**
  * Default alarm naming: the runbook key followed by the environment.
  * `k8s-interop-be-…-errors-prod`.
  */
 const defaultAlarmName: InteropK8sAlarmNameFn = (runbookKey, environment) => `${runbookKey}-${environment}`;
-
-/** Resolves the runtime context from the alarm name that fired. */
-type InteropK8sResolveContextFn = (alarmName: string) => InteropK8sAlarmContext;
-
-/** What distinguishes one INTEROP k8s alarm runbook from its siblings. */
-export interface InteropK8sAlarmSpec {
-  /** Runbook key, also the stem of the alarm names. */
-  readonly runbookKey: string;
-  /** k8s pod app whose application logs the runbook reads. */
-  readonly podApp: string;
-  /** Prefix of the context vars the pipeline writes (`<prefix>LogCount`, …). */
-  readonly varPrefix: string;
-  /** Documented environments for this alarm; defaults to prod, att and test. */
-  readonly environments?: readonly [InteropEnvironment, ...InteropEnvironment[]];
-  /**
-   * Alarm naming, when it is not `<runbookKey>-<environment>`. Some alarms
-   * carry the environment in the middle and end with a namespace segment.
-   */
-  readonly alarmName?: InteropK8sAlarmNameFn;
-}
-
-/**
- * Everything a runbook, its known cases and the registry need about one
- * INTEROP k8s alarm.
- */
-export interface InteropK8sAlarm {
-  readonly runbookKey: string;
-  readonly podApp: string;
-  readonly varPrefix: string;
-  /** Application log group template shared by every INTEROP k8s runbook. */
-  readonly logGroup: string;
-  /** Every alarm this runbook answers to, one per supported environment. */
-  readonly alarmNames: readonly [string, ...string[]];
-  /** Ids of the five pipeline steps, referenced by known cases and tests. */
-  readonly stepIds: interop.k8s.InteropK8sRunbookStepIds;
-  /** Resolves the runtime context from the alarm name that fired. */
-  readonly resolveContext: InteropK8sResolveContextFn;
-}
 
 /**
  * Declares one INTEROP k8s alarm runbook.
@@ -75,37 +39,25 @@ export interface InteropK8sAlarm {
 export function defineInteropK8sAlarm(spec: InteropK8sAlarmSpec): InteropK8sAlarm {
   const buildName = spec.alarmName ?? defaultAlarmName;
   const environments = spec.environments ?? INTEROP_ENVIRONMENTS;
-  const alarmNames = environments.map((environment) => buildName(spec.runbookKey, environment)) as [
-    string,
-    ...string[],
-  ]; // Safe: environments is a non-empty tuple.
-
-  // Alarm names are plain slugs, so the environment can be recovered by
-  // matching each candidate name rather than by escaping a pattern.
-  const environmentByAlarmName = new Map<string, InteropEnvironment>(
-    environments.map((environment) => [buildName(spec.runbookKey, environment), environment]),
-  );
+  const alarms = environments.map((environment) => [buildName(spec.runbookKey, environment), environment] as const);
+  const alarmNames = alarms.map(([name]) => name) as [string, ...string[]]; // Safe: environments is a non-empty tuple.
+  const environmentOf = interopAlarmEnvironment(alarms);
 
   return {
     runbookKey: spec.runbookKey,
     podApp: spec.podApp,
     varPrefix: spec.varPrefix,
-    logGroup: interop.k8s.INTEROP_K8S_APPLICATION_LOG_GROUP_TEMPLATE,
+    logGroup: INTEROP_K8S_APPLICATION_LOG_GROUP_TEMPLATE,
     alarmNames,
-    stepIds: interop.k8s.defaultInteropK8sRunbookStepIds(spec.podApp),
+    stepIds: defaultInteropK8sRunbookStepIds(spec.podApp),
     resolveContext(alarmName: string): InteropK8sAlarmContext {
-      const environment = environmentByAlarmName.get(alarmName);
-      if (!isInteropEnvironment(environment)) {
-        // Sorted like the registry/catalog descriptors expose alarmNames.
-        const expected = [...alarmNames].sort().join(', ');
-        throw new Error(`Unsupported INTEROP alarm name "${alarmName}". Expected one of: ${expected}`);
-      }
+      const environment = environmentOf(alarmName);
       return {
         alarmName,
         runbookKey: spec.runbookKey,
         environment,
         podApp: spec.podApp,
-        logGroup: interop.k8s.buildInteropK8sApplicationLogGroup(environment),
+        logGroup: buildInteropK8sApplicationLogGroup(environment),
       };
     },
   };

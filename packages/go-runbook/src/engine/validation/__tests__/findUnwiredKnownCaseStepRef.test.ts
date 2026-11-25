@@ -8,7 +8,6 @@ function knownCase(id: string, ref: string): KnownCase {
   return {
     id,
     description: id,
-    priority: 1,
     condition: { type: 'exists', ref },
     action: { type: 'log', level: 'info', title: id },
   };

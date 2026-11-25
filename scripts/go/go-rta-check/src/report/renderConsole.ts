@@ -83,10 +83,12 @@ export function formatVerificationCell(row: RtaCheckRow): string {
 
 /** Prints one row of the live per-execution table as each occurrence completes. */
 export function renderResultsRow(logger: GOLogger, productName: string, alarmName: string, row: RtaCheckRow): void {
+  const cases = row.runbook.matchedCaseIds;
+  const incomplete = row.runbook.incompleteSources === undefined ? '' : ' · evidenza incompleta';
   const esito =
-    row.runbook.status === 'HIT' && row.runbook.primaryCaseId !== undefined
-      ? `HIT · ${row.runbook.primaryCaseId}`
-      : row.runbook.status;
+    row.runbook.status === 'HIT' && cases.length > 0
+      ? `HIT · ${cases.join(', ')}${incomplete}`
+      : `${row.runbook.status}${incomplete}`;
   logger.text(
     [
       cell(productEnvLabel(productName, row.event.environment), RESULT_COLUMNS[0].width),
@@ -108,11 +110,12 @@ export function renderSummary(logger: GOLogger, report: RtaCheckReport): void {
   logger.simpleTable([
     { Esito: 'HIT', Count: summary.hit, '%': percent(summary.hit) },
     { Esito: 'MISS', Count: summary.miss, '%': percent(summary.miss) },
+    { Esito: 'INCONCLUSIVE', Count: summary.inconclusive, '%': percent(summary.inconclusive) },
     { Esito: 'NO-DATA', Count: summary.noData, '%': percent(summary.noData) },
     { Esito: 'CONFIG-ERROR', Count: summary.configError, '%': percent(summary.configError) },
     { Esito: 'EXECUTION-ERROR', Count: summary.executionError, '%': percent(summary.executionError) },
   ]);
-  logger.info(`Copertura automation (HIT/(HIT+MISS)): ${summary.automationCoveragePct}%`);
+  logger.info(`Copertura automation (HIT/(HIT+MISS+INCONCLUSIVE)): ${summary.automationCoveragePct}%`);
   logger.info(
     `Eseguibili ((HIT+MISS)/tot): ${summary.executableRatePct}% · Config-error: ${summary.configErrorRatePct}%`,
   );
@@ -162,11 +165,11 @@ function formatCritical(row: RtaCheckRow): string {
   const runbook = row.runbook;
   let detail: string;
   if (runbook.status === 'HIT') {
-    detail = `CONFLICT con caso "${runbook.primaryCaseId ?? ''}"`;
+    detail = `CONFLICT con casi "${runbook.matchedCaseIds.join(', ')}"`;
   } else if (runbook.error !== undefined && runbook.error !== '') {
     detail = runbook.error.slice(0, 90);
   } else {
-    detail = runbook.primaryCaseId ?? '';
+    detail = runbook.matchedCaseIds.join(', ');
   }
   return `  • [${runbook.status}] ${row.event.firedAt} ${detail}`.trimEnd();
 }

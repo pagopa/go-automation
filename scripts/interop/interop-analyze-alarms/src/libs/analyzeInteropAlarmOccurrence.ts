@@ -46,7 +46,7 @@ export async function analyzeInteropAlarmOccurrence(input: AnalyzeInteropAlarmOc
   const cids = collectDistinctCids(applicationLogsRows);
   for (const cid of cids) {
     input.script.logger.step(`Querying cid: ${cid}`);
-    const cidTrackerQuery = interop.k8s.buildInteropK8sCidTrackerQuery(cid);
+    const cidTrackerQuery = interop.k8s.buildInteropK8sCidTrackerQuery([cid]);
     const cidResults = await input.script.aws.services.cloudWatchLogs.query(
       [alarmContext.logGroup],
       cidTrackerQuery,

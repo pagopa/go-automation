@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { logAction } from '../../../engine/actions/ActionFactories.js';
-import type { Runbook } from '../../../engine/types/Runbook.js';
 import { RunbookCatalog } from '../../../toolkits/common/registration/RunbookCatalog.js';
 import { RunbookKinds } from '../../../toolkits/common/registration/RunbookKind.js';
 import { RunbookProducts } from '../../../toolkits/common/registration/RunbookProduct.js';
@@ -26,37 +24,6 @@ function registrationOf(key: string): RunbookRegistration {
   };
 }
 
-/** A minimal runbook, with or without the explicit cloud policy. */
-function minimalRunbook(withPolicy: boolean): Runbook {
-  return {
-    metadata: {
-      id: 'test',
-      name: 'test',
-      description: 'test',
-      version: '1.0.0',
-      type: 'alarm-resolution',
-      team: 'GO',
-      tags: [],
-    },
-    steps: [
-      {
-        step: {
-          id: 'read-only',
-          label: 'Read only',
-          kind: 'data',
-          async execute() {
-            await Promise.resolve();
-            return { success: true };
-          },
-        },
-      },
-    ],
-    knownCases: [],
-    fallbackAction: logAction({ level: 'info', title: 'done' }),
-    ...(withPolicy ? { cloudExecutionPolicy: { sideEffects: 'NONE' as const } } : {}),
-  };
-}
-
 describe('RUNBOOK_CATALOG', () => {
   it('resolves every alarm name to the descriptor of its key and nothing else', () => {
     for (const descriptor of RUNBOOK_CATALOG.listDescriptors()) {
@@ -76,16 +43,7 @@ describe('RUNBOOK_CATALOG', () => {
       first.map(({ key }) => key).sort(),
     );
     assert.ok(first.every(({ definitionDigest }) => /^sha256-[a-f0-9]{64}$/.test(definitionDigest)));
-    // The default registry delegates to RUNBOOK_CATALOG.validateForCloud().
     assert.doesNotThrow(() => validateCloudRunbookRegistry());
-  });
-
-  it('rejects a custom registry entry without an explicit cloud policy', () => {
-    assert.throws(
-      () => validateCloudRunbookRegistry(new Map([['alarm', () => minimalRunbook(false)]])),
-      /Cloud runbook registry rejected "alarm".*does not declare cloud sideEffects=NONE/u,
-    );
-    assert.doesNotThrow(() => validateCloudRunbookRegistry(new Map([['alarm', () => minimalRunbook(true)]])));
   });
 
   it('builds lazily: nothing at construction, one build per resolved descriptor, a fresh build per execution', () => {

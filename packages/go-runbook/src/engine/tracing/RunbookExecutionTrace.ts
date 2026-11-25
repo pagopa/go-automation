@@ -3,6 +3,7 @@ import type { StepTrace } from './StepTrace.js';
 import type { CaseMatchingTrace } from './CaseMatchingTrace.js';
 import type { ActionTrace } from './ActionTrace.js';
 import type { ExecutionSummary } from './ExecutionSummary.js';
+import type { CoverageEntry } from '../types/CoverageEntry.js';
 
 /**
  * Structured trace of a complete runbook execution.
@@ -18,7 +19,7 @@ import type { ExecutionSummary } from './ExecutionSummary.js';
  */
 export interface RunbookExecutionTrace {
   /** Schema version for forward compatibility */
-  readonly schemaVersion: '1.0.0';
+  readonly schemaVersion: '3.0.0';
   /** General execution information */
   readonly execution: ExecutionInfo;
   /** Input parameters provided to the runbook */
@@ -30,12 +31,13 @@ export interface RunbookExecutionTrace {
   /** Detail of known case matching */
   readonly caseMatching: CaseMatchingTrace;
   /**
-   * Detail of every executed action, in the order they ran.
-   * For multi-match scenarios this contains one entry per matched
-   * case (sorted by priority desc) plus the fallback when no case
-   * matched.
+   * Detail of every executed action, in the order they ran: one entry per detection, in the order of the detections,
+   * or the fallback when no case matched.
    */
   readonly actionsExecuted: ReadonlyArray<ActionTrace>;
+  /** Partial evidence declared by the steps, or recorded by the engine for a failed read. */
+  readonly coverage: ReadonlyArray<CoverageEntry>;
+  readonly readFailures?: Readonly<Record<string, number>>;
   /** Synthetic execution summary */
   readonly summary: ExecutionSummary;
 }

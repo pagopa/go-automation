@@ -1,7 +1,7 @@
 /**
  * Known cases for the pn-national-registries-INAD-downstream-detection-Alarm runbook.
  */
-import { knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import { downstreamMarkerPattern, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
 import { type KnownCase, stepEvidenceMatches } from '../../../../engine/index.js';
 
 const INAD_DIGITAL_DOMICILE_ENDPOINT = 'https://api.inad.gov.it/rest/inad/v1/domiciliodigitale/extract/{codiceFiscale}';
@@ -12,7 +12,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'inad-unauthorized-after-token-refresh-401',
     description: '[DOWNSTREAM INAD] HTTP 401 anche dopo il refresh del token',
-    priority: 140,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
       'Service INAD returned errors=401 Unauthorized from GET ' +
@@ -45,11 +44,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'inad-digital-domicile-internal-server-error-500',
     description: '[DOWNSTREAM INAD] HTTP 500 durante il recupero del domicilio digitale',
-    priority: 130,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service INAD returned errors=500 Internal Server Error from GET ' +
-        'https://api\\.inad\\.gov\\.it/rest/inad/v1/domiciliodigitale/extract/[^\\s"]+',
+      `${downstreamMarkerPattern('INAD', {
+        status: '500 Internal Server Error',
+        method: 'GET',
+        endpoint: 'https://api.inad.gov.it/rest/inad/v1/domiciliodigitale/extract/',
+      })}[^\\s"]+`,
     ),
     resolution: 'Thread Slack segnalazione 02/10/2026',
     details: [
@@ -77,10 +78,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'inad-connection-reset-by-peer',
     description: '[DOWNSTREAM INAD] Connessione chiusa dal downstream',
-    priority: 120,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service INAD returned errors=recvAddress\\(\\.\\.\\) failed: Connection reset by peer',
+      `${downstreamMarkerPattern('INAD')}recvAddress\\(\\.\\.\\) failed: Connection reset by peer`,
     ),
     resolution:
       'Monitorare la risorsa per verificare le tempistiche del disservizio. Nel caso in esame \u00E8 rientrato al successivo evento di polling e non si sono intraprese altre azioni',
@@ -102,11 +102,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'inad-connect-timeout',
     description: '[DOWNSTREAM INAD] Timeout di connessione',
-    priority: 110,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service INAD returned errors=connection timed out after \\d+ ms: ' +
-        'api\\.inad\\.gov\\.it/[^\\s"]+:443',
+      `${downstreamMarkerPattern('INAD')}connection timed out after \\d+ ms: api\\.inad\\.gov\\.it/[^\\s"]+:443`,
     ),
     resolution:
       'Monitorare la risorsa per verificare le tempistiche del disservizio. Nel caso in esame \u00E8 rientrato al successivo evento di polling e non si sono intraprese altre azioni',
@@ -128,10 +126,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'inad-service-unavailable-503',
     description: '[DOWNSTREAM INAD] Servizio temporaneamente non disponibile (HTTP 503)',
-    priority: 100,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service INAD returned errors=503 Service Unavailable',
+      downstreamMarkerPattern('INAD', { status: '503 Service Unavailable' }),
     ),
     title: '[DOWNSTREAM INAD] Servizio non disponibile (HTTP 503)',
     resolution:

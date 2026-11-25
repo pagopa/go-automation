@@ -28,7 +28,7 @@ export const ENTRY_SERVICE: apigw.ApiGwService = {
 export const REACHABLE_SERVICES: ReadonlyArray<apigw.ApiGwService> = [
   {
     name: 'pn-data-vault',
-    logGroup: '/aws/ecs/pn-data-vault',
+    logGroup: '/aws/ecs/pn-data-vault-sep',
     varPrefix: 'dataVault',
   },
   {

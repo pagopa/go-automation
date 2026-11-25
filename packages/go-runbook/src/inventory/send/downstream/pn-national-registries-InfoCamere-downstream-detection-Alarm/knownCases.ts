@@ -1,7 +1,7 @@
 /**
  * Known cases for the pn-national-registries-InfoCamere-downstream-detection-Alarm runbook.
  */
-import { knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import { downstreamMarkerPattern, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
 import { type KnownCase, stepEvidenceMatches } from '../../../../engine/index.js';
 
 const INFOCAMERE_PEC_ENDPOINT = 'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/richiestaElencoPec';
@@ -13,10 +13,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'infocamere-richiesta-elenco-pec-read-timeout',
     description: '[DOWNSTREAM InfoCamere] Timeout durante la richiesta elenco PEC',
-    priority: 120,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service InfoCamere returned errors=Unknown error' +
+      `${downstreamMarkerPattern('InfoCamere')}Unknown error` +
         '[\\s\\S]*org\\.springframework\\.web\\.reactive\\.function\\.client\\.WebClientRequestException' +
         '[\\s\\S]*Request to POST ' +
         'https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/richiestaElencoPec' +
@@ -41,11 +40,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'infocamere-authentication-internal-server-error-500',
     description: '[DOWNSTREAM InfoCamere] Errore HTTP 500 durante autenticazione',
-    priority: 110,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service InfoCamere returned errors=500 Internal Server Error from POST ' +
-        'https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/authentication(?:\\?client_id=[^\\s"]*)?',
+      `${downstreamMarkerPattern('InfoCamere', {
+        status: '500 Internal Server Error',
+        method: 'POST',
+        endpoint: 'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/authentication',
+      })}(?:\\?client_id=[^\\s"]*)?`,
     ),
     resolution: 'Risoluzione non documentata.',
     details: [
@@ -68,11 +69,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'infocamere-connect-timeout',
     description: '[DOWNSTREAM InfoCamere] Timeout di connessione',
-    priority: 100,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service InfoCamere returned errors=finishConnect\\(\\.\\.\\) failed: ' +
-        'Connection timed out: icapis\\.infocamere\\.it',
+      `${downstreamMarkerPattern(
+        'InfoCamere',
+      )}finishConnect\\(\\.\\.\\) failed: Connection timed out: icapis\\.infocamere\\.it`,
     ),
     resolution: 'Risoluzione non documentata.',
     details: [
@@ -93,11 +94,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'infocamere-connection-reset-by-peer',
     description: '[DOWNSTREAM InfoCamere] Connessione chiusa dal downstream',
-    priority: 90,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service InfoCamere returned errors=recvAddress\\(\\.\\.\\) failed: ' +
-        'Connection reset by peer',
+      `${downstreamMarkerPattern('InfoCamere')}recvAddress\\(\\.\\.\\) failed: Connection reset by peer`,
     ),
     resolution: 'Risoluzione non documentata.',
     details: [
@@ -117,13 +116,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'infocamere-legal-representative-internal-server-error-500',
     description: '[DOWNSTREAM InfoCamere] HTTP 500 durante l’elenco legale rappresentante',
-    priority: 130,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service InfoCamere returned errors=500 Internal Server Error from GET ' +
-        'https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/listaLegaleRappresentante/[^\\s;"\\\\/]+;\\s*\\{' +
-        '(?=[^}]*\\\\*"code\\\\*"\\s*:\\s*\\\\*"WSPA_ERR_00\\\\*")' +
-        '(?=[^}]*\\\\*"appName\\\\*"\\s*:\\s*\\\\*"wspa-lref\\\\*")[^}]*\\}',
+      `${downstreamMarkerPattern('InfoCamere', {
+        status: '500 Internal Server Error',
+        method: 'GET',
+        endpoint: 'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/listaLegaleRappresentante/',
+      })}[^\\s;"\\\\/]+;\\s*\\{(?=[^}]*\\\\*"code\\\\*"\\s*:\\s*\\\\*"WSPA_ERR_00\\\\*")(?=[^}]*\\\\*"appName\\\\*"\\s*:\\s*\\\\*"wspa-lref\\\\*")[^}]*\\}`,
     ),
     title: '[DOWNSTREAM InfoCamere] Elenco legale rappresentante non disponibile (HTTP 500)',
     resolution: 'Risoluzione non documentata.',

@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { messageRow } from '../../../../../../__tests__/helpers/logRow.js';
 
-import { matchDownstreamErrorPattern, findDownstreamInRows } from '../matchDownstreamErrorPattern.js';
+import { downstreamFinder, matchDownstreamErrorPattern } from '../matchDownstreamErrorPattern.js';
 import type { DownstreamErrorPattern } from '../../types/DownstreamErrorPattern.js';
 
 const PATTERNS: ReadonlyArray<DownstreamErrorPattern> = [
@@ -25,16 +25,13 @@ describe('matchDownstreamErrorPattern', () => {
   });
 });
 
-describe('findDownstreamInRows', () => {
+describe('downstreamFinder', () => {
   it('matches a downstream pattern on a non-first row', () => {
-    const match = findDownstreamInRows(
-      [
-        messageRow('START RequestId: 11111111-2222-3333-4444-555555555555'),
-        messageRow('some unrelated info line'),
-        messageRow('External service pn-emd-integration returned errors { status code 404 }'),
-      ],
-      PATTERNS,
-    );
+    const match = downstreamFinder(PATTERNS)([
+      messageRow('START RequestId: 11111111-2222-3333-4444-555555555555'),
+      messageRow('some unrelated info line'),
+      messageRow('External service pn-emd-integration returned errors { status code 404 }'),
+    ]);
     assert.deepStrictEqual(match, {
       target: 'pn-emd-integration',
       message: 'External service pn-emd-integration returned errors { status code 404 }',
@@ -42,6 +39,6 @@ describe('findDownstreamInRows', () => {
   });
 
   it('returns undefined when no row matches', () => {
-    assert.strictEqual(findDownstreamInRows([messageRow('nothing here')], PATTERNS), undefined);
+    assert.strictEqual(downstreamFinder(PATTERNS)([messageRow('nothing here')]), undefined);
   });
 });

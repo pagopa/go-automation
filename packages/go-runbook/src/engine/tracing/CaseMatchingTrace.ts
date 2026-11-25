@@ -7,11 +7,11 @@ import type { CaseEvaluationTrace } from './CaseEvaluationTrace.js';
 export interface CaseMatchingTrace {
   /** Total number of cases evaluated */
   readonly casesEvaluated: number;
-  /** Detail of each case evaluation */
+  /** Detail of each case evaluation, in declaration order */
   readonly evaluations: ReadonlyArray<CaseEvaluationTrace>;
   /**
-   * IDs of every known case that matched the final context, sorted by
-   * priority descending. Empty array when no case matched.
+   * IDs of the detections, in the order of the detections: `firstSeenAt` ascending, declaration order on ties,
+   * untimed last. Superseded cases are not listed. Empty when no case matched.
    */
   readonly matchedCaseIds: ReadonlyArray<string>;
 }

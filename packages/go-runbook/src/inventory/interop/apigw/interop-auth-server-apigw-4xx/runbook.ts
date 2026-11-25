@@ -5,9 +5,14 @@ import type { Runbook } from '../../../../engine/index.js';
 import { KNOWN_CASES } from './knownCases.js';
 import { AUTH_SERVER_4XX_QUERY_PROFILE } from './queryProfile.js';
 
+/**
+ * Builds the interop-auth-server-apigw-4xx runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return interop.apigw.createInteropApiGwAlarmRunbook({
-    id: AUTH_SERVER_ALARM.runbookKey,
+    alarm: AUTH_SERVER_ALARM,
     metadata: {
       name: AUTH_SERVER_ALARM.runbookKey,
       description:
@@ -19,17 +24,8 @@ export function buildRunbook(): Runbook {
     },
     occurrenceTimeWindow: { beforeMinutes: 2, afterMinutes: 1 },
     resolverId: 'interop-auth-server-api-gateway-context',
-    resolveAlarmContext: AUTH_SERVER_ALARM.resolveContext,
     queryProfile: AUTH_SERVER_4XX_QUERY_PROFILE,
-    apiGw: {
-      logGroupTemplate: AUTH_SERVER_ALARM.apiGwLogGroupTemplate,
-      profileId: AUTH_SERVER_ALARM.apiGwProfileId,
-    },
     application: {
-      serviceName: AUTH_SERVER_ALARM.serviceName,
-      logGroupTemplate: AUTH_SERVER_ALARM.applicationLogGroupTemplate,
-      varPrefix: AUTH_SERVER_ALARM.varPrefix,
-      ...(AUTH_SERVER_ALARM.podAppFilter !== undefined ? { podAppFilter: AUTH_SERVER_ALARM.podAppFilter } : {}),
       // The warning scan stops at the alarm instant: later warnings belong
       // to a different occurrence.
       timeRangeFromParams: { start: 'startTime', end: 'alarmDatetime' },

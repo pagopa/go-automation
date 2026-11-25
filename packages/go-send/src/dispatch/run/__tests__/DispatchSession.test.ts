@@ -487,7 +487,7 @@ describe('DispatchSession', () => {
     // QA profile: requestId goes into the existing RequestID column.
     assert.match(output[1] ?? '', /,PREPARE_ANALOG_DOMICILE\.IUN_[A-Z-0-9]+\.RECINDEX_0\.ATTEMPT_0,[A-Z]{4}-/);
     const report = await readCsv(path.join(base.dir, 'session-1', 'report.csv'));
-    assert.match(report[0] ?? '', /analogRequestId,digitalRequestId,requestIds,requestIdReason/);
+    assert.match(report[0] ?? '', /analogRequestId,simpleRegisteredLetterRequestId,requestIds,requestIdReason/);
     assert.match(report[1] ?? '', /REQUEST_ID_FOUND/);
   });
 

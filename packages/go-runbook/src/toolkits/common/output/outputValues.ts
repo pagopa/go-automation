@@ -1,6 +1,6 @@
 import { trimToUndefined } from '@pagopa/go-common/utils';
 
-import type { RunbookResultField } from './RunbookOutputContext.js';
+import type { RunbookResultField } from './RunbookResultField.js';
 
 /** Placeholder CloudWatch and API Gateway access logs write for "field not present". */
 const ABSENT_FIELD_PLACEHOLDER = '-';

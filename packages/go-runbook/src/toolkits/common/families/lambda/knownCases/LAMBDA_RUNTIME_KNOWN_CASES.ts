@@ -1,5 +1,5 @@
 import { knownCase } from '../../../analysis/knownCase.js';
-import type { KnownCase } from '../../../../../engine/types/KnownCase.js';
+import type { KnownCase } from '../../../../../engine/index.js';
 
 /**
  * Built-in runtime known cases shared by Lambda runbooks (timeout /
@@ -10,7 +10,6 @@ export const LAMBDA_RUNTIME_KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'lambda-timeout',
     description: 'Timeout runtime della Lambda',
-    priority: 100,
     condition: { type: 'compare', ref: 'vars.lambdaErrorCategory', operator: '==', value: 'timeout' },
     title: 'Timeout Lambda {{vars.lambdaFunctionName}}',
     resolution: 'Risoluzione non documentata.',
@@ -26,7 +25,6 @@ export const LAMBDA_RUNTIME_KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'lambda-out-of-memory',
     description: 'Out of memory della Lambda',
-    priority: 99,
     condition: { type: 'compare', ref: 'vars.lambdaErrorCategory', operator: '==', value: 'out-of-memory' },
     title: 'OutOfMemory Lambda {{vars.lambdaFunctionName}}',
     resolution: 'Risoluzione non documentata.',

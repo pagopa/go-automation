@@ -1,7 +1,7 @@
 /**
  * Known cases for the pn-national-registries-ANPR-downstream-detection-Alarm runbook.
  */
-import { knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import { downstreamMarkerPattern, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
 import { type KnownCase, stepEvidenceMatches } from '../../../../engine/index.js';
 const ANPR_NOTIFICATION_ENDPOINT =
   'https://modipa.anpr.interno.it/govway/rest/in/MinInternoPortaANPR-PDND/C001-servizioNotifica/v1/anpr-service-e002';
@@ -10,12 +10,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'anpr-not-found-404',
     description: '[DOWNSTREAM ANPR] Risposta HTTP 404 dal servizio di notifica',
-    priority: 120,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service ANPR returned errors=404 Not Found from POST ' +
-        'https://modipa\\.anpr\\.interno\\.it/govway/rest/in/MinInternoPortaANPR-PDND/' +
-        'C001-servizioNotifica/v1/anpr-service-e002',
+      downstreamMarkerPattern('ANPR', {
+        status: '404 Not Found',
+        method: 'POST',
+        endpoint:
+          'https://modipa.anpr.interno.it/govway/rest/in/MinInternoPortaANPR-PDND/C001-servizioNotifica/v1/anpr-service-e002',
+      }),
     ),
     resolution:
       'Nessuna azione necessaria qualora sia solo un picco circoscritto in un intervallo di tempo limitato. Si tratterebbe di un disservizio momentaneo.',
@@ -37,11 +39,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'anpr-not-specified-error',
     description: '[DOWNSTREAM ANPR] Errore senza dettaglio restituito dal downstream',
-    priority: 110,
-    condition: stepEvidenceMatches(
-      'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service ANPR returned errors=<not specified>',
-    ),
+    condition: stepEvidenceMatches('query-pn-national-registries', `${downstreamMarkerPattern('ANPR')}<not specified>`),
     title: '[DOWNSTREAM ANPR] Errore senza dettaglio',
     resolution:
       'Nessuna azione necessaria qualora sia solo un picco circoscritto in un intervallo di tempo limitato. Si tratterebbe di un disservizio momentaneo.',
@@ -62,12 +60,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'anpr-bad-request-400',
     description: '[DOWNSTREAM ANPR] Risposta HTTP 400 dal servizio di notifica',
-    priority: 100,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service ANPR returned errors=400 Bad Request from POST ' +
-        'https://modipa\\.anpr\\.interno\\.it/govway/rest/in/MinInternoPortaANPR-PDND/' +
-        'C001-servizioNotifica/v1/anpr-service-e002',
+      downstreamMarkerPattern('ANPR', {
+        status: '400 Bad Request',
+        method: 'POST',
+        endpoint:
+          'https://modipa.anpr.interno.it/govway/rest/in/MinInternoPortaANPR-PDND/C001-servizioNotifica/v1/anpr-service-e002',
+      }),
     ),
     resolution:
       'Nessuna azione necessaria qualora sia solo un picco circoscritto in un intervallo di tempo limitato. Si tratterebbe di un disservizio momentaneo.',

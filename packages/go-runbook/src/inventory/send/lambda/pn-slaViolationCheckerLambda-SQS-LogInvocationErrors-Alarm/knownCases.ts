@@ -5,7 +5,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'lambda-timeout',
     description: 'Timeout runtime della Lambda',
-    priority: 100,
     condition: {
       type: 'compare',
       ref: 'vars.lambdaErrorCategory',
@@ -30,7 +29,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'lambda-out-of-memory',
     description: 'Out of memory della Lambda',
-    priority: 99,
     condition: {
       type: 'compare',
       ref: 'vars.lambdaErrorCategory',

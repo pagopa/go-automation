@@ -72,7 +72,7 @@ export function applyJournalEntry(state: RowState | undefined, entry: JournalEnt
       return next;
     case 'REQUEST_ID_FOUND':
       return {
-        ...withTimelineAcceptance(next, entry),
+        ...withoutError(withTimelineAcceptance(next, entry)),
         ...(entry.requestIds !== undefined && { requestIds: entry.requestIds }),
         requestIdReason: entry.requestIdReason ?? 'FOUND',
         requestIdFoundAt: entry.ts,

@@ -1,2 +1,2 @@
-/** Builds the INTEROP CID-tracker query for a CID. */
-export type BuildInteropK8sCidTrackerQueryFn = (cid: string) => string;
+/** Builds the INTEROP CID-tracker query of a batch of CIDs. */
+export type BuildInteropK8sCidTrackerQueryFn = (cids: ReadonlyArray<string>) => string;

@@ -7,9 +7,14 @@ import { KNOWN_CASES } from './knownCases.js';
 const CONFLUENCE_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/2739208193/k8s-interop-be-compute-agreements-consumer-errors-prod';
 
+/**
+ * Builds the k8s-interop-be-compute-agreements-consumer-errors runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: COMPUTE_AGREEMENTS_CONSUMER_ALARM.runbookKey,
+    alarm: COMPUTE_AGREEMENTS_CONSUMER_ALARM,
     metadata: {
       name: COMPUTE_AGREEMENTS_CONSUMER_ALARM.runbookKey,
       description:
@@ -20,12 +25,6 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'service', 'compute', 'agreements', 'consumer', 'kafka'],
     },
-    service: {
-      name: COMPUTE_AGREEMENTS_CONSUMER_ALARM.podApp,
-      logGroup: COMPUTE_AGREEMENTS_CONSUMER_ALARM.logGroup,
-      varPrefix: COMPUTE_AGREEMENTS_CONSUMER_ALARM.varPrefix,
-    },
-    resolveAlarmContext: COMPUTE_AGREEMENTS_CONSUMER_ALARM.resolveContext,
     knownCases: KNOWN_CASES,
     analysisDefaults: {
       runbookName: COMPUTE_AGREEMENTS_CONSUMER_ALARM.runbookKey,

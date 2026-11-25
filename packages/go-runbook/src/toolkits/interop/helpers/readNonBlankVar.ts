@@ -1,4 +1,6 @@
-import type { RunbookContext } from '../../../engine/types/RunbookContext.js';
+import { trimToUndefined } from '@pagopa/go-common/utils';
+
+import type { RunbookContext } from '../../../engine/index.js';
 
 /**
  * Value of a runbook variable, trimmed; `undefined` when it is missing or blank.
@@ -8,6 +10,5 @@ import type { RunbookContext } from '../../../engine/types/RunbookContext.js';
  * @returns The trimmed value, or `undefined`
  */
 export function readNonBlankVar(context: RunbookContext, key: string): string | undefined {
-  const value = context.vars.get(key)?.trim();
-  return value === undefined || value === '' ? undefined : value;
+  return trimToUndefined(context.vars.get(key));
 }

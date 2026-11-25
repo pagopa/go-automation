@@ -6,7 +6,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-get-addresses-read-timeout',
     description: 'Timeout di lettura del BFF durante getAddressesV1 verso pn-user-attributes',
-    priority: 500,
     condition: all(
       apiGwStatusIs('500'),
       varEquals('apiGwHttpMethod', 'GET'),

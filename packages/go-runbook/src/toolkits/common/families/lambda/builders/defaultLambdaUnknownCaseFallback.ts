@@ -1,4 +1,4 @@
-import type { CaseAction, LogActionRow } from '../../../../../engine/types/CaseAction.js';
+import type { CaseAction, LogActionRow } from '../../../../../engine/index.js';
 import { unknownCaseFallback, UNKNOWN_CASE_TITLE } from '../../../analysis/reporting/unknownCaseFallback.js';
 import type { LambdaDownstream } from '../types/LambdaDownstream.js';
 

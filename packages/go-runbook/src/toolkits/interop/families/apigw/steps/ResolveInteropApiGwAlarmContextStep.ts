@@ -1,76 +1,60 @@
-import { getErrorMessage } from '@pagopa/go-common/errors';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
-import type { Step } from '../../../../../engine/types/Step.js';
-import type { StepKind } from '../../../../../engine/types/StepKind.js';
-import type { StepResult } from '../../../../../engine/types/StepResult.js';
+import { ResolveInteropAlarmContextStep } from '../../../alarms/ResolveInteropAlarmContextStep.js';
+import type { ResolveInteropAlarmContextFn } from '../../../alarms/ResolveInteropAlarmContextFn.js';
 import type { InteropApiGwAlarmContext } from '../types/InteropApiGwAlarmContext.js';
-import type { ResolveInteropApiGwAlarmContextFn } from '../types/ResolveInteropApiGwAlarmContextFn.js';
 
 export interface ResolveInteropApiGwAlarmContextStepConfig {
   readonly id: string;
   readonly label: string;
   readonly resolverId: string;
-  readonly resolveAlarmContext: ResolveInteropApiGwAlarmContextFn;
+  readonly resolveAlarmContext: ResolveInteropAlarmContextFn<InteropApiGwAlarmContext>;
 }
 
-export class ResolveInteropApiGwAlarmContextStep implements Step<InteropApiGwAlarmContext> {
-  readonly id: string;
-  readonly label: string;
-  readonly kind: StepKind = 'control';
-
+/**
+ * First step of an INTEROP API Gateway alarm runbook: environment, API Gateway, access log group, pod app and
+ * application log group of the alarm that fired.
+ *
+ * @example
+ * ```typescript
+ * new ResolveInteropApiGwAlarmContextStep({ id: 'resolve-interop-api-gw-context', label: '…', resolverId, resolveAlarmContext });
+ * ```
+ */
+export class ResolveInteropApiGwAlarmContextStep extends ResolveInteropAlarmContextStep<InteropApiGwAlarmContext> {
   private readonly resolverId: string;
-  private readonly resolveAlarmContext: ResolveInteropApiGwAlarmContextFn;
 
+  /**
+   * @param config - Id, label, resolver id and resolver of the context
+   */
   constructor(config: ResolveInteropApiGwAlarmContextStepConfig) {
-    this.id = config.id;
-    this.label = config.label;
+    super(config.id, config.label, config.resolveAlarmContext);
     this.resolverId = config.resolverId;
-    this.resolveAlarmContext = config.resolveAlarmContext;
   }
 
-  getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
-    return {
-      alarmName: context.params.get('alarmName') ?? null,
-      resolver: this.resolverId,
-    };
+  protected override resolver(): string {
+    return this.resolverId;
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
-  async execute(context: RunbookContext): Promise<StepResult<InteropApiGwAlarmContext>> {
-    const alarmName = context.params.get('alarmName');
-    if (alarmName === undefined || alarmName.trim() === '') {
-      return { success: false, error: 'Missing required parameter: alarmName' };
-    }
+  protected override familyName(): string {
+    return 'API Gateway';
+  }
 
-    let alarmContext: InteropApiGwAlarmContext;
-    try {
-      alarmContext = this.resolveAlarmContext(alarmName);
-    } catch (error: unknown) {
-      return {
-        success: false,
-        error: `INTEROP API Gateway alarm context resolution failed (${this.resolverId}): ${getErrorMessage(error)}`,
-      };
-    }
+  protected override describe(alarmContext: InteropApiGwAlarmContext): ReadonlyArray<string> {
+    return [
+      `Ambiente INTEROP: ${alarmContext.environment}`,
+      `API Gateway ID: ${alarmContext.apiGwId}`,
+      `Access log group: ${alarmContext.apiGwLogGroup}`,
+      `Pod app: ${alarmContext.podApp}`,
+      `Application log group: ${alarmContext.applicationLogGroup}`,
+    ];
+  }
 
-    context.services.reporter.add(
-      { label: `Ambiente INTEROP: ${alarmContext.environment}` },
-      { label: `API Gateway ID: ${alarmContext.apiGwId}` },
-      { label: `Access log group: ${alarmContext.apiGwLogGroup}` },
-      { label: `Pod app: ${alarmContext.podApp}` },
-      { label: `Application log group: ${alarmContext.applicationLogGroup}` },
-    );
-
+  protected override contextVars(alarmContext: InteropApiGwAlarmContext): Readonly<Record<string, string>> {
     return {
-      success: true,
-      output: alarmContext,
-      vars: {
-        interopEnvironment: alarmContext.environment,
-        interopApiGwId: alarmContext.apiGwId,
-        interopApiGwLogGroup: alarmContext.apiGwLogGroup,
-        interopPodApp: alarmContext.podApp,
-        interopLogGroup: alarmContext.applicationLogGroup,
-        interopRunbookKey: alarmContext.runbookKey,
-      },
+      interopEnvironment: alarmContext.environment,
+      interopApiGwId: alarmContext.apiGwId,
+      interopApiGwLogGroup: alarmContext.apiGwLogGroup,
+      interopPodApp: alarmContext.podApp,
+      interopLogGroup: alarmContext.applicationLogGroup,
+      interopRunbookKey: alarmContext.runbookKey,
     };
   }
 }

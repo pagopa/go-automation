@@ -1,16 +1,24 @@
 import { all, any, type KnownCase, stepEvidenceMatches, varEquals, varMatches } from '../../../../engine/index.js';
-import { apiGwStatusIs, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import {
+  downstreamMarkerPattern,
+  apiGwStatusIs,
+  knownCase,
+  SEND_DOWNSTREAMS,
+} from '../../../../toolkits/send/index.js';
 /**
  * Known cases for the pn-address-book-io-IO-ApiGwAlarm runbook.
  */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   // ── Gateway Timeout 504 senza log applicativi su pn-user-attributes ────
-  // V02 §5.4: irrigidito ad AND status==504 + userAttributesLogCount==0.
+  // Irrigidito ad AND status==504 + userAttributesLogCount==0.
   knownCase({
     id: 'gateway-timeout-504',
     description: 'Gateway Timeout 504 senza log applicativi su pn-user-attributes',
-    priority: 105,
-    condition: all(apiGwStatusIs('504'), varEquals('userAttributesLogCount', '0')),
+    condition: all(
+      apiGwStatusIs('504'),
+      varEquals('userAttributesLookupState', 'queried'),
+      varEquals('userAttributesLogCount', '0'),
+    ),
     resolution: 'Nessuna azione possibile. Classificare come transitorio, monitorare',
     details: [['Status Code', '{{vars.apiGwStatusCode}}']],
     analysis: {
@@ -30,9 +38,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'apigw-endpoint-timeout-no-logs',
     description: 'API GW endpoint timeout senza log applicativi su pn-user-attributes',
-    priority: 103,
     condition: all(
       apiGwStatusIs('500'),
+      varEquals('userAttributesLookupState', 'queried'),
       varEquals('userAttributesLogCount', '0'),
       varMatches('apiGwErrorMessage', 'Endpoint request timed out'),
     ),
@@ -53,7 +61,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'pdv-404',
     description: 'Record mancante su PDV (Personal Data Vault)',
-    priority: 100,
     condition: any(
       varMatches('userAttributesErrorMsg', 'Service PersonalDataVault_Tokenizer returned errors=404 Not Found'),
       varMatches('dataVaultErrorMsg', 'Service PersonalDataVault_Tokenizer returned errors=404 Not Found'),
@@ -73,14 +80,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'appio-downstream-500',
     description: 'Allarme scattato per un 500 ricevuto da AppIO - Internal Server Error',
-    priority: 89,
     // Scansiona TUTTI i row dei log di pn-external-registries (non solo
     // il messaggio rappresentativo in `externalRegistriesErrorMsg`).
     // Il caso matcha sia POST sia PUT e l'enumerazione completa delle
     // righe matchate finisce nel trace via `contains.regex`.
     condition: stepEvidenceMatches(
       'query-pn-external-registries',
-      '\\[DOWNSTREAM\\] Service IO returned errors=500 Internal Server Error from (POST|PUT)',
+      downstreamMarkerPattern('IO', { status: '500 Internal Server Error', method: '(POST|PUT)' }),
     ),
     title: '500 da AppIO - Internal Server Error',
     resolution: 'Risoluzione non documentata.',
@@ -97,7 +103,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'appio-activation-not-found',
     description: 'Allarme scattato per un 404 ricevuto da AppIO - Activation not found for the user',
-    priority: 90,
     condition: any(
       varMatches(
         'externalRegistriesErrorMsg',
@@ -127,7 +132,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'appio-cosmos-429',
     description: 'AppIO Cosmos DB rate limit exceeded (429)',
-    priority: 85,
     condition: varMatches(
       'externalRegistriesErrorMsg',
       'Service IO returned errors=500 Internal Server Error.*COSMOS_ERROR_RESPONSE.*429.*request rate is too large',
@@ -146,7 +150,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'io-activation-save-failed-pdv',
     description: 'Salvataggio io-activation-service fallito (PDV 404)',
-    priority: 80,
     condition: varMatches(
       'userAttributesErrorMsg',
       'Saving to io-activation-service failed.*deleting from addressbook appio channeltype',
@@ -168,7 +171,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'io-status-activated-readding',
     description: 'Re-inserimento in addressbook dopo attivazione IO',
-    priority: 75,
     condition: varMatches(
       'userAttributesErrorMsg',
       'outcome io-status is activated, re-adding to addressbook appio channeltype',
@@ -186,7 +188,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'dynamodb-transaction-conflict',
     description: 'Errore su transazione DynamoDB - TransactionConflict',
-    priority: 70,
     condition: varMatches(
       'userAttributesErrorMsg',
       'AUD_AB_DA_IO_INSUP.*FAILURE.*Transaction cancelled.*TransactionConflict',
@@ -207,7 +208,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'internal-error-sqs',
     description: 'Errore interno - probabile problema SQS sendMessageBatch',
-    priority: 65,
     condition: varMatches(
       'userAttributesErrorMsg',
       'AUD_AB_DA_IO_INSUP.*FAILURE.*failed saving exception=InternalError',
@@ -246,7 +246,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'ext-registry-private-readtimeout',
     description: 'ReadTimeout su ext-registry-private da pn-user-attributes',
-    priority: 60,
     condition: any(
       varMatches('userAttributesErrorMsg', 'AUD_AB_DA_IO_INSUP.*ReadTimeoutException'),
       varMatches('userAttributesErrorMsg', 'error upserting service activation message=.*ReadTimeoutException'),

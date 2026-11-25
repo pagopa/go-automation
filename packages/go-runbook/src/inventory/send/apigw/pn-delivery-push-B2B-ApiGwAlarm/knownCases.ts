@@ -5,7 +5,12 @@ import {
   stepEvidenceMatches,
   varMatches,
 } from '../../../../engine/index.js';
-import { apiGwStatusIs, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import {
+  downstreamMarkerPattern,
+  apiGwStatusIs,
+  knownCase,
+  SEND_DOWNSTREAMS,
+} from '../../../../toolkits/send/index.js';
 /**
  * Known cases for the pn-delivery-push-B2B-ApiGwAlarm runbook.
  */
@@ -13,7 +18,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'safestorage-file-not-found',
     description: 'Download legal fact richiesto prima che il file sia disponibile su SafeStorage',
-    priority: 110,
     condition: all(
       apiGwStatusIs('404'),
       stepEvidenceMatches('query-pn-delivery-push', 'File not found from safeStorage fileKey='),
@@ -33,7 +37,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'safestorage-object-restore-already-in-progress',
     description: 'Richiesta duplicata di restore documento su SafeStorage/S3',
-    priority: 105,
     condition: anyStepEvidenceMatches(
       ['query-pn-safestorage', 'query-pn-delivery-push'],
       'Object restore is already in progress.*Status Code: 409',
@@ -52,10 +55,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'downstream-selfcarepg-503-service-unavailable',
     description: 'SelfcarePG non disponibile durante chiamata da pn-data-vault',
-    priority: 100,
     condition: anyStepEvidenceMatches(
       ['query-pn-data-vault', 'query-pn-delivery-push'],
-      '\\[DOWNSTREAM\\] Service SelfcarePG returned errors=503 Service Unavailable',
+      downstreamMarkerPattern('SelfcarePG', { status: '503 Service Unavailable' }),
     ),
     title: '[DOWNSTREAM] Service SelfcarePG returned errors=503 Service Unavailable',
     resolution:
@@ -72,7 +74,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'exception-in-call-getfile-pn-external-legal-facts',
     description: 'Errore durante chiamata getFile, probabilmente legata a indisponibilità Safe Storage',
-    priority: 101,
     condition: all(
       apiGwStatusIs('403'),
       varMatches('apiGwErrorMessage', 'Invalid key=value pair \\(missing equal-sign\\) in Authorization header'),

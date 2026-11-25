@@ -104,6 +104,20 @@ describe('RequestIdStage', () => {
     assert.ok(h.source.queries <= 40, `${h.source.queries} queries`);
   });
 
+  it('records the ids with the suffix in requestId and requestIds', async () => {
+    const h = setup(new Map([['IUN-S', [{ afterMs: 0, category: 'PREPARE_SIMPLE_REGISTERED_LETTER' }]]]), {
+      ...DEFAULT_REQUEST_ID_OPTIONS,
+      suffix: '.PCRETRY_0',
+    });
+    h.stage.schedule(0, 'S-0', 'IUN-S');
+    await h.clock.run(h.stage.drain());
+    const id = 'PREPARE_SIMPLE_REGISTERED_LETTER.IUN_IUN-S.RECINDEX_0.ATTEMPT_0.PCRETRY_0';
+    const found = h.sink.entries.find((entry) => entry.event === 'REQUEST_ID_FOUND');
+    assert.equal(found?.requestId, id);
+    assert.deepEqual(found?.requestIds, { PREPARE_SIMPLE_REGISTERED_LETTER: id });
+    assert.equal(h.ledger.get(0)?.requestId, id);
+  });
+
   it('closes early when the workflow ends without PREPARE', async () => {
     const h = setup(new Map([['IUN-B', [{ afterMs: 3 * MINUTE, category: 'COMPLETELY_UNREACHABLE' }]]]));
     h.stage.schedule(0, 'S-0', 'IUN-B');
@@ -187,7 +201,7 @@ describe('RequestIdStage', () => {
   });
 
   it('tolerates transient query errors', async () => {
-    const h = setup(new Map([['IUN-D', [{ afterMs: 0, category: 'PREPARE_DIGITAL_DOMICILE' }]]]));
+    const h = setup(new Map([['IUN-D', [{ afterMs: 0, category: 'PREPARE_SIMPLE_REGISTERED_LETTER' }]]]));
     h.source.failWith = new Error('ProvisionedThroughputExceededException');
     h.source.failTimes = 2;
     h.stage.schedule(0, 'S-0', 'IUN-D');

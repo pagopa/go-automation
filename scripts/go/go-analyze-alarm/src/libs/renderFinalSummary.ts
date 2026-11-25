@@ -5,9 +5,8 @@ import { interop } from '@pagopa/go-runbook/toolkits/interop';
 import { apigw } from '@pagopa/go-runbook/toolkits/send';
 
 /**
- * Renders the summary of a runbook execution chosen by the product family of the
- * runbook context: the SEND service-chain summary only for
- * the SEND API Gateway pipeline, never for an INTEROP API Gateway or K8S runbook.
+ * Renders the summary of a runbook execution chosen by the product family of the runbook context: what the runbook
+ * read, never the SEND summary for an INTEROP API Gateway or K8S runbook. A run that did not complete says why.
  *
  * @param logger - Logger of the script
  * @param runbook - The executed runbook
@@ -15,37 +14,41 @@ import { apigw } from '@pagopa/go-runbook/toolkits/send';
  */
 export function renderFinalSummary(logger: GOLogger, runbook: Runbook, result: RunbookExecutionResult): void {
   const context = runbook.runbookContext;
-  const finalSummaryInput = {
-    logger,
-    status: result.status,
-    matchedCaseIds: result.matchedCases.map((matched) => matched.id),
-    vars: result.finalContext.vars,
-    ...(result.trace.execution.failureReason !== undefined
-      ? { failureReason: result.trace.execution.failureReason }
-      : {}),
-  };
+  // A run that did not complete says why; the chains already tell how each error ended.
+  if (result.status !== 'completed') {
+    logger.warning(`Esecuzione ${result.status}: ${result.trace.execution.failureReason ?? 'motivo non disponibile'}`);
+  }
 
+  // The chains of a Lambda runbook already tell how each invocation ended.
   if (lambda.isLambdaRunbookContext(context)) {
-    lambda.renderLambdaFinalSummary(finalSummaryInput);
+    logger.section('Lambda Runbook Summary');
+    logger.fields({ Lambda: context.lambda.name });
     return;
   }
+  // The chains of a SEND API Gateway runbook already tell how each request ended.
   if (apigw.isSendApiGwRunbookContext(context)) {
-    apigw.renderApiGwFinalSummary(finalSummaryInput);
+    logger.section('SEND API Gateway Runbook Summary');
+    logger.fields({
+      'API Gateway log group': context.apiGwLogGroup,
+      Service: context.services.map((entry) => entry.name).join(', '),
+    });
     return;
   }
   if (interop.apigw.isInteropApiGwRunbookContext(context)) {
     logger.section('INTEROP API Gateway Runbook Summary');
-    logger.info(`API Gateway log group: ${context.apiGwLogGroup}`);
-    for (const apiGwService of context.services) logger.info(`Service: ${apiGwService.name}`);
+    logger.fields({
+      'API Gateway log group': context.apiGwLogGroup,
+      Service: context.services.map((entry) => entry.name).join(', '),
+    });
     return;
   }
   if (interop.k8s.isInteropK8sRunbookContext(context)) {
     logger.section('INTEROP K8S Runbook Summary');
-    logger.info(`Service: ${context.service.name}`);
+    logger.fields({ Service: context.service.name });
     return;
   }
   if (service.isServiceRunbookContext(context)) {
     logger.section('Service Runbook Summary');
-    logger.info(`Service: ${context.service.name}`);
+    logger.fields({ Service: context.service.name });
   }
 }

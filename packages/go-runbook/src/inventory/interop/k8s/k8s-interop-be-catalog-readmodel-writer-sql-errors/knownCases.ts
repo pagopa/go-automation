@@ -1,63 +1,47 @@
-import { INTEROP_DOWNSTREAMS, knownCase } from '../../../../toolkits/interop/index.js';
-import { all, type KnownCase, stepEvidenceMatches, varEquals } from '../../../../engine/index.js';
+import {
+  INTEROP_DOWNSTREAMS,
+  INTEROP_KAFKA_SIGNATURES,
+  interopErrorLine,
+  interopK8sKnownCase,
+  type InteropK8sKnownCaseRefs,
+} from '../../../../toolkits/interop/index.js';
+import type { KnownCase } from '../../../../engine/index.js';
 
 import { CATALOG_READMODEL_WRITER_SQL_ALARM as alarm } from './alarmDefinition.js';
+const REFS: InteropK8sKnownCaseRefs = {
+  applicationLogsStepId: alarm.stepIds.queryApplicationLogs,
+  cidTrackerStepId: alarm.stepIds.queryCidTracker,
+  varPrefix: alarm.varPrefix,
+};
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
-  knownCase({
+  interopK8sKnownCase(REFS, {
     id: 'catalog-readmodel-writer-temporary-network-errors',
     description: 'Errore di connessione del catalog readmodel writer SQL; temporaneità da verificare',
-    priority: 100,
     // Entrambi i casi sono censiti solo in Prod; il tracker comprende anche altri servizi.
-    condition: all(
-      varEquals('interopEnvironment', 'prod'),
-      stepEvidenceMatches(
-        alarm.stepIds.queryApplicationLogs,
-        'ERROR\\s*-\\s*Connection\\s+(?:timeout\\b|error:\\s*Client network socket disconnected before secure TLS connection was established\\b)',
-      ),
-    ),
+    environments: ['prod'],
+    regex: interopErrorLine(INTEROP_KAFKA_SIGNATURES.connectionTimeout, INTEROP_KAFKA_SIGNATURES.tlsDisconnected),
+    evidence: 'APPLICATION_LOGS',
     resolution: 'Risoluzione non documentata.',
-    details: [
-      ['Ambiente', '{{vars.interopEnvironment}}'],
-      ['Log group', '{{vars.interopLogGroup}}'],
-      ['Servizio', '{{vars.interopPodApp}}'],
-      ['CID analizzati', `{{vars.${alarm.varPrefix}CidCount}}`],
-    ],
-    analysis: {
-      proposedStatus: 'IN_PROGRESS',
-      analysisType: 'ANALYZABLE',
-      errorDetails:
-        'Timeout o socket interrotto prima della connessione TLS; controparte, durata e recupero da verificare.',
-      downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-      finalActions: [],
-      links: [],
-    },
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    errorDetails:
+      'Timeout o socket interrotto prima della connessione TLS; controparte, durata e recupero da verificare.',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    finalActions: [],
+    links: [],
   }),
-  knownCase({
+  interopK8sKnownCase(REFS, {
     id: 'catalog-readmodel-writer-kafka-coordinator-member-rejoin',
     description: 'Il coordinator Kafka non riconosce il member del catalog readmodel writer SQL',
-    priority: 90,
-    condition: all(
-      varEquals('interopEnvironment', 'prod'),
-      stepEvidenceMatches(
-        alarm.stepIds.queryApplicationLogs,
-        'The coordinator is not aware of this member,\\s*re-joining the group\\s*-\\s*The coordinator is not aware of this member\\b',
-      ),
-    ),
+    environments: ['prod'],
+    regex: INTEROP_KAFKA_SIGNATURES.unknownMemberRejoinWithReason,
+    evidence: 'APPLICATION_LOGS',
     resolution: 'PIN-7325',
-    details: [
-      ['Ambiente', '{{vars.interopEnvironment}}'],
-      ['Log group', '{{vars.interopLogGroup}}'],
-      ['Servizio', '{{vars.interopPodApp}}'],
-      ['CID analizzati', `{{vars.${alarm.varPrefix}CidCount}}`],
-    ],
-    analysis: {
-      proposedStatus: 'IN_PROGRESS',
-      analysisType: 'ANALYZABLE',
-      errorDetails:
-        'Il consumer tenta il rejoin perché il coordinator non lo riconosce; causa e recupero da verificare.',
-      downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-      finalActions: [],
-      links: [{ url: 'https://pagopa.atlassian.net/browse/PIN-7325', name: 'PIN-7325', type: 'JIRA' }],
-    },
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    errorDetails: 'Il consumer tenta il rejoin perché il coordinator non lo riconosce; causa e recupero da verificare.',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    finalActions: [],
+    links: [{ url: 'https://pagopa.atlassian.net/browse/PIN-7325', name: 'PIN-7325', type: 'JIRA' }],
   }),
 ];

@@ -56,8 +56,8 @@ describe('interopK8sExactPodQueryProfile', () => {
       datedCidTracker: { queryProfileId: 'example-cid-tracker' },
     });
     assert.equal(profile.cidTrackerQueryProfileId, 'example-cid-tracker');
-    const query = profile.buildCidTrackerQuery('cid"x');
-    assert.match(query, /^\| filter cid = "cid\\"x"$/mu);
+    const query = profile.buildCidTrackerQuery(['cid"x', 'b']);
+    assert.match(query, /^\| filter cid in \["cid\\"x", "b"\]$/mu);
     assert.match(query, /^\| parse log \/\(\?<date>\^\[\^\\s\]\+\)\/$/mu);
     assert.match(query, /^\| sort date asc$/mu);
   });

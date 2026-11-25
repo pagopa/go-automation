@@ -1,5 +1,5 @@
 import { all, type KnownCase, stepEvidenceMatches, varEquals } from '../../../../engine/index.js';
-import { knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import { downstreamMarkerPattern, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
 /**
  * Known cases for the pn-address-manager-POSTEL-downstream-detection-Alarm runbook.
  */
@@ -8,9 +8,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'postel-all-batches-worked-after-retry',
     description: '[DOWNSTREAM POSTEL] Tutti i batch impattati sono stati recuperati dai retry',
-    priority: 100,
     condition: all(
-      stepEvidenceMatches('query-pn-address-manager', '\\[DOWNSTREAM\\] Service POSTEL returned errors='),
+      stepEvidenceMatches('query-pn-address-manager', downstreamMarkerPattern('POSTEL')),
       varEquals('postelAllBatchesWorked', 'true'),
     ),
     title: '[DOWNSTREAM POSTEL] Batch recuperati dai retry',

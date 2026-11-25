@@ -9,5 +9,3 @@
 export * from '../../../common/families/service/index.js';
 export { SEND_SERVICE_PROFILE } from './profiles/SEND_SERVICE_PROFILE.js';
 export { createSendServiceAlarmRunbook } from './builders/createSendServiceAlarmRunbook.js';
-export { buildDownstreamDetectionQuery } from '../downstream/queries/buildDownstreamDetectionQuery.js';
-export type { DownstreamDetectionQueryOptions } from '../downstream/queries/buildDownstreamDetectionQuery.js';

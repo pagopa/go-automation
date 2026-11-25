@@ -12,7 +12,7 @@ assignees: ''
 
 ## Componente interessato
 
-<!-- Es. scripts/aws/aws-manage-sqs, go-runbook catalog entry, functions/go-ExecuteRunbookLambda -->
+<!-- Es. scripts/aws/aws-manage-sqs, go-runbook catalog entry, functions/go-AILambda -->
 
 ## Passi per riprodurre
 

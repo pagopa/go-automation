@@ -1,4 +1,4 @@
-import type { PipelineHook } from '../../../../../engine/types/PipelineHook.js';
+import type { PipelineHook } from '../../../../../engine/index.js';
 import type { LambdaPipelineAnchor } from '../types/LambdaPipelineAnchor.js';
 import type { LambdaAlarmConfig } from '../types/LambdaAlarmConfig.js';
 import type { LambdaDownstream } from '../types/LambdaDownstream.js';

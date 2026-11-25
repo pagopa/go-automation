@@ -1,3 +1,5 @@
+import { trimToUndefined } from '@pagopa/go-common/utils';
+
 import type { TimeRangeReference } from './TimeRangeReference.js';
 
 /**
@@ -9,8 +11,8 @@ import type { TimeRangeReference } from './TimeRangeReference.js';
  * mode and fail later during ISO parsing.
  */
 export function createTimeRangeReference(alarmDatetime: string, alarmDatetimeEnd?: string): TimeRangeReference {
-  const normalizedEnd = alarmDatetimeEnd?.trim();
-  if (normalizedEnd === undefined || normalizedEnd.length === 0) {
+  const normalizedEnd = trimToUndefined(alarmDatetimeEnd);
+  if (normalizedEnd === undefined) {
     return { kind: 'single', at: alarmDatetime };
   }
 

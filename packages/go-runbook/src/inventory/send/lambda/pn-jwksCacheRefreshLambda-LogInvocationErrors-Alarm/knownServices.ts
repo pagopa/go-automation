@@ -14,7 +14,7 @@ export const LAMBDA_FUNCTION: lambda.LambdaFunction = {
 /**
  * Downstream microservices reachable from the Lambda. Each entry is queried
  * by the Lambda requestId only when a {@link lambda.DownstreamErrorPattern}
- * (see knownErrors.ts) routes to it and a `logGroup` is provided.
+ * routes to it and a `logGroup` is provided.
  *
  * The documented failures are external JWKS URL failures, not calls to
  * internal microservices with correlated logs.

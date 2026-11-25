@@ -5,6 +5,7 @@ import { API_GW_LOG_GROUP } from '../knownServices.js';
 import { executeWithLogs } from '../../../../../__tests__/helpers/executeWithLogs.js';
 import { logRow } from '../../../../../__tests__/helpers/logRow.js';
 import type { RunbookLogsExecution } from '../../../../../__tests__/helpers/RunbookLogsExecution.js';
+import { treeNodeVars } from '../../../../../__tests__/helpers/treeNodeVars.js';
 
 const ALARM = 'pn-bff-WEB-noextension-Addresses-comp-5xx-ApiGwAlarm';
 const ROOT = '1-68ef9670-111111111111111111111111';
@@ -59,14 +60,14 @@ describe('WEB Addresses API Gateway runbook', () => {
     const { result, draft, queries } = await execute();
     assert.equal(result.status, 'completed');
     assert.deepEqual(
-      result.matchedCases.map(({ id }) => id),
+      result.detections.map(({ knownCase }) => knownCase.id),
       ['bff-get-addresses-read-timeout'],
     );
     assert.equal(draft?.kind, 'KNOWN_CASE');
     assert.equal(draft.proposedStatus, 'IN_PROGRESS');
     assert.equal(draft.conclusionNotes, 'Risoluzione non documentata.');
     assert.deepEqual(draft.finalActions, []);
-    assert.equal(result.finalContext.vars.get('xRayTraceId'), ROOT);
+    assert.equal(treeNodeVars(result).get('xRayTraceId'), ROOT);
     const bff = queries.find(({ groups }) => groups[0] === '/aws/ecs/pn-bff');
     assert.ok(bff);
     assert.ok(bff.query.includes(ROOT));
@@ -77,12 +78,12 @@ describe('WEB Addresses API Gateway runbook', () => {
     const { result, queries } = await execute({ errorMessage: 'Execution failed due to an internal error' });
     assert.ok(queries.some(({ groups }) => groups[0]?.startsWith('API-Gateway-Execution-Logs_') === true));
     assert.ok(queries.some(({ groups }) => groups[0] === '/aws/ecs/pn-bff'));
-    assert.equal(result.matchedCases[0]?.id, 'bff-get-addresses-read-timeout');
+    assert.equal(result.detections[0]?.knownCase.id, 'bff-get-addresses-read-timeout');
   });
 
   it('recognizes the configured authorizer timeout without declaring recovery', async () => {
     const { result, draft, queries } = await execute({ authorizerStatus: '500', authorizerLatency: '5000' });
-    assert.equal(result.matchedCases[0]?.id, 'api-gw-authorizer-timeout');
+    assert.equal(result.detections[0]?.knownCase.id, 'api-gw-authorizer-timeout');
     assert.equal(draft?.kind, 'KNOWN_CASE');
     assert.equal(draft?.proposedStatus, 'IN_PROGRESS');
     assert.equal(draft?.conclusionNotes, 'Risoluzione non documentata.');
@@ -96,7 +97,7 @@ describe('WEB Addresses API Gateway runbook', () => {
       [TIMEOUT.replace('_getAddressesV1', '_deleteAddressV1')],
     ]) {
       const { result, draft } = await execute({ messages });
-      assert.deepEqual(result.matchedCases, []);
+      assert.deepEqual(result.detections, []);
       assert.equal(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
     }
   });

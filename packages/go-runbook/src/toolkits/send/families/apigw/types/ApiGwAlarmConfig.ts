@@ -1,9 +1,6 @@
-import type { RunbookMetadata } from '../../../../../engine/types/RunbookMetadata.js';
+import type { CaseAction, KnownCase, PipelineHook, RunbookMetadata } from '../../../../../engine/index.js';
 import type { RunbookAnalysisDefaults } from '../../../../common/analysis/RunbookAnalysisDefaults.js';
-import type { PipelineHook } from '../../../../../engine/types/PipelineHook.js';
 import type { ApiGwPipelineAnchor } from './ApiGwPipelineAnchor.js';
-import type { KnownCase } from '../../../../../engine/types/KnownCase.js';
-import type { CaseAction } from '../../../../../engine/types/CaseAction.js';
 import type { ApiGwService } from '../../../../common/families/apigw/types/ApiGwService.js';
 import type { KnownUrl } from '../../../../common/parsing/knownUrls/KnownUrl.js';
 import type { ApiGwQueryProfile } from '../profiles/ApiGwQueryProfile.js';
@@ -53,7 +50,7 @@ export interface ApiGwAlarmConfig {
    * come target.
    */
   readonly services?: ReadonlyArray<ApiGwService>;
-  /** Known URL usati per arricchire il trace e guidare il loop di analisi. */
+  /** Known URL: il servizio o il downstream che una riga d'errore chiama, dove scende il suo nodo. */
   readonly knownUrls: ReadonlyArray<KnownUrl>;
   /**
    * Gate opzionale per errori della Lambda authorizer. Quando configurato,

@@ -1,10 +1,11 @@
-import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { AccessLogSchema } from './AccessLogSchema.js';
+import type { CloudWatchLogsRow } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRow.js';
 
 /**
  * Helpers shared by the API Gateway AccessLog consumers
- * (`ParseApiGwErrorsStep`, `QueryApiGwExecutionLogsStep`).
+ * (`ParseApiGwErrorsStep`, `QueryApiGwExecutionLogsStep`, `EvaluateApiGwAuthorizerFailureStep`).
  *
  * All routines are schema-driven: they read the configured `statusFields`,
  * `notApplicableSentinels`, `fieldToVar` mappings from the supplied
@@ -13,23 +14,49 @@ import type { AccessLogSchema } from './AccessLogSchema.js';
  */
 
 /**
+ * The value of an AccessLog field, trimmed; nothing when the field is missing, blank or one of the schema sentinels
+ * (typically `'-'`, what API Gateway writes for a value it did not capture).
+ *
+ * @param row - AccessLog row
+ * @param field - Field name
+ * @param schema - Schema with the sentinels of the profile
+ * @returns The value, or `undefined` when it carries no content
+ *
+ * @example
+ * ```typescript
+ * readAccessLogField([{ field: 'path', value: '-' }], 'path', schema); // undefined
+ * ```
+ */
+export function readAccessLogField(row: CloudWatchLogsRow, field: string, schema: AccessLogSchema): string | undefined {
+  const trimmed = (readRowField(row, field) ?? '').trim();
+  if (trimmed === '' || schema.notApplicableSentinels.includes(trimmed)) return undefined;
+  return trimmed;
+}
+
+/**
+ * The numeric values of the schema-declared status fields, in declaration order, with their raw text. Values matching
+ * the schema's `notApplicableSentinels` and values that are not numbers are skipped.
+ */
+function* statusCodes(
+  row: CloudWatchLogsRow,
+  schema: AccessLogSchema,
+): Generator<readonly [raw: string, code: number]> {
+  for (const field of schema.statusFields) {
+    const raw = readRowField(row, field);
+    if (raw === undefined || schema.notApplicableSentinels.includes(raw)) continue;
+    const code = Number(raw);
+    if (!Number.isNaN(code)) yield [raw, code];
+  }
+}
+
+/**
  * Returns `true` when at least one of the schema-declared status fields
  * parses to a number ≥ `minStatusCode`. Values matching the schema's
  * `notApplicableSentinels` (typically `'-'`) are skipped.
  */
-export function rowMeetsThreshold(
-  row: ReadonlyArray<GOLogsInsightsResultField>,
-  minStatusCode: number,
-  schema: AccessLogSchema,
-): boolean {
-  for (const field of schema.statusFields) {
-    const raw = readRowField(row, field);
-    if (raw === undefined) continue;
-    if (schema.notApplicableSentinels.includes(raw)) continue;
-    const num = Number(raw);
-    if (!Number.isNaN(num) && num >= minStatusCode) {
-      return true;
-    }
+export function rowMeetsThreshold(row: CloudWatchLogsRow, minStatusCode: number, schema: AccessLogSchema): boolean {
+  for (const [, code] of statusCodes(row, schema)) {
+    if (code >= minStatusCode) return true;
   }
   return false;
 }
@@ -40,15 +67,8 @@ export function rowMeetsThreshold(
  * meaningful code even when the row's error signal is on a secondary
  * field (`authorizerStatus`, `integrationServiceStatus`).
  */
-export function pickPrimaryStatusCode(row: ReadonlyArray<GOLogsInsightsResultField>, schema: AccessLogSchema): string {
-  for (const field of schema.statusFields) {
-    const raw = readRowField(row, field);
-    if (raw === undefined) continue;
-    if (schema.notApplicableSentinels.includes(raw)) continue;
-    if (!Number.isNaN(Number(raw))) {
-      return raw;
-    }
-  }
+export function pickPrimaryStatusCode(row: CloudWatchLogsRow, schema: AccessLogSchema): string {
+  for (const [raw] of statusCodes(row, schema)) return raw;
   return '';
 }
 
@@ -58,55 +78,10 @@ export function pickPrimaryStatusCode(row: ReadonlyArray<GOLogsInsightsResultFie
  * uses {@link pickPrimaryStatusCode}, which preserves the schema's
  * canonical field precedence.
  */
-export function pickHighestStatusCode(
-  row: ReadonlyArray<GOLogsInsightsResultField>,
-  schema: AccessLogSchema,
-): number | undefined {
+export function pickHighestStatusCode(row: CloudWatchLogsRow, schema: AccessLogSchema): number | undefined {
   let highest: number | undefined;
-  for (const field of schema.statusFields) {
-    const raw = readRowField(row, field);
-    if (raw === undefined) continue;
-    if (schema.notApplicableSentinels.includes(raw)) continue;
-    const num = Number(raw);
-    if (Number.isNaN(num)) continue;
-    if (highest === undefined || num > highest) {
-      highest = num;
-    }
+  for (const [, code] of statusCodes(row, schema)) {
+    if (highest === undefined || code > highest) highest = code;
   }
   return highest;
-}
-
-/**
- * Trims an AccessLog field value and returns the empty string when the
- * trimmed value matches one of the schema sentinels (typically `'-'`).
- */
-export function sanitizeApiGwField(raw: string | undefined, schema: AccessLogSchema): string {
-  const trimmed = (raw ?? '').trim();
-  if (schema.notApplicableSentinels.includes(trimmed)) return '';
-  return trimmed;
-}
-
-/**
- * Builds the canonical `apiGw*` vars from an AccessLog row.
- *
- * Includes `apiGwErrorCount` and `apiGwStatusCode` plus every field
- * declared by the schema's `fieldToVar` mapping (e.g. `errorMessage` →
- * `apiGwErrorMessage`, `httpMethod` → `apiGwHttpMethod`).
- */
-export function buildApiGwVars(
-  row: ReadonlyArray<GOLogsInsightsResultField>,
-  errorCount: number,
-  schema: AccessLogSchema,
-): Record<string, string> {
-  const vars: Record<string, string> = {
-    apiGwErrorCount: String(errorCount),
-    apiGwStatusCode: pickPrimaryStatusCode(row, schema),
-  };
-  for (const [field, contextVar] of schema.fieldToVar) {
-    const raw = readRowField(row, field);
-    if (raw !== undefined) {
-      vars[contextVar] = raw;
-    }
-  }
-  return vars;
 }

@@ -17,6 +17,16 @@ describe('extractTraceId', () => {
     );
   });
 
+  it('extracts only the id from a SEND X-Ray header with other fields', () => {
+    const trace = '1-6ad1eae3-493a74b231f3e345492729e9';
+    const other = '1-6ad1eae3-111111111111111111111111';
+    assert.strictEqual(
+      extractTraceId(logRow({ xrayTraceId: `Root=${trace};Parent=f23cf74b4e3a3bc6;Sampled=1` }), SEND_SCHEMA),
+      trace,
+    );
+    assert.strictEqual(extractTraceId(logRow({ xrayTraceId: `Self=${other};Root=${trace}` }), SEND_SCHEMA), trace);
+  });
+
   it('returns the raw value when no pattern is configured (INTEROP-like)', () => {
     // Rest destructuring omits the optional `traceIdExtractPattern` (exactOptionalPropertyTypes).
     const { traceIdExtractPattern: _ignored, ...sendWithoutPattern } = SEND_SCHEMA;

@@ -25,10 +25,11 @@ export function buildSummary(rows: ReadonlyArray<RtaCheckRow>): RtaCheckSummary 
 
   const hit = countV1('HIT');
   const miss = countV1('MISS');
+  const inconclusive = countV1('INCONCLUSIVE');
   const noData = countV1('NO-DATA');
   const configError = countV1('CONFIG-ERROR');
   const executionError = countV1('EXECUTION-ERROR');
-  const executable = hit + miss;
+  const executable = hit + miss + inconclusive;
 
   const durations = rows
     .map((row) => row.runbook.durationMs)
@@ -57,6 +58,7 @@ export function buildSummary(rows: ReadonlyArray<RtaCheckRow>): RtaCheckSummary 
     linkedAnalyses: rows.filter((row) => row.event.analysisId !== undefined).length,
     hit,
     miss,
+    inconclusive,
     noData,
     configError,
     executionError,
@@ -78,7 +80,7 @@ export function buildSummary(rows: ReadonlyArray<RtaCheckRow>): RtaCheckSummary 
  */
 export function buildReport(input: RtaCheckInput, rows: ReadonlyArray<RtaCheckRow>): RtaCheckReport {
   return {
-    schemaVersion: '1.1.0',
+    schemaVersion: '2.0.0',
     generatedAt: new Date().toISOString(),
     input,
     summary: buildSummary(rows),

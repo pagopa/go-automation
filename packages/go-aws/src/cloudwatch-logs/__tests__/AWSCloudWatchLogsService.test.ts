@@ -44,6 +44,8 @@ interface FakeClientOptions {
   readonly statistics?: Partial<AWSCloudWatchLogsQueryStatistics>;
   readonly resultPages?: ReadonlyArray<FakeResultPage>;
   readonly onGetQueryResults?: GetQueryResultsHook;
+  /** Index of a result page whose GetQueryResults call fails. */
+  readonly failPage?: number;
   readonly queryStatus?: string;
   /** Fails StartQuery selectively, e.g. only for the log groups of one account. */
   readonly startErrorFor?: StartQueryErrorHook;
@@ -55,6 +57,8 @@ type GetQueryResultsHook = () => void;
 interface FakeResultPage {
   readonly results: ReadonlyArray<ReadonlyArray<ResultField>>;
   readonly statistics?: Partial<AWSCloudWatchLogsQueryStatistics>;
+  /** Token returned instead of the next page's, to script a repeated token. */
+  readonly nextToken?: string;
 }
 
 /** Decides whether StartQuery fails for a given set of log group identifiers. */
@@ -113,7 +117,9 @@ function createFakeCloudWatchLogsClient(profile: string, options: FakeClientOpti
         if (options.startError !== undefined) {
           throw options.startError;
         }
-        const selective = options.startErrorFor?.(command.input.logGroupIdentifiers ?? []);
+        const selective = options.startErrorFor?.(
+          command.input.logGroupIdentifiers ?? command.input.logGroupNames ?? [],
+        );
         if (selective !== undefined) {
           throw selective;
         }
@@ -129,6 +135,7 @@ function createFakeCloudWatchLogsClient(profile: string, options: FakeClientOpti
       const input = command.input as { readonly nextToken?: string };
       if (options.resultPages !== undefined) {
         const pageIndex = input.nextToken === undefined ? 0 : Number(input.nextToken.replace('page-', ''));
+        if (pageIndex === options.failPage) throw new Error('ThrottlingException: rate exceeded');
         const page = options.resultPages[pageIndex];
         if (page === undefined) {
           throw new Error(`Unexpected nextToken: ${input.nextToken ?? '<first>'}`);
@@ -137,7 +144,11 @@ function createFakeCloudWatchLogsClient(profile: string, options: FakeClientOpti
           status: 'Complete',
           results: page.results,
           ...(page.statistics !== undefined ? { statistics: page.statistics } : {}),
-          ...(pageIndex < options.resultPages.length - 1 ? { nextToken: `page-${pageIndex + 1}` } : {}),
+          ...(page.nextToken !== undefined
+            ? { nextToken: page.nextToken }
+            : pageIndex < options.resultPages.length - 1
+              ? { nextToken: `page-${pageIndex + 1}` }
+              : {}),
         };
       }
 
@@ -677,5 +688,102 @@ describe('AWSCloudWatchLogsService', () => {
         ['page-1', 10_000],
       ],
     );
+  });
+
+  describe('partial results', () => {
+    const page = (value: string): FakeResultPage => ({ results: [[{ field: 'message', value }]] });
+    const messages = (rows: ReadonlyArray<ReadonlyArray<ResultField>>): ReadonlyArray<string | undefined> =>
+      rows.map((row) => row.find((field) => field.field === 'message')?.value);
+
+    it('reports the rows each physical query returned, and the pages a single-page read left unread', async () => {
+      const provider = new FakeMultiProvider(new Map([['first', { resultPages: [page('a'), page('b')] }]]));
+      const result = await createService(provider).queryWithStatistics(['/aws/ecs/a'], 'fields @timestamp', timeRange);
+
+      assert.deepStrictEqual(
+        result.queryExecutions.map(({ rowsReturned, unreadPages }) => ({ rowsReturned, unreadPages })),
+        [{ rowsReturned: 1, unreadPages: 'budget' }],
+      );
+    });
+
+    it('keeps the rows of a log group that answered when another fails in every profile', async () => {
+      const failing = (groups: ReadonlyArray<string>): Error | undefined =>
+        groups.includes('/aws/ecs/missing') ? NOT_FOUND : undefined;
+      const provider = new FakeMultiProvider(
+        new Map([
+          ['first', { startErrorFor: failing }],
+          ['second', { startErrorFor: failing }],
+        ]),
+      );
+      const options = { logGroupResolutionMode: 'search-configured-profiles', partialResults: true } as const;
+
+      const result = await createService(provider).queryWithStatistics(
+        ['/aws/ecs/missing', '/aws/ecs/present'],
+        'fields @timestamp',
+        timeRange,
+        options,
+      );
+
+      assert.strictEqual(result.rows.length, 1);
+      assert.deepStrictEqual(
+        result.failedReads?.map(({ logGroups }) => logGroups),
+        [['/aws/ecs/missing']],
+      );
+      await assert.rejects(
+        createService(provider).queryWithStatistics(
+          ['/aws/ecs/missing', '/aws/ecs/present'],
+          'fields @timestamp',
+          timeRange,
+          {
+            logGroupResolutionMode: 'search-configured-profiles',
+          },
+        ),
+      );
+    });
+
+    it('keeps the pages read before the page budget ran out', async () => {
+      const provider = new FakeMultiProvider(new Map([['first', { resultPages: [page('a'), page('b'), page('c')] }]]));
+      const options = { paginateResults: true, maxResultPages: 2 } as const;
+
+      const result = await createService(provider).queryWithStatistics(['/aws/ecs/a'], 'fields @timestamp', timeRange, {
+        ...options,
+        partialResults: true,
+      });
+
+      assert.deepStrictEqual(messages(result.rows), ['a', 'b']);
+      assert.strictEqual(result.queryExecutions[0]?.unreadPages, 'budget');
+      await assert.rejects(
+        createService(provider).queryWithStatistics(['/aws/ecs/a'], 'fields @timestamp', timeRange, options),
+        /exceeded 2 pages/u,
+      );
+    });
+
+    it('keeps the pages read before a repeated token', async () => {
+      const provider = new FakeMultiProvider(
+        new Map([['first', { resultPages: [page('a'), { ...page('b'), nextToken: 'page-1' }] }]]),
+      );
+
+      const result = await createService(provider).queryWithStatistics(['/aws/ecs/a'], 'fields @timestamp', timeRange, {
+        paginateResults: true,
+        partialResults: true,
+      });
+
+      assert.deepStrictEqual(messages(result.rows), ['a', 'b']);
+      assert.strictEqual(result.queryExecutions[0]?.unreadPages, 'failed');
+    });
+
+    it('keeps the pages read before a page failed', async () => {
+      const provider = new FakeMultiProvider(
+        new Map([['first', { resultPages: [page('a'), page('b'), page('c')], failPage: 2 }]]),
+      );
+
+      const result = await createService(provider).queryWithStatistics(['/aws/ecs/a'], 'fields @timestamp', timeRange, {
+        paginateResults: true,
+        partialResults: true,
+      });
+
+      assert.deepStrictEqual(messages(result.rows), ['a', 'b']);
+      assert.strictEqual(result.queryExecutions[0]?.unreadPages, 'failed');
+      assert.strictEqual(result.failedReads, undefined);
+    });
   });
 });

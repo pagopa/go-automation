@@ -16,6 +16,7 @@ import {
   SEND_ACCOUNT_IDS,
   sendAccountsPort,
 } from '../../../../../toolkits/send/accounts/__tests__/fixtures.js';
+import { EMPTY_RUNBOOK_READS } from '../../../../../engine/reads/EMPTY_RUNBOOK_READS.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 type RowsForQueryFn = (account: string, queryKind: 'errors' | 'streams') => Rows;
@@ -49,13 +50,15 @@ function accountReader(
   }
   return fakeReader({
     // eslint-disable-next-line @typescript-eslint/require-await
-    async queryWithStatistics(_groups: ReadonlyArray<string>, query: string) {
+    async queryWithStatistics(groups: ReadonlyArray<string>, query: string) {
       const output = rowsForQuery(account, queryKind(query));
       const statistics = { bytesScanned: 10, recordsScanned: 5, recordsMatched: output.length };
       return {
         rows: output,
         statistics,
-        queryExecutions: [{ queryId: `${account}-${queryKind(query)}`, statistics }],
+        queryExecutions: [
+          { queryId: `${account}-${queryKind(query)}`, profile: account, logGroups: groups, statistics },
+        ],
       };
     },
   });
@@ -90,7 +93,6 @@ async function context(
       ['startTime', '2026-09-10T09:06:01Z'],
       ['endTime', '2026-09-10T10:11:01Z'],
     ]),
-    logs: [],
     services: createTestServiceRegistry({
       awsAccounts,
       reporter: {
@@ -102,6 +104,7 @@ async function context(
       },
     }),
     recoveredErrors: [],
+    reads: EMPTY_RUNBOOK_READS,
   };
 }
 
@@ -133,6 +136,7 @@ describe('QueryLogsaverDiagnosticsStep', () => {
       logsaverStreamCount: '4',
       logsaverSpotInterruptionLogCount: '0',
       logsaverUnaccountedErrorLogCount: '2',
+      logsaverUnaccountedErrorLogCountState: 'complete',
     });
     const diagnostics = result.diagnostics?.cloudWatchLogs;
     assert.strictEqual(diagnostics?.rowsReturned, 6);
@@ -144,17 +148,18 @@ describe('QueryLogsaverDiagnosticsStep', () => {
     assert.ok(labels.includes('Logsaver: 2 log di errore, 4 stream.'));
   });
 
-  it('omits aggregated diagnostics when any target cannot report query statistics', async () => {
+  it('keeps the statistics of the targets that report them when one cannot', async () => {
     const result = await new QueryLogsaverDiagnosticsStep().execute(
       await context(() => rows(1, '@message'), [], new Set(['confinfo'])),
     );
 
     assert.strictEqual(result.success, true);
     assert.strictEqual(result.output?.length, 4);
-    assert.strictEqual(result.diagnostics, undefined);
+    assert.ok(result.diagnostics?.cloudWatchLogs !== undefined);
+    assert.ok((result.diagnostics.cloudWatchLogs.queryExecutions.length ?? 0) > 0);
   });
 
-  it('names the saturated query kind and source account', async () => {
+  it('declares the saturated read of its source account', async () => {
     const result = await new QueryLogsaverDiagnosticsStep().execute(
       await context(
         (account, kind) => (account === 'confinfo' && kind === 'streams' ? rows(1000, '@logStream') : []),
@@ -162,8 +167,8 @@ describe('QueryLogsaverDiagnosticsStep', () => {
       ),
     );
 
-    assert.strictEqual(result.success, false);
-    assert.match(result.error ?? '', /Logsaver streams in confinfo reached 1000 rows/);
+    assert.strictEqual(result.success, true);
+    assert.ok(result.coverage?.some(({ source, reason }) => source === 'confinfo' && reason === 'saturated'));
   });
 
   it('declares both production SEND accounts, narrowed to the occurrence account', () => {

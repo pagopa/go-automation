@@ -5,12 +5,13 @@
  */
 export interface ValidationErrorCodes {
   readonly DUPLICATE_STEP_ID: true;
-  readonly INVALID_GOTO_REF: true;
-  readonly LOOP_DETECTED: true;
   readonly DUPLICATE_CASE_ID: true;
-  readonly DUPLICATE_CASE_PRIORITY: true;
+  readonly UNKNOWN_SUPERSEDED_CASE: true;
+  readonly SUPERSEDES_CYCLE: true;
   readonly MISSING_METADATA: true;
   readonly MISSING_FALLBACK: true;
   readonly EMPTY_STEPS: true;
   readonly UNWIRED_CASE_STEP_REF: true;
+  readonly INVALID_ERROR_TREE: true;
+  readonly UNANCHORED_ROW_PREDICATES: true;
 }

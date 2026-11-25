@@ -10,7 +10,25 @@ import type { InteropApiGwPipelineAnchor } from '../../types/InteropApiGwPipelin
 import type { Step } from '../../../../../../engine/types/Step.js';
 
 const CONFIG: InteropApiGwAlarmConfig = {
-  id: 'interop-test-api',
+  alarm: {
+    runbookKey: 'interop-test-api',
+    serviceName: 'test-service',
+    varPrefix: 'testService',
+    apiGwProfileId: 'test-api',
+    apiGwLogGroupTemplate: 'access-<env>',
+    applicationLogGroupTemplate: 'application-<env>',
+    alarmNames: ['interop-test-api-prod'],
+    stepIds: defaultInteropApiGwRunbookStepIds('test-service'),
+    resolveContext: (alarmName) => ({
+      alarmName,
+      runbookKey: 'interop-test-api',
+      environment: 'prod',
+      apiGwId: 'test-api',
+      apiGwLogGroup: 'access-prod',
+      applicationLogGroup: 'application-prod',
+      podApp: 'test-service',
+    }),
+  },
   metadata: {
     name: 'interop-test-api',
     description: 'Test API',
@@ -20,18 +38,7 @@ const CONFIG: InteropApiGwAlarmConfig = {
     tags: [],
   },
   resolverId: 'test-api-context',
-  resolveAlarmContext: (alarmName) => ({
-    alarmName,
-    runbookKey: 'interop-test-api',
-    environment: 'prod',
-    apiGwId: 'test-api',
-    apiGwLogGroup: 'access-prod',
-    applicationLogGroup: 'application-prod',
-    podApp: 'test-service',
-  }),
   queryProfile: INTEROP_API_GW_5XX_SERVICE_ERRORS_PROFILE,
-  apiGw: { logGroupTemplate: 'access-<env>', profileId: 'test-api' },
-  application: { serviceName: 'test-service', logGroupTemplate: 'application-<env>', varPrefix: 'testService' },
   knownCases: [],
 };
 

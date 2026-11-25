@@ -53,8 +53,7 @@ export async function runScenario(
   try {
     await installScenario(directory, scenario.packages, tarballs, peers, manager);
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { scenario: scenario.id, manager, failures: [`install failed: ${message.slice(0, 400)}`], notes: [] };
+    return { scenario: scenario.id, manager, failures: [`install failed: ${installFailure(error)}`], notes: [] };
   }
   const failures = [
     ...checkImports(directory, scenario.imports),
@@ -68,4 +67,26 @@ export async function runScenario(
     notes.push(...bundle.notes);
   }
   return { scenario: scenario.id, manager, failures, notes };
+}
+
+/** Last lines of the installer output kept in the failure. */
+const INSTALL_OUTPUT_LINES = 30;
+
+/** The command, its exit status or signal and the last lines of both streams of a failed install. */
+function installFailure(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const field = (key: string): string => {
+    const value: unknown = Reflect.get(error, key);
+    return typeof value === 'string' || typeof value === 'number' ? String(value) : '';
+  };
+  const output = [field('stderr'), field('stdout')]
+    .join('\n')
+    .split('\n')
+    .filter((line) => line.trim() !== '')
+    .slice(-INSTALL_OUTPUT_LINES);
+  const command = error.message.split('\n')[0] ?? error.message;
+  const exit = `exit status ${field('status') || '-'}, signal ${field('signal') || '-'}`;
+  return [`${command} (${exit})`, ...(output.length === 0 ? ['(no output)'] : output)]
+    .map((line, index) => (index === 0 ? line : `         ${line}`))
+    .join('\n');
 }

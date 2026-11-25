@@ -75,7 +75,7 @@ describe('national registries and delayer documented execution', () => {
     ] as const) {
       const { draft, result } = await execute(runbook, message);
       assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT', runbook.metadata.id);
-      assert.deepStrictEqual(result.matchedCases, []);
+      assert.deepStrictEqual(result.detections, []);
       assert.ok(draft.links.length > 0, 'the unknown case keeps the runbook references');
     }
   });
@@ -91,7 +91,7 @@ describe('national registries and delayer documented execution', () => {
         alarmDatetime,
       );
       assert.deepStrictEqual(
-        result.matchedCases.map(({ id }) => id),
+        result.detections.map(({ knownCase }) => knownCase.id),
         [caseId],
       );
       assert.strictEqual(draft?.kind, 'KNOWN_CASE');

@@ -1,9 +1,8 @@
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-
 import { ERROR_KEYWORDS } from './ERROR_KEYWORDS.js';
 import { readServiceLogMessage } from './readServiceLogMessage.js';
 import type { ServiceLogRow } from './ServiceLogRow.js';
 import type { ServiceLogSchema } from './ServiceLogSchema.js';
+import type { CloudWatchLogsRow } from '../../steps/aws/cloudwatch-logs/CloudWatchLogsRow.js';
 
 /**
  * Reads an application log row once: a field map (the first value of a name
@@ -13,10 +12,7 @@ import type { ServiceLogSchema } from './ServiceLogSchema.js';
  * @param schema - Schema of the application logs
  * @returns The row, ready for the scanner policies
  */
-export function readServiceLogRow(
-  row: ReadonlyArray<GOLogsInsightsResultField>,
-  schema: ServiceLogSchema,
-): ServiceLogRow {
+export function readServiceLogRow(row: CloudWatchLogsRow, schema: ServiceLogSchema): ServiceLogRow {
   const fields = new Map<string, string>();
   for (const field of row) {
     if (field.field !== undefined && field.value !== undefined && !fields.has(field.field)) {

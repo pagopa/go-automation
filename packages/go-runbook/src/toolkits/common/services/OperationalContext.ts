@@ -1,4 +1,4 @@
-import type { RunbookContext } from '../../../engine/types/RunbookContext.js';
+import type { RunbookContext } from '../../../engine/index.js';
 import type { ServiceRegistry } from './ServiceRegistry.js';
 
 /** Context of an operational step: the engine context with the operational service registry. */

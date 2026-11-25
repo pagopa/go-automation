@@ -2,18 +2,23 @@
  * Known cases for the pn-mandate-acceptance-failure-tech-Alarm runbook.
  */
 import { knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
-import { all, type KnownCase, stepEvidenceMatches } from '../../../../engine/index.js';
+import {
+  all,
+  anyStepEvidenceMatches,
+  type KnownCase,
+  stepEvidenceMatches,
+  varMatches,
+} from '../../../../engine/index.js';
 
 /** The single known case documented by the source page, including its two observed field variants. */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'cie-nis-data-missing-values',
     description: 'Accettazione delega CIE fallita per dati NIS mancanti',
-    priority: 100,
     condition: all(
-      stepEvidenceMatches('query-pn-mandate', 'AUD_DL_ACCEPT\\]\\s+FAILURE\\s+-\\s+CIE Data missing values'),
-      stepEvidenceMatches('query-pn-mandate-trace', 'PN_MANDATE_BADREQUEST'),
+      varMatches('mandateErrorMsg', 'AUD_DL_ACCEPT\\]\\s+FAILURE\\s+-\\s+CIE Data missing values'),
       stepEvidenceMatches('query-pn-mandate-trace', 'Missing or empty field:\\s*nisData\\.(?:pub_key|sod)'),
+      anyStepEvidenceMatches(['query-pn-mandate-trace', 'query-pn-mandate-trace.siblings'], 'PN_MANDATE_BADREQUEST'),
     ),
     title: 'Accettazione delega CIE: dati NIS mancanti',
     resolution: 'Risoluzione non documentata.',

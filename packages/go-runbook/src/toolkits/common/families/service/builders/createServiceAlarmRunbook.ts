@@ -1,30 +1,31 @@
-import { AlarmRunbookBuilder } from '../../../builders/AlarmRunbookBuilder.js';
+import { startAlarmRunbook } from '../../../builders/startAlarmRunbook.js';
+import { validateServiceIdentity } from '../../../builders/validateServiceIdentity.js';
+import { ALARM_TIME_RANGE } from '../../../time/ALARM_TIME_RANGE.js';
 import { CloudWatchLogsQueryStep } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsQueryStep.js';
-import type { Runbook } from '../../../../../engine/types/Runbook.js';
+import type { Runbook } from '../../../../../engine/index.js';
+import { applyPipelineHooks, pipelineHooksAt } from '../../../../../engine/internal.js';
 import type { ServiceAlarmConfig } from '../types/ServiceAlarmConfig.js';
 import { PrepareServiceSectionStep } from '../steps/PrepareServiceSectionStep.js';
-import { AnalyzeApplicationLogsStep } from '../steps/AnalyzeApplicationLogsStep.js';
-import { QueryServiceTraceLogsStep } from '../steps/QueryServiceTraceLogsStep.js';
+import { DescendToTraceStep } from '../tree/DescendToTraceStep.js';
+import { ServiceTraceLevelReader, readsTraceBatches } from '../tree/ServiceTraceLevelReader.js';
+import { applicationRowIdentity } from '../tree/applicationRowIdentity.js';
+import { attributeTraceRow } from '../tree/attributeTraceRow.js';
+import { enumerateServiceRootErrors } from '../tree/enumerateServiceRootErrors.js';
+import { enumerateTraceErrors } from '../tree/enumerateTraceErrors.js';
 import { defaultServiceUnknownCaseFallback } from './defaultServiceUnknownCaseFallback.js';
-import { applyPipelineHooks } from '../../../../../engine/builders/applyPipelineHooks.js';
 import { finishAlarmRunbook } from '../../../builders/finishAlarmRunbook.js';
 import type { ServicePipelineAnchor } from '../types/ServicePipelineAnchor.js';
 
-const TIME_RANGE = { start: 'startTime', end: 'endTime' } as const;
-
 /**
- * Allowed characters for the service slug used to build step ids
- * (`query-<name>`, …), referenced by known cases. Flat (single quantifier) form;
- * leading/trailing hyphens are rejected separately to avoid a nested-quantifier
- * regex (the `security/detect-unsafe-regex` ReDoS heuristic).
+ * Builds the runbook of a service alarm: the error scan of the service, then an error tree that reads each error by
+ * trace id, with the hooks of the pipeline and the known cases of the configuration.
+ *
+ * @param config - Configuration of the service alarm
+ * @returns The runbook
+ * @throws Error when the service identity, the hooks or the known cases are invalid
  */
-const SERVICE_NAME_PATTERN = /^[A-Za-z0-9-]+$/;
-
-/** Identifier prefix used to build var names (`<varPrefix>TraceId`, …). */
-const VAR_PREFIX_PATTERN = /^[A-Za-z][A-Za-z0-9]*$/;
-
 export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
-  validateConfig(config);
+  validateServiceIdentity('createServiceAlarmRunbook', config.id, config.service);
 
   const profile = config.queryProfile;
   const service = config.service;
@@ -32,13 +33,7 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
   const traceQuery = service.traceQueryOverride ?? profile.traceQueryTemplate;
 
   const reachedAnchors = new Set<ServicePipelineAnchor>();
-  const builder = AlarmRunbookBuilder.create(config.id)
-    .metadata(config.metadata)
-    .cloudExecutionPolicy({ sideEffects: 'NONE' });
-
-  if (config.occurrenceTimeWindow !== undefined) {
-    builder.occurrenceTimeWindow(config.occurrenceTimeWindow);
-  }
+  const builder = startAlarmRunbook(config);
 
   builder.step(
     new PrepareServiceSectionStep({
@@ -56,7 +51,7 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
       label: `Query log ${service.name} per errori`,
       logGroups: [service.logGroup],
       query: errorQuery,
-      timeRangeFromParams: TIME_RANGE,
+      timeRangeFromParams: ALARM_TIME_RANGE,
       logGroupResolutionMode: 'search-configured-profiles',
       traceMetadata: {
         queryProfileId: profile.id,
@@ -67,33 +62,52 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
     { silent: true },
   );
 
-  builder.step(
-    new AnalyzeApplicationLogsStep({
-      id: `analyze-${service.name}`,
-      label: `Analisi log ${service.name}`,
-      fromStep: `query-${service.name}`,
-      varPrefix: service.varPrefix,
-      schema: profile.schema,
-      ...(profile.extractFallbackUuid !== undefined ? { extractFallbackUuid: profile.extractFallbackUuid } : {}),
-    }),
-    { silent: true },
-  );
-
-  applyPipelineHooks(builder, config.hooks ?? [], 'after-service-analysis', reachedAnchors);
-
-  builder.step(
-    new QueryServiceTraceLogsStep({
-      id: `query-${service.name}-trace`,
-      label: `Query log ${service.name} per trace_id`,
-      serviceName: service.name,
-      varPrefix: service.varPrefix,
-      logGroups: [service.logGroup],
-      queryTemplate: traceQuery,
-      queryProfileId: profile.id,
-      timeRangeFromParams: TIME_RANGE,
-    }),
-    { silent: true },
-  );
+  // Window steps over every error of the scan, then the steps of each error.
+  applyPipelineHooks(builder, config.hooks ?? [], 'after-service-scan', reachedAnchors);
+  const traceTarget = `${service.name}-trace`;
+  const traceReadId = `query-${service.name}-trace`;
+  const traceErrorVar = `${service.varPrefix}TraceErrorMsg`;
+  builder.errorTree({
+    root: {
+      target: service.name,
+      scopedSteps: [`query-${service.name}`],
+      rowIdentity: applicationRowIdentity,
+      enumerate: enumerateServiceRootErrors({
+        stepId: `query-${service.name}`,
+        varPrefix: service.varPrefix,
+        schema: profile.schema,
+        ...(profile.extractFallbackUuid !== undefined ? { extractFallbackUuid: profile.extractFallbackUuid } : {}),
+      }),
+      perNode: [
+        ...pipelineHooksAt(config.hooks ?? [], 'after-service-analysis', reachedAnchors),
+        {
+          step: new DescendToTraceStep(`descend-${service.name}`, traceTarget, `${service.varPrefix}TraceId`),
+          silent: true,
+        },
+      ],
+    },
+    levels: [
+      {
+        target: traceTarget,
+        varPrefix: `${service.varPrefix}Trace`,
+        read: new ServiceTraceLevelReader({
+          id: traceReadId,
+          label: `Query log ${service.name} per trace_id`,
+          serviceName: service.name,
+          logGroups: [service.logGroup],
+          queryTemplate: traceQuery,
+          queryProfileId: profile.id,
+          timeRangeFromParams: ALARM_TIME_RANGE,
+        }),
+        // A query that names one trace reads one at a time; a batch query takes as many as fit.
+        ...(readsTraceBatches(traceQuery) ? {} : { batchSize: 1 }),
+        attribute: attributeTraceRow,
+        rowIdentity: applicationRowIdentity,
+        enumerate: enumerateTraceErrors(traceReadId, `${service.varPrefix}Trace`, profile.schema),
+        ownsVar: (name) => name === traceErrorVar,
+      },
+    ],
+  });
 
   return finishAlarmRunbook(builder, config, {
     builderName: 'createServiceAlarmRunbook',
@@ -102,32 +116,4 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
     primaryResource: service.name,
     anchors: { hooks: config.hooks ?? [], reached: reachedAnchors, pipelineName: 'service' },
   });
-}
-
-function validateConfig(config: ServiceAlarmConfig): void {
-  const service = config.service;
-  if (config.id.trim() === '') {
-    throw new Error('createServiceAlarmRunbook: id must be a non-empty string.');
-  }
-  if (service.name.trim() === '') {
-    throw new Error(`createServiceAlarmRunbook "${config.id}": service.name must be a non-empty string.`);
-  }
-  if (service.logGroup.trim() === '') {
-    throw new Error(`createServiceAlarmRunbook "${config.id}": service.logGroup must be a non-empty string.`);
-  }
-  if (service.varPrefix.trim() === '') {
-    throw new Error(`createServiceAlarmRunbook "${config.id}": service.varPrefix must be a non-empty string.`);
-  }
-  if (!SERVICE_NAME_PATTERN.test(service.name) || service.name.startsWith('-') || service.name.endsWith('-')) {
-    throw new Error(
-      `createServiceAlarmRunbook "${config.id}": service.name "${service.name}" must be a slug ` +
-        `(alphanumeric segments separated by "-", e.g. "pn-external-channel"); it is used to build step ids.`,
-    );
-  }
-  if (!VAR_PREFIX_PATTERN.test(service.varPrefix)) {
-    throw new Error(
-      `createServiceAlarmRunbook "${config.id}": service.varPrefix "${service.varPrefix}" must start with a letter ` +
-        `and contain only letters and digits (e.g. "externalChannel"); it is used to build var names.`,
-    );
-  }
 }

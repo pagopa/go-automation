@@ -1,7 +1,6 @@
 import { lambda } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
-import { DOWNSTREAM_ERROR_PATTERNS } from './knownErrors.js';
 import { KNOWN_CASES } from './knownCases.js';
 import { DOWNSTREAMS, LAMBDA_FUNCTION } from './knownServices.js';
 import { SENDER_DASHBOARD_DATA_INDEXER_ALARM } from './alarmDefinition.js';
@@ -12,6 +11,11 @@ const HISTORICAL_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/1487011901/SEND+Gestione+dell+errore+pn-bff-SenderDashboardDataIndexer-LogInvocationErrors-Alarm';
 const IMPLEMENTATION_URL = 'https://github.com/pagopa/pn-bff/tree/develop/functions/senderDashboardDataIndexer';
 
+/**
+ * Builds the pn-bff-SenderDashboardDataIndexer-LogInvocationErrors-Alarm runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return lambda.createSendLambdaAlarmRunbook({
     id: SENDER_DASHBOARD_DATA_INDEXER_ALARM,
@@ -26,7 +30,6 @@ export function buildRunbook(): Runbook {
     },
     lambda: LAMBDA_FUNCTION,
     downstreams: DOWNSTREAMS,
-    downstreamErrorPatterns: DOWNSTREAM_ERROR_PATTERNS,
     knownCases: KNOWN_CASES,
     analysisDefaults: {
       runbookName: SENDER_DASHBOARD_DATA_INDEXER_ALARM,

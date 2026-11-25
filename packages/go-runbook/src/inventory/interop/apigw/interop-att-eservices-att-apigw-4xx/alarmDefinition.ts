@@ -8,20 +8,6 @@ export const QUERY_STEP_ID = 'query-att-eservices-access-logs';
 export const ANALYSIS_STEP_ID = 'analyze-att-eservices-access-logs';
 export const ACCESS_LOG_RESULT_LIMIT = 1000;
 
-/** Exact GET paths in the verified 2026-10-29 report; no method exists for these in the API snapshot. */
-export const DOCUMENTED_PROBE_PATHS: ReadonlySet<string> = new Set([
-  '/',
-  '/favicon.ico',
-  '/sitemap.xml',
-  '/robots.txt',
-  '/h/viewimages',
-  '/h/printconversations',
-  '/h/printtasks',
-  '/h/printappointments',
-  '/h/printmessage',
-  '/h/printcontacts',
-]);
-
 export const ACCESS_LOG_QUERY: string = `filter apigwId = "${API_GW_ID}"
 | filter status >= 400 and status < 500
 | sort @timestamp asc

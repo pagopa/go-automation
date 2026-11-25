@@ -281,6 +281,18 @@ function packageLayerRules() {
       to: { path: '^packages/go-runbook/src/(?:inventory|runtime)/' },
     },
     {
+      name: 'toolkits-and-runtime-use-engine-barrels',
+      severity: 'error',
+      comment:
+        'toolkits and runtime import the engine only from its barrels: the public one (engine/index.ts) and the ' +
+        'one of the package (engine/internal.ts), with the helpers that are not public API.',
+      from: { path: '^packages/go-runbook/src/(?:toolkits|runtime)/', pathNot: ['/__tests__/'] },
+      to: {
+        path: '^packages/go-runbook/src/engine/',
+        pathNot: '^packages/go-runbook/src/engine/(?:index|internal)[.]ts$',
+      },
+    },
+    {
       name: 'common-does-not-know-products',
       severity: 'error',
       comment: 'toolkits/common knows no product; SEND and INTEROP data live in their toolkits.',

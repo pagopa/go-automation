@@ -11,6 +11,7 @@ import { FakeLogger } from './helpers/testScript.js';
 function progress(
   entries: ReadonlyArray<[Dispatch.RowStatus, number]>,
   acceptance: ReadonlyArray<[Dispatch.RowAcceptance, number]> = [],
+  requestIdNotExpected = 0,
 ): Dispatch.DispatchProgress {
   return {
     byStatus: new Map<Dispatch.RowStatus, number>(entries),
@@ -19,6 +20,7 @@ function progress(
     throttled: 0,
     verifyPending: 0,
     requestIdPending: 0,
+    requestIdNotExpected,
     queuedCalls: 0,
   };
 }
@@ -36,6 +38,14 @@ describe('displaySummary helpers', () => {
     assert.equal(exitCodeFor(progress([['SEND_UNCERTAIN', 1]]), 1), 2);
     assert.equal(exitCodeFor(progress([['REQUEST_ID_NOT_FOUND', 1]]), 1), 2);
     assert.equal(exitCodeFor(progress([['ACCEPTED', 1]]), 3), 2, 'two rows never journaled');
+  });
+
+  it('does not count as a problem a digital workflow that succeeded without paper delivery', () => {
+    assert.equal(exitCodeFor(progress([['REQUEST_ID_NOT_FOUND', 2]], [], 2), 2), 0);
+    assert.equal(exitCodeFor(progress([['REQUEST_ID_NOT_FOUND', 3]], [], 2), 3), 2, 'a timeout among them');
+    const table = summarize(progress([['REQUEST_ID_NOT_FOUND', 3]], [], 2), 3).of('kv');
+    assert.ok(table.includes('requestId non trovati=1'));
+    assert.ok(table.includes('Senza spedizione cartacea (workflow digitale riuscito)=2'));
   });
 
   it('counts as not sent the rows without status and the PENDING ones', () => {

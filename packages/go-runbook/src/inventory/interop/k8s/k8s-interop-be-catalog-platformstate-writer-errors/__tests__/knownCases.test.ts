@@ -86,13 +86,19 @@ describe('catalog platformstate writer known cases', () => {
     }
   });
 
-  it('does not report a known case when the pod context cannot be read', async () => {
-    const { result, draft } = await executeAlarmWithLogs(
+  it('keeps the known case read in the error rows and declares the evidence incomplete when the pod context cannot be read', async () => {
+    const { result, matchedIds, draft } = await executeAlarmWithLogs(
       buildRunbook(),
       `${alarm.runbookKey}-prod`,
       interopPodResponder({ podApp: alarm.podApp, messages: [COORDINATOR], failContext: true }),
     );
-    assert.strictEqual(result.status, 'failed');
-    assert.notStrictEqual(draft?.kind, 'KNOWN_CASE');
+    assert.strictEqual(result.status, 'completed');
+    assert.deepStrictEqual(matchedIds, ['catalog-platformstate-writer-kafka-coordinator-member-rejoin']);
+    assert.deepStrictEqual(
+      result.coverage.map(({ complete, reason }) => ({ complete, reason })),
+      [{ complete: false, reason: 'unavailable' }],
+    );
+    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
+    assert.match(draft.conclusionNotes, /Evidenza incompleta: 1 fonti \(non disponibili 1\)/u);
   });
 });

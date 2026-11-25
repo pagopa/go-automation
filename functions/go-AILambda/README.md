@@ -4,7 +4,7 @@ Lambda wrapping `@go-automation/go-ai`: invoca Bedrock direttamente, oppure
 inoltra il risultato a Slack via `go-BotQESlackHandler`.
 
 A differenza del pattern wrapper canonico del repo (vedi
-`functions/go-ExecuteRunbookLambda`), questo handler è scritto a mano:
+`functions/go-SendMonitorAthenaQueryLambda`), questo handler è scritto a mano:
 non esiste uno script CLI a monte e non usa
 `GOScript.createLambdaHandler()`.
 

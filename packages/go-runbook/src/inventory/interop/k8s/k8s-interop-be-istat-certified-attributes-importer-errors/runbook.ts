@@ -3,9 +3,14 @@ import type { Runbook } from '../../../../engine/index.js';
 import { ISTAT_IMPORTER_ALARM as alarm } from './alarmDefinition.js';
 import { KNOWN_CASES } from './knownCases.js';
 
+/**
+ * Builds the k8s-interop-be-istat-certified-attributes-importer-errors runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: alarm.runbookKey,
+    alarm,
     metadata: {
       name: alarm.runbookKey,
       description:
@@ -15,8 +20,6 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'service', 'istat', 'certified-attributes', 'importer'],
     },
-    service: { name: alarm.podApp, logGroup: alarm.logGroup, varPrefix: alarm.varPrefix },
-    resolveAlarmContext: alarm.resolveContext,
     knownCases: KNOWN_CASES,
     analysisDefaults: {
       runbookName: alarm.runbookKey,

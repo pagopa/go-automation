@@ -1,5 +1,7 @@
 import type { AnalysisLinkRef } from '../AnalysisLinkRef.js';
 import type { AnalysisResourceRef } from '../AnalysisResourceRef.js';
+import type { AnalysisType } from '../AnalysisType.js';
+import type { ProposedAnalysisStatus } from '../ProposedAnalysisStatus.js';
 
 /**
  * Deterministic analysis draft emitted when a known case matched.
@@ -14,8 +16,8 @@ export interface KnownCaseAnalysisDraft {
   /** Already interpolated (≤5000, aligned with the Watchtower contract). */
   readonly conclusionNotes: string;
   readonly errorDetails?: string;
-  readonly proposedStatus: 'IN_PROGRESS' | 'COMPLETED';
-  readonly analysisType: 'ANALYZABLE' | 'IGNORABLE';
+  readonly proposedStatus: ProposedAnalysisStatus;
+  readonly analysisType: AnalysisType;
   readonly ignoreReasonCode?: string;
   readonly ignoreDetails?: Readonly<Record<string, unknown>>;
   readonly runbookName?: string;

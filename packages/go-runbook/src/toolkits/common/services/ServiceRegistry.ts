@@ -5,7 +5,7 @@ import type { AwsAccountsPort } from './ports/AwsAccountsPort.js';
 import type { RunbookAthenaPort } from './ports/RunbookAthenaPort.js';
 import type { RunbookCloudWatchMetricsPort } from './ports/RunbookCloudWatchMetricsPort.js';
 import type { RunbookDynamoDBPort } from './ports/RunbookDynamoDBPort.js';
-import type { WorkflowServices } from '../../../engine/types/WorkflowServices.js';
+import type { WorkflowServices } from '../../../engine/index.js';
 
 /**
  * Registry of collaborators available to runbook steps.

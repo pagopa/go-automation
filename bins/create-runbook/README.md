@@ -4,7 +4,7 @@ Scaffolds a new runbook in the go-runbook inventory
 (`packages/go-runbook/src/inventory/<product>/<family>/<id>/`) from a template and,
 by default, registers it in the manifest of its product
 (`packages/go-runbook/src/inventory/<product>/manifest.ts`). Every consumer of the
-catalog (`go-analyze-alarm`, `go-execute-runbook`, `go-rta-check`, the Lambda) then
+catalog (`go-analyze-alarm`, `go-rta-check`, the Lambda of go-watchtower-pro) then
 sees it.
 
 ## Usage

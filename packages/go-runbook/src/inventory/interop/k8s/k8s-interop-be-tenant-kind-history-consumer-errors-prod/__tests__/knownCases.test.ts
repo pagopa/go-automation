@@ -25,8 +25,8 @@ function matches(
 }
 
 describe('Tenant kind history consumer known cases', () => {
-  it('recognizes the documented Heartbeat and refused-rejoin signatures in raw and structured logs', () => {
-    for (const message of [HEARTBEAT, REFUSED]) {
+  it('recognizes the documented Heartbeat, in any protocol version, and refused-rejoin signatures in raw and structured logs', () => {
+    for (const message of [HEARTBEAT, HEARTBEAT.replace('version: 3', 'version: 4'), REFUSED]) {
       assert.deepStrictEqual(matches([message]), [COORDINATOR_ERRORS], message);
       assert.deepStrictEqual(matches([JSON.stringify({ log: message, pod_app: alarm.podApp })]), [COORDINATOR_ERRORS]);
     }
@@ -61,7 +61,6 @@ describe('Tenant kind history consumer known cases', () => {
       ['Connection error: connect ETIMEDOUT'],
       ['The coordinator is not aware of this member'],
       ['Response Heartbeat(key: 12, version: 3) - The group coordinator is not available'],
-      [HEARTBEAT.replace('version: 3', 'version: 4')],
       [`${HEARTBEAT}Other`],
       ['ReadTimeoutException'],
       ['Response Heartbeat(key: 12, version: 3)', 'The coordinator is not aware of this member'],

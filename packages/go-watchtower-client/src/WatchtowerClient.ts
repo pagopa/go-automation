@@ -1,9 +1,4 @@
-import {
-  GOHttpClient,
-  GOHttpClientError,
-  type GOHttpRequestOptions,
-  type GOHttpRetryPolicy,
-} from '@pagopa/go-common/http';
+import { GOHttpClient, GOHttpClientError } from '@pagopa/go-common/http';
 
 import { withWatchtowerReason } from './watchtowerErrorReason.js';
 
@@ -11,41 +6,21 @@ import { WatchtowerAuth } from './WatchtowerAuth.js';
 import type { WatchtowerAuthCredentials } from './WatchtowerAuth.js';
 import type { ProductCensus } from './ProductCensus.js';
 import type {
-  AcknowledgeCancellationRequest,
-  AcknowledgeCancellationResult,
   AlarmAnalysisDto,
   AlarmDto,
   AlarmEventDetailDto,
   AlarmEventDto,
   AlarmEventsPage,
   AlarmEventsQuery,
-  AutomaticRunbookAttemptsResponse,
-  AutomaticRunbookExecutionDto,
-  AutomaticRunbookExecutionsPage,
-  AutomaticRunbookExecutionsQuery,
-  CancelExecutionRequest,
-  CancelExecutionResult,
-  CompleteExecutionRequest,
-  ShadowReportQuery,
-  ShadowReportResponse,
-  CompleteExecutionResult,
-  CreateCliExecutionRequest,
-  CreateCliExecutionResponse,
   DownstreamDto,
   EnvironmentDto,
-  FailExecutionRequest,
-  FailExecutionResult,
   FinalActionDto,
   IgnoreReasonDto,
-  PreviewCliExecutionRequest,
-  PreviewCliExecutionResponse,
   ProductDto,
-  ProgressExecutionRequest,
-  ProgressExecutionResponse,
   ResourceDto,
   RunbookDto,
-  StartExecutionRequest,
-  StartExecutionResponse,
+  ShadowReportQuery,
+  ShadowReportResponse,
 } from './WatchtowerTypes.js';
 
 export interface WatchtowerClientOptions {
@@ -55,15 +30,7 @@ export interface WatchtowerClientOptions {
   readonly proxyUrl?: string;
 }
 
-export interface WatchtowerLifecycleRequestOptions {
-  readonly idempotencyKey: string;
-  readonly deadlineAtMs: number;
-  readonly signal?: AbortSignal;
-}
-
-type AuthenticatedMethod = 'GET' | 'POST' | 'PATCH';
-
-/** Generated-contract Watchtower client for shared read and worker lifecycle operations. */
+/** Generated-contract Watchtower client for the shared read operations. */
 export class WatchtowerClient {
   private readonly http: GOHttpClient;
   private readonly auth: WatchtowerAuth;
@@ -83,51 +50,42 @@ export class WatchtowerClient {
   }
 
   async listProducts(): Promise<ReadonlyArray<ProductDto>> {
-    return await this.authenticatedRequest<ProductDto[]>('GET', '/api/products');
+    return await this.authenticatedRequest<ProductDto[]>('/api/products');
   }
 
   async listProductAlarms(productId: string): Promise<ReadonlyArray<AlarmDto>> {
-    return await this.authenticatedRequest<AlarmDto[]>('GET', `/api/products/${encodeURIComponent(productId)}/alarms`);
+    return await this.authenticatedRequest<AlarmDto[]>(`/api/products/${encodeURIComponent(productId)}/alarms`);
   }
 
   async listProductEnvironments(productId: string): Promise<ReadonlyArray<EnvironmentDto>> {
     return await this.authenticatedRequest<EnvironmentDto[]>(
-      'GET',
       `/api/products/${encodeURIComponent(productId)}/environments`,
     );
   }
 
   async listProductResources(productId: string): Promise<ReadonlyArray<ResourceDto>> {
-    return await this.authenticatedRequest<ResourceDto[]>(
-      'GET',
-      `/api/products/${encodeURIComponent(productId)}/resources`,
-    );
+    return await this.authenticatedRequest<ResourceDto[]>(`/api/products/${encodeURIComponent(productId)}/resources`);
   }
 
   async listProductDownstreams(productId: string): Promise<ReadonlyArray<DownstreamDto>> {
     return await this.authenticatedRequest<DownstreamDto[]>(
-      'GET',
       `/api/products/${encodeURIComponent(productId)}/downstreams`,
     );
   }
 
   async listProductFinalActions(productId: string): Promise<ReadonlyArray<FinalActionDto>> {
     return await this.authenticatedRequest<FinalActionDto[]>(
-      'GET',
       `/api/products/${encodeURIComponent(productId)}/final-actions`,
     );
   }
 
   async listProductRunbooks(productId: string): Promise<ReadonlyArray<RunbookDto>> {
-    return await this.authenticatedRequest<RunbookDto[]>(
-      'GET',
-      `/api/products/${encodeURIComponent(productId)}/runbooks`,
-    );
+    return await this.authenticatedRequest<RunbookDto[]>(`/api/products/${encodeURIComponent(productId)}/runbooks`);
   }
 
   /** Ignore reasons are global, not per-product: they stay outside `ProductCensus`. */
   async listIgnoreReasons(): Promise<ReadonlyArray<IgnoreReasonDto>> {
-    return await this.authenticatedRequest<IgnoreReasonDto[]>('GET', '/api/ignore-reasons');
+    return await this.authenticatedRequest<IgnoreReasonDto[]>('/api/ignore-reasons');
   }
 
   /**
@@ -158,7 +116,6 @@ export class WatchtowerClient {
     if (query.productId !== undefined) params.set('productId', query.productId);
     const suffix = params.size === 0 ? '' : `?${params.toString()}`;
     return await this.authenticatedRequest<ShadowReportResponse>(
-      'GET',
       `/api/automatic-runbook-executions/shadow-report${suffix}`,
     );
   }
@@ -167,7 +124,6 @@ export class WatchtowerClient {
     const events: AlarmEventDto[] = [];
     for (let page = 1; ; page += 1) {
       const result = await this.authenticatedRequest<AlarmEventsPage>(
-        'GET',
         withQuery('/api/alarm-events', { ...query, page, pageSize: 1_000 }),
       );
       events.push(...result.data);
@@ -186,7 +142,6 @@ export class WatchtowerClient {
    */
   async countAlarmEvents(query: AlarmEventsQuery): Promise<number> {
     const result = await this.authenticatedRequest<AlarmEventsPage>(
-      'GET',
       withQuery('/api/alarm-events', { ...query, page: 1, pageSize: 1 }),
     );
     return result.pagination.totalItems;
@@ -194,205 +149,36 @@ export class WatchtowerClient {
 
   async getAlarmEvent(alarmEventId: string): Promise<AlarmEventDetailDto> {
     return await this.authenticatedRequest<AlarmEventDetailDto>(
-      'GET',
       `/api/alarm-events/${encodeURIComponent(alarmEventId)}`,
     );
   }
 
   async getAnalysis(productId: string, analysisId: string): Promise<AlarmAnalysisDto> {
     return await this.authenticatedRequest<AlarmAnalysisDto>(
-      'GET',
       `/api/products/${encodeURIComponent(productId)}/analyses/${encodeURIComponent(analysisId)}`,
     );
   }
 
-  async listAutomaticRunbookExecutions(
-    query: AutomaticRunbookExecutionsQuery = {},
-  ): Promise<AutomaticRunbookExecutionsPage> {
-    return await this.authenticatedRequest<AutomaticRunbookExecutionsPage>(
-      'GET',
-      withQuery('/api/automatic-runbook-executions', query),
-    );
-  }
-
-  async getAutomaticRunbookExecution(executionId: string): Promise<AutomaticRunbookExecutionDto> {
-    return await this.authenticatedRequest<AutomaticRunbookExecutionDto>('GET', executionPath(executionId));
-  }
-
-  async getAutomaticRunbookAttempts(executionId: string): Promise<AutomaticRunbookAttemptsResponse> {
-    return await this.authenticatedRequest<AutomaticRunbookAttemptsResponse>(
-      'GET',
-      `${executionPath(executionId)}/attempts`,
-    );
-  }
-
-  async createCliAutomaticRunbookExecution(body: CreateCliExecutionRequest): Promise<CreateCliExecutionResponse> {
-    return await this.authenticatedRequest<CreateCliExecutionResponse>(
-      'POST',
-      '/api/automatic-runbook-executions/cli',
-      body,
-    );
-  }
-
-  async previewCliAutomaticRunbookExecution(body: PreviewCliExecutionRequest): Promise<PreviewCliExecutionResponse> {
-    return await this.authenticatedRequest<PreviewCliExecutionResponse>(
-      'POST',
-      '/api/automatic-runbook-executions/cli/preview',
-      body,
-    );
-  }
-
-  async startExecution(
-    executionId: string,
-    body: StartExecutionRequest,
-    options: WatchtowerLifecycleRequestOptions,
-  ): Promise<StartExecutionResponse> {
-    return await this.lifecycleRequest<StartExecutionResponse>(
-      'POST',
-      `${executionPath(executionId)}/start`,
-      body,
-      options,
-    );
-  }
-
-  async progressExecution(
-    executionId: string,
-    body: ProgressExecutionRequest,
-    options: WatchtowerLifecycleRequestOptions,
-  ): Promise<ProgressExecutionResponse> {
-    return await this.lifecycleRequest<ProgressExecutionResponse>(
-      'PATCH',
-      `${executionPath(executionId)}/progress`,
-      body,
-      options,
-    );
-  }
-
-  async completeExecution(
-    executionId: string,
-    body: CompleteExecutionRequest,
-    options: WatchtowerLifecycleRequestOptions,
-  ): Promise<CompleteExecutionResult> {
-    return await this.lifecycleControlRequest<CompleteExecutionResult>(
-      `${executionPath(executionId)}/complete`,
-      body,
-      options,
-    );
-  }
-
-  async failExecution(
-    executionId: string,
-    body: FailExecutionRequest,
-    options: WatchtowerLifecycleRequestOptions,
-  ): Promise<FailExecutionResult> {
-    return await this.lifecycleControlRequest<FailExecutionResult>(`${executionPath(executionId)}/fail`, body, options);
-  }
-
-  async acknowledgeCancellation(
-    executionId: string,
-    body: AcknowledgeCancellationRequest,
-    options: WatchtowerLifecycleRequestOptions,
-  ): Promise<AcknowledgeCancellationResult> {
-    return await this.lifecycleControlRequest<AcknowledgeCancellationResult>(
-      `${executionPath(executionId)}/cancel/ack`,
-      body,
-      options,
-    );
-  }
-
-  async cancelExecution(executionId: string, body: CancelExecutionRequest): Promise<CancelExecutionResult> {
-    try {
-      return await this.authenticatedRequest<CancelExecutionResult>(
-        'POST',
-        `${executionPath(executionId)}/cancel`,
-        body,
-      );
-    } catch (error: unknown) {
-      if (error instanceof GOHttpClientError && error.statusCode === 409) {
-        return error.response as CancelExecutionResult;
-      }
-      throw error;
-    }
-  }
-
-  private async lifecycleControlRequest<T>(
-    path: string,
-    body: unknown,
-    options: WatchtowerLifecycleRequestOptions,
-  ): Promise<T> {
-    try {
-      return await this.lifecycleRequest<T>('POST', path, body, options);
-    } catch (error: unknown) {
-      if (error instanceof GOHttpClientError && error.statusCode === 409) return error.response as T;
-      throw error;
-    }
-  }
-
-  private async lifecycleRequest<T>(
-    method: 'POST' | 'PATCH',
-    path: string,
-    body: unknown,
-    options: WatchtowerLifecycleRequestOptions,
-  ): Promise<T> {
-    return await this.authenticatedRequest<T>(method, path, body, {
-      retryPolicy: lifecycleRetryPolicy(options.idempotencyKey),
-      deadlineAtMs: options.deadlineAtMs,
-      ...(options.signal === undefined ? {} : { signal: options.signal }),
-    });
-  }
-
-  private async authenticatedRequest<T>(
-    method: AuthenticatedMethod,
-    path: string,
-    body?: unknown,
-    requestOptions?: GOHttpRequestOptions,
-  ): Promise<T> {
+  private async authenticatedRequest<T>(path: string): Promise<T> {
     let token = await this.auth.getAccessToken();
     try {
-      return await this.send<T>(method, path, body, token, requestOptions);
+      return await this.send<T>(path, token);
     } catch (error: unknown) {
       if (!(error instanceof GOHttpClientError) || error.statusCode !== 401) throw error;
       token = await this.auth.renewAccessToken();
-      const attemptsRemaining = requestOptions?.retryPolicy === undefined ? undefined : 3 - error.attemptsUsed;
-      return await this.send<T>(method, path, body, token, {
-        ...requestOptions,
-        ...(attemptsRemaining === undefined
-          ? {}
-          : { attemptBudget: Math.max(1, Math.min(3, attemptsRemaining)) as 1 | 2 | 3 }),
-      });
+      return await this.send<T>(path, token);
     }
   }
 
-  private async send<T>(
-    method: AuthenticatedMethod,
-    path: string,
-    body: unknown,
-    token: string,
-    options: GOHttpRequestOptions | undefined,
-  ): Promise<T> {
-    const headers = { authorization: `Bearer ${token}` };
+  private async send<T>(path: string, token: string): Promise<T> {
     try {
-      if (method === 'GET') return await this.http.get<T>(path, headers, options);
-      if (method === 'PATCH') return await this.http.patch<T>(path, body, headers, options);
-      return await this.http.post<T>(path, body, headers, options);
+      return await this.http.get<T>(path, { authorization: `Bearer ${token}` });
     } catch (error: unknown) {
       // Punto unico in cui il motivo applicativo entra nel messaggio. Il tipo e
-      // `statusCode` restano invariati, così il retry sul 401 e la gestione
-      // tipizzata del 409 a monte continuano a decidere come prima.
+      // `statusCode` restano invariati, così il retry sul 401 continua a decidere come prima.
       throw withWatchtowerReason(error);
     }
   }
-}
-
-function lifecycleRetryPolicy(idempotencyKey: string): GOHttpRetryPolicy {
-  return {
-    enabled: true,
-    idempotencyKey,
-    maxAttempts: 3,
-    retryableStatuses: [408, 429, 500, 502, 503, 504],
-    respectRetryAfter: true,
-    maxRetryAfterMs: 15_000,
-  };
 }
 
 function normalizeBaseUrl(value: string): string {
@@ -400,10 +186,6 @@ function normalizeBaseUrl(value: string): string {
   while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
   const withoutTrailingSlashes = value.slice(0, end);
   return withoutTrailingSlashes.endsWith('/api') ? withoutTrailingSlashes.slice(0, -4) : withoutTrailingSlashes;
-}
-
-function executionPath(executionId: string): string {
-  return `/api/automatic-runbook-executions/${encodeURIComponent(executionId)}`;
 }
 
 function withQuery(path: string, query: Readonly<Record<string, unknown>>): string {

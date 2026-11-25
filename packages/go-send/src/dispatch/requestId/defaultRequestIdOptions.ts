@@ -7,7 +7,8 @@ import type { RequestIdSelectionOptions } from './RequestIdSelectionOptions.js';
  * is not an end: a simple registered letter follows it (A12).
  */
 export const DEFAULT_REQUEST_ID_OPTIONS: RequestIdSelectionOptions = {
-  categories: ['PREPARE_ANALOG_DOMICILE', 'PREPARE_DIGITAL_DOMICILE'],
+  categories: ['PREPARE_ANALOG_DOMICILE', 'PREPARE_SIMPLE_REGISTERED_LETTER'],
+  suffix: '',
   select: 'per-category',
   wait: 'any',
   endCategories: [

@@ -1,8 +1,13 @@
 import type { GOLogger } from '@pagopa/go-common/logging';
-import type { CaseAction, CaseActionType, LogAction } from '../types/CaseAction.js';
+import type { CaseAction } from '../types/CaseAction.js';
+import type { CaseActionType } from '../types/CaseActionType.js';
+import type { EscalationSeverity } from '../types/EscalationSeverity.js';
+import type { LogAction } from '../types/LogAction.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
+import type { TraceStatus } from '../tracing/TraceStatus.js';
 import { interpolatePlaceholders } from '../context/templatePlaceholders.js';
 import { throwIfRunbookAborted } from '../context/throwIfRunbookAborted.js';
+import { failedResultUnlessAborted } from '../context/failedResultUnlessAborted.js';
 import type { LogActionRenderer } from './LogActionRenderer.js';
 import { PLAIN_LOG_ACTION_RENDERER } from './PLAIN_LOG_ACTION_RENDERER.js';
 import { resolveActionMessage } from './resolveActionMessage.js';
@@ -17,7 +22,7 @@ export interface ActionExecutionResult {
   /** Action type string */
   readonly actionType: CaseActionType;
   /** Execution status */
-  readonly status: 'success' | 'failed';
+  readonly status: TraceStatus;
   /** Duration in milliseconds */
   readonly durationMs: number;
   /** Resolved message (interpolated template), if applicable */
@@ -45,14 +50,17 @@ export class ActionExecutor {
    *
    * @param action - The action to execute
    * @param context - The current runbook context
-   * @returns Result containing all data for trace
+   * @returns Result containing all data for trace; a failure to resolve the message or to run the action is `failed`
+   * @throws The error of the action when the execution was cancelled
    */
   async execute(action: CaseAction, context: RunbookContext): Promise<ActionExecutionResult> {
     const startTime = Date.now();
+    // Resolved once: the failed result keeps the message resolved before the failure, if any.
+    let resolvedMessage: string | undefined;
 
     try {
       throwIfRunbookAborted(context);
-      const resolvedMessage = this.getResolvedMessage(action, context);
+      resolvedMessage = this.getResolvedMessage(action, context);
       await this.executeAction(action, context);
       return {
         action,
@@ -62,17 +70,13 @@ export class ActionExecutor {
         ...(resolvedMessage !== undefined ? { resolvedMessage } : {}),
       };
     } catch (error: unknown) {
-      if (context.signal?.aborted === true) {
-        throw error;
-      }
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const resolvedMessage = this.getResolvedMessage(action, context);
+      const failure = failedResultUnlessAborted(context, error);
       return {
         action,
         actionType: action.type,
         status: 'failed',
         durationMs: Date.now() - startTime,
-        error: errorMessage,
+        error: failure.error,
         ...(resolvedMessage !== undefined ? { resolvedMessage } : {}),
       };
     }
@@ -164,7 +168,7 @@ export class ActionExecutor {
    * Executes an escalate action. Currently logs the escalation.
    * In production, this would create tickets, page on-call, etc.
    */
-  private executeEscalateAction(team: string, severity: 'low' | 'medium' | 'high' | 'critical', message: string): void {
+  private executeEscalateAction(team: string, severity: EscalationSeverity, message: string): void {
     this.logger.warning(`[ESCALATE -> ${team} (${severity})] ${message}`);
     // Future: integrate with PagerDuty, Jira, etc.
   }

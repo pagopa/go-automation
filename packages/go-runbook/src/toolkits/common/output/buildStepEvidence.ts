@@ -1,13 +1,10 @@
-import {
-  type GOLogsInsightsResultField,
-  readResultFieldRows,
-  readRowField,
-} from '@pagopa/go-aws/cloudwatch-logs/insights';
-import type { StepDescriptor } from '../../../engine/types/StepDescriptor.js';
-import type { RunbookEvidence } from './RunbookOutputContext.js';
+import { readResultFieldRows, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import type { StepDescriptor } from '../../../engine/index.js';
+import type { RunbookEvidence } from './RunbookEvidence.js';
 import type { StepEvidence } from './StepEvidence.js';
 import { normalizeOutputValue } from './outputValues.js';
 import { readFirstRowField } from '../parsing/aws/cloudwatch-logs/resultRows.js';
+import type { CloudWatchLogsRow } from '../steps/aws/cloudwatch-logs/CloudWatchLogsRow.js';
 
 /** Read only explicitly declared evidence; never guess which custom queries to export. */
 export function buildStepEvidence(
@@ -48,10 +45,7 @@ export function buildStepEvidence(
   });
 }
 
-function toEvidenceItem(
-  row: ReadonlyArray<GOLogsInsightsResultField>,
-  definition: StepEvidence,
-): ReadonlyArray<Record<string, string>> {
+function toEvidenceItem(row: CloudWatchLogsRow, definition: StepEvidence): ReadonlyArray<Record<string, string>> {
   const fields = new Map<string, string>();
   for (const { field, value } of row) {
     if (field !== undefined && value !== undefined && !fields.has(field)) fields.set(field, value);

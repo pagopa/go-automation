@@ -1,20 +1,21 @@
 import type { GOLogger } from '@pagopa/go-common/logging';
 
-import { assertRequiredServices } from '../../../engine/core/assertRequiredServices.js';
-import { RunbookEngine } from '../../../engine/core/RunbookEngine.js';
+import { assertRequiredServices } from '../../../engine/internal.js';
+import { RunbookEngine } from '../../../engine/index.js';
+import type { Runbook, RunbookExecutionResult } from '../../../engine/index.js';
 import type { AwsExecutionEnvironment } from '../telemetry/AwsExecutionEnvironment.js';
-import type { Runbook } from '../../../engine/types/Runbook.js';
-import type { RunbookExecutionResult } from '../../../engine/types/RunbookExecutionResult.js';
 import { ANALYSIS_LOG_ACTION_RENDERER } from '../analysis/reporting/ANALYSIS_LOG_ACTION_RENDERER.js';
 import { OPERATIONAL_SERVICE_CAPABILITIES } from '../services/OPERATIONAL_SERVICE_CAPABILITIES.js';
 import type { ServiceRegistry } from '../services/ServiceRegistry.js';
 import { assertAwsAccounts } from './assertAwsAccounts.js';
+import { readEvidenceTime } from '../parsing/aws/cloudwatch-logs/readEvidenceTime.js';
 
 /**
  * Engine for operational runbooks.
  *
  * It composes a private {@link RunbookEngine} configured with the operational
- * service capabilities and the analysis renderer of log actions, and requires a full {@link ServiceRegistry} at compile
+ * service capabilities, the analysis renderer of log actions and the reader of the time of log rows, and requires a
+ * full {@link ServiceRegistry} at compile
  * time. The runtime check covers what the types cannot (casts, hand-built
  * objects): every service a step requires must expose the methods it calls.
  */
@@ -28,6 +29,7 @@ export class OperationalRunbookEngine {
     this.engine = new RunbookEngine(logger, {
       serviceCapabilities: OPERATIONAL_SERVICE_CAPABILITIES,
       logActionRenderer: ANALYSIS_LOG_ACTION_RENDERER,
+      evidenceTime: readEvidenceTime,
     });
   }
 

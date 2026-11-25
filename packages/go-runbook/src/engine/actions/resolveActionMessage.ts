@@ -3,6 +3,9 @@ import type { CaseAction } from '../types/CaseAction.js';
 import type { LogActionRenderer } from './LogActionRenderer.js';
 import type { LogActionValues } from './LogActionValues.js';
 
+/** Longest resolved message of an action: it copies raw evidence (an error, a stack trace). */
+const MAX_RESOLVED_MESSAGE = 4000;
+
 /**
  * Message an action resolves to: the rendered text of a log action, the
  * interpolated template of a notification or an escalation, nothing for
@@ -15,6 +18,18 @@ import type { LogActionValues } from './LogActionValues.js';
  * @returns The resolved message, or `undefined`
  */
 export function resolveActionMessage(
+  action: CaseAction,
+  values: LogActionValues,
+  renderer: LogActionRenderer,
+): string | undefined {
+  const message = unboundedMessage(action, values, renderer);
+  return message === undefined || message.length <= MAX_RESOLVED_MESSAGE
+    ? message
+    : message.slice(0, MAX_RESOLVED_MESSAGE);
+}
+
+/** The message of an action, before its bound. */
+function unboundedMessage(
   action: CaseAction,
   values: LogActionValues,
   renderer: LogActionRenderer,

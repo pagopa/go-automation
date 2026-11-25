@@ -30,6 +30,19 @@ describe('TransitionLogger', () => {
     assert.deepEqual(verbose.of('info'), ['[S-2] SENT #1 iun=IUN'], 'run-level entries are not logged');
   });
 
+  it('does not warn about a digital workflow that succeeded without paper delivery', () => {
+    const logger = new FakeLogger();
+    const transitions = new TransitionLogger(logger as unknown as GOLogger, false);
+    transitions.handle({
+      ts: 't',
+      event: 'REQUEST_ID_NOT_FOUND',
+      rowKey: 'S-1',
+      requestIdReason: 'WORKFLOW_ENDED:DIGITAL_SUCCESS_WORKFLOW',
+    });
+    transitions.handle({ ts: 't', event: 'REQUEST_ID_NOT_FOUND', rowKey: 'S-2', requestIdReason: 'TIMEOUT' });
+    assert.deepEqual(logger.of('warning'), ['[S-2] REQUEST_ID_NOT_FOUND TIMEOUT']);
+  });
+
   it('always logs invalid rows with codes and fields only, never the row values', () => {
     const quiet = new FakeLogger();
     const logger = new TransitionLogger(quiet as unknown as GOLogger, false);

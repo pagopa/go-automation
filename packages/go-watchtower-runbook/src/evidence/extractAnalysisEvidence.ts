@@ -1,5 +1,7 @@
 import type { AlarmAnalysisDto } from '@go-automation/go-watchtower-client';
 import { normalize } from '../comparison/text.js';
+import type { OccurrenceEvidenceWindow } from './OccurrenceEvidenceWindow.js';
+import { analysisTraceMatcher } from './analysisTraceMatcher.js';
 
 const OCCURRENCE_TRACKING_MAX_DISTANCE_MS = 10 * 60 * 1000;
 
@@ -35,17 +37,23 @@ function parseWatchtowerTimestamp(value: string): number {
 function occurrenceTrackingEntries(
   analysis: AlarmAnalysisDto,
   firedAt: string | undefined,
+  window: OccurrenceEvidenceWindow | undefined,
 ): ReadonlyArray<AnalysisTrackingEntry> {
-  if (firedAt === undefined) return analysis.trackingIds;
+  if (firedAt === undefined && window === undefined) return analysis.trackingIds;
 
-  const target = parseWatchtowerTimestamp(firedAt);
-  if (Number.isNaN(target)) return analysis.trackingIds;
+  const target = firedAt === undefined ? Number.NaN : parseWatchtowerTimestamp(firedAt);
+  if (window === undefined && Number.isNaN(target)) return analysis.trackingIds;
 
+  // The evidence window of the runbook when known; otherwise a symmetric distance from the occurrence.
+  const within = (timestamp: number): boolean =>
+    window === undefined
+      ? Math.abs(timestamp - target) <= OCCURRENCE_TRACKING_MAX_DISTANCE_MS
+      : timestamp >= window.start && timestamp <= window.end;
   const isSingleOccurrence = analysis.occurrences <= 1 && analysis.linkedEventsCount <= 1;
   return analysis.trackingIds.filter((entry) => {
     if (entry.timestamp === undefined) return isSingleOccurrence;
     const timestamp = parseWatchtowerTimestamp(entry.timestamp);
-    return !Number.isNaN(timestamp) && Math.abs(timestamp - target) <= OCCURRENCE_TRACKING_MAX_DISTANCE_MS;
+    return !Number.isNaN(timestamp) && within(timestamp);
   });
 }
 
@@ -54,10 +62,15 @@ function occurrenceTrackingEntries(
  *
  * @param analysis - The Watchtower analysis
  * @param firedAt - Optional occurrence timestamp used to scope tracking ids
+ * @param window - Optional evidence window of the runbook, which scopes tracking ids instead of the distance
  * @returns The aggregate evidence
  */
-export function extractAnalysisEvidence(analysis: AlarmAnalysisDto, firedAt?: string): AnalysisEvidence {
-  const trackingEntries = occurrenceTrackingEntries(analysis, firedAt);
+export function extractAnalysisEvidence(
+  analysis: AlarmAnalysisDto,
+  firedAt?: string,
+  window?: OccurrenceEvidenceWindow,
+): AnalysisEvidence {
+  const trackingEntries = occurrenceTrackingEntries(analysis, firedAt, window);
   const parts: string[] = [];
   if (analysis.errorDetails !== null && analysis.errorDetails.trim() !== '') parts.push(analysis.errorDetails);
   if (analysis.conclusionNotes !== null && analysis.conclusionNotes.trim() !== '') parts.push(analysis.conclusionNotes);
@@ -85,15 +98,20 @@ export function extractAnalysisEvidence(analysis: AlarmAnalysisDto, firedAt?: st
  *
  * @param analysis - The Watchtower analysis
  * @param firedAt - The occurrence timestamp (ISO 8601)
+ * @param window - Optional evidence window of the runbook, which scopes the tracking entries
  * @returns The per-occurrence excerpt (possibly empty)
  */
-export function pickOccurrenceExcerpt(analysis: AlarmAnalysisDto, firedAt: string): string {
+export function pickOccurrenceExcerpt(
+  analysis: AlarmAnalysisDto,
+  firedAt: string,
+  window?: OccurrenceEvidenceWindow,
+): string {
   const target = parseWatchtowerTimestamp(firedAt);
   let bestDetail: string | undefined;
   let bestDiff = Number.POSITIVE_INFINITY;
 
   if (!Number.isNaN(target)) {
-    for (const entry of occurrenceTrackingEntries(analysis, firedAt)) {
+    for (const entry of occurrenceTrackingEntries(analysis, firedAt, window)) {
       if (entry.timestamp === undefined) continue;
       const ts = parseWatchtowerTimestamp(entry.timestamp);
       if (Number.isNaN(ts)) continue;
@@ -110,4 +128,34 @@ export function pickOccurrenceExcerpt(analysis: AlarmAnalysisDto, firedAt: strin
 
   if (bestDetail !== undefined) return bestDetail;
   return analysis.errorDetails ?? analysis.conclusionNotes ?? '';
+}
+
+/**
+ * The human tracking entry that refers to one of the given identifiers, within the evidence window, as text: the
+ * entry about the same request or trace as a detected case, rather than the one closest to the alarm.
+ *
+ * @param analysis - The Watchtower analysis
+ * @param identifiers - Identifiers of the detected case
+ * @param firedAt - The occurrence timestamp (ISO 8601)
+ * @param window - Optional evidence window of the runbook
+ * @param traceIds - The identifiers that are trace id observations, compared also by their canonical form
+ * @returns The entry's code and detail, or `undefined` when no entry refers to the identifiers
+ */
+export function pickTrackingExcerpt(
+  analysis: AlarmAnalysisDto,
+  identifiers: ReadonlyArray<string>,
+  firedAt: string,
+  window?: OccurrenceEvidenceWindow,
+  traceIds: ReadonlyArray<string> = [],
+): string | undefined {
+  const traces = new Set(traceIds);
+  for (const entry of occurrenceTrackingEntries(analysis, firedAt, window)) {
+    const matches = analysisTraceMatcher([entry.traceId]);
+    if (!identifiers.some((id) => matches(id, traces.has(id)))) continue;
+    const detail = [entry.errorCode, entry.errorDetail]
+      .filter((value): value is string => typeof value === 'string' && value.trim() !== '')
+      .join(' — ');
+    if (detail !== '') return detail;
+  }
+  return undefined;
 }

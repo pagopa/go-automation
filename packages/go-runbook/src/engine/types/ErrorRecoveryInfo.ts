@@ -9,6 +9,4 @@ export interface ErrorRecoveryInfo {
   readonly originalError: string;
   /** Timestamp of the failure */
   readonly failedAt: Date;
-  /** Indicates the step was skipped and execution continued */
-  readonly skipped: true;
 }

@@ -9,6 +9,7 @@ import { NOTIFICATION_RECEIVED_QUERY_PROFILE as PROFILE } from '../queryProfile.
 import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
 import { executeWithLogs } from '../../../../../__tests__/helpers/executeWithLogs.js';
 import { caseMatches, knownCaseById } from '../../../../../__tests__/helpers/knownCaseMatching.js';
+import { treeNodeVars } from '../../../../../__tests__/helpers/treeNodeVars.js';
 
 const ROOT = '1-6ac5cc09-67ca536f1c9e14130fb3b03e';
 const BFF_FALLBACK = '11111111-1111-1111-1111-111111111111';
@@ -84,7 +85,9 @@ async function executePaymentsTrace(
     if (group === '/aws/ecs/pn-external-registries-checkout') {
       assert.ok(query.includes(ROOT));
       if (checkoutFails) throw new Error('Checkout logs unavailable');
-      return checkoutMessage === undefined ? [] : [row({ level: 'ERROR', '@message': checkoutMessage })];
+      return checkoutMessage === undefined
+        ? []
+        : [row({ level: 'ERROR', '@message': checkoutMessage, trace_id: ROOT })];
     }
     return [];
   });
@@ -176,7 +179,7 @@ describe('NotificationReceived WEB diagnosis', () => {
     );
   });
 
-  it('defers all BFF symptom fallbacks until traversal has stopped', () => {
+  it('keeps the BFF symptom fallbacks for a complete branch below without diagnosis', () => {
     const fixtures = [
       { id: 'bff-payments-info-read-timeout', message: PAYMENTS_TIMEOUT, vars: { externalRegistriesLogCount: '0' } },
       {
@@ -192,21 +195,19 @@ describe('NotificationReceived WEB diagnosis', () => {
     ];
     for (const { id, message, vars } of fixtures) {
       assert.strictEqual(matches(id, context('query-pn-bff', message)), false, id);
-      for (const terminationReason of [undefined, '']) {
+      // A diagnosis below, or a branch interrupted or incomplete, is never covered by the BFF symptom.
+      for (const branchOutcome of [undefined, 'diagnosed', 'incomplete']) {
         assert.strictEqual(
           matches(
             id,
-            context('query-pn-bff', message, {
-              ...vars,
-              ...(terminationReason === undefined ? {} : { terminationReason }),
-            }),
+            context('query-pn-bff', message, { ...vars, ...(branchOutcome === undefined ? {} : { branchOutcome }) }),
           ),
           false,
           id,
         );
       }
       assert.strictEqual(
-        matches(id, context('query-pn-bff', message, { ...vars, terminationReason: 'no-match' })),
+        matches(id, context('query-pn-bff', message, { ...vars, branchOutcome: 'undiagnosed' })),
         true,
         id,
       );
@@ -256,39 +257,47 @@ describe('NotificationReceived WEB diagnosis', () => {
       },
     );
     assert.strictEqual(result.status, 'completed');
-    assert.strictEqual(result.matchedCases[0]?.id, 'delivery-index-out-of-bounds');
+    assert.strictEqual(result.detections[0]?.knownCase.id, 'delivery-index-out-of-bounds');
     assert.ok(queries.some(({ groups }) => groups[0] === '/aws/ecs/pn-delivery'));
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-    assert.strictEqual(result.finalContext.vars.get('bffFallbackUuid'), BFF_FALLBACK);
+    assert.strictEqual(treeNodeVars(result, 'pn-bff').get('bffFallbackUuid'), BFF_FALLBACK);
   });
 
-  it('reaches checkout and diagnoses its timeout before either BFF fallback can resolve', async () => {
+  it('reaches checkout and reports its timeout together with the BFF errors of the same request', async () => {
     const { result, calls } = await executePaymentsTrace(CHECKOUT_TIMEOUT);
     assert.strictEqual(result.status, 'completed');
     assert.deepStrictEqual(
       calls.filter((group) => group.startsWith('/aws/ecs/')),
       ['/aws/ecs/pn-bff', '/aws/ecs/pn-external-registries', '/aws/ecs/pn-external-registries-checkout'],
     );
+    // The checkout timeout below explains the BFF error: its symptom cases need a branch without diagnosis.
     assert.deepStrictEqual(
-      result.matchedCases.map(({ id }) => id),
+      result.detections.map(({ knownCase }) => knownCase.id),
       ['checkout-connect-timeout'],
     );
-    assert.strictEqual(result.resolvedAtStep, 'analyze-pn-external-registries-checkout');
+    assert.strictEqual(treeNodeVars(result, 'pn-bff').get('branchOutcome'), 'diagnosed');
   });
 
   it('follows failing external registries through checkout instead of an earlier successful Delivery invocation', async () => {
     const { result, calls } = await executePaymentsTrace(CHECKOUT_TIMEOUT, { earlierDeliverySuccess: true });
     assert.strictEqual(result.status, 'completed');
+    // The error follows external registries to checkout; the earlier INFO invocation of Delivery is a route of the
+    // request, read once, without errors.
     assert.deepStrictEqual(
       calls.filter((group) => group.startsWith('/aws/ecs/')),
-      ['/aws/ecs/pn-bff', '/aws/ecs/pn-external-registries', '/aws/ecs/pn-external-registries-checkout'],
+      [
+        '/aws/ecs/pn-bff',
+        '/aws/ecs/pn-delivery',
+        '/aws/ecs/pn-external-registries',
+        '/aws/ecs/pn-external-registries-checkout',
+      ],
     );
     assert.deepStrictEqual(
-      result.matchedCases.map(({ id }) => id),
+      result.detections.map(({ knownCase }) => knownCase.id),
       ['checkout-connect-timeout'],
     );
-    assert.strictEqual(result.finalContext.vars.get('bffNextUrlTarget'), 'pn-external-registries');
+    assert.strictEqual(treeNodeVars(result, 'pn-bff').get('bffNextUrlTarget'), 'pn-external-registries');
   });
 
   it('resolves the BFF timeout only after checkout traversal ends without a specific diagnosis', async () => {
@@ -296,9 +305,8 @@ describe('NotificationReceived WEB diagnosis', () => {
       const { result, calls } = await executePaymentsTrace(message);
       assert.strictEqual(result.status, 'completed');
       assert.ok(calls.includes('/aws/ecs/pn-external-registries-checkout'));
-      assert.strictEqual(result.finalContext.vars.get('terminationReason'), 'no-match');
-      assert.strictEqual(result.matchedCases[0]?.id, 'bff-payments-info-read-timeout');
-      assert.notStrictEqual(result.earlyResolution, true);
+      assert.strictEqual(treeNodeVars(result, 'pn-bff').get('branchOutcome'), 'undiagnosed');
+      assert.strictEqual(result.detections[0]?.knownCase.id, 'bff-payments-info-read-timeout');
     }
   });
 
@@ -306,15 +314,19 @@ describe('NotificationReceived WEB diagnosis', () => {
     const { result, calls } = await executePaymentsTrace(undefined, { followCheckout: false });
     assert.strictEqual(result.status, 'completed');
     assert.ok(!calls.includes('/aws/ecs/pn-external-registries-checkout'));
-    assert.strictEqual(result.finalContext.vars.get('terminationReason'), 'no-match');
-    assert.strictEqual(result.matchedCases[0]?.id, 'bff-payments-info-read-timeout');
-    assert.notStrictEqual(result.earlyResolution, true);
+    assert.strictEqual(treeNodeVars(result, 'pn-bff').get('branchOutcome'), 'undiagnosed');
+    assert.strictEqual(result.detections[0]?.knownCase.id, 'bff-payments-info-read-timeout');
   });
 
   it('surfaces a failed checkout query instead of resolving the upstream BFF timeout', async () => {
     const { result, calls } = await executePaymentsTrace(undefined, { checkoutFails: true });
     assert.ok(calls.includes('/aws/ecs/pn-external-registries-checkout'));
-    assert.strictEqual(result.status, 'failed');
-    assert.deepStrictEqual(result.matchedCases, []);
+    // The evidence read before the failure stays; the checkout read is declared unavailable, so the run is inconclusive.
+    assert.strictEqual(result.status, 'completed');
+    assert.deepStrictEqual(result.detections, []);
+    assert.deepStrictEqual(
+      result.coverage.map(({ stepId, reason }) => ({ stepId, reason })),
+      [{ stepId: 'query-pn-external-registries-checkout', reason: 'unavailable' }],
+    );
   });
 });

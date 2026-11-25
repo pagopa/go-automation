@@ -1,4 +1,5 @@
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import type { CloudWatchLogsRows } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRows.js';
 
 /**
  * Reads a CloudWatch Logs Insights result from an untyped step output.
@@ -6,9 +7,7 @@ import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/i
  * Invalid rows are skipped and invalid fields inside otherwise valid rows are
  * filtered out. A non-array step output is treated as missing.
  */
-export function readCloudWatchResultRows(
-  value: unknown,
-): ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> | undefined {
+export function readCloudWatchResultRows(value: unknown): CloudWatchLogsRows | undefined {
   if (!Array.isArray(value)) return undefined;
 
   const rows: GOLogsInsightsResultField[][] = [];

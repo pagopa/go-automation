@@ -2,13 +2,13 @@
  * Runbook: pn-delivery-IO_EXP-ApiGwAlarm
  */
 
-import { apigw } from '../../../../toolkits/send/index.js';
+import { apigw, type CloudWatchLogsRows } from '../../../../toolkits/send/index.js';
 import { readStepOutput, type Runbook, SetVarStep } from '../../../../engine/index.js';
 
 import { API_GW_LOG_GROUP, ENTRY_SERVICE, REACHABLE_SERVICES } from './knownServices.js';
 import { KNOWN_URLS } from './knownUrls.js';
 import { KNOWN_CASES } from './knownCases.js';
-import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 /**
  * Builds the pn-delivery-IO_EXP-ApiGwAlarm runbook definition.
@@ -44,10 +44,7 @@ export function buildRunbook(): Runbook {
           kind: 'transform',
           // eslint-disable-next-line @typescript-eslint/require-await
           execute: async (context) => {
-            const upstream = readStepOutput<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>(
-              context,
-              'query-api-gw-execution-logs',
-            );
+            const upstream = readStepOutput<CloudWatchLogsRows>(context, 'query-api-gw-execution-logs');
             if (!upstream.ok) return upstream.failure;
             const byRequestId = new Map<string, string[]>();
             for (const row of upstream.value) {
@@ -61,7 +58,6 @@ export function buildRunbook(): Runbook {
             return {
               success: true,
               output: { requests: [...byRequestId].map(([requestId, messages]) => ({ requestId, messages })) },
-              next: 'resolve' as const,
             };
           },
         },

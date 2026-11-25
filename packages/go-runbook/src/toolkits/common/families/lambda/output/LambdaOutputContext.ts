@@ -1,14 +1,6 @@
 import type { LogLine } from '../../../parsing/aws/cloudwatch-logs/LogLine.js';
 import type { AlarmOutput } from '../../../output/AlarmOutput.js';
-
-/** Downstream microservice block of the Lambda output context. */
-export interface LambdaDownstreamOutput {
-  readonly target: string;
-  readonly logGroup?: string;
-  readonly logCount?: number;
-  readonly errorMessage?: string;
-  readonly recentLogs: ReadonlyArray<LogLine>;
-}
+import type { LambdaDownstreamOutput } from './LambdaDownstreamOutput.js';
 
 /** Typed `details.lambda` payload of a Lambda runbook result. */
 export interface LambdaOutputContext {

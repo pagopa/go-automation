@@ -6,14 +6,13 @@
  */
 
 export { executeRunbookForOccurrence } from './execution/executeRunbookForOccurrence.js';
-export type {
-  ExecuteRunbookForOccurrenceDeps,
-  ExecuteRunbookForOccurrenceInput,
-} from './execution/executeRunbookForOccurrence.js';
+export { buildOccurrenceParams } from './execution/buildOccurrenceParams.js';
+export type { OccurrenceParamsInput } from './execution/OccurrenceParamsInput.js';
+export type { ExecuteRunbookForOccurrenceDeps } from './execution/ExecuteRunbookForOccurrenceDeps.js';
+export type { ExecuteRunbookForOccurrenceInput } from './execution/ExecuteRunbookForOccurrenceInput.js';
 export { bindServicesToOccurrence } from './services/bindServicesToOccurrence.js';
 export type { BindServicesToOccurrenceOptions } from './services/BindServicesToOccurrenceOptions.js';
 export type { OccurrenceServiceBindingMode } from './services/OccurrenceServiceBindingMode.js';
-export { buildCatalogOutputContext } from './execution/buildCatalogOutputContext.js';
 export { createServiceRegistry, buildServiceRegistry } from './services/createServiceRegistry.js';
 export type { CreateServiceRegistryDeps } from './services/CreateServiceRegistryDeps.js';
 export { createAwsAccountsPort } from './accounts/createAwsAccountsPort.js';
@@ -25,6 +24,7 @@ export type { AwsAccountsDiagnosticFn } from './accounts/AwsAccountsDiagnosticFn
 export { toAwsAccountsConfig } from './accounts/toAwsAccountsConfig.js';
 export { UnavailableAwsAccountsPort } from './accounts/UnavailableAwsAccountsPort.js';
 export { scrubAwsProfileNames } from './accounts/scrubAwsProfileNames.js';
+export { scrubAwsProfileNamesDeep } from './accounts/scrubAwsProfileNamesDeep.js';
 export type { AwsAccountsSettings } from './accounts/AwsAccountsSettings.js';
 export { computeTimeRange } from '../toolkits/common/time/occurrence/computeTimeRange.js';
 export {

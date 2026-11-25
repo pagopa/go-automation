@@ -1,4 +1,4 @@
-import type { CaseAction, LogActionRow } from '../../../../../engine/types/CaseAction.js';
+import type { CaseAction, LogActionRow } from '../../../../../engine/index.js';
 import { unknownCaseFallback, UNKNOWN_CASE_TITLE } from '../../../../common/analysis/reporting/unknownCaseFallback.js';
 import type { ApiGwService } from '../../../../common/families/apigw/types/ApiGwService.js';
 
