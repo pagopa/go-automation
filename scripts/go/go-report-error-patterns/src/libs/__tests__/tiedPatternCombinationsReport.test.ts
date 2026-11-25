@@ -1,6 +1,6 @@
+import type { GOScript } from '@go-automation/go-script';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { Core } from '@go-automation/go-common';
 import {
   REPORT_TYPE,
   REPORT_DESCRIPTION,
@@ -86,7 +86,7 @@ test('tiedPatternCombinationsReport printReport executes with and without ties',
         logs.push('TABLE');
       },
     },
-  } as unknown as Core.GOScript;
+  } as unknown as GOScript;
 
   // With ties
   const reportWithTies = {
@@ -96,9 +96,7 @@ test('tiedPatternCombinationsReport printReport executes with and without ties',
     alarmName: 'test-alarm',
     totalOccurrences: 1,
     message: null,
-    tiedCombinations: [
-      { patterns: ['conn_refused', 'timeout'], count: 1, percentage: 100 },
-    ],
+    tiedCombinations: [{ patterns: ['conn_refused', 'timeout'], count: 1, percentage: 100 }],
   };
 
   printReport(mockScript, reportWithTies);

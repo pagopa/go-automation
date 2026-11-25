@@ -5,13 +5,11 @@
  * extraction, pattern analysis execution and frequency reporting across modular reports.
  */
 
-import { Core } from '@go-automation/go-common';
-import {
-  AWSCloudWatchAlarmsService,
-  AWSCloudWatchLogsService,
-  AWSAccountProfileSet,
-} from '@go-automation/go-common/aws';
-
+import { GOScript } from '@go-automation/go-script';
+import { AWSAccountProfileSet } from '@pagopa/go-aws';
+import { AWSCloudWatchAlarmsService } from '@pagopa/go-aws/cloudwatch-alarms';
+import { AWSCloudWatchLogsService } from '@pagopa/go-aws/cloudwatch-logs';
+import { GOJSONFileImporter } from '@pagopa/go-common/importers';
 import type {
   GoReportErrorPatternsConfig,
   AlarmPatternConfigFile,
@@ -30,12 +28,12 @@ import { buildAllReports, printAllReports, exportAllReports } from './libs/repor
  *
  * @param script - The GOScript instance for logging and prompts
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   script.logger.section('Starting Go Report Error Patterns');
 
   const config = await script.getConfiguration<GoReportErrorPatternsConfig>();
 
-  const configFileImporter = new Core.GOJSONFileImporter({
+  const configFileImporter = new GOJSONFileImporter({
     inputPath: config.configFile,
   });
   const rawConfigFile = await configFileImporter.import();

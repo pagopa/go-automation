@@ -1,4 +1,4 @@
-import { Core } from '@go-automation/go-common';
+import { GOScript } from '@go-automation/go-script';
 import type { PatternCoverageReport, OccurrenceQueryResult } from '../../types/PatternTypes.js';
 import { aggregatePatternCoverage } from '../pattern-analyzer.js';
 
@@ -34,7 +34,7 @@ export function buildReport(
 /**
  * Prints the Pattern Coverage Report to the logger.
  */
-export function printReport(script: Core.GOScript, report: PatternCoverageReport): void {
+export function printReport(script: GOScript, report: PatternCoverageReport): void {
   script.logger.section(`Report Pattern Coverage - Profilo: ${report.profile}`);
   script.logger.info(`Nome allarme: ${report.alarmName}`);
   script.logger.info(`Metodologia: ${report.description}`);

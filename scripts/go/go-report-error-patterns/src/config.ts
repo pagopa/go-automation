@@ -1,15 +1,14 @@
+import { type GOConfigParameterOptions, GOConfigParameterType, type GOScriptMetadata } from '@go-automation/go-script';
 /**
  * Go Report Error Patterns - Configuration Module
  *
  * Contains script metadata and parameters definition.
  */
 
-import { Core } from '@go-automation/go-common';
-
 /**
  * Script metadata
  */
-export const scriptMetadata: Core.GOScriptMetadata = {
+export const scriptMetadata: GOScriptMetadata = {
   name: 'Go Report Error Patterns',
   version: '1.0.0',
   description:
@@ -20,17 +19,17 @@ export const scriptMetadata: Core.GOScriptMetadata = {
 /**
  * Script parameter definitions
  */
-export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
+export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
   {
     name: 'aws.profiles',
-    type: Core.GOConfigParameterType.STRING_ARRAY,
+    type: GOConfigParameterType.STRING_ARRAY,
     description: 'AWS SSO profile names',
     required: false,
     aliases: ['aps'],
   },
   {
     name: 'config.file',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Path to configuration JSON file',
     required: true,
     aliases: ['f', 'cf'],

@@ -1,4 +1,4 @@
-import type { AlarmHistoryItem } from '@go-automation/go-common/aws';
+import type { AlarmHistoryItem } from '@pagopa/go-aws/cloudwatch-alarms';
 import type { AlarmOccurrence } from '../types/PatternTypes.js';
 
 interface RawHistoryData {

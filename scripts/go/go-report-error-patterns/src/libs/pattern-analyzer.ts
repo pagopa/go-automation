@@ -1,9 +1,9 @@
+import { AWSCloudWatchLogsService } from '@pagopa/go-aws/cloudwatch-logs';
 import {
-  AWSCloudWatchLogsService,
   readRowField,
-  type ResultField,
+  type GOLogsInsightsResultField,
   type AWSCloudWatchLogsQueryOptions,
-} from '@go-automation/go-common/aws';
+} from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type {
   AlarmOccurrence,
   ExtractedPatternItem,
@@ -40,7 +40,7 @@ export function roundToDecimals(value: number, decimals = 4): number {
  * Handles both named fields (@ratio, @sampleCount, @pattern) and positional indices
  * (1 for ratio, 5 for sampleCount, 8 for pattern).
  */
-export function extractPatternFromRow(row: ReadonlyArray<ResultField>): ExtractedPatternItem | null {
+export function extractPatternFromRow(row: ReadonlyArray<GOLogsInsightsResultField>): ExtractedPatternItem | null {
   // Pattern field: @pattern or index 8 (0-based: 7 or 8 depending on index offset)
   const patternVal =
     readRowField(row, '@pattern') ??
@@ -194,9 +194,7 @@ export function extractTiedPatterns(result: OccurrenceQueryResult): ExtractedPat
  * Aggregates dominant patterns across occurrences.
  * Total percentage is calculated over totalOccurrences.
  */
-export function aggregateDominantPatterns(
-  results: ReadonlyArray<OccurrenceQueryResult>,
-): DominantPatternAggregation {
+export function aggregateDominantPatterns(results: ReadonlyArray<OccurrenceQueryResult>): DominantPatternAggregation {
   const totalOccurrences = results.length;
   const occurrencesWithPatterns = results.filter((r) => r.patterns.length > 0).length;
   const occurrencesWithoutPatterns = totalOccurrences - occurrencesWithPatterns;
@@ -245,9 +243,7 @@ export function aggregateDominantPatterns(
  * Aggregates pattern coverage across occurrences (in how many distinct occurrences each pattern appeared).
  * Total percentage is calculated over totalOccurrences.
  */
-export function aggregatePatternCoverage(
-  results: ReadonlyArray<OccurrenceQueryResult>,
-): PatternCoverageAggregation {
+export function aggregatePatternCoverage(results: ReadonlyArray<OccurrenceQueryResult>): PatternCoverageAggregation {
   const totalOccurrences = results.length;
   const occurrencesWithPatterns = results.filter((r) => r.patterns.length > 0).length;
   const occurrencesWithoutPatterns = totalOccurrences - occurrencesWithPatterns;
@@ -286,9 +282,7 @@ export function aggregatePatternCoverage(
  * Aggregates combinations of tied patterns across occurrences.
  * Total percentage is calculated over totalOccurrences.
  */
-export function aggregateTiedCombinations(
-  results: ReadonlyArray<OccurrenceQueryResult>,
-): TiedCombinationAggregation {
+export function aggregateTiedCombinations(results: ReadonlyArray<OccurrenceQueryResult>): TiedCombinationAggregation {
   const totalOccurrences = results.length;
   const combinationMap = new Map<string, { patterns: string[]; count: number }>();
 
@@ -371,9 +365,7 @@ export async function queryPatternsForOccurrence(
  * Builds a CloudWatch Logs Insights resolution query using parse, filter ispresent and stats.
  * Returns null if the pattern does not contain any <*> tokens.
  */
-export function buildPatternResolutionQuery(
-  pattern: string,
-): { query: string; tokenCount: number } | null {
+export function buildPatternResolutionQuery(pattern: string): { query: string; tokenCount: number } | null {
   const parts = pattern.split('<*>');
   const tokenCount = parts.length - 1;
 
@@ -418,11 +410,14 @@ export async function resolvePatternTokens(
   const tokenFailed: boolean[] = Array.from({ length: tokenCount }, () => false);
 
   for (const window of occurrenceWindows) {
-    let rows: ReadonlyArray<ReadonlyArray<ResultField>>;
+    let rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
     try {
       rows = await logsService.query([logGroup], query, window);
     } catch (err) {
-      console.warn(`[WARN] Impossibile eseguire query di risoluzione per pattern su finestra ${window.start.toISOString()}:`, err);
+      console.warn(
+        `[WARN] Impossibile eseguire query di risoluzione per pattern su finestra ${window.start.toISOString()}:`,
+        err,
+      );
       // Transient error on this window: cannot confirm stability
       for (let i = 0; i < tokenCount; i++) {
         tokenFailed[i] = true;
@@ -508,4 +503,3 @@ export function applyPatternResolutions(
     }),
   }));
 }
-

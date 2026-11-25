@@ -1,6 +1,6 @@
+import { type AlarmHistoryItem } from '@pagopa/go-aws/cloudwatch-alarms';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { AlarmHistoryItem } from '@go-automation/go-common/aws';
 import { parseDateInput, extractAlarmOccurrenceWindow } from '../alarm-evaluator.js';
 
 test('parseDateInput parses ISO string, timestamp number and Date', () => {

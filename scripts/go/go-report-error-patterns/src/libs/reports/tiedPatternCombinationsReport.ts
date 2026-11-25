@@ -1,4 +1,4 @@
-import { Core } from '@go-automation/go-common';
+import { GOScript } from '@go-automation/go-script';
 import type { TiedPatternCombinationsReport, OccurrenceQueryResult } from '../../types/PatternTypes.js';
 import { aggregateTiedCombinations } from '../pattern-analyzer.js';
 
@@ -33,7 +33,7 @@ export function buildReport(
 /**
  * Prints the Tied Pattern Combinations Report to the logger.
  */
-export function printReport(script: Core.GOScript, report: TiedPatternCombinationsReport): void {
+export function printReport(script: GOScript, report: TiedPatternCombinationsReport): void {
   script.logger.section(`Report Tied Pattern Combinations - Profilo: ${report.profile}`);
   script.logger.info(`Nome allarme: ${report.alarmName}`);
   script.logger.info(`Metodologia: ${report.description}`);

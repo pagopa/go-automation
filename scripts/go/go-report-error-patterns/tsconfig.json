@@ -4,23 +4,19 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "composite": true,
-    "types": [
-      "node"
-    ]
+    "types": ["node"]
   },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "configs",
-    "logs",
-    "reports"
-  ],
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "configs", "logs", "reports"],
   "references": [
     {
       "path": "../../../packages/go-common"
+    },
+    {
+      "path": "../../../packages/go-script"
+    },
+    {
+      "path": "../../../packages/go-aws"
     }
   ]
 }

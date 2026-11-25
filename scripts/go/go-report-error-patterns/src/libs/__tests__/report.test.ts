@@ -1,9 +1,9 @@
+import type { GOScript } from '@go-automation/go-script';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import type { Core } from '@go-automation/go-common';
 import { exportAllReports } from '../report.js';
 import {
   DominantPatternReportModule,
@@ -30,7 +30,7 @@ test('exportAllReports exports all three reports to execution output directory',
         // no-op
       },
     },
-  } as unknown as Core.GOScript;
+  } as unknown as GOScript;
 
   const mockDominantReports: DominantPatternReport[] = [
     {

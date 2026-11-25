@@ -1,6 +1,6 @@
+import type { GOScript } from '@go-automation/go-script';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { Core } from '@go-automation/go-common';
 import {
   REPORT_TYPE,
   REPORT_DESCRIPTION,
@@ -80,7 +80,7 @@ test('patternCoverageReport printReport executes successfully', () => {
         logs.push('TABLE');
       },
     },
-  } as unknown as Core.GOScript;
+  } as unknown as GOScript;
 
   const mockReport = {
     reportType: 'pattern-coverage' as const,
@@ -90,9 +90,7 @@ test('patternCoverageReport printReport executes successfully', () => {
     totalOccurrences: 2,
     occurrencesWithPatterns: 2,
     occurrencesWithoutPatterns: 0,
-    patternCoverage: [
-      { pattern: 'timeout', count: 2, percentage: 100 },
-    ],
+    patternCoverage: [{ pattern: 'timeout', count: 2, percentage: 100 }],
   };
 
   printReport(mockScript, mockReport);

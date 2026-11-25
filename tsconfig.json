@@ -106,6 +106,9 @@
       "path": "./scripts/go/go-report-alarms"
     },
     {
+      "path": "./scripts/go/go-report-error-patterns"
+    },
+    {
       "path": "./scripts/go/go-rta-check"
     },
     {

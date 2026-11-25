@@ -1,4 +1,5 @@
-import { Core } from '@go-automation/go-common';
+import { GOScript } from '@go-automation/go-script';
+import { GOJSONFileExporter } from '@pagopa/go-common/exporters';
 import type {
   DominantPatternReport,
   PatternCoverageReport,
@@ -45,7 +46,7 @@ export function buildAllReports(
 /**
  * Prints all 3 reports to the logger via their respective modules.
  */
-export function printAllReports(script: Core.GOScript, reports: GeneratedReports): void {
+export function printAllReports(script: GOScript, reports: GeneratedReports): void {
   DominantPatternReportModule.printReport(script, reports.dominantReport);
   PatternCoverageReportModule.printReport(script, reports.patternCoverageReport);
   TiedPatternCombinationsReportModule.printReport(script, reports.tiedCombinationsReport);
@@ -54,13 +55,9 @@ export function printAllReports(script: Core.GOScript, reports: GeneratedReports
 /**
  * Exports a single report file to the script execution output directory using GOJSONFileExporter.
  */
-export async function exportReportFile<T>(
-  script: Core.GOScript,
-  fileName: string,
-  data: T,
-): Promise<string> {
+export async function exportReportFile<T>(script: GOScript, fileName: string, data: T): Promise<string> {
   const outputPath = script.paths.getExecutionOutputFilePath(fileName);
-  const exporter = new Core.GOJSONFileExporter({
+  const exporter = new GOJSONFileExporter({
     outputPath,
     pretty: true,
     indent: 2,
@@ -75,7 +72,7 @@ export async function exportReportFile<T>(
  * Exports all reports to their dedicated JSON files in the execution output directory.
  */
 export async function exportAllReports(
-  script: Core.GOScript,
+  script: GOScript,
   reports: AllReportsContainer,
 ): Promise<{
   readonly dominantReportPath: string;

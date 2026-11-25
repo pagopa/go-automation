@@ -1071,13 +1071,19 @@ importers:
 
   scripts/go/go-report-error-patterns:
     dependencies:
-      '@go-automation/go-common':
+      '@go-automation/go-script':
+        specifier: workspace:*
+        version: link:../../../packages/go-script
+      '@pagopa/go-aws':
+        specifier: workspace:*
+        version: link:../../../packages/go-aws
+      '@pagopa/go-common':
         specifier: workspace:*
         version: link:../../../packages/go-common
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
-        version: 24.19.2
+        version: 24.19.4
 
   scripts/go/go-rta-check:
     dependencies:

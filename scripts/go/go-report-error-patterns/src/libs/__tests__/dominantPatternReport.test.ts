@@ -1,6 +1,6 @@
+import type { GOScript } from '@go-automation/go-script';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { Core } from '@go-automation/go-common';
 import {
   REPORT_TYPE,
   REPORT_DESCRIPTION,
@@ -73,7 +73,7 @@ test('dominantPatternReport printReport executes successfully with ties note', (
         logs.push('TABLE');
       },
     },
-  } as unknown as Core.GOScript;
+  } as unknown as GOScript;
 
   const mockReport = {
     reportType: 'dominant-pattern' as const,
@@ -83,9 +83,7 @@ test('dominantPatternReport printReport executes successfully with ties note', (
     totalOccurrences: 2,
     occurrencesWithPatterns: 2,
     occurrencesWithoutPatterns: 0,
-    dominantPatterns: [
-      { pattern: 'timeout', count: 2, percentage: 100, hasTies: true },
-    ],
+    dominantPatterns: [{ pattern: 'timeout', count: 2, percentage: 100, hasTies: true }],
   };
 
   printReport(mockScript, mockReport);

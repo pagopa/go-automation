@@ -1,4 +1,4 @@
-import { Core } from '@go-automation/go-common';
+import { GOScript } from '@go-automation/go-script';
 import type { DominantPatternReport, OccurrenceQueryResult } from '../../types/PatternTypes.js';
 import { aggregateDominantPatterns } from '../pattern-analyzer.js';
 
@@ -34,7 +34,7 @@ export function buildReport(
 /**
  * Prints the Dominant Pattern Report to the logger.
  */
-export function printReport(script: Core.GOScript, report: DominantPatternReport): void {
+export function printReport(script: GOScript, report: DominantPatternReport): void {
   script.logger.section(`Report Dominant Pattern - Profilo: ${report.profile}`);
   script.logger.info(`Nome allarme: ${report.alarmName}`);
   script.logger.info(`Metodologia: ${report.description}`);

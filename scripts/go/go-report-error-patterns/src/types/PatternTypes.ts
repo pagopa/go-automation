@@ -17,7 +17,7 @@ export interface AlarmPatternConfigFile {
   /** Deprecated alias for time-window-extra-seconds */
   readonly 'buffer-seconds'?: number | undefined;
   /** Optional AWS profile name for this specific alarm */
-  readonly 'profile'?: string | undefined;
+  readonly profile?: string | undefined;
   /** Optional flag to enable empirical resolution of static <*> tokens in patterns (defaults to false) */
   readonly 'resolve-static-tokens'?: boolean | undefined;
 }

@@ -1,3 +1,4 @@
+import { type AWSCloudWatchLogsService } from '@pagopa/go-aws/cloudwatch-logs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -15,7 +16,6 @@ import {
   applyPatternResolutions,
   type OccurrenceQueryResult,
 } from '../pattern-analyzer.js';
-import type { AWSCloudWatchLogsService } from '@go-automation/go-common/aws';
 
 const mockOccurrence = {
   timestamp: new Date('2026-11-01T12:00:00Z'),
@@ -311,7 +311,7 @@ test('buildPatternResolutionQuery generates correct query or returns null', () =
   assert.strictEqual(resQuotes.tokenCount, 2);
   assert.strictEqual(
     resQuotes.query,
-    "parse @message '* ERROR - \"Failed to connect\" code *' as t0, t1 | filter ispresent(t0) | stats count_distinct(t0) as cd0, earliest(t0) as v0, count_distinct(t1) as cd1, earliest(t1) as v1",
+    'parse @message \'* ERROR - "Failed to connect" code *\' as t0, t1 | filter ispresent(t0) | stats count_distinct(t0) as cd0, earliest(t0) as v0, count_distinct(t1) as cd1, earliest(t1) as v1',
   );
 });
 
@@ -345,12 +345,7 @@ test('resolvePatternTokens resolves stable tokens across windows and handles var
     ],
   } as unknown as AWSCloudWatchLogsService;
   const patternAllStable = 'Heartbeat(key: <*>, version: <*>)';
-  const resolvedAllStable = await resolvePatternTokens(
-    mockServiceAllStable,
-    'grp',
-    patternAllStable,
-    windows,
-  );
+  const resolvedAllStable = await resolvePatternTokens(mockServiceAllStable, 'grp', patternAllStable, windows);
   assert.strictEqual(resolvedAllStable, 'Heartbeat(key: 12, version: 3)');
 
   // Case 2: No stable tokens (count_distinct > 1 in both windows)
@@ -363,12 +358,7 @@ test('resolvePatternTokens resolves stable tokens across windows and handles var
     ],
   } as unknown as AWSCloudWatchLogsService;
   const patternNoneStable = 'ERROR <*>';
-  const resolvedNoneStable = await resolvePatternTokens(
-    mockServiceNoneStable,
-    'grp',
-    patternNoneStable,
-    windows,
-  );
+  const resolvedNoneStable = await resolvePatternTokens(mockServiceNoneStable, 'grp', patternNoneStable, windows);
   assert.strictEqual(resolvedNoneStable, 'ERROR <*>');
 
   // Case 3: Mix - first token variable (cd0 > 1), second token stable (cd1 = 1, v1 = 'auth')
@@ -402,12 +392,7 @@ test('resolvePatternTokens resolves stable tokens across windows and handles var
     },
   } as unknown as AWSCloudWatchLogsService;
   const patternVarying = 'Code <*>';
-  const resolvedVarying = await resolvePatternTokens(
-    mockServiceVaryingWindows,
-    'grp',
-    patternVarying,
-    windows,
-  );
+  const resolvedVarying = await resolvePatternTokens(mockServiceVaryingWindows, 'grp', patternVarying, windows);
   assert.strictEqual(resolvedVarying, 'Code <*>');
 
   // Case 5: Query returns empty rows (zero matches) -> remains <*>
@@ -445,25 +430,16 @@ test('applyPatternResolutions maps patterns immutably', () => {
   assert.strictEqual(resEmptyMap[0]?.patterns[0]?.pattern, 'ERROR status <*> for endpoint <*>');
 
   // Map with replacement
-  const map = new Map<string, string>([
-    ['ERROR status <*> for endpoint <*>', 'ERROR status 500 for endpoint <*>'],
-  ]);
+  const map = new Map<string, string>([['ERROR status <*> for endpoint <*>', 'ERROR status 500 for endpoint <*>']]);
   const resApplied = applyPatternResolutions(originalResults, map);
 
   assert.strictEqual(resApplied.length, 1);
   assert.notStrictEqual(resApplied[0], originalResults[0]);
-  assert.strictEqual(
-    resApplied[0]?.patterns[0]?.pattern,
-    'ERROR status 500 for endpoint <*>',
-  );
+  assert.strictEqual(resApplied[0]?.patterns[0]?.pattern, 'ERROR status 500 for endpoint <*>');
   assert.strictEqual(resApplied[0]?.patterns[0]?.ratio, 0.8);
   assert.strictEqual(resApplied[0]?.patterns[0]?.sampleCount, 80);
   assert.strictEqual(resApplied[0]?.patterns[1]?.pattern, 'Unchanged pattern');
 
   // Ensure original array and objects are untouched
-  assert.strictEqual(
-    originalResults[0]?.patterns[0]?.pattern,
-    'ERROR status <*> for endpoint <*>',
-  );
+  assert.strictEqual(originalResults[0]?.patterns[0]?.pattern, 'ERROR status <*> for endpoint <*>');
 });
-
