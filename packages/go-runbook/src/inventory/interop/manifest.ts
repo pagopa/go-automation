@@ -25,6 +25,7 @@ import { ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_REGISTRATION } from './k8s/k8s-
 import { CATALOG_READMODEL_WRITER_SQL_REGISTRATION } from './k8s/k8s-interop-be-catalog-readmodel-writer-sql-errors/registration.js';
 import { CATALOG_PLATFORMSTATE_WRITER_REGISTRATION } from './k8s/k8s-interop-be-catalog-platformstate-writer-errors/registration.js';
 import { TENANT_READMODEL_WRITER_SQL_REGISTRATION } from './k8s/k8s-interop-be-tenant-readmodel-writer-sql-errors/registration.js';
+import { NOTIFICATION_CONFIG_READMODEL_WRITER_SQL_REGISTRATION } from './k8s/k8s-interop-be-notification-config-readmodel-writer-sql-errors/registration.js';
 import { DELEGATION_ITEMS_ARCHIVER_REGISTRATION } from './k8s/k8s-interop-be-delegation-items-archiver-errors/registration.js';
 import { DELEGATION_OUTBOUND_WRITER_REGISTRATION } from './k8s/k8s-interop-be-delegation-outbound-writer-errors/registration.js';
 import { DELEGATION_READMODEL_WRITER_SQL_REGISTRATION } from './k8s/k8s-interop-be-delegation-readmodel-writer-sql-errors/registration.js';
@@ -64,6 +65,7 @@ export const INTEROP_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   CATALOG_READMODEL_WRITER_SQL_REGISTRATION,
   CATALOG_PLATFORMSTATE_WRITER_REGISTRATION,
   TENANT_READMODEL_WRITER_SQL_REGISTRATION,
+  NOTIFICATION_CONFIG_READMODEL_WRITER_SQL_REGISTRATION,
   DELEGATION_ITEMS_ARCHIVER_REGISTRATION,
   DELEGATION_OUTBOUND_WRITER_REGISTRATION,
   DELEGATION_READMODEL_WRITER_SQL_REGISTRATION,
