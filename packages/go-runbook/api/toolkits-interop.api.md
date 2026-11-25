@@ -1450,6 +1450,7 @@ export interface InteropKafkaSignatures {
     readonly connectionRefused: string;
     readonly tlsDisconnected: string;
     readonly connectionTimeout: string;
+    readonly offsetCommitTimeout: string;
 }
 ```
 

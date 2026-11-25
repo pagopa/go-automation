@@ -89,6 +89,18 @@ const VARIANTS: ReadonlyArray<{
     matches: ['Connection timeout', 'Connection  timeout after 1000ms'],
     rejects: ['Connection timeouts', 'Connection error: connect ETIMEDOUT'],
   },
+  {
+    form: 'offsetCommitTimeout',
+    matches: [
+      'Response OffsetCommit(key: 8, version: 5) - The request timed out',
+      'ERROR -  Response OffsetCommit(key:8,  version: 7)  -  The request timed out',
+    ],
+    rejects: [
+      'Response OffsetCommit(key: 8, version: 5) - The coordinator is not aware of this member',
+      'Response Heartbeat(key: 12, version: 3) - The request timed out',
+      'The request timed out',
+    ],
+  },
 ];
 
 describe('INTEROP_KAFKA_SIGNATURES', () => {

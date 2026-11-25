@@ -34,6 +34,7 @@ import { ESERVICE_TEMPLATE_INSTANCES_UPDATER_REGISTRATION } from './k8s/k8s-inte
 import { ESERVICE_TEMPLATE_READMODEL_WRITER_SQL_REGISTRATION } from './k8s/k8s-interop-be-eservice-template-readmodel-writer-sql-errors/registration.js';
 import { COMPUTE_AGREEMENTS_CONSUMER_REGISTRATION } from './k8s/k8s-interop-be-compute-agreements-consumer-errors/registration.js';
 import { M2M_EVENT_DISPATCHER_REGISTRATION } from './k8s/k8s-interop-be-m2m-event-dispatcher-errors-prod/registration.js';
+import { M2M_TOKEN_DETAILS_PERSISTER_REGISTRATION } from './k8s/k8s-interop-be-m2m-token-details-persister-errors/registration.js';
 import { BFF_REGISTRATION } from './k8s/k8s-interop-be-backend-for-frontend-errors/registration.js';
 import { NOTIFIER_REGISTRATION } from './k8s/k8s-interop-be-notifier-errors/registration.js';
 import { NOTIFICATION_USER_LIFECYCLE_REGISTRATION } from './k8s/k8s-interop-be-notification-user-lifecycle-consumer-errors/registration.js';
@@ -76,6 +77,7 @@ export const INTEROP_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   ESERVICE_TEMPLATE_READMODEL_WRITER_SQL_REGISTRATION,
   COMPUTE_AGREEMENTS_CONSUMER_REGISTRATION,
   M2M_EVENT_DISPATCHER_REGISTRATION,
+  M2M_TOKEN_DETAILS_PERSISTER_REGISTRATION,
   BFF_REGISTRATION,
   NOTIFIER_REGISTRATION,
   NOTIFICATION_USER_LIFECYCLE_REGISTRATION,

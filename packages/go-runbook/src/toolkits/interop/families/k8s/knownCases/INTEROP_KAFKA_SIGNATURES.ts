@@ -32,4 +32,5 @@ export const INTEROP_KAFKA_SIGNATURES: InteropKafkaSignatures = {
   tlsDisconnected:
     'Connection\\s+error:\\s*Client network socket disconnected before secure TLS connection was established\\b',
   connectionTimeout: 'Connection\\s+timeout\\b',
+  offsetCommitTimeout: 'Response OffsetCommit\\(key:\\s*8,\\s*version:\\s*\\d+\\)\\s*-\\s*The request timed out\\b',
 };
