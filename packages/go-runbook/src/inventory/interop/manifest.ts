@@ -13,6 +13,7 @@ import { SELFCARE_APIGW_REGISTRATION } from './apigw/interop-selfcare-1.0-apigw-
 import { AUTH_SERVER_APIGW_REGISTRATION } from './apigw/interop-auth-server-apigw-4xx/registration.js';
 import { AUTH_SERVER_5XX_APIGW_REGISTRATION } from './apigw/interop-auth-server-apigw-5xx/registration.js';
 import { INTEROP_API_V2_5XX_APIGW_REGISTRATION } from './apigw/interop-api-v2-apigw-5xx/registration.js';
+import { INTEROP_API_V3_5XX_APIGW_REGISTRATION } from './apigw/interop-api-v3-apigw-5xx/registration.js';
 import { INTEROP_ATT_ESERVICES_4XX_REGISTRATION } from './apigw/interop-att-eservices-att-apigw-4xx/registration.js';
 // Kubernetes
 import { AGREEMENT_READMODEL_WRITER_SQL_REGISTRATION } from './k8s/k8s-interop-be-agreement-readmodel-writer-sql-errors/registration.js';
@@ -51,6 +52,7 @@ export const INTEROP_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   AUTH_SERVER_APIGW_REGISTRATION,
   AUTH_SERVER_5XX_APIGW_REGISTRATION,
   INTEROP_API_V2_5XX_APIGW_REGISTRATION,
+  INTEROP_API_V3_5XX_APIGW_REGISTRATION,
   INTEROP_ATT_ESERVICES_4XX_REGISTRATION, // bespoke: nessun builder di famiglia
   // Kubernetes
   AGREEMENT_READMODEL_WRITER_SQL_REGISTRATION,

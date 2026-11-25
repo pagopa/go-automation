@@ -10,6 +10,7 @@ import { EMPTY_RUNBOOK_READS } from '../../../engine/reads/EMPTY_RUNBOOK_READS.j
 const API_GW_IDS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   'interop-selfcare-1.0-apigw-5xx': { prod: 'tf9isbi4pi', att: '5sfghk09qb', test: 'an24tfmqw3' },
   'interop-api-v2-apigw-5xx': { prod: 'rudgz28tel', att: 'c786nyh6f4', test: 'jrafz6h9c9' },
+  'interop-api-v3-apigw-5xx': { prod: 'zafza38l7f', att: '7bms2hjt39', test: '9g5qf4liy0' },
   'interop-auth-server-apigw-4xx': { prod: 'ffmbmcmreh', att: '70ar087an0', test: 'q9ocrukty2' },
   'interop-auth-server-apigw-5xx': { prod: 'ffmbmcmreh', att: '70ar087an0', test: 'q9ocrukty2' },
 };
