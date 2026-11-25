@@ -38,6 +38,10 @@ describe('scanText — false positives', () => {
   const negatives: ReadonlyArray<readonly [string, string]> = [
     ['the allowlisted synthetic ids, also inside an ARN', "'000000000000' 'arn:aws:sts::123456789012:assumed-role/x'"],
     ['13-digit timestamps and longer digit runs', 'const firedAt = 1731499200000; const big = 98765432109876;'],
+    [
+      'a digit run inside a commit SHA',
+      `[\`dd279e4\`](https://github.com/o/r/commit/dd279e43818f7974d2dc2f${DECOY_ACCOUNT_ID}e81ce8)`,
+    ],
     ['query profile ids, alarm and resource names', "queryProfile: 'interop-one-trust-notices-prod'"],
     ['an SSO prefix inside a longer identifier', 'const my_sso_session = 1;'],
     ['a known profile name inside a longer token', 'not-my-known-profile-at-all'],

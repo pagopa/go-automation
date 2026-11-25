@@ -47,6 +47,12 @@ jobs:
         id: needed
         run: pnpm -s check:release-state version-needed
 
+      # The pnpm of the runner is @pnpm/exe and records itself in the packageManagerDependencies of the
+      # lockfile; the action commits every change, and pnpm-lock.yaml is outside the release perimeter.
+      - name: Restore the lockfile
+        if: steps.needed.outputs.needed == 'true'
+        run: git checkout -- pnpm-lock.yaml
+
       - name: Create or update the release PR
         if: steps.needed.outputs.needed == 'true'
         uses: changesets/action/version@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
