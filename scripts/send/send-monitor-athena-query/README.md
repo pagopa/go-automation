@@ -97,6 +97,22 @@ pnpm send:monitor:athena:query:dev -- \
   --template-params customerId=abc123
 ```
 
+## Registri nazionali: controllo per giorno di ingestione
+
+Il preset `national-registries-missing-response` prende tutte le richieste
+nelle 24 partizioni orarie UTC del giorno `D-5`, dove `D` è la data UTC
+di `to`. Cerca le risposte correlate da quel giorno fino alla partizione
+oraria UTC di `to`, inclusa, senza usare i timestamp degli eventi.
+Per esempio, l'esecuzione del 25 novembre controlla le richieste acquisite
+il 20 novembre. Il CSV riporta IUN, ID richiesta e giorno di ingestione.
+
+Per recuperare un'esecuzione saltata, rilanciare il preset con
+`--time-zone UTC` e `--to` impostato all'orario previsto dell'esecuzione mancata
+(ad esempio `--to 2026-11-25T08:30:00Z`). Su Lambda passare gli equivalenti
+`"time.zone":"UTC"` e `"to":"2026-11-25T08:30:00Z"` nel `body`.
+Il rilancio usa la stessa coorte e le stesse partizioni di risposta, fino
+all'intera partizione delle 08:00 UTC nell'esempio, non fino al singolo minuto.
+
 ## Slack Template
 
 Il template Slack usa placeholder `{{key}}`. Sono disponibili, fra gli altri:
