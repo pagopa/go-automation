@@ -33,6 +33,29 @@ dichiarare diverso ogni oggetto, quando in realtà non lo sono.
 | `onlyRepository` | Solo il file lo dichiara                    |
 | `protectedItems` | Solo la tabella ce l'ha, **ed è atteso**    |
 
+### Gli oggetti protetti
+
+Un oggetto è **protetto** quando una tabella lo tiene in vita di proposito e
+nessun file di configurazione lo dichiara: oggi `pn-cons-000` in
+`pn-EcAnagrafica` e in `pn-SsAnagraficaClient`, `pn-norm-000` in
+`pn-addressManager-AnagraficaClient`. Si dichiarano in `configs/tables.json`
+con `protectedKey` (l'attributo di chiave e i valori attesi solo in tabella).
+
+Il perché sono due, e opposti:
+
+- **Solo in tabella** (`protectedItems`): non è drift. Senza questa categoria lo
+  stesso falso positivo comparirebbe a ogni run, e abituerebbe a ignorare la
+  riga di quella tabella, dove prima o poi ci sarebbe una differenza vera. Sono
+  contati a parte (`protected item(s) are expected live-only`).
+- **Nel file** (`protected-in-file`): è un difetto, anche in sola lettura. Un
+  file che dichiara un oggetto protetto, con `--sync`, **sovrascriverebbe**
+  quello vivo con un `PutRequest`. Per questo viene controllato a ogni run e fa
+  uscire `1`; con `--sync` rifiuta l'intera esecuzione (vedi _Codici di
+  uscita_).
+
+Niente viene mai cancellato: la protezione riguarda la sovrascrittura, non la
+rimozione.
+
 ## Come avviene la scrittura
 
 ### Si scrive solo la differenza, non tutto il file
