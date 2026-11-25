@@ -1,6 +1,7 @@
 {
   "name": "@go-automation/go-send",
   "version": "1.0.0",
+  "private": true,
   "type": "module",
   "description": "SEND (Sistema di Notificazione Digitale) SDK - TypeScript SDK for creating and managing digital and analog notifications",
   "main": "dist/index.js",
@@ -13,10 +14,9 @@
   },
   "scripts": {
     "build": "tsc -b",
-    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
+    "test": "node --import tsx/esm --test --experimental-test-isolation=none 'src/**/__tests__/**/*.test.ts'",
     "watch": "tsc --build --watch",
-    "clean": "rm -rf dist *.tsbuildinfo",
-    "prepare": "pnpm run build"
+    "clean": "rm -rf dist *.tsbuildinfo"
   },
   "keywords": [
     "send",
@@ -25,15 +25,20 @@
     "go-automation"
   ],
   "author": "Team GO - Gestione Operativa",
-  "license": "ISC",
+  "license": "EUPL-1.2",
   "dependencies": {
-    "@go-automation/go-common": "workspace:*"
+    "@pagopa/go-aws": "workspace:*",
+    "@pagopa/go-common": "workspace:*"
   },
   "peerDependencies": {
-    "@aws-sdk/client-dynamodb": "catalog:"
+    "@aws-sdk/client-dynamodb": "catalog:",
+    "@aws-sdk/client-ec2": "catalog:",
+    "@aws-sdk/client-ssm": "catalog:"
   },
   "devDependencies": {
     "@aws-sdk/client-dynamodb": "catalog:",
+    "@aws-sdk/client-ec2": "catalog:",
+    "@aws-sdk/client-ssm": "catalog:",
     "@types/node": "catalog:"
   }
 }

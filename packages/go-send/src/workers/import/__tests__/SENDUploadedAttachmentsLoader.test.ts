@@ -1,19 +1,16 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import * as fs from 'fs/promises';
-import * as os from 'os';
-import * as path from 'path';
+import * as path from 'node:path';
 
+import { tempDir, writeFixture } from '../../../dispatch/__tests__/helpers/testFiles.js';
 import { loadUploadedAttachments } from '../SENDUploadedAttachmentsLoader.js';
 
 /**
  * Writes the given content to a temporary file and returns its path
  */
 async function writeTempFile(content: string): Promise<string> {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'send-uploaded-attachments-'));
-  const filePath = path.join(dir, 'files-results.json');
-  // eslint-disable-next-line security/detect-non-literal-fs-filename -- test fixture path is created under a private mkdtemp directory.
-  await fs.writeFile(filePath, content, 'utf-8');
+  const filePath = path.join(await tempDir('send-uploaded-attachments'), 'files-results.json');
+  await writeFixture(filePath, content);
   return filePath;
 }
 
@@ -85,15 +82,12 @@ describe('loadUploadedAttachments', () => {
     assert.strictEqual(result.attachmentsByPratica.get('PRA-001')?.[0]?.contentType, 'application/pdf');
   });
 
-  it('throws when the file does not contain a JSON array', async () => {
-    const filePath = await writeTempFile(JSON.stringify({ foo: 'bar' }));
-
-    await assert.rejects(loadUploadedAttachments(filePath), /expected a JSON array/);
-  });
-
-  it('throws when the file is not valid JSON', async () => {
-    const filePath = await writeTempFile('not json');
-
-    await assert.rejects(loadUploadedAttachments(filePath), /not valid JSON/);
+  it('throws when the file is not valid JSON or not a JSON array', async () => {
+    for (const [content, expected] of [
+      [JSON.stringify({ foo: 'bar' }), /expected a JSON array/],
+      ['not json', /not valid JSON/],
+    ] as const) {
+      await assert.rejects(loadUploadedAttachments(await writeTempFile(content)), expected);
+    }
   });
 });

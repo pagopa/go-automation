@@ -1,0 +1,85 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+
+import {
+  assertKnownCaseStepRefs,
+  assertStepDescriptorIds,
+  failAlarmConfig,
+  type AlarmConfigValidationContext,
+} from '../alarmConfigValidation.js';
+import type { KnownCase } from '../../../../engine/types/KnownCase.js';
+import type { StepDescriptor } from '../../../../engine/types/StepDescriptor.js';
+
+const CTX: AlarmConfigValidationContext = { builderName: 'createFooAlarmRunbook', runbookId: 'foo-Alarm' };
+
+function step(id: string): StepDescriptor {
+  return {
+    step: {
+      id,
+      label: id,
+      kind: 'data' as const,
+      // eslint-disable-next-line @typescript-eslint/require-await
+      execute: async () => ({ success: true as const }),
+    },
+  };
+}
+
+function knownCase(id: string, ref: string): KnownCase {
+  return {
+    id,
+    description: id,
+    condition: { type: 'exists', ref },
+    action: { type: 'log', level: 'info', title: id },
+  };
+}
+
+describe('failAlarmConfig', () => {
+  it('attributes the error to the calling builder and runbook', () => {
+    assert.throws(
+      () => failAlarmConfig(CTX, 'qualcosa non va.'),
+      /^Error: createFooAlarmRunbook "foo-Alarm": qualcosa non va\.$/,
+    );
+  });
+});
+
+describe('assertStepDescriptorIds', () => {
+  it('returns the declared ids when there is no collision, none for an absent list', () => {
+    const ids = assertStepDescriptorIds(CTX, [step('a'), step('b')], new Set(['reserved']), 'hook');
+    assert.deepStrictEqual([...ids], ['a', 'b']);
+    assert.strictEqual(assertStepDescriptorIds(CTX, undefined, new Set(), 'hook').size, 0);
+  });
+
+  it('rejects a duplicate hook id', () => {
+    assert.throws(
+      () => assertStepDescriptorIds(CTX, [step('a'), step('a')], new Set(), 'hook'),
+      /hook id "a" is declared more than once/,
+    );
+  });
+
+  it('rejects a hook id that shadows the canonical pipeline', () => {
+    assert.throws(
+      () => assertStepDescriptorIds(CTX, [step('parse-errors')], new Set(['parse-errors']), 'hook'),
+      /collides with a reserved pipeline step id/,
+    );
+  });
+});
+
+describe('assertKnownCaseStepRefs', () => {
+  it('accepts cases that reference only wired steps, or no step at all', () => {
+    assert.doesNotThrow(() =>
+      assertKnownCaseStepRefs(
+        CTX,
+        [knownCase('c1', 'steps.query-foo'), knownCase('c2', 'vars.traceId')],
+        new Set(['query-foo']),
+        '.',
+      ),
+    );
+  });
+
+  it('rejects a reference to a step the pipeline never wires, appending the family hint', () => {
+    assert.throws(
+      () => assertKnownCaseStepRefs(CTX, [knownCase('c1', 'steps.missing')], new Set(['query-foo']), ' (hint).'),
+      /createFooAlarmRunbook "foo-Alarm": knownCase "c1" references step "missing" which is not wired in this runbook \(hint\)\./,
+    );
+  });
+});

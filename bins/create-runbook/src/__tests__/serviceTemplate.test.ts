@@ -8,12 +8,14 @@ function answers(): RunbookAnswers {
   return {
     templateId: 'service',
     id: 'workday-pn-foo-alarm',
-    builderName: 'buildWorkdayPnFooAlarmRunbook',
     metadataName: 'workday-pn-foo-alarm',
     description: 'desc',
     version: '1.0.0',
     team: 'GO',
     tags: ['service'],
+    product: 'SEND',
+    family: 'service',
+    categories: ['DELIVERY'],
     extras: new Map<string, string>([
       ['service-name', 'pn-foo'],
       ['var-prefix', 'foo'],

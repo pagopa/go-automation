@@ -4,7 +4,7 @@
  * consistent between the writer (sync) and the reader (search/status).
  */
 import * as path from 'node:path';
-import { Core } from '@go-automation/go-common';
+import { GOFtsIndex } from '@go-automation/go-documents';
 
 import { IndexSchemaManager } from './IndexSchemaManager.js';
 
@@ -17,12 +17,12 @@ export interface OpenIndexOptions {
   readonly readonly?: boolean;
 }
 
-export async function openIndex(options: OpenIndexOptions): Promise<Core.GOFtsIndex> {
+export async function openIndex(options: OpenIndexOptions): Promise<GOFtsIndex> {
   const databasePath = path.isAbsolute(options.indexFileName)
     ? options.indexFileName
     : path.join(options.dataDir, options.indexFileName);
 
-  const index = new Core.GOFtsIndex({
+  const index = new GOFtsIndex({
     databasePath,
     ftsTableName: FTS_TABLE_NAME,
     metadataColumns: METADATA_COLUMNS,
@@ -38,7 +38,7 @@ export async function openIndex(options: OpenIndexOptions): Promise<Core.GOFtsIn
   return index;
 }
 
-export async function closeIndex(index: Core.GOFtsIndex): Promise<void> {
+export async function closeIndex(index: GOFtsIndex): Promise<void> {
   index.checkpoint();
   await index.close();
 }

@@ -23,10 +23,10 @@ set -e
 #   --follow, -f  - Follow logs (for 'logs' command)
 #
 # Examples:
-#   ./bins/docker-run.sh send-monitor-tpp-messages run
-#   ./bins/docker-run.sh send-monitor-tpp-messages up --scheduled
-#   ./bins/docker-run.sh send-monitor-tpp-messages logs -f
-#   ./bins/docker-run.sh send-monitor-tpp-messages build run
+#   ./bins/docker-run.sh <script-name> run
+#   ./bins/docker-run.sh <script-name> up --scheduled
+#   ./bins/docker-run.sh <script-name> logs -f
+#   ./bins/docker-run.sh <script-name> build run
 # ============================================================================
 
 # Colors
@@ -90,10 +90,10 @@ show_usage() {
   echo "  --follow, -f  Follow logs (for 'logs' command)"
   echo ""
   echo "Examples:"
-  echo "  ./bins/docker-run.sh send-monitor-tpp-messages run"
-  echo "  ./bins/docker-run.sh send-monitor-tpp-messages up --scheduled"
-  echo "  ./bins/docker-run.sh send-monitor-tpp-messages logs -f"
-  echo "  ./bins/docker-run.sh send-monitor-tpp-messages down --scheduled"
+  echo "  ./bins/docker-run.sh <script-name> run"
+  echo "  ./bins/docker-run.sh <script-name> up --scheduled"
+  echo "  ./bins/docker-run.sh <script-name> logs -f"
+  echo "  ./bins/docker-run.sh <script-name> down --scheduled"
 }
 
 if [[ -z "$SCRIPT_NAME" ]]; then

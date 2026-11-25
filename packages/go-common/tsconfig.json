@@ -7,5 +7,5 @@
     "types": ["node", "luxon"]
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "examples", "docs"]
+  "exclude": ["node_modules", "dist"]
 }

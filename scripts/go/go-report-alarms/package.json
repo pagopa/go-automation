@@ -11,8 +11,8 @@
     "dev": "tsx src/index.ts",
     "watch": "tsc --watch",
     "clean": "rm -rf dist *.tsbuildinfo",
-    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
-    "test:coverage": "mkdir -p coverage && node --import tsx/esm --test --experimental-test-coverage --test-coverage-include='src/**/*.ts' --test-coverage-exclude='src/**/__tests__/**' --test-coverage-lines=${GO_COVERAGE_LINES_THRESHOLD:-90} --test-coverage-branches=${GO_COVERAGE_BRANCHES_THRESHOLD:-80} --test-coverage-functions=${GO_COVERAGE_FUNCTIONS_THRESHOLD:-90} --test-reporter=lcov --test-reporter-destination=coverage/lcov.info --test-reporter=spec --test-reporter-destination=stdout 'src/**/__tests__/**/*.test.ts'"
+    "test": "node --import tsx/esm --test --experimental-test-isolation=none 'src/**/__tests__/**/*.test.ts'",
+    "test:coverage": "mkdir -p coverage && node --import tsx/esm --test --experimental-test-isolation=none --experimental-test-coverage --test-coverage-include='src/**/*.ts' --test-coverage-exclude='src/**/__tests__/**' --test-coverage-lines=${GO_COVERAGE_LINES_THRESHOLD:-90} --test-coverage-branches=${GO_COVERAGE_BRANCHES_THRESHOLD:-80} --test-coverage-functions=${GO_COVERAGE_FUNCTIONS_THRESHOLD:-90} --test-reporter=lcov --test-reporter-destination=coverage/lcov.info --test-reporter=spec --test-reporter-destination=stdout 'src/**/__tests__/**/*.test.ts'"
   },
   "keywords": [
     "cloudwatch",
@@ -28,15 +28,13 @@
     "configs/config.json"
   ],
   "author": "Team GO - Gestione Operativa",
-  "license": "ISC",
+  "license": "EUPL-1.2",
   "dependencies": {
-    "@aws-sdk/client-cloudwatch": "catalog:",
-    "@go-automation/go-common": "workspace:*",
-    "luxon": "catalog:"
+    "@go-automation/go-script": "workspace:*",
+    "@pagopa/go-aws": "workspace:*",
+    "@pagopa/go-common": "workspace:*"
   },
   "devDependencies": {
-    "@types/luxon": "catalog:",
-    "@types/node": "catalog:",
-    "aws-sdk-client-mock": "catalog:"
+    "@types/node": "catalog:"
   }
 }

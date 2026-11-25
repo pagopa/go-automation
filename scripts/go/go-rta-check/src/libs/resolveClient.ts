@@ -1,4 +1,4 @@
-import type { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 import { WatchtowerClient } from '@go-automation/go-watchtower-client';
 
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
@@ -14,7 +14,7 @@ export interface Connection {
  * Resolves the base URL + credentials (config/env/prompt), logs in and returns
  * the authenticated client. Returns `undefined` (with a logged reason) on error.
  */
-export async function resolveClient(script: Core.GOScript, config: GoRtaCheckConfig): Promise<Connection | undefined> {
+export async function resolveClient(script: GOScript, config: GoRtaCheckConfig): Promise<Connection | undefined> {
   const logger = script.logger;
   const baseUrl = await resolveInput(config.watchtowerUrl, async () => script.prompt.text('Watchtower base URL'));
   if (baseUrl === '') {

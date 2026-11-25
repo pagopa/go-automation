@@ -5190,6 +5190,51 @@
           },
           {
             "in": "query",
+            "name": "analysisApplyStatus",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "PENDING"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "enum": [
+                    "APPLIED"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "enum": [
+                    "BLOCKED"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "enum": [
+                    "NOT_REQUESTED"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "enum": [
+                    "PRESERVED_HUMAN"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "enum": [
+                    "NOT_APPLICABLE"
+                  ],
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
             "name": "triggerKind",
             "required": false,
             "schema": {
@@ -5274,6 +5319,46 @@
                               },
                               {
                                 "type": "null"
+                              }
+                            ]
+                          },
+                          "analysisApplyStatus": {
+                            "anyOf": [
+                              {
+                                "enum": [
+                                  "PENDING"
+                                ],
+                                "type": "string"
+                              },
+                              {
+                                "enum": [
+                                  "APPLIED"
+                                ],
+                                "type": "string"
+                              },
+                              {
+                                "enum": [
+                                  "BLOCKED"
+                                ],
+                                "type": "string"
+                              },
+                              {
+                                "enum": [
+                                  "NOT_REQUESTED"
+                                ],
+                                "type": "string"
+                              },
+                              {
+                                "enum": [
+                                  "PRESERVED_HUMAN"
+                                ],
+                                "type": "string"
+                              },
+                              {
+                                "enum": [
+                                  "NOT_APPLICABLE"
+                                ],
+                                "type": "string"
                               }
                             ]
                           },
@@ -5701,6 +5786,7 @@
                           "status",
                           "outcome",
                           "reviewStatus",
+                          "analysisApplyStatus",
                           "triggerKind",
                           "dispatchKind",
                           "appliedMode",
@@ -5805,12 +5891,6 @@
                           "APPLY_KNOWN"
                         ],
                         "type": "string"
-                      },
-                      {
-                        "enum": [
-                          "APPLY_ALL"
-                        ],
-                        "type": "string"
                       }
                     ]
                   }
@@ -5840,6 +5920,46 @@
                         },
                         {
                           "type": "null"
+                        }
+                      ]
+                    },
+                    "analysisApplyStatus": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "PENDING"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "APPLIED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "BLOCKED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "NOT_REQUESTED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "PRESERVED_HUMAN"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "NOT_APPLICABLE"
+                          ],
+                          "type": "string"
                         }
                       ]
                     },
@@ -6267,6 +6387,7 @@
                     "status",
                     "outcome",
                     "reviewStatus",
+                    "analysisApplyStatus",
                     "triggerKind",
                     "dispatchKind",
                     "appliedMode",
@@ -6389,12 +6510,6 @@
                           "APPLY_KNOWN"
                         ],
                         "type": "string"
-                      },
-                      {
-                        "enum": [
-                          "APPLY_ALL"
-                        ],
-                        "type": "string"
                       }
                     ]
                   }
@@ -6430,6 +6545,46 @@
                             },
                             {
                               "type": "null"
+                            }
+                          ]
+                        },
+                        "analysisApplyStatus": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "PENDING"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "APPLIED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "BLOCKED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "NOT_REQUESTED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "PRESERVED_HUMAN"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "NOT_APPLICABLE"
+                              ],
+                              "type": "string"
                             }
                           ]
                         },
@@ -6857,6 +7012,7 @@
                         "status",
                         "outcome",
                         "reviewStatus",
+                        "analysisApplyStatus",
                         "triggerKind",
                         "dispatchKind",
                         "appliedMode",
@@ -6985,12 +7141,6 @@
                           "APPLY_KNOWN"
                         ],
                         "type": "string"
-                      },
-                      {
-                        "enum": [
-                          "APPLY_ALL"
-                        ],
-                        "type": "string"
                       }
                     ]
                   }
@@ -7026,6 +7176,46 @@
                             },
                             {
                               "type": "null"
+                            }
+                          ]
+                        },
+                        "analysisApplyStatus": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "PENDING"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "APPLIED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "BLOCKED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "NOT_REQUESTED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "PRESERVED_HUMAN"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "NOT_APPLICABLE"
+                              ],
+                              "type": "string"
                             }
                           ]
                         },
@@ -7453,6 +7643,7 @@
                         "status",
                         "outcome",
                         "reviewStatus",
+                        "analysisApplyStatus",
                         "triggerKind",
                         "dispatchKind",
                         "appliedMode",
@@ -7556,6 +7747,160 @@
         ]
       }
     },
+    "/api/automatic-runbook-executions/shadow-report": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 14,
+              "maximum": 90,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "productId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "capabilities": {
+                      "items": {
+                        "properties": {
+                          "blockedByCode": {
+                            "additionalProperties": {
+                              "type": "integer"
+                            },
+                            "type": "object"
+                          },
+                          "contextInvalid": {
+                            "type": "integer"
+                          },
+                          "contextValid": {
+                            "type": "integer"
+                          },
+                          "evaluated": {
+                            "type": "integer"
+                          },
+                          "productId": {
+                            "type": "string"
+                          },
+                          "productName": {
+                            "type": "string"
+                          },
+                          "ready": {
+                            "type": "boolean"
+                          },
+                          "runbookKey": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "unresolvedReferences": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "wouldApply": {
+                            "type": "integer"
+                          },
+                          "wouldBlock": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "runbookKey",
+                          "productId",
+                          "productName",
+                          "evaluated",
+                          "wouldApply",
+                          "wouldBlock",
+                          "blockedByCode",
+                          "unresolvedReferences",
+                          "contextValid",
+                          "contextInvalid",
+                          "ready"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "readyCapabilities": {
+                      "type": "integer"
+                    },
+                    "since": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "totalCapabilities": {
+                      "type": "integer"
+                    },
+                    "windowDays": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "windowDays",
+                    "since",
+                    "capabilities",
+                    "readyCapabilities",
+                    "totalCapabilities"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Shadow readiness per capability and product",
+        "tags": [
+          "Automatic Runbook Executions"
+        ]
+      }
+    },
     "/api/automatic-runbook-executions/stats": {
       "get": {
         "responses": {
@@ -7564,6 +7909,21 @@
               "application/json": {
                 "schema": {
                   "properties": {
+                    "blockedByCode": {
+                      "additionalProperties": {
+                        "type": "integer"
+                      },
+                      "type": "object"
+                    },
+                    "blockedRemediation": {
+                      "type": "integer"
+                    },
+                    "byApplyStatus": {
+                      "additionalProperties": {
+                        "type": "integer"
+                      },
+                      "type": "object"
+                    },
                     "byOutcome": {
                       "additionalProperties": {
                         "type": "integer"
@@ -7626,14 +7986,36 @@
                         }
                       ]
                     },
+                    "oldestPendingReviewHours": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "pendingReview": {
+                      "type": "integer"
+                    },
+                    "reviewConfirmed": {
+                      "type": "integer"
+                    },
+                    "reviewRejected": {
                       "type": "integer"
                     }
                   },
                   "required": [
                     "byStatus",
                     "byOutcome",
+                    "byApplyStatus",
+                    "blockedRemediation",
+                    "blockedByCode",
                     "pendingReview",
+                    "reviewConfirmed",
+                    "reviewRejected",
+                    "oldestPendingReviewHours",
                     "inDlq",
                     "defaultMode",
                     "modeOverride"
@@ -7706,6 +8088,48 @@
                         }
                       ]
                     },
+                    "analysisApplyDiagnostics": {},
+                    "analysisApplyStatus": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "PENDING"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "APPLIED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "BLOCKED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "NOT_REQUESTED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "PRESERVED_HUMAN"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "NOT_APPLICABLE"
+                          ],
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "analysisDraft": {},
                     "analysisId": {
                       "anyOf": [
                         {
@@ -8158,6 +8582,16 @@
                       "type": "string"
                     },
                     "resultSummary": {},
+                    "reviewNote": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "reviewStatus": {
                       "anyOf": [
                         {
@@ -8183,6 +8617,26 @@
                             "REJECTED"
                           ],
                           "type": "string"
+                        }
+                      ]
+                    },
+                    "reviewedAt": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "reviewedByLabel": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
                         }
                       ]
                     },
@@ -8329,6 +8783,7 @@
                     "status",
                     "outcome",
                     "reviewStatus",
+                    "analysisApplyStatus",
                     "triggerKind",
                     "dispatchKind",
                     "appliedMode",
@@ -8364,6 +8819,11 @@
                     "inputSnapshot",
                     "resultSummary",
                     "analysisPayload",
+                    "analysisApplyDiagnostics",
+                    "analysisDraft",
+                    "reviewedByLabel",
+                    "reviewedAt",
+                    "reviewNote",
                     "context"
                   ],
                   "type": "object"
@@ -9385,6 +9845,7 @@
               "schema": {
                 "additionalProperties": false,
                 "properties": {
+                  "analysisDraft": {},
                   "analysisPayload": {},
                   "attemptId": {
                     "format": "uuid",
@@ -9569,6 +10030,104 @@
                   "properties": {
                     "alreadyTerminal": {
                       "type": "boolean"
+                    },
+                    "analysisApplyBlockCode": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "ALARM_UNLINKED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "DRAFT_TOO_LARGE"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "MISSING_DRAFT"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "INVALID_DRAFT"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "TEMPORAL_INCOHERENCE"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "UNRESOLVED_REFERENCES"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "RESOURCE_TYPE_MISMATCH"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "INVALID_IGNORE_DETAILS"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "VALIDATION_ERRORS"
+                          ],
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "analysisApplyStatus": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "PENDING"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "APPLIED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "BLOCKED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "NOT_REQUESTED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "PRESERVED_HUMAN"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "NOT_APPLICABLE"
+                          ],
+                          "type": "string"
+                        }
+                      ]
                     },
                     "analysisId": {
                       "anyOf": [
@@ -9948,6 +10507,12 @@
                               "INTERNAL_INVARIANT"
                             ],
                             "type": "string"
+                          },
+                          {
+                            "enum": [
+                              "CALLBACK"
+                            ],
+                            "type": "string"
                           }
                         ]
                       },
@@ -9980,6 +10545,12 @@
                           {
                             "enum": [
                               "INTERNAL_INVARIANT"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "enum": [
+                              "WORKER_CALLBACK_REJECTED"
                             ],
                             "type": "string"
                           }
@@ -10055,6 +10626,12 @@
                               "INTERNAL_INVARIANT"
                             ],
                             "type": "string"
+                          },
+                          {
+                            "enum": [
+                              "CALLBACK"
+                            ],
+                            "type": "string"
                           }
                         ]
                       },
@@ -10087,6 +10664,12 @@
                           {
                             "enum": [
                               "INTERNAL_INVARIANT"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "enum": [
+                              "WORKER_CALLBACK_REJECTED"
                             ],
                             "type": "string"
                           }
@@ -10574,6 +11157,46 @@
                         }
                       ]
                     },
+                    "analysisApplyStatus": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "PENDING"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "APPLIED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "BLOCKED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "NOT_REQUESTED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "PRESERVED_HUMAN"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "NOT_APPLICABLE"
+                          ],
+                          "type": "string"
+                        }
+                      ]
+                    },
                     "analysisId": {
                       "anyOf": [
                         {
@@ -10998,6 +11621,7 @@
                     "status",
                     "outcome",
                     "reviewStatus",
+                    "analysisApplyStatus",
                     "triggerKind",
                     "dispatchKind",
                     "appliedMode",
@@ -11213,33 +11837,48 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": false,
-                "properties": {
-                  "decision": {
-                    "anyOf": [
-                      {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "decision": {
                         "enum": [
                           "CONFIRMED"
                         ],
                         "type": "string"
                       },
-                      {
+                      "note": {
+                        "maxLength": 2000,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "decision"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "decision": {
                         "enum": [
                           "REJECTED"
                         ],
                         "type": "string"
+                      },
+                      "note": {
+                        "maxLength": 2000,
+                        "minLength": 1,
+                        "type": "string"
                       }
-                    ]
-                  },
-                  "note": {
-                    "maxLength": 2000,
-                    "type": "string"
+                    },
+                    "required": [
+                      "decision",
+                      "note"
+                    ],
+                    "type": "object"
                   }
-                },
-                "required": [
-                  "decision"
-                ],
-                "type": "object"
+                ]
               }
             }
           },
@@ -11251,467 +11890,520 @@
               "application/json": {
                 "schema": {
                   "properties": {
-                    "alarmEventId": {
-                      "type": "string"
+                    "alreadyReviewed": {
+                      "type": "boolean"
                     },
-                    "alarmId": {
-                      "anyOf": [
-                        {
+                    "execution": {
+                      "properties": {
+                        "alarmEventId": {
                           "type": "string"
                         },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "analysisId": {
-                      "anyOf": [
-                        {
-                          "type": "string"
+                        "alarmId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "appliedMode": {
-                      "anyOf": [
-                        {
-                          "enum": [
-                            "SHADOW"
-                          ],
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "APPLY_KNOWN"
-                          ],
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "APPLY_ALL"
-                          ],
-                          "type": "string"
-                        }
-                      ]
-                    },
-                    "bytesScanned": {
-                      "anyOf": [
-                        {
-                          "pattern": "^(0|[1-9][0-9]*)$",
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "cancelReason": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "cancelRequestedAt": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "cancellationFinalizedBy": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "cancelledAt": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "completedAt": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "createdAt": {
-                      "type": "string"
-                    },
-                    "deadlineAt": {
-                      "type": "string"
-                    },
-                    "deliveryCycle": {
-                      "type": "integer"
-                    },
-                    "dispatchKind": {
-                      "anyOf": [
-                        {
-                          "enum": [
-                            "SQS"
-                          ],
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "CLI"
-                          ],
-                          "type": "string"
-                        }
-                      ]
-                    },
-                    "durationMs": {
-                      "anyOf": [
-                        {
-                          "type": "integer"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "environmentId": {
-                      "type": "string"
-                    },
-                    "errorCode": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "errorMessage": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "id": {
-                      "type": "string"
-                    },
-                    "outcome": {
-                      "anyOf": [
-                        {
+                        "analysisApplyStatus": {
                           "anyOf": [
                             {
                               "enum": [
-                                "KNOWN_CASE"
+                                "PENDING"
                               ],
                               "type": "string"
                             },
                             {
                               "enum": [
-                                "UNKNOWN_CASE"
+                                "APPLIED"
                               ],
                               "type": "string"
                             },
                             {
                               "enum": [
-                                "NO_DATA"
+                                "BLOCKED"
                               ],
                               "type": "string"
                             },
                             {
                               "enum": [
-                                "CAPABILITY_WITHDRAWN"
+                                "NOT_REQUESTED"
                               ],
                               "type": "string"
                             },
                             {
                               "enum": [
-                                "CONFIGURATION_ERROR"
+                                "PRESERVED_HUMAN"
                               ],
                               "type": "string"
                             },
                             {
                               "enum": [
-                                "EXECUTION_ERROR"
+                                "NOT_APPLICABLE"
                               ],
                               "type": "string"
                             }
                           ]
                         },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "parentExecutionId": {
-                      "anyOf": [
-                        {
+                        "analysisId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "appliedMode": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "SHADOW"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "APPLY_KNOWN"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "APPLY_ALL"
+                              ],
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "bytesScanned": {
+                          "anyOf": [
+                            {
+                              "pattern": "^(0|[1-9][0-9]*)$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "cancelReason": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "cancelRequestedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "cancellationFinalizedBy": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "cancelledAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "completedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "createdAt": {
                           "type": "string"
                         },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "productId": {
-                      "type": "string"
-                    },
-                    "queryCount": {
-                      "anyOf": [
-                        {
+                        "deadlineAt": {
+                          "type": "string"
+                        },
+                        "deliveryCycle": {
                           "type": "integer"
                         },
-                        {
-                          "type": "null"
+                        "dispatchKind": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "SQS"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "CLI"
+                              ],
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "durationMs": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "environmentId": {
+                          "type": "string"
+                        },
+                        "errorCode": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "errorMessage": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {
+                                  "enum": [
+                                    "KNOWN_CASE"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "enum": [
+                                    "UNKNOWN_CASE"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "enum": [
+                                    "NO_DATA"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "enum": [
+                                    "CAPABILITY_WITHDRAWN"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "enum": [
+                                    "CONFIGURATION_ERROR"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "enum": [
+                                    "EXECUTION_ERROR"
+                                  ],
+                                  "type": "string"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "parentExecutionId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "productId": {
+                          "type": "string"
+                        },
+                        "queryCount": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "queuedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "recordsMatched": {
+                          "anyOf": [
+                            {
+                              "pattern": "^(0|[1-9][0-9]*)$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "recordsScanned": {
+                          "anyOf": [
+                            {
+                              "pattern": "^(0|[1-9][0-9]*)$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "reviewStatus": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "NOT_REQUIRED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "PENDING"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "CONFIRMED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "REJECTED"
+                              ],
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "runbookKey": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "runbookVersion": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "startedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "PENDING_DISPATCH"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "QUEUED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "RUNNING"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "RETRY_PENDING"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "CANCEL_REQUESTED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "SUCCEEDED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "SKIPPED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "FAILED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "CANCELLED"
+                              ],
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "totalWorkerAttempts": {
+                          "type": "integer"
+                        },
+                        "triggerKind": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "SLACK_INGESTOR"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "WATCHTOWER_UI"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "WATCHTOWER_API"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "RETRY"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "WATCHTOWER_CLI"
+                              ],
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "updatedAt": {
+                          "type": "string"
                         }
-                      ]
-                    },
-                    "queuedAt": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "recordsMatched": {
-                      "anyOf": [
-                        {
-                          "pattern": "^(0|[1-9][0-9]*)$",
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "recordsScanned": {
-                      "anyOf": [
-                        {
-                          "pattern": "^(0|[1-9][0-9]*)$",
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "reviewStatus": {
-                      "anyOf": [
-                        {
-                          "enum": [
-                            "NOT_REQUIRED"
-                          ],
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "PENDING"
-                          ],
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "CONFIRMED"
-                          ],
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "REJECTED"
-                          ],
-                          "type": "string"
-                        }
-                      ]
-                    },
-                    "runbookKey": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "runbookVersion": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "startedAt": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "status": {
-                      "anyOf": [
-                        {
-                          "enum": [
-                            "PENDING_DISPATCH"
-                          ],
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "QUEUED"
-                          ],
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "RUNNING"
-                          ],
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "RETRY_PENDING"
-                          ],
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "CANCEL_REQUESTED"
-                          ],
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "SUCCEEDED"
-                          ],
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "SKIPPED"
-                          ],
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "FAILED"
-                          ],
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "CANCELLED"
-                          ],
-                          "type": "string"
-                        }
-                      ]
-                    },
-                    "totalWorkerAttempts": {
-                      "type": "integer"
-                    },
-                    "triggerKind": {
-                      "anyOf": [
-                        {
-                          "enum": [
-                            "SLACK_INGESTOR"
-                          ],
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "WATCHTOWER_UI"
-                          ],
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "WATCHTOWER_API"
-                          ],
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "RETRY"
-                          ],
-                          "type": "string"
-                        },
-                        {
-                          "enum": [
-                            "WATCHTOWER_CLI"
-                          ],
-                          "type": "string"
-                        }
-                      ]
-                    },
-                    "updatedAt": {
-                      "type": "string"
+                      },
+                      "required": [
+                        "id",
+                        "parentExecutionId",
+                        "alarmEventId",
+                        "analysisId",
+                        "productId",
+                        "environmentId",
+                        "alarmId",
+                        "status",
+                        "outcome",
+                        "reviewStatus",
+                        "analysisApplyStatus",
+                        "triggerKind",
+                        "dispatchKind",
+                        "appliedMode",
+                        "runbookKey",
+                        "runbookVersion",
+                        "errorCode",
+                        "errorMessage",
+                        "queryCount",
+                        "bytesScanned",
+                        "recordsScanned",
+                        "recordsMatched",
+                        "totalWorkerAttempts",
+                        "deliveryCycle",
+                        "cancelRequestedAt",
+                        "cancelReason",
+                        "cancelledAt",
+                        "cancellationFinalizedBy",
+                        "queuedAt",
+                        "startedAt",
+                        "deadlineAt",
+                        "completedAt",
+                        "durationMs",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "type": "object"
                     }
                   },
                   "required": [
-                    "id",
-                    "parentExecutionId",
-                    "alarmEventId",
-                    "analysisId",
-                    "productId",
-                    "environmentId",
-                    "alarmId",
-                    "status",
-                    "outcome",
-                    "reviewStatus",
-                    "triggerKind",
-                    "dispatchKind",
-                    "appliedMode",
-                    "runbookKey",
-                    "runbookVersion",
-                    "errorCode",
-                    "errorMessage",
-                    "queryCount",
-                    "bytesScanned",
-                    "recordsScanned",
-                    "recordsMatched",
-                    "totalWorkerAttempts",
-                    "deliveryCycle",
-                    "cancelRequestedAt",
-                    "cancelReason",
-                    "cancelledAt",
-                    "cancellationFinalizedBy",
-                    "queuedAt",
-                    "startedAt",
-                    "deadlineAt",
-                    "completedAt",
-                    "durationMs",
-                    "createdAt",
-                    "updatedAt"
+                    "execution",
+                    "alreadyReviewed"
                   ],
                   "type": "object"
                 }
@@ -11748,6 +12440,89 @@
                   },
                   "required": [
                     "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "conflict": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "REVIEW_NOT_APPLICABLE"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "REVIEW_NOT_TERMINAL"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "REVIEW_ALREADY_DECIDED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "REVIEW_SUPERSEDED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "REVIEW_TARGET_CHANGED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "REVIEW_INVARIANT_VIOLATION"
+                          ],
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "reviewStatus": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "NOT_REQUIRED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "PENDING"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "CONFIRMED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "REJECTED"
+                          ],
+                          "type": "string"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "conflict"
                   ],
                   "type": "object"
                 }
@@ -22895,28 +23670,32 @@
                   "slackParserId": {
                     "anyOf": [
                       {
-                        "enum": [
-                          "amazon-q"
-                        ],
-                        "type": "string"
-                      },
-                      {
-                        "enum": [
-                          "opsgenie"
-                        ],
-                        "type": "string"
-                      },
-                      {
-                        "enum": [
-                          "email-sns"
-                        ],
-                        "type": "string"
-                      },
-                      {
-                        "enum": [
-                          "jsm"
-                        ],
-                        "type": "string"
+                        "anyOf": [
+                          {
+                            "enum": [
+                              "amazon-q"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "enum": [
+                              "opsgenie"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "enum": [
+                              "email-sns"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "enum": [
+                              "jsm"
+                            ],
+                            "type": "string"
+                          }
+                        ]
                       },
                       {
                         "type": "null"

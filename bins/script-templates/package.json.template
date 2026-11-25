@@ -10,11 +10,11 @@
     "package.json"
   ],
   "scripts": {
-    "build": "tsc",
-    "start": "pnpm build && node dist/index.js",
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo",
     "dev": "tsx src/index.ts",
-    "watch": "tsc --watch",
-    "clean": "rm -rf dist *.tsbuildinfo"
+    "start": "pnpm build && node dist/index.js",
+    "watch": "tsc -b --watch"
   },
   "keywords": [
     "{{PRODUCT}}",
@@ -23,9 +23,10 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@go-automation/go-common": "workspace:*"
+    "@go-automation/go-script": "workspace:*",
+    "@pagopa/go-common": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^24.10.9"
+    "@types/node": "catalog:"
   }
 }

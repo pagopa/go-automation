@@ -1,0 +1,97 @@
+name: 'Runbook: caso identificato in modo errato'
+description: 'Il motore ha scelto il caso sbagliato, nessun caso o più casi'
+title: '[Caso errato] '
+labels:
+  - report/misidentified-case
+  - area/runbooks
+  - status/needs-triage
+type: Bug
+projects:
+  - 'pagopa/26'
+body:
+  - type: markdown
+    attributes:
+      value: |
+        La segnalazione entra in triage (`status/needs-triage`): il maintainer imposta Area/Domain/Priority
+        e la collega al milestone competente. Le trace contengono identificativi di produzione: **oscurali** prima di allegarle.
+  - type: input
+    id: runbook
+    attributes:
+      label: 'Runbook key o alarm name'
+      description: "La `key` di catalogo o l'`alarmName` (vedi `go-cli runbook list`)."
+    validations:
+      required: true
+  - type: dropdown
+    id: product
+    attributes:
+      label: 'Prodotto'
+      options:
+        - 'send'
+        - 'interop'
+        - 'go'
+        - 'aws'
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: 'Ambiente / account'
+      description: "Es. `prod`, `uat`, oppure l'account id. Non il nome del profilo SSO."
+    validations:
+      required: true
+  - type: dropdown
+    id: how
+    attributes:
+      label: 'Come è stata eseguita'
+      options:
+        - 'pnpm'
+        - 'Lambda'
+        - 'go-cli'
+    validations:
+      required: true
+  - type: input
+    id: window
+    attributes:
+      label: 'Finestra temporale o alarm-event id'
+      description: "`--at` / `--to` usati, oppure l'alarm-event id di Watchtower."
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 'Versione del runbook'
+      description: "La riga `Runbook: <name> v<version>` all'inizio del log, oppure `runbook.version` in `result-*.json` / `execution.runbookVersion` in `trace-*.json`. Senza un run: `Version` in `go-cli runbook show <key>`."
+    validations:
+      required: false
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 'Cosa è successo'
+      options:
+        - 'Non riconosciuto (finito in unknown)'
+        - 'Riconosciuto come caso sbagliato'
+        - 'Più casi in match'
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: 'Perché è sbagliato'
+      description: 'Quale classificazione ti aspettavi e perché quella ottenuta non è corretta.'
+    validations:
+      required: true
+  - type: textarea
+    id: trace
+    attributes:
+      label: 'Trace / result'
+      description: "Incolla o allega `trace-*.json` / `result-*.json` da `data/go-analyze-alarm/outputs/<run>/`. Il campo `caseMatching.evaluations` mostra l'esito di ogni caso."
+      render: json
+    validations:
+      required: false
+  - type: checkboxes
+    id: sanitized
+    attributes:
+      label: 'Dati sensibili'
+      options:
+        - label: 'Ho rimosso dati sensibili (codici fiscali, IUN, token)'
+          required: true

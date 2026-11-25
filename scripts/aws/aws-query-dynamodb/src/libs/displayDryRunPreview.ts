@@ -2,7 +2,7 @@
  * Displays a dry-run preview of the queries that would be executed.
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import type { AwsQueryDynamodbConfig } from '../types/index.js';
 
@@ -14,7 +14,7 @@ import type { AwsQueryDynamodbConfig } from '../types/index.js';
  * @param pks - Partition keys to preview
  */
 export function displayDryRunPreview(
-  script: Core.GOScript,
+  script: GOScript,
   config: AwsQueryDynamodbConfig,
   pks: ReadonlyArray<string>,
 ): void {

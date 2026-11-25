@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Convenzioni di contribuzione
+    url: https://github.com/pagopa/go-automation/blob/develop/CONTRIBUTING.md
+    about: Workflow git, commit convention e checklist pre-PR prima di aprire una issue

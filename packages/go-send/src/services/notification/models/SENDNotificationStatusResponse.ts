@@ -12,4 +12,6 @@ export interface SENDNotificationStatusResponse {
   iun?: string | undefined;
   /** List of errors (if any) - can be strings or error objects */
   errors?: SENDNotificationStatusError[] | undefined;
+  /** Seconds to wait before checking again (returned with `WAITING`) */
+  retryAfter?: number | undefined;
 }

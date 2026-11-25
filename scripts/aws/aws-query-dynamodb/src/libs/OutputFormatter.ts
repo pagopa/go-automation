@@ -5,7 +5,7 @@
  * Maps input partition keys to their corresponding results.
  */
 
-import { Core } from '@go-automation/go-common';
+import { valueToString } from '@pagopa/go-common/utils';
 
 import type { ResultMap } from '../types/ResultMap.js';
 
@@ -63,7 +63,7 @@ export function formatForText(resultMap: ResultMap): string {
     } else {
       for (const item of items) {
         const attrValues = Object.values(item as Record<string, unknown>)
-          .map((val) => Core.valueToString(val))
+          .map((val) => valueToString(val))
           .join(', ');
         output += `${pk}: ${attrValues}\n`;
       }

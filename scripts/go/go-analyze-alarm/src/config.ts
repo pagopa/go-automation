@@ -5,12 +5,12 @@
  * and configuration builder function.
  */
 
-import { Core } from '@go-automation/go-common';
+import { type GOConfigParameterOptions, GOConfigParameterType, type GOScriptMetadata } from '@go-automation/go-script';
 
 /**
  * Script metadata
  */
-export const scriptMetadata: Core.GOScriptMetadata = {
+export const scriptMetadata: GOScriptMetadata = {
   name: 'Go Analyze Alarm',
   version: '1.0.0',
   description:
@@ -21,21 +21,33 @@ export const scriptMetadata: Core.GOScriptMetadata = {
 /**
  * Script parameter definitions
  */
-export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
+export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
+  {
+    name: 'analysis.mode',
+    type: GOConfigParameterType.STRING,
+    description:
+      'Analysis mode: "single" occurrence, "range" of occurrences for the configured alarm, ' +
+      'or "stats" for offline statistics of the local runbook catalog',
+    required: false,
+    defaultValue: 'single',
+    aliases: ['am'],
+    validator: (value) =>
+      value === 'single' || value === 'range' || value === 'stats' || 'Expected single, range or stats',
+  },
   {
     name: 'alarm.name',
-    type: Core.GOConfigParameterType.STRING,
-    description: 'Name of the CloudWatch alarm that triggered',
-    required: true,
+    type: GOConfigParameterType.STRING,
+    description: 'Name of the CloudWatch alarm that triggered (required unless analysis.mode=stats)',
+    required: false,
     aliases: ['an'],
   },
   {
     name: 'alarm.datetime',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description:
       'Timestamp when the alarm triggered, or first occurrence for multi-occurrence ' +
-      'alarms (ISO 8601 format, e.g. 2025-10-01T18:55:00Z)',
-    required: true,
+      'alarms (ISO 8601 format, e.g. 2025-10-01T18:55:00Z). Required unless analysis.mode=stats',
+    required: false,
     aliases: ['ad'],
   },
   {
@@ -45,19 +57,99 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     // dash in the property name and `config.alarmDatetimeEnd` would stay
     // `undefined`). The CLI flag stays `--alarm-datetime-end`.
     name: 'alarm.datetime.end',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description:
       'Optional timestamp of the last occurrence for multi-occurrence alarms ' +
       '(ISO 8601). When provided, the analysis window spans first→last padded ' +
-      'on both sides by the default time window.',
+      'on each side by the time window declared by the runbook.',
     required: false,
     aliases: ['ade'],
   },
   {
     name: 'aws.profiles',
-    type: Core.GOConfigParameterType.STRING_ARRAY,
-    description: 'AWS SSO profile names for multi-account mode (comma-separated)',
-    required: true,
+    type: GOConfigParameterType.STRING_ARRAY,
+    description:
+      'AWS SSO profile names for multi-account mode (comma-separated). ' +
+      'Required unless analysis.mode=stats, which runs fully offline',
+    required: false,
     aliases: ['aps'],
+  },
+  {
+    name: 'aws.region',
+    type: GOConfigParameterType.STRING,
+    description: 'AWS region for alarm analysis (default: eu-south-1)',
+    required: false,
+    defaultValue: 'eu-south-1',
+    aliases: ['ar'],
+  },
+  {
+    name: 'aws.account.directory',
+    type: GOConfigParameterType.STRING_ARRAY,
+    description:
+      'Account directory of the logical AWS accounts read by multi-account runbooks: ' +
+      '<product>/<account>/<environment>=<accountId> entries',
+    required: false,
+    aliases: ['aad'],
+  },
+  {
+    name: 'aws.account.binding',
+    type: GOConfigParameterType.STRING,
+    description: 'How logical accounts are reached: profiles (matched through STS) or oam (default: profiles)',
+    required: false,
+    aliases: ['aab'],
+  },
+  {
+    name: 'aws.account.environment',
+    type: GOConfigParameterType.STRING,
+    description: 'Environment of the account directory to read (go-analyze-alarm runs without an occurrence account)',
+    required: false,
+    aliases: ['aae'],
+  },
+  {
+    name: 'aws.account.permission.sets',
+    type: GOConfigParameterType.STRING_ARRAY,
+    description: 'Preferred SSO permission sets when several profiles reach the same account, most preferred first',
+    required: false,
+    aliases: ['aaps'],
+  },
+  {
+    name: 'output.trace',
+    type: GOConfigParameterType.BOOL,
+    description:
+      'Save the full execution trace as trace-{alarmName}.json in the output directory (it can be gigabytes)',
+    required: false,
+    defaultValue: false,
+    aliases: ['otr'],
+  },
+  {
+    name: 'output.result',
+    type: GOConfigParameterType.BOOL,
+    description: 'Save the essential result as result-{runbookId}.json in the output directory',
+    required: false,
+    defaultValue: true,
+    aliases: ['ors'],
+  },
+  {
+    name: 'stats.detail',
+    type: GOConfigParameterType.BOOL,
+    description: 'In stats mode, print the per-runbook detail table',
+    required: false,
+    defaultValue: true,
+    aliases: ['sdt'],
+  },
+  {
+    name: 'stats.save',
+    type: GOConfigParameterType.BOOL,
+    description: 'In stats mode, save the report as runbook-stats.json in the output directory',
+    required: false,
+    defaultValue: false,
+    aliases: ['ssv'],
+  },
+  {
+    name: 'stats.product',
+    type: GOConfigParameterType.STRING,
+    description: 'In stats mode, restrict the report to a single product (e.g. SEND, INTEROP)',
+    required: false,
+    aliases: ['spr'],
   },
 ] as const;

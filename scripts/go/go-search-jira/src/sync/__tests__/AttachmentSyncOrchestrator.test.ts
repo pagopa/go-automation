@@ -5,42 +5,31 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { setImmediate } from 'node:timers/promises';
 
-import { Core } from '@go-automation/go-common';
+import { GOPdfTextExtractor, GOPlainTextExtractor, GOTextExtractorRegistry } from '@go-automation/go-documents';
+import { GOFileDownloaderError } from '@pagopa/go-common/http';
+import type { GOLogger } from '@pagopa/go-common/logging';
 
 import { AttachmentSyncOrchestrator } from '../AttachmentSyncOrchestrator.js';
+import type { AttachmentSyncOrchestratorOptions } from '../AttachmentSyncOrchestrator.js';
 import { AttachmentCachePaths } from '../AttachmentCachePaths.js';
 import { AttachmentIndexer } from '../AttachmentIndexer.js';
 import { IssueDiscovery } from '../../discovery/IssueDiscovery.js';
 import { JiraClient } from '../../jira/JiraClient.js';
-import { IndexSchemaManager } from '../../storage/IndexSchemaManager.js';
-import { AttachmentRepository } from '../../storage/AttachmentRepository.js';
 import { AttachmentSkipReason, AttachmentSyncStatus } from '../../types/AttachmentSyncStatus.js';
+import type { AttachmentSyncReport } from '../../types/AttachmentSyncReport.js';
 import type { JiraIssue } from '../../types/JiraIssue.js';
 import type { JiraAttachment } from '../../types/JiraAttachment.js';
-
-function makeAttachment(overrides: Partial<JiraAttachment> = {}): JiraAttachment {
-  return {
-    id: '1001',
-    filename: 'doc.pdf',
-    mimeType: 'application/pdf',
-    size: 1024,
-    created: '2026-01-01T00:00:00.000Z',
-    contentUrl: 'https://example.invalid/x',
-    author: 'tester',
-    ...overrides,
-  };
-}
-
-function makeIssue(attachments: ReadonlyArray<JiraAttachment>): JiraIssue {
-  return {
-    key: 'PN-1',
-    summary: 'sample',
-    projectKey: 'PN',
-    updated: '2026-01-01T00:00:00.000Z',
-    attachments,
-  };
-}
+import {
+  makeAttachment,
+  makeIssue,
+  openTestIndex,
+  SEEDED_AT,
+  SEEDED_HASH,
+  seedIndexedAttachment,
+} from '../../__tests__/helpers/jiraTestFixtures.js';
+import type { TestIndex } from '../../__tests__/helpers/jiraTestFixtures.js';
 
 class FakeDiscovery extends IssueDiscovery {
   constructor(private readonly issues: ReadonlyArray<JiraIssue>) {
@@ -49,21 +38,10 @@ class FakeDiscovery extends IssueDiscovery {
     super({} as unknown as JiraClient);
   }
 
-  public override discover(): AsyncIterable<JiraIssue> {
-    const issues = this.issues;
-    return {
-      [Symbol.asyncIterator](): AsyncIterator<JiraIssue> {
-        let index = 0;
-        return {
-          async next(): Promise<IteratorResult<JiraIssue>> {
-            if (index >= issues.length) return Promise.resolve({ value: undefined, done: true });
-            const value = issues[index]!;
-            index += 1;
-            return Promise.resolve({ value, done: false });
-          },
-        };
-      },
-    };
+  public override async *discover(): AsyncIterable<JiraIssue> {
+    for (const issue of this.issues) {
+      yield await Promise.resolve(issue);
+    }
   }
 }
 
@@ -77,542 +55,248 @@ const NOOP_LOGGER = {
   newline: () => undefined,
   log: () => undefined,
   table: () => undefined,
-} as unknown as Core.GOLogger;
+} as unknown as GOLogger;
 
+const RUN_OPTIONS: AttachmentSyncOrchestratorOptions = {
+  jql: 'unused',
+  issueKeys: [],
+  maxParallelDownloads: 1,
+  maxAttachmentSizeBytes: 100_000_000,
+  dryRun: false,
+  force: false,
+};
+
+/** Result of a fake attachment download. */
+interface FakeDownload {
+  readonly sha256: string;
+  readonly bytesWritten: number;
+  readonly attempts: number;
+}
+
+type DownloadFn = (attachment: JiraAttachment) => Promise<FakeDownload>;
+
+/** Collaborators a test may replace; the rest are inert. */
+interface OrchestratorOverrides {
+  readonly download?: DownloadFn;
+  readonly indexer?: AttachmentIndexer;
+  readonly registry?: GOTextExtractorRegistry;
+}
+
+type IndexerFactoryFn = (testIndex: TestIndex, registry: GOTextExtractorRegistry) => AttachmentIndexer;
+type TestBodyFn = (testIndex: TestIndex) => Promise<void>;
 type PredicateFn = () => boolean;
 
+/** A registry able to extract plain text (and PDF, when asked). */
+function textRegistry(withPdf = false): GOTextExtractorRegistry {
+  const registry = new GOTextExtractorRegistry();
+  registry.register(new GOPlainTextExtractor());
+  if (withPdf) registry.register(new GOPdfTextExtractor());
+  return registry;
+}
+
+/** Builds an orchestrator over the test index, syncing a single issue. */
+function buildOrchestrator(
+  testIndex: TestIndex,
+  issue: JiraIssue,
+  overrides: OrchestratorOverrides = {},
+): AttachmentSyncOrchestrator {
+  return new AttachmentSyncOrchestrator({
+    logger: NOOP_LOGGER,
+    ...testIndex,
+    registry: overrides.registry ?? textRegistry(),
+    client: { downloadAttachment: overrides.download } as unknown as JiraClient,
+    discovery: new FakeDiscovery([issue]),
+    indexer: overrides.indexer ?? ({} as unknown as AttachmentIndexer),
+    cachePaths: new AttachmentCachePaths('/tmp/unused'),
+  });
+}
+
+/** Runs `body` against a fresh in-memory index, always closing it. */
+async function withTestIndex(body: TestBodyFn): Promise<void> {
+  const testIndex = await openTestIndex();
+  try {
+    await body(testIndex);
+  } finally {
+    await testIndex.index.close();
+  }
+}
+
+/** Asserts the row and the FTS document of a previous successful sync are untouched. */
+function assertPreviousIndexKept({ index, repository }: TestIndex, attachment: JiraAttachment): void {
+  const row = repository.getAttachment(attachment.id);
+  assert.strictEqual(row?.status, AttachmentSyncStatus.INDEXED);
+  assert.strictEqual(row?.contentHash, SEEDED_HASH);
+  assert.strictEqual(row?.indexedAt, SEEDED_AT);
+  assert.deepStrictEqual(
+    index.search({ query: 'previous' }).map((hit) => hit.id),
+    [attachment.id],
+  );
+}
+
+/** Yields to the event loop until `predicate` holds. */
 async function waitUntil(predicate: PredicateFn, description: string): Promise<void> {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (predicate()) return;
-    await new Promise((resolve) => setTimeout(resolve, 1));
+    await setImmediate();
   }
   assert.fail(`Timed out waiting for ${description}`);
 }
 
-describe('AttachmentSyncOrchestrator — handleSkipDecision', () => {
+/** A download that rejects with `error`. */
+function failingDownload(error: Error): DownloadFn {
+  return async () => {
+    await Promise.resolve();
+    throw error;
+  };
+}
+
+describe('AttachmentSyncOrchestrator', () => {
   it('preserves indexed status when re-syncing an already-indexed attachment', async () => {
-    // Setup: open an in-memory index + schema + repository.
-    const index = new Core.GOFtsIndex({
-      databasePath: ':memory:',
-      ftsTableName: 'attachments_fts',
-      metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
+    await withTestIndex(async (testIndex) => {
+      const attachment = makeAttachment({ id: '42' });
+      const issue = makeIssue([attachment]);
+      seedIndexedAttachment(testIndex, issue, attachment, 'previous content');
+
+      // The planner returns skip(already_indexed): the row must not flip to SKIPPED.
+      const report = await buildOrchestrator(testIndex, issue, { registry: textRegistry(true) }).run(RUN_OPTIONS);
+
+      assertPreviousIndexKept(testIndex, attachment);
+      assert.strictEqual(report.skipped, 1);
+      assert.strictEqual(report.indexed, 0);
     });
-    await index.open();
-    new IndexSchemaManager(index).ensureSchema();
-    const repository = new AttachmentRepository(index);
-
-    const attachment = makeAttachment({ id: '42', filename: 'doc.pdf' });
-    const issue = makeIssue([attachment]);
-
-    // Seed: simulate a previous successful sync. Row is `indexed`, FTS doc exists.
-    repository.upsertAttachmentMetadata(
-      issue,
-      attachment,
-      AttachmentSyncStatus.INDEXED,
-      null,
-      '2026-01-01T00:00:00.000Z',
-      { contentHash: 'sha256-abc', indexedAt: '2026-01-01T00:00:00.000Z' },
-    );
-    index.upsert({
-      id: attachment.id,
-      content: 'hello world',
-      metadata: {
-        issue_key: issue.key,
-        project_key: issue.projectKey,
-        filename: attachment.filename,
-        mime_type: attachment.mimeType,
-      },
-    });
-
-    // Sanity check.
-    const before = repository.getAttachment(attachment.id);
-    assert.strictEqual(before?.status, AttachmentSyncStatus.INDEXED);
-    assert.strictEqual(before?.contentHash, 'sha256-abc');
-
-    // Run the orchestrator with the SAME attachment — planner returns
-    // skip(already_indexed) because the row is in the index.
-    const registry = new Core.GOTextExtractorRegistry();
-    registry.register(new Core.GOPlainTextExtractor());
-    registry.register(new Core.GOPdfTextExtractor()); // makes canHandle('application/pdf') true
-
-    const orchestrator = new AttachmentSyncOrchestrator({
-      logger: NOOP_LOGGER,
-      index,
-      repository,
-      registry,
-      client: {} as unknown as JiraClient,
-      discovery: new FakeDiscovery([issue]),
-      indexer: {} as unknown as AttachmentIndexer,
-      cachePaths: new AttachmentCachePaths('/tmp/unused'),
-    });
-
-    const report = await orchestrator.run({
-      jql: 'unused',
-      issueKeys: [],
-      maxParallelDownloads: 1,
-      maxAttachmentSizeBytes: 100_000_000,
-      dryRun: false,
-      force: false,
-    });
-
-    // Behaviour: the row must still be INDEXED, NOT flipped to SKIPPED.
-    const after = repository.getAttachment(attachment.id);
-    assert.strictEqual(
-      after?.status,
-      AttachmentSyncStatus.INDEXED,
-      'row status must remain "indexed" after an already_indexed skip decision',
-    );
-    assert.strictEqual(after?.contentHash, 'sha256-abc', 'content_hash must be preserved');
-    assert.strictEqual(after?.indexedAt, '2026-01-01T00:00:00.000Z', 'indexed_at must be preserved');
-    // The skip is still reported in the run summary.
-    assert.strictEqual(report.skipped, 1);
-    assert.strictEqual(report.indexed, 0);
-
-    // And the FTS document remains searchable.
-    const hits = index.search({ query: 'hello' });
-    assert.strictEqual(hits.length, 1);
-    assert.strictEqual(hits[0]!.id, attachment.id);
-
-    await index.close();
   });
-});
 
-describe('AttachmentSyncOrchestrator — dry-run reporting', () => {
-  it('counts planned downloads separately from skipped attachments', async () => {
-    const index = new Core.GOFtsIndex({
-      databasePath: ':memory:',
-      ftsTableName: 'attachments_fts',
-      metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
-    });
-    await index.open();
-
-    try {
-      new IndexSchemaManager(index).ensureSchema();
-      const repository = new AttachmentRepository(index);
+  it('counts planned downloads separately from skipped attachments in a dry run', async () => {
+    await withTestIndex(async (testIndex) => {
       const downloadable = makeAttachment({ id: 'dry-download', filename: 'notes.txt', mimeType: 'text/plain' });
       const unsupported = makeAttachment({ id: 'dry-skip', filename: 'image.png', mimeType: 'image/png' });
-      const issue = makeIssue([downloadable, unsupported]);
 
-      const registry = new Core.GOTextExtractorRegistry();
-      registry.register(new Core.GOPlainTextExtractor());
-
-      const orchestrator = new AttachmentSyncOrchestrator({
-        logger: NOOP_LOGGER,
-        index,
-        repository,
-        registry,
-        client: {} as unknown as JiraClient,
-        discovery: new FakeDiscovery([issue]),
-        indexer: {} as unknown as AttachmentIndexer,
-        cachePaths: new AttachmentCachePaths('/tmp/unused'),
-      });
-
-      const report = await orchestrator.run({
-        jql: 'unused',
-        issueKeys: [],
-        maxParallelDownloads: 1,
-        maxAttachmentSizeBytes: 100_000_000,
+      const report = await buildOrchestrator(testIndex, makeIssue([downloadable, unsupported])).run({
+        ...RUN_OPTIONS,
         dryRun: true,
-        force: false,
       });
 
       assert.strictEqual(report.plannedDownloads, 1);
       assert.strictEqual(report.skipped, 1);
       assert.strictEqual(report.indexed, 0);
       assert.strictEqual(report.failed, 0);
-      assert.strictEqual(repository.getAttachment(downloadable.id), undefined);
-      assert.strictEqual(repository.getAttachment(unsupported.id), undefined);
-    } finally {
-      await index.close();
-    }
-  });
-});
-
-describe('AttachmentSyncOrchestrator — hard task failures', () => {
-  it('rethrows unexpected download/index task failures instead of swallowing them', async () => {
-    const index = new Core.GOFtsIndex({
-      databasePath: ':memory:',
-      ftsTableName: 'attachments_fts',
-      metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
+      assert.strictEqual(testIndex.repository.getAttachment(downloadable.id), undefined);
+      assert.strictEqual(testIndex.repository.getAttachment(unsupported.id), undefined);
     });
-    await index.open();
+  });
 
-    try {
-      new IndexSchemaManager(index).ensureSchema();
-      const repository = new AttachmentRepository(index);
+  it('rethrows unexpected download/index task failures instead of swallowing them', async () => {
+    await withTestIndex(async (testIndex) => {
       const attachment = makeAttachment({ id: '99', filename: 'notes.txt', mimeType: 'text/plain' });
-      const issue = makeIssue([attachment]);
-
-      const registry = new Core.GOTextExtractorRegistry();
-      registry.register(new Core.GOPlainTextExtractor());
-
       const hardError = new Error('sqlite write failed');
-      const orchestrator = new AttachmentSyncOrchestrator({
-        logger: NOOP_LOGGER,
-        index,
-        repository,
-        registry,
-        client: {
-          downloadAttachment: async () =>
-            await Promise.resolve({ sha256: 'sha256-hard-failure', bytesWritten: 12, attempts: 1 }),
-        } as unknown as JiraClient,
-        discovery: new FakeDiscovery([issue]),
+      const orchestrator = buildOrchestrator(testIndex, makeIssue([attachment]), {
+        download: async () => await Promise.resolve({ sha256: 'sha256-hard-failure', bytesWritten: 12, attempts: 1 }),
         indexer: {
           indexAttachment: async () => {
             await Promise.resolve();
             throw hardError;
           },
         } as unknown as AttachmentIndexer,
-        cachePaths: new AttachmentCachePaths('/tmp/unused'),
       });
 
-      await assert.rejects(
-        async () =>
-          await orchestrator.run({
-            jql: 'unused',
-            issueKeys: [],
-            maxParallelDownloads: 1,
-            maxAttachmentSizeBytes: 100_000_000,
-            dryRun: false,
-            force: false,
-          }),
-        (error: unknown): boolean => error === hardError,
-      );
-    } finally {
-      await index.close();
-    }
-  });
-});
-
-describe('AttachmentSyncOrchestrator — force refresh failures', () => {
-  it('keeps a previous indexed document searchable when a forced download fails', async () => {
-    const index = new Core.GOFtsIndex({
-      databasePath: ':memory:',
-      ftsTableName: 'attachments_fts',
-      metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
+      await assert.rejects(orchestrator.run(RUN_OPTIONS), (error: unknown): boolean => error === hardError);
     });
-    await index.open();
-
-    try {
-      new IndexSchemaManager(index).ensureSchema();
-      const repository = new AttachmentRepository(index);
-      const attachment = makeAttachment({ id: '77', filename: 'notes.txt', mimeType: 'text/plain' });
-      const issue = makeIssue([attachment]);
-
-      repository.upsertAttachmentMetadata(
-        issue,
-        attachment,
-        AttachmentSyncStatus.INDEXED,
-        null,
-        '2026-01-01T00:00:00.000Z',
-        { contentHash: 'sha256-old', indexedAt: '2026-01-01T00:00:00.000Z' },
-      );
-      index.upsert({
-        id: attachment.id,
-        content: 'previous searchable content',
-        metadata: {
-          issue_key: issue.key,
-          project_key: issue.projectKey,
-          filename: attachment.filename,
-          mime_type: attachment.mimeType,
-        },
-      });
-
-      const registry = new Core.GOTextExtractorRegistry();
-      registry.register(new Core.GOPlainTextExtractor());
-      const orchestrator = new AttachmentSyncOrchestrator({
-        logger: NOOP_LOGGER,
-        index,
-        repository,
-        registry,
-        client: {
-          downloadAttachment: async () => {
-            await Promise.resolve();
-            throw new Error('network timeout');
-          },
-        } as unknown as JiraClient,
-        discovery: new FakeDiscovery([issue]),
-        indexer: {} as unknown as AttachmentIndexer,
-        cachePaths: new AttachmentCachePaths('/tmp/unused'),
-      });
-
-      const report = await orchestrator.run({
-        jql: 'unused',
-        issueKeys: [],
-        maxParallelDownloads: 1,
-        maxAttachmentSizeBytes: 100_000_000,
-        dryRun: false,
-        force: true,
-      });
-
-      const row = repository.getAttachment(attachment.id);
-      assert.strictEqual(report.failed, 1);
-      assert.strictEqual(report.indexed, 0);
-      assert.strictEqual(row?.status, AttachmentSyncStatus.INDEXED);
-      assert.strictEqual(row?.contentHash, 'sha256-old');
-      assert.strictEqual(row?.indexedAt, '2026-01-01T00:00:00.000Z');
-      assert.strictEqual(index.search({ query: 'previous' }).length, 1);
-    } finally {
-      await index.close();
-    }
   });
 
-  it('keeps a previous indexed document searchable when forced extraction fails', async () => {
-    const index = new Core.GOFtsIndex({
-      databasePath: ':memory:',
-      ftsTableName: 'attachments_fts',
-      metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
-    });
-    await index.open();
-
-    try {
-      new IndexSchemaManager(index).ensureSchema();
-      const repository = new AttachmentRepository(index);
-      const attachment = makeAttachment({ id: '78', filename: 'notes.txt', mimeType: 'text/plain' });
-      const issue = makeIssue([attachment]);
-
-      repository.upsertAttachmentMetadata(
-        issue,
-        attachment,
-        AttachmentSyncStatus.INDEXED,
-        null,
-        '2026-01-01T00:00:00.000Z',
-        { contentHash: 'sha256-old', indexedAt: '2026-01-01T00:00:00.000Z' },
-      );
-      index.upsert({
-        id: attachment.id,
-        content: 'previous extraction content',
-        metadata: {
-          issue_key: issue.key,
-          project_key: issue.projectKey,
-          filename: attachment.filename,
-          mime_type: attachment.mimeType,
-        },
-      });
-
-      const registry = new Core.GOTextExtractorRegistry();
-      registry.register(new Core.GOPlainTextExtractor());
-      const orchestrator = new AttachmentSyncOrchestrator({
-        logger: NOOP_LOGGER,
-        index,
-        repository,
-        registry,
-        client: {
-          downloadAttachment: async () =>
-            await Promise.resolve({ sha256: 'sha256-new', bytesWritten: 12, attempts: 1 }),
-        } as unknown as JiraClient,
-        discovery: new FakeDiscovery([issue]),
-        indexer: new AttachmentIndexer({
-          registry,
-          index,
-          repository,
-          keepRaw: false,
-        }),
-        cachePaths: new AttachmentCachePaths('/tmp/unused'),
-      });
-
-      const report = await orchestrator.run({
-        jql: 'unused',
-        issueKeys: [],
-        maxParallelDownloads: 1,
-        maxAttachmentSizeBytes: 100_000_000,
-        dryRun: false,
-        force: true,
-      });
-
-      const row = repository.getAttachment(attachment.id);
-      assert.strictEqual(report.failed, 1);
-      assert.strictEqual(report.indexed, 0);
-      assert.strictEqual(row?.status, AttachmentSyncStatus.INDEXED);
-      assert.strictEqual(row?.contentHash, 'sha256-old');
-      assert.strictEqual(row?.indexedAt, '2026-01-01T00:00:00.000Z');
-      assert.strictEqual(index.search({ query: 'previous' }).length, 1);
-    } finally {
-      await index.close();
-    }
-  });
-});
-
-describe('AttachmentSyncOrchestrator — forbidden downloads', () => {
   it('records 403 attachment downloads as skipped/forbidden', async () => {
-    const index = new Core.GOFtsIndex({
-      databasePath: ':memory:',
-      ftsTableName: 'attachments_fts',
-      metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
-    });
-    await index.open();
-
-    try {
-      new IndexSchemaManager(index).ensureSchema();
-      const repository = new AttachmentRepository(index);
+    await withTestIndex(async (testIndex) => {
       const attachment = makeAttachment({ id: '403', filename: 'private.txt', mimeType: 'text/plain' });
-      const issue = makeIssue([attachment]);
-
-      const registry = new Core.GOTextExtractorRegistry();
-      registry.register(new Core.GOPlainTextExtractor());
-      const orchestrator = new AttachmentSyncOrchestrator({
-        logger: NOOP_LOGGER,
-        index,
-        repository,
-        registry,
-        client: {
-          downloadAttachment: async () => {
-            await Promise.resolve();
-            throw new Core.GOFileDownloaderError('Download failed: HTTP 403 Forbidden', attachment.contentUrl, 1, 403);
-          },
-        } as unknown as JiraClient,
-        discovery: new FakeDiscovery([issue]),
-        indexer: {} as unknown as AttachmentIndexer,
-        cachePaths: new AttachmentCachePaths('/tmp/unused'),
+      const orchestrator = buildOrchestrator(testIndex, makeIssue([attachment]), {
+        download: failingDownload(
+          new GOFileDownloaderError('Download failed: HTTP 403 Forbidden', attachment.contentUrl, 1, 403),
+        ),
       });
 
-      const report = await orchestrator.run({
-        jql: 'unused',
-        issueKeys: [],
-        maxParallelDownloads: 1,
-        maxAttachmentSizeBytes: 100_000_000,
-        dryRun: false,
-        force: false,
-      });
+      const report = await orchestrator.run(RUN_OPTIONS);
 
-      const row = repository.getAttachment(attachment.id);
+      const row = testIndex.repository.getAttachment(attachment.id);
       assert.strictEqual(report.skipped, 1);
       assert.strictEqual(report.failed, 0);
       assert.strictEqual(report.errors.length, 0);
       assert.strictEqual(row?.status, AttachmentSyncStatus.SKIPPED);
       assert.strictEqual(row?.statusReason, AttachmentSkipReason.FORBIDDEN);
-    } finally {
-      await index.close();
-    }
-  });
-
-  it('keeps a previous indexed document searchable when a forced download is forbidden', async () => {
-    const index = new Core.GOFtsIndex({
-      databasePath: ':memory:',
-      ftsTableName: 'attachments_fts',
-      metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
     });
-    await index.open();
+  });
 
-    try {
-      new IndexSchemaManager(index).ensureSchema();
-      const repository = new AttachmentRepository(index);
-      const attachment = makeAttachment({ id: '401', filename: 'private.txt', mimeType: 'text/plain' });
-      const issue = makeIssue([attachment]);
+  describe('keeps a previous indexed document searchable when a forced refresh', () => {
+    const cases: ReadonlyArray<{
+      readonly title: string;
+      readonly download: DownloadFn;
+      readonly indexer?: IndexerFactoryFn;
+      readonly expected: Pick<AttachmentSyncReport, 'failed' | 'skipped'>;
+    }> = [
+      {
+        title: 'cannot download the attachment',
+        download: failingDownload(new Error('network timeout')),
+        expected: { failed: 1, skipped: 0 },
+      },
+      {
+        title: 'cannot extract the downloaded file',
+        // The real indexer finds no file in the cache directory and fails to extract.
+        download: async () => await Promise.resolve({ sha256: 'sha256-new', bytesWritten: 12, attempts: 1 }),
+        indexer: ({ index, repository }, registry) =>
+          new AttachmentIndexer({ registry, index, repository, keepRaw: false }),
+        expected: { failed: 1, skipped: 0 },
+      },
+      {
+        title: 'is forbidden',
+        download: failingDownload(
+          new GOFileDownloaderError('Download failed: HTTP 401 Unauthorized', 'https://example.invalid/x', 1, 401),
+        ),
+        expected: { failed: 0, skipped: 1 },
+      },
+    ];
 
-      repository.upsertAttachmentMetadata(
-        issue,
-        attachment,
-        AttachmentSyncStatus.INDEXED,
-        null,
-        '2026-01-01T00:00:00.000Z',
-        { contentHash: 'sha256-old', indexedAt: '2026-01-01T00:00:00.000Z' },
-      );
-      index.upsert({
-        id: attachment.id,
-        content: 'previous private content',
-        metadata: {
-          issue_key: issue.key,
-          project_key: issue.projectKey,
-          filename: attachment.filename,
-          mime_type: attachment.mimeType,
-        },
+    for (const { title, download, indexer, expected } of cases) {
+      it(title, async () => {
+        await withTestIndex(async (testIndex) => {
+          const attachment = makeAttachment({ id: '77', filename: 'notes.txt', mimeType: 'text/plain' });
+          const issue = makeIssue([attachment]);
+          seedIndexedAttachment(testIndex, issue, attachment, 'previous searchable content');
+          const registry = textRegistry();
+
+          const report = await buildOrchestrator(testIndex, issue, {
+            download,
+            registry,
+            ...(indexer === undefined ? {} : { indexer: indexer(testIndex, registry) }),
+          }).run({ ...RUN_OPTIONS, force: true });
+
+          assert.strictEqual(report.failed, expected.failed);
+          assert.strictEqual(report.skipped, expected.skipped);
+          assert.strictEqual(report.indexed, 0);
+          assertPreviousIndexKept(testIndex, attachment);
+        });
       });
-
-      const registry = new Core.GOTextExtractorRegistry();
-      registry.register(new Core.GOPlainTextExtractor());
-      const orchestrator = new AttachmentSyncOrchestrator({
-        logger: NOOP_LOGGER,
-        index,
-        repository,
-        registry,
-        client: {
-          downloadAttachment: async () => {
-            await Promise.resolve();
-            throw new Core.GOFileDownloaderError(
-              'Download failed: HTTP 401 Unauthorized',
-              attachment.contentUrl,
-              1,
-              401,
-            );
-          },
-        } as unknown as JiraClient,
-        discovery: new FakeDiscovery([issue]),
-        indexer: {} as unknown as AttachmentIndexer,
-        cachePaths: new AttachmentCachePaths('/tmp/unused'),
-      });
-
-      const report = await orchestrator.run({
-        jql: 'unused',
-        issueKeys: [],
-        maxParallelDownloads: 1,
-        maxAttachmentSizeBytes: 100_000_000,
-        dryRun: false,
-        force: true,
-      });
-
-      const row = repository.getAttachment(attachment.id);
-      assert.strictEqual(report.skipped, 1);
-      assert.strictEqual(report.failed, 0);
-      assert.strictEqual(row?.status, AttachmentSyncStatus.INDEXED);
-      assert.strictEqual(row?.contentHash, 'sha256-old');
-      assert.strictEqual(row?.indexedAt, '2026-01-01T00:00:00.000Z');
-      assert.strictEqual(index.search({ query: 'previous' }).length, 1);
-    } finally {
-      await index.close();
     }
   });
-});
 
-describe('AttachmentSyncOrchestrator — download scheduling', () => {
   it('does not queue every attachment before a download slot is available', async () => {
-    const index = new Core.GOFtsIndex({
-      databasePath: ':memory:',
-      ftsTableName: 'attachments_fts',
-      metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
-    });
-    await index.open();
-
-    try {
-      new IndexSchemaManager(index).ensureSchema();
-      const repository = new AttachmentRepository(index);
-      const attachments = [
-        makeAttachment({ id: 'a1', filename: 'a1.txt', mimeType: 'text/plain' }),
-        makeAttachment({ id: 'a2', filename: 'a2.txt', mimeType: 'text/plain' }),
-        makeAttachment({ id: 'a3', filename: 'a3.txt', mimeType: 'text/plain' }),
-      ];
-      const issue = makeIssue(attachments);
+    await withTestIndex(async (testIndex) => {
+      const attachments = ['a1', 'a2', 'a3'].map((id) =>
+        makeAttachment({ id, filename: `${id}.txt`, mimeType: 'text/plain' }),
+      );
       const started: string[] = [];
       const releases = new Map<string, () => void>();
       let activeDownloads = 0;
       let maxActiveDownloads = 0;
 
-      const registry = new Core.GOTextExtractorRegistry();
-      registry.register(new Core.GOPlainTextExtractor());
-      const orchestrator = new AttachmentSyncOrchestrator({
-        logger: NOOP_LOGGER,
-        index,
-        repository,
-        registry,
-        client: {
-          downloadAttachment: async (attachment: JiraAttachment) => {
-            started.push(attachment.id);
-            activeDownloads += 1;
-            maxActiveDownloads = Math.max(maxActiveDownloads, activeDownloads);
-            return await new Promise<{
-              readonly sha256: string;
-              readonly bytesWritten: number;
-              readonly attempts: number;
-            }>((resolve) => {
-              releases.set(attachment.id, () => {
-                releases.delete(attachment.id);
-                activeDownloads -= 1;
-                resolve({ sha256: `sha256-${attachment.id}`, bytesWritten: 1, attempts: 1 });
-              });
+      const orchestrator = buildOrchestrator(testIndex, makeIssue(attachments), {
+        download: async (attachment) => {
+          started.push(attachment.id);
+          activeDownloads += 1;
+          maxActiveDownloads = Math.max(maxActiveDownloads, activeDownloads);
+          return await new Promise<FakeDownload>((resolve) => {
+            releases.set(attachment.id, () => {
+              activeDownloads -= 1;
+              resolve({ sha256: `sha256-${attachment.id}`, bytesWritten: 1, attempts: 1 });
             });
-          },
-        } as unknown as JiraClient,
-        discovery: new FakeDiscovery([issue]),
+          });
+        },
         indexer: {
           indexAttachment: async () =>
             await Promise.resolve({
@@ -621,33 +305,22 @@ describe('AttachmentSyncOrchestrator — download scheduling', () => {
               preservedExistingIndex: false,
             }),
         } as unknown as AttachmentIndexer,
-        cachePaths: new AttachmentCachePaths('/tmp/unused'),
       });
 
-      const runPromise = orchestrator.run({
-        jql: 'unused',
-        issueKeys: [],
-        maxParallelDownloads: 2,
-        maxAttachmentSizeBytes: 100_000_000,
-        dryRun: false,
-        force: false,
-      });
+      const runPromise = orchestrator.run({ ...RUN_OPTIONS, maxParallelDownloads: 2 });
 
       await waitUntil(() => started.length === 2, 'first two downloads to start');
       assert.deepStrictEqual(started, ['a1', 'a2']);
-      assert.strictEqual(maxActiveDownloads, 2);
 
       releases.get('a1')?.();
       await waitUntil(() => started.length === 3, 'third download to start after a slot is released');
       assert.deepStrictEqual(started, ['a1', 'a2', 'a3']);
-      assert.strictEqual(maxActiveDownloads, 2);
 
       releases.get('a2')?.();
       releases.get('a3')?.();
       const report = await runPromise;
+      assert.strictEqual(maxActiveDownloads, 2);
       assert.strictEqual(report.indexed, 3);
-    } finally {
-      await index.close();
-    }
+    });
   });
 });

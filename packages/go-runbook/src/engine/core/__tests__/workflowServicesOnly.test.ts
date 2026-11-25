@@ -1,0 +1,37 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+
+import { GOLogger } from '@pagopa/go-common/logging';
+
+import { RunbookEngine } from '../RunbookEngine.js';
+import { SetVarStep } from '../../steps/control/SetVarStep.js';
+import { createTestWorkflowServices } from '../../testing/createTestWorkflowServices.js';
+import { createTestRunbook } from '../../../__tests__/helpers/createTestRunbook.js';
+
+// the engine runs a complete runbook in memory with WorkflowServices only.
+describe('RunbookEngine with WorkflowServices only', () => {
+  it('runs the pipeline, matches a known case and returns the trace', async () => {
+    const runbook = createTestRunbook({
+      steps: [
+        { step: new SetVarStep({ id: 'set-outcome', label: 'Set outcome', varName: 'outcome', value: 'known' }) },
+      ],
+      knownCases: [
+        {
+          id: 'known',
+          description: 'Known outcome',
+          condition: { type: 'compare', ref: 'vars.outcome', operator: '==', value: 'known' },
+          action: { type: 'log', level: 'info', title: 'Known outcome' },
+        },
+      ],
+    });
+
+    const result = await new RunbookEngine(new GOLogger()).execute(runbook, new Map(), createTestWorkflowServices());
+
+    assert.strictEqual(result.status, 'completed');
+    assert.deepStrictEqual(
+      result.detections.map((knownCase) => knownCase.knownCase.id),
+      ['known'],
+    );
+    assert.strictEqual(result.finalContext.vars.get('outcome'), 'known');
+  });
+});

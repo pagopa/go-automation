@@ -18,12 +18,12 @@
     "ai"
   ],
   "author": "Team GO - Gestione Operativa",
-  "license": "ISC",
+  "license": "EUPL-1.2",
   "dependencies": {
-    "@aws-sdk/client-lambda": "catalog:",
-    "@aws-sdk/credential-provider-ini": "catalog:",
     "@go-automation/go-ai": "workspace:*",
-    "@go-automation/go-common": "workspace:*"
+    "@go-automation/go-script": "workspace:*",
+    "@pagopa/go-aws": "workspace:*",
+    "@pagopa/go-common": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:"

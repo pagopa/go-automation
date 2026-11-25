@@ -4,7 +4,8 @@
  * Wires together: resolve dirs → open index → build Jira client + registry
  * → run AttachmentSyncOrchestrator → print report.
  */
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { formatBytes } from '@pagopa/go-common/utils';
 
 import { IssueDiscovery } from '../discovery/IssueDiscovery.js';
 import { AttachmentCachePaths } from '../sync/AttachmentCachePaths.js';
@@ -22,7 +23,7 @@ import { resolveDataDir } from './resolveDataDir.js';
 const SPINNER_THROTTLE_MS = 100;
 
 export class SyncCommand {
-  public async execute(script: Core.GOScript, config: GoSearchJiraConfig): Promise<void> {
+  public async execute(script: GOScript, config: GoSearchJiraConfig): Promise<void> {
     const dataDir = resolveDataDir(script, config.storageDataDir);
     script.logger.section('Sync');
     script.logger.info(`Data dir: ${dataDir}`);
@@ -99,7 +100,7 @@ export class SyncCommand {
       script.logger.info(`Indexed:          ${report.indexed}`);
       script.logger.info(`Skipped:          ${report.skipped}`);
       script.logger.info(`Failed:           ${report.failed}`);
-      script.logger.info(`Bytes downloaded: ${Core.formatBytes(report.bytesDownloaded, { scaledFractionDigits: 1 })}`);
+      script.logger.info(`Bytes downloaded: ${formatBytes(report.bytesDownloaded, { scaledFractionDigits: 1 })}`);
       script.logger.info(`Duration:         ${report.durationMs}ms`);
 
       if (config.syncDryRun) {
@@ -129,7 +130,7 @@ export class SyncCommand {
 function formatProgress(snapshot: SyncProgressSnapshot): string {
   const inFlight = snapshot.inFlightDownloads > 0 ? ` · ${snapshot.inFlightDownloads} downloading` : '';
   const planned = snapshot.plannedDownloads > 0 ? `planned: ${snapshot.plannedDownloads}, ` : '';
-  return `Issue ${snapshot.currentIssueKey} (processed: ${snapshot.issuesProcessed}, ${planned}indexed: ${snapshot.indexed}, skipped: ${snapshot.skipped}, failed: ${snapshot.failed}, ${Core.formatBytes(snapshot.bytesDownloaded, { scaledFractionDigits: 1 })}${inFlight})`;
+  return `Issue ${snapshot.currentIssueKey} (processed: ${snapshot.issuesProcessed}, ${planned}indexed: ${snapshot.indexed}, skipped: ${snapshot.skipped}, failed: ${snapshot.failed}, ${formatBytes(snapshot.bytesDownloaded, { scaledFractionDigits: 1 })}${inFlight})`;
 }
 
 function formatCompletionMessage(

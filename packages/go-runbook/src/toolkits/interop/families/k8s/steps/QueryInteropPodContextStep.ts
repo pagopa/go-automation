@@ -1,0 +1,137 @@
+import { escapeLogsInsightsString } from '@pagopa/go-aws/cloudwatch-logs/insights';
+
+import { executeStep } from '../../../../../engine/index.js';
+import type { RunbookContext, Step, StepKind, StepResult } from '../../../../../engine/index.js';
+import type { OperationalContext } from '../../../../common/services/OperationalContext.js';
+import type { OperationalServiceName } from '../../../../common/services/OperationalServiceName.js';
+import { executeCloudWatchLogsQuery } from '../../../../common/steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
+import { SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS } from '../../../../common/steps/aws/cloudwatch-logs/SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS.js';
+import { OperationalStep } from '../../../../common/steps/OperationalStep.js';
+import { ALARM_TIME_RANGE } from '../../../../common/time/ALARM_TIME_RANGE.js';
+import { resolveTimeRange } from '../../../../common/time/resolveTimeRange.js';
+import type { InteropPodContextCompleteness } from '../types/InteropPodContextCompleteness.js';
+import type { QueryInteropPodContextConfig } from '../types/QueryInteropPodContextConfig.js';
+import type { CloudWatchLogsRows } from '../../../../common/steps/aws/cloudwatch-logs/CloudWatchLogsRows.js';
+
+/** Maximum rows of a pod context; reaching it means the context is truncated. */
+const ROW_LIMIT = 1000;
+
+/**
+ * Full log context of the alarmed INTEROP pod, at every level and without a
+ * request CID, as Kafka consumers and writers often log. Replaces six runbook-local copies; each runbook passes its configuration.
+ *
+ * Reads the resolved `interopLogGroup`, `interopPodApp` and, with a namespace
+ * filter, `interopEnvironment`; writes the row count to the configured variable.
+ */
+export class QueryInteropPodContextStep
+  extends OperationalStep<CloudWatchLogsRows>
+  implements Step<CloudWatchLogsRows>
+{
+  readonly id: string;
+  readonly label: string;
+  readonly kind: StepKind = 'data';
+
+  private readonly contextName: string;
+  private readonly countVar: string;
+  private readonly namespaceSuffix: string | undefined;
+  private readonly completeness: InteropPodContextCompleteness;
+  private readonly missingContextError: string;
+  private readonly incompleteContextError: string;
+
+  /**
+   * @param config - Pod context of the runbook
+   */
+  constructor(config: QueryInteropPodContextConfig) {
+    super();
+    this.id = config.id;
+    this.label = config.label;
+    this.contextName = config.contextName;
+    this.countVar = config.countVar;
+    this.namespaceSuffix = config.namespaceSuffix;
+    this.completeness = config.completeness;
+    this.missingContextError = config.missingContextError;
+    this.incompleteContextError = config.incompleteContextError;
+  }
+
+  /**
+   * Resolved query target, for the trace.
+   *
+   * @param context - Runbook context
+   * @returns Log group, pod app, environment (with a namespace filter) and levels
+   */
+  getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
+    return {
+      logGroup: context.vars.get('interopLogGroup'),
+      podApp: context.vars.get('interopPodApp'),
+      ...(this.namespaceSuffix === undefined ? {} : { environment: context.vars.get('interopEnvironment') }),
+      levels: 'ALL',
+    };
+  }
+
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  /**
+   * Queries the pod context.
+   *
+   * @param context - Operational context
+   * @returns The rows and the count variable, or a failure when the context is missing or incomplete
+   */
+  override async execute(context: OperationalContext): Promise<StepResult<CloudWatchLogsRows>> {
+    return executeStep(context, this.contextName, async () => {
+      const logGroup = context.vars.get('interopLogGroup')?.trim() ?? '';
+      const podApp = context.vars.get('interopPodApp')?.trim() ?? '';
+      const environment = context.vars.get('interopEnvironment')?.trim() ?? '';
+      if (logGroup === '' || podApp === '' || (this.namespaceSuffix !== undefined && environment === '')) {
+        throw new Error(this.missingContextError);
+      }
+      const result = await executeCloudWatchLogsQuery(
+        context,
+        [logGroup],
+        this.query(podApp, environment),
+        resolveTimeRange(context, ALARM_TIME_RANGE),
+        {
+          ...SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS,
+          paginateResults: true,
+        },
+      );
+      const unreturned = (result.diagnostics?.cloudWatchLogs?.statistics.recordsMatched ?? 0) > result.rows.length;
+      const truncated =
+        result.rows.length >= ROW_LIMIT || (this.completeness === 'row-limit-or-unreturned-matches' && unreturned);
+      // A truncated context keeps the rows it read and says it is incomplete, instead of failing the run.
+      const coverage = truncated
+        ? [
+            ...result.coverage.filter(({ reason }) => reason !== 'saturated'),
+            { source: logGroup, complete: false, reason: 'saturated' as const, detail: this.incompleteContextError },
+          ]
+        : result.coverage;
+      return {
+        success: true,
+        output: result.rows,
+        vars: { [this.countVar]: String(result.rows.length) },
+        ...(result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics }),
+        ...(coverage.length > 0 ? { coverage } : {}),
+      };
+    });
+  }
+
+  private query(podApp: string, environment: string): string {
+    const namespaced = this.namespaceSuffix !== undefined;
+    return [
+      `fields @timestamp, pod_app, ${namespaced ? 'pod_namespace, ' : ''}@logStream, stream, log, @message`,
+      `| filter pod_app = "${escapeLogsInsightsString(podApp)}"`,
+      ...(namespaced
+        ? [`| filter pod_namespace = "${escapeLogsInsightsString(environment)}${this.namespaceSuffix}"`]
+        : []),
+      '| filter @logStream not like /adot-collector/',
+      '| sort @timestamp asc',
+      `| limit ${String(ROW_LIMIT)}`,
+    ].join('\n');
+  }
+}

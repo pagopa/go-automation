@@ -23,7 +23,7 @@
 
 GO Automation è un **monorepo TypeScript** gestito con **pnpm workspaces**. Oggi il repository è organizzato in quattro layer principali:
 
-- **Libreria condivisa**: `@go-automation/go-common` - framework script, utilities core, adapter AWS/SEND, import/export, JSON utilities, messaging e runbook
+- **Libreria condivisa**: `@pagopa/go-common` - framework script, utilities core, adapter AWS, import/export, JSON utilities e messaging (SEND e Runbook sono oggi package standalone, `go-send` e `go-runbook`)
 - **Script CLI**: package eseguibili organizzati per team/prodotto (GO, SEND, INTEROP)
 - **Functions serverless**: package in `functions/*` che riusano la business logic degli script tramite `GOScript.createLambdaHandler()`
 - **Toolchain centralizzata**: TypeScript strict, ESLint flat config, scaffold validation, CI riutilizzabile, coverage e security audit
@@ -54,21 +54,25 @@ GO Automation è un **monorepo TypeScript** gestito con **pnpm workspaces**. Ogg
 ```text
 go-automation/
 ├── packages/
-│   └── go-common/
-│       ├── src/libs/
-│       │   ├── aws/             # Client provider, S3, SQS, ECS, credenziali
-│       │   ├── core/
-│       │   │   ├── config/      # Reader, provider, parser, validation
-│       │   │   ├── exporters/   # CSV, JSON, HTML, binary, file
-│       │   │   ├── importers/   # CSV, JSON, file
-│       │   │   ├── json/        # Detector, extractor e field-path helpers
-│       │   │   ├── messaging/   # GOMessenger e adapter Slack
-│       │   │   ├── prompt/      # Spinner, progress e prompt UI
-│       │   │   └── script/      # GOScript, lifecycle e Lambda handler
-│       │   ├── runbook/         # Engine, step, servizi e tracing
-│       │   └── send/            # Builder, servizi e worker SEND
-│       ├── package.json
-│       └── tsconfig.json
+│   ├── go-common/
+│   │   ├── src/libs/
+│   │   │   ├── aws/             # Client provider, S3, SQS, ECS, credenziali
+│   │   │   └── core/
+│   │   │       ├── config/      # Reader, provider, parser, validation
+│   │   │       ├── exporters/   # CSV, JSON, HTML, binary, file
+│   │   │       ├── importers/   # CSV, JSON, file
+│   │   │       ├── json/        # Detector, extractor e field-path helpers
+│   │   │       ├── messaging/   # GOMessenger e adapter Slack
+│   │   │       ├── prompt/      # Spinner, progress e prompt UI
+│   │   │       └── script/      # GOScript, lifecycle e Lambda handler
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   ├── go-ai/                   # Client e helper per provider AI
+│   ├── go-cli/                  # Entry point di `pnpm go` (discovery, scaffold)
+│   ├── go-runbook/               # Engine, step, servizi e tracing dei runbook
+│   ├── go-send/                  # Builder, servizi e worker SEND
+│   ├── go-watchtower-client/      # Client HTTP verso la console Watchtower
+│   └── go-watchtower-runbook/     # Esecuzione runbook integrata con Watchtower
 │
 ├── scripts/
 │   ├── aws/                     # CloudFormation e config AWS collegate agli script
@@ -82,13 +86,13 @@ go-automation/
 │   │   ├── send-dump-sqs/
 │   │   ├── send-fetch-timeline-from-iun/
 │   │   ├── send-import-notifications/
-│   │   ├── send-monitor-tpp-messages/
+│   │   ├── send-monitor-athena-query/
 │   │   ├── send-query-dynamodb/
 │   │   └── send-report-dlq/
 │   └── interop/
 │
 ├── functions/
-│   └── go-SendMonitorTppMessagesLambda/
+│   └── go-SendMonitorAthenaQueryLambda/
 │       ├── src/handler.ts       # Adapter Lambda che riusa uno script CLI
 │       ├── src/test-local.ts    # Invocazione locale
 │       ├── esbuild.config.mjs   # Bundling esbuild verso artifacts/
@@ -105,10 +109,12 @@ go-automation/
 │   │   ├── dist/
 │   │   ├── node_modules/
 │   │   └── configs/
-│   └── go-SendMonitorTppMessagesLambda/
+│   └── go-SendMonitorAthenaQueryLambda/
 │       ├── handler.mjs
 │       ├── handler.mjs.map
 │       └── configs/
+│
+├── archive/                     # Script e function dismessi (fuori dal workspace e dai quality gate)
 │
 ├── bins/
 │   ├── create-script.sh
@@ -132,10 +138,14 @@ go-automation/
 │       └── configs/
 │
 ├── .github/
+│   ├── actions/
+│   │   └── setup-ci/          # pnpm, Node.js, cache e installazione
 │   └── workflows/
-│       ├── ci.yml
-│       ├── ci-job.yml
-│       └── security.yml
+│       ├── ci.yml             # quality gate di push e PR (check obbligatorio: CI Success)
+│       ├── security.yml       # pnpm audit e licenze
+│       ├── release.yml        # PR di rilascio e pubblicazione dei package @pagopa/*
+│       ├── release-guards.yml # guardia di ogni PR verso develop e main
+│       └── release-audit.yml  # controllo giornaliero dei rilasci
 │
 ├── tsconfig.base.json
 ├── eslint.config.mjs
@@ -147,19 +157,20 @@ go-automation/
 
 ### Descrizione delle Cartelle
 
-| Directory            | Scopo                                                       |
-| -------------------- | ----------------------------------------------------------- |
-| `packages/`          | Librerie condivise pubblicate come workspace packages       |
-| `scripts/go/`        | Script per gestione operativa interna                       |
-| `scripts/send/`      | Script specifici per prodotto SEND                          |
-| `scripts/interop/`   | Script specifici per prodotto INTEROP                       |
-| `functions/`         | Adapter Lambda che riusano script esistenti                 |
-| `infra/`             | Infrastruttura condivisa (Docker e asset runtime)           |
-| `artifacts/`         | Output di deploy standalone e bundle Lambda                 |
-| `docs/`              | Documentazione tecnica e guide                              |
-| `bins/`              | Tooling di scaffolding, deploy e validazione                |
-| `data/`              | Directory centralizzata per input/output/config script      |
-| `.github/workflows/` | Pipeline CI, coverage, scaffold validation e security audit |
+| Directory            | Scopo                                                                             |
+| -------------------- | --------------------------------------------------------------------------------- |
+| `packages/`          | Librerie condivise pubblicate come workspace packages                             |
+| `scripts/aws/`       | Script multi-account per operazioni AWS dirette (SQS, ECS, DynamoDB, EventBridge) |
+| `scripts/go/`        | Script per gestione operativa interna                                             |
+| `scripts/send/`      | Script specifici per prodotto SEND                                                |
+| `scripts/interop/`   | Script specifici per prodotto INTEROP                                             |
+| `functions/`         | Adapter Lambda che riusano script esistenti                                       |
+| `infra/`             | Infrastruttura condivisa (Docker e asset runtime)                                 |
+| `artifacts/`         | Output di deploy standalone e bundle Lambda                                       |
+| `docs/`              | Documentazione tecnica e guide                                                    |
+| `bins/`              | Tooling di scaffolding, deploy e validazione                                      |
+| `data/`              | Directory centralizzata per input/output/config script                            |
+| `.github/workflows/` | Pipeline CI, coverage, scaffold validation e security audit                       |
 
 ---
 
@@ -171,7 +182,7 @@ La cartella `functions/` contiene package workspace dedicati agli entry point se
 
 ```
 functions/
-└── go-SendMonitorTppMessagesLambda/
+└── go-SendMonitorAthenaQueryLambda/
     ├── src/
     │   ├── handler.ts         # Adapter Lambda che delega a main(script)
     │   └── test-local.ts      # Esecuzione locale della function
@@ -217,7 +228,7 @@ infra/
 
 ```bash
 # Build immagine usando l'infrastruttura condivisa
-./bins/build-image.sh send-monitor-tpp-messages latest
+./bins/build-image.sh send-monitor-athena-query latest
 ```
 
 ---
@@ -235,7 +246,7 @@ artifacts/
 │   ├── configs/               # File di configurazione
 │   └── package.json           # Manifest con dipendenze
 │
-└── go-SendMonitorTppMessagesLambda/
+└── go-SendMonitorAthenaQueryLambda/
     ├── handler.mjs            # Bundle ESM singolo file
     ├── handler.mjs.map        # Sourcemap per debug
     ├── configs/
@@ -264,7 +275,7 @@ artifacts/
 ./bins/deploy.sh go-report-alarms
 
 # Bundle Lambda
-pnpm --filter=go-send-monitor-tpp-messages-lambda build
+pnpm --filter=go-send-monitor-athena-query-lambda build
 ```
 
 ---
@@ -305,11 +316,11 @@ bins/
 ./bins/create-script.sh
 
 # Build immagine Docker
-./bins/build-image.sh send-monitor-tpp-messages latest
+./bins/build-image.sh send-monitor-athena-query latest
 
 # Eseguire container
-./bins/docker-run.sh send-monitor-tpp-messages run
-./bins/docker-run.sh send-monitor-tpp-messages up --scheduled
+./bins/docker-run.sh <script-name> run
+./bins/docker-run.sh <script-name> up --scheduled
 
 # Deploy standalone
 ./bins/deploy.sh go-report-alarms
@@ -509,9 +520,9 @@ allowBuilds:
 
 | Tipo      | Pattern                   | Esempio                                         |
 | --------- | ------------------------- | ----------------------------------------------- |
-| Packages  | `@go-automation/{name}`   | `@go-automation/go-common`                      |
+| Packages  | `@go-automation/{name}`   | `@pagopa/go-common`, `@pagopa/go-runbook`       |
 | Scripts   | `{team}-{name}`           | `go-report-alarms`, `send-import-notifications` |
-| Functions | `go-{descrizione}-lambda` | `go-send-monitor-tpp-messages-lambda`           |
+| Functions | `go-{descrizione}-lambda` | `go-send-monitor-athena-query-lambda`           |
 
 ### Comandi Workspace
 
@@ -541,7 +552,7 @@ Per aggiungere `go-common` come dipendenza di uno script:
 
 ```bash
 # Dalla directory dello script
-pnpm add @go-automation/go-common@workspace:*
+pnpm add @go-automation/go-script@workspace:* @pagopa/go-common@workspace:*
 ```
 
 Questo crea una dipendenza locale che viene risolta dal workspace, non da npm registry.
@@ -550,7 +561,8 @@ Questo crea una dipendenza locale che viene risolta dal workspace, non da npm re
 // package.json dello script
 {
   "dependencies": {
-    "@go-automation/go-common": "workspace:*"
+    "@go-automation/go-script": "workspace:*",
+    "@pagopa/go-common": "workspace:*"
   }
 }
 ```
@@ -560,8 +572,9 @@ Le function possono referenziare **sia** `go-common` **sia** uno script workspac
 ```json
 {
   "dependencies": {
-    "@go-automation/go-common": "workspace:*",
-    "send-monitor-tpp-messages": "workspace:*"
+    "@go-automation/go-script": "workspace:*",
+    "@pagopa/go-common": "workspace:*",
+    "send-monitor-athena-query": "workspace:*"
   }
 }
 ```
@@ -614,7 +627,7 @@ pnpm build:functions
 pnpm --filter=go-report-alarms build
 
 # Function specifica
-pnpm --filter=go-send-monitor-tpp-messages-lambda build
+pnpm --filter=go-send-monitor-athena-query-lambda build
 ```
 
 ### Script nel Root package.json
@@ -624,7 +637,7 @@ pnpm --filter=go-send-monitor-tpp-messages-lambda build
   "scripts": {
     "build": "pnpm build:common && pnpm build:scripts",
     "build:all": "pnpm build:common && pnpm build:scripts && pnpm build:functions",
-    "build:common": "pnpm --filter=@go-automation/go-common build",
+    "build:common": "pnpm --filter=@pagopa/go-common build",
     "build:scripts": "pnpm -r --filter='./scripts/**' build",
     "build:functions": "pnpm -r --filter='./functions/**' build",
     "test": "pnpm test:common && pnpm test:scripts",
@@ -647,7 +660,7 @@ La build non è più solo compilazione: il monorepo usa una pipeline centralizza
 | **Lint**             | `eslint.config.mjs`              | Regole TypeScript, security plugin e regole custom del progetto |
 | **Unused code**      | `knip`                           | Individua export, file e dipendenze inutilizzati                |
 | **Coverage**         | `test:coverage`                  | Applica soglie centralizzate su linee, branch e funzioni        |
-| **CI orchestration** | `.github/workflows/ci-job.yml`   | Workflow riutilizzabile per tutti i job CI                      |
+| **CI orchestration** | `.github/workflows/ci.yml`       | Job della CI e aggregatore `CI Success`; setup in `setup-ci`    |
 | **Security audit**   | `.github/workflows/security.yml` | `pnpm audit` su PR, push mirati e schedule periodica            |
 
 ---
@@ -661,12 +674,17 @@ La build non è più solo compilazione: il monorepo usa una pipeline centralizza
 │ scripts/*                    │
 │ CLI packages                 │
 └──────────────┬───────────────┘
-               │
+               │ (a seconda dello script)
                ▼
+┌─────────────────────────────────────────────────────┐
+│ go-runbook · go-send · go-ai · go-watchtower-client │
+│ go-watchtower-runbook                               │
+└──────────────────────────┬──────────────────────────┘
+                            │
+                            ▼
 ┌──────────────────────────────┐
-│ @go-automation/go-common     │
-│ Core + AWS + SEND + JSON     │
-│ Messaging + Runbook          │
+│ @pagopa/go-common            │
+│ Core + AWS + Messaging       │
 └──────────────┬───────────────┘
                │
                ▼
@@ -676,12 +694,30 @@ La build non è più solo compilazione: il monorepo usa una pipeline centralizza
 └──────────────────────────────┘
 
 ┌──────────────────────────────┐
+│ go-cli                       │
+│ entry point di `pnpm go`     │
+├──────────────────────────────┤
+│ importa:                     │
+│ - @pagopa/go-common          │
+│   (Core)                     │
+└──────────────────────────────┘
+
+┌──────────────────────────────┐
+│ go-watchtower-runbook        │
+├──────────────────────────────┤
+│ importa:                     │
+│ - go-runbook                 │
+│ - go-watchtower-client       │
+│ - go-ai                      │
+└──────────────────────────────┘
+
+┌──────────────────────────────┐
 │ functions/*                  │
 │ Lambda adapters              │
 ├──────────────────────────────┤
 │ importano:                   │
 │ - uno script workspace       │
-│ - @go-automation/go-common   │
+│ - @pagopa/go-common          │
 └──────────────────────────────┘
 ```
 
@@ -737,7 +773,7 @@ La build non è più solo compilazione: il monorepo usa una pipeline centralizza
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../../../packages/go-common" }]
+  "references": [{ "path": "../../../packages/go-common" }, { "path": "../../../packages/go-script" }]
 }
 ```
 
@@ -768,11 +804,11 @@ I project references abilitano:
 
 Pattern: `{prodotto}-{verbo}-{descrizione}`
 
-| Prodotto     | Prefisso   | Esempi                                          |
-| ------------ | ---------- | ----------------------------------------------- |
-| GO (interno) | `go-`      | `go-report-alarms`, `go-manage-lambda`          |
-| SEND         | `send-`    | `send-import-notifications`, `send-monitor-tpp` |
-| INTEROP      | `interop-` | `interop-sync-catalog`                          |
+| Prodotto     | Prefisso   | Esempi                                                   |
+| ------------ | ---------- | -------------------------------------------------------- |
+| GO (interno) | `go-`      | `go-report-alarms`, `go-manage-lambda`                   |
+| SEND         | `send-`    | `send-import-notifications`, `send-monitor-athena-query` |
+| INTEROP      | `interop-` | `interop-sync-catalog`                                   |
 
 ### Verbi Standard
 
@@ -811,7 +847,7 @@ Pattern: `{prodotto}-{verbo}-{descrizione}`
 
 | Verbo     | Uso                      | Esempio                          |
 | --------- | ------------------------ | -------------------------------- |
-| `monitor` | Monitoraggio continuo    | `send-monitor-tpp-messages`      |
+| `monitor` | Monitoraggio continuo    | `send-monitor-athena-query`      |
 | `analyze` | Analisi dati/logs        | `send-analyze-delivery-failures` |
 | `report`  | Generazione report       | `go-report-alarms`               |
 | `audit`   | Controllo conformita     | `go-audit-iam-policies`          |
@@ -960,12 +996,12 @@ script/
 - invocare `main(script)`
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { GOScript } from '@go-automation/go-script';
 
 import { scriptMetadata, scriptParameters } from './config.js';
 import { main } from './main.js';
 
-const script = new Core.GOScript({
+const script = new GOScript({
   metadata: scriptMetadata,
   config: {
     parameters: scriptParameters,
@@ -989,19 +1025,19 @@ script
 - **`scriptParameters`**: definizione parametri CLI/config con tipo, alias, default, `required`
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { type GOConfigParameterOptions, GOConfigParameterType, type GOScriptMetadata } from '@go-automation/go-script';
 
-export const scriptMetadata: Core.GOScriptMetadata = {
+export const scriptMetadata: GOScriptMetadata = {
   name: 'My Script',
   version: '1.0.0',
   description: 'Descrizione dello script',
   authors: ['Team GO - Gestione Operativa'],
 };
 
-export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
+export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
   {
     name: 'input.file',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Path del file di input',
     required: true,
     aliases: ['i'],
@@ -1032,12 +1068,12 @@ Questo rende i tipi riutilizzabili da `main.ts`, test, helper e adapter Lambda s
 Il file `main.ts` deve esportare la sola funzione `main()` e delegare ogni helper complesso a `src/libs/`.
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import type { MyScriptConfig } from './types/index.js';
 import { MyService } from './libs/MyService.js';
 
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<MyScriptConfig>();
   const service = new MyService(config);
 
@@ -1129,25 +1165,31 @@ Gli script supportano due modalità runtime principali, **monorepo** e **standal
 
 ### Rilevamento Automatico
 
-Il sistema rileva automaticamente la modalità cercando marker del monorepo:
+Il sistema rileva automaticamente la modalità cercando **la root di go-automation**, non un workspace qualsiasi:
 
 ```
+0. GOScript({ paths: { rootDir } }) → root esplicita per quello script → MONOREPO
+   (solo per l'istanza: non cambia variabili d'ambiente né la cache di rilevamento)
+   ↓
 1. GO_DEPLOYMENT_MODE env → usa valore esplicito se presente
    ↓
-2. Cerca pnpm-workspace.yaml salendo dalla cwd
-   → Trovato → MONOREPO
+2. GO_ROOT_DIR env → quella directory è la root → MONOREPO
    ↓
-3. Cerca package.json con "workspaces" o name="go-automation"
+3. Cerca, salendo dalla cwd, il file marcatore .go-automation-root
+   oppure un package.json con name="go-automation"
    → Trovato → MONOREPO
    ↓
 4. Default → STANDALONE
 ```
+
+Un `pnpm-workspace.yaml` o un `package.json` con `workspaces` di **un altro repository** non rende la root un monorepo go-automation: lo script gira in standalone e non scrive `data/` nella root di quel repository.
 
 ### Variabili d'Ambiente
 
 | Variabile            | Descrizione                 | Esempio                   |
 | -------------------- | --------------------------- | ------------------------- |
 | `GO_DEPLOYMENT_MODE` | Forza modalità deployment   | `monorepo` o `standalone` |
+| `GO_ROOT_DIR`        | Root esplicita del monorepo | `/repos/go-automation`    |
 | `GO_BASE_DIR`        | Base directory (standalone) | `/app`                    |
 | `GO_DATA_DIR`        | Override data directory     | `/app/data`               |
 | `GO_CONFIG_DIR`      | Override config directory   | `/app/configs`            |
@@ -1159,10 +1201,10 @@ Il sistema rileva automaticamente la modalità cercando marker del monorepo:
 La novità architetturale principale delle ultime settimane è l'introduzione di un adapter Lambda che **riusa esattamente lo stesso contratto** dello script CLI:
 
 ```text
-scripts/send/send-monitor-tpp-messages/src/index.ts
+scripts/send/send-monitor-athena-query/src/index.ts
   └── GOScript.run() ───────────────▶ main(script)
 
-functions/go-SendMonitorTppMessagesLambda/src/handler.ts
+functions/go-SendMonitorAthenaQueryLambda/src/handler.ts
   └── GOScript.createLambdaHandler() ▶ main(script)
 ```
 
@@ -1209,17 +1251,17 @@ go-automation/                    # Monorepo root (rilevato automaticamente)
 ### Uso Programmatico
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { GOExecutionEnvironment, GOPaths } from '@go-automation/go-script';
 
 // Via GOPaths
-const paths = new Core.GOPaths('my-script');
+const paths = new GOPaths('my-script');
 console.log('Mode:', paths.getDeploymentMode());
 console.log('Is standalone:', paths.isStandalone());
 console.log('Base dir:', paths.getBaseDir());
 
 // Via GOExecutionEnvironment
-console.log('Mode:', Core.GOExecutionEnvironment.detect().deploymentMode);
-console.log('Is monorepo:', Core.GOExecutionEnvironment.isMonorepo());
+console.log('Mode:', GOExecutionEnvironment.detect().deploymentMode);
+console.log('Is monorepo:', GOExecutionEnvironment.isMonorepo());
 ```
 
 ### Deployment Standalone
@@ -1241,13 +1283,13 @@ Per costruire il bundle della Lambda:
 
 ```bash
 # Build del package function
-pnpm --filter=go-send-monitor-tpp-messages-lambda build
+pnpm --filter=go-send-monitor-athena-query-lambda build
 
 # Test locale della function
-pnpm --filter=go-send-monitor-tpp-messages-lambda test:local
+pnpm --filter=go-send-monitor-athena-query-lambda test:local
 ```
 
-Il package function dipende sia da `@go-automation/go-common` sia dallo script `send-monitor-tpp-messages`, quindi il deploy Lambda eredita automaticamente la business logic e il contratto di configurazione dello script sorgente.
+Il package function dipende sia da `@pagopa/go-common` sia dallo script `send-monitor-athena-query`, quindi il deploy Lambda eredita automaticamente la business logic e il contratto di configurazione dello script sorgente.
 
 ---
 

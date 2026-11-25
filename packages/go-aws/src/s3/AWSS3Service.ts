@@ -1,0 +1,479 @@
+/**
+ * AWS S3 Service for file upload, download, and listing
+ *
+ * Provides a provider-agnostic wrapper around S3Client.
+ * Works with both AWSClientProvider (SSO) and Lambda execution role credentials.
+ *
+ * @example
+ * ```typescript
+ * // With AWSClientProvider (CLI scripts)
+ * const s3 = new AWSS3Service(clientProvider.s3);
+ *
+ * // With standalone client (Lambda)
+ * const s3 = new AWSS3Service(new S3Client({ region: 'eu-south-1' }));
+ *
+ * // Upload a local file
+ * await s3.uploadFile('/tmp/report.csv', 'my-bucket', 'reports/report.csv');
+ *
+ * // Upload all files in a directory
+ * const keys = await s3.uploadDirectory('/tmp/reports', 'my-bucket', 'reports/2024');
+ *
+ * // Download a file
+ * const buffer = await s3.downloadFile('my-bucket', 'reports/report.csv');
+ *
+ * // List buckets
+ * const buckets = await s3.listBuckets();
+ * ```
+ */
+
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
+import {
+  GetObjectCommand,
+  ListBucketsCommand,
+  ListObjectsV2Command,
+  ListObjectVersionsCommand,
+  PutObjectCommand,
+  RestoreObjectCommand,
+  Tier,
+} from '@aws-sdk/client-s3';
+import type { S3Client } from '@aws-sdk/client-s3';
+
+/** MIME type map for common file extensions */
+const MIME_TYPES: Readonly<Record<string, string>> = {
+  '.csv': 'text/csv',
+  '.json': 'application/json',
+  '.txt': 'text/plain',
+  '.xml': 'application/xml',
+  '.html': 'text/html',
+  '.pdf': 'application/pdf',
+  '.zip': 'application/zip',
+  '.gz': 'application/gzip',
+};
+
+/** Default MIME type for unknown extensions */
+const DEFAULT_MIME_TYPE = 'application/octet-stream';
+
+/**
+ * Max parallel uploads in uploadDirectory. Bounded to avoid exhausting sockets
+ * or triggering S3 throttling on large directories; 5 is a safe default for
+ * Lambda's shared network stack.
+ */
+const UPLOAD_DIRECTORY_CONCURRENCY = 5;
+
+/**
+ * Represents an S3 version or delete-marker entry from a listObjectVersions operation
+ */
+export interface AWSS3VersionEntry {
+  /** S3 object key */
+  readonly key: string;
+  /** Version ID */
+  readonly versionId?: string;
+  /** Whether this is the latest version */
+  readonly isLatest?: boolean;
+  /** Whether this entry is a delete marker (true) or an actual object version (false) */
+  readonly isDeleteMarker: boolean;
+  /** Last modified timestamp */
+  readonly lastModified?: Date;
+}
+
+/**
+ * Result of a restoreObject operation
+ */
+export interface AWSS3RestoreResult {
+  /** HTTP status code returned by S3 (202 = restore accepted/started, 200 = restored copy already available, 409 = restore already in progress, 403 = object already in active tier) */
+  readonly httpStatusCode: number | undefined;
+}
+
+/**
+ * Represents an S3 object entry from a listing operation
+ */
+export interface AWSS3ObjectEntry {
+  /** S3 object key */
+  readonly key: string;
+  /** Object size in bytes */
+  readonly size: number;
+  /** Last modified timestamp */
+  readonly lastModified?: Date;
+}
+
+/**
+ * Represents an S3 bucket entry from a listing operation
+ */
+export interface AWSS3BucketEntry {
+  /** Bucket name */
+  readonly name: string;
+  /** Bucket creation date */
+  readonly creationDate?: Date;
+}
+
+/**
+ * Service for S3 file operations: upload, download, and listing.
+ *
+ * Takes an S3Client as constructor dependency — does not manage credentials.
+ * Use AWSClientProvider.s3 or create a standalone S3Client for Lambda.
+ *
+ * @example
+ * ```typescript
+ * const s3 = new AWSS3Service(script.aws.clients.s3);
+ * await s3.uploadFile('/tmp/data.csv', 'my-bucket', 'exports/data.csv');
+ * ```
+ */
+export class AWSS3Service {
+  constructor(private readonly client: S3Client) {}
+
+  // ==========================================================================
+  // Upload
+  // ==========================================================================
+
+  /**
+   * Uploads a local file to S3
+   * Complexity: O(1) — single PutObject call
+   *
+   * @param filePath - Absolute path to the local file
+   * @param bucket - Target S3 bucket name
+   * @param key - S3 object key
+   * @param contentType - Optional MIME type (auto-detected from extension if omitted)
+   * @returns The S3 key of the uploaded object
+   */
+  async uploadFile(filePath: string, bucket: string, key: string, contentType?: string): Promise<string> {
+    const body = await fs.readFile(filePath);
+    const resolvedContentType = contentType ?? this.inferContentType(filePath);
+
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: body,
+        ContentType: resolvedContentType,
+      }),
+    );
+
+    return key;
+  }
+
+  /**
+   * Uploads a buffer to S3
+   * Complexity: O(1) — single PutObject call
+   *
+   * @param buffer - Data to upload
+   * @param bucket - Target S3 bucket name
+   * @param key - S3 object key
+   * @param contentType - MIME type (defaults to application/octet-stream)
+   * @returns The S3 key of the uploaded object
+   */
+  async uploadBuffer(buffer: Buffer, bucket: string, key: string, contentType?: string): Promise<string> {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: buffer,
+        ContentType: contentType ?? DEFAULT_MIME_TYPE,
+      }),
+    );
+
+    return key;
+  }
+
+  /**
+   * Uploads all files from a local directory to S3 under the given prefix.
+   * Non-recursive: only uploads files directly in the directory.
+   * Complexity: O(N) where N is the number of files in the directory
+   *
+   * @param dirPath - Absolute path to the local directory
+   * @param bucket - Target S3 bucket name
+   * @param prefix - S3 key prefix (e.g. "reports/tpp-monitor")
+   * @returns Array of S3 keys for uploaded files
+   */
+  async uploadDirectory(dirPath: string, bucket: string, prefix: string): Promise<string[]> {
+    // withFileTypes avoids a per-entry fs.stat — on large directories that would
+    // either exhaust file descriptors (EMFILE) or need its own bounded parallelism.
+    let fileEntries: { readonly filePath: string; readonly entry: string }[];
+    try {
+      const dirents = await fs.readdir(dirPath, { withFileTypes: true });
+      fileEntries = dirents
+        .filter((d) => d.isFile())
+        .map((d) => ({ filePath: path.join(dirPath, d.name), entry: d.name }));
+    } catch {
+      return [];
+    }
+
+    const uploaded: string[] = [];
+
+    for (let i = 0; i < fileEntries.length; i += UPLOAD_DIRECTORY_CONCURRENCY) {
+      const batch = fileEntries.slice(i, i + UPLOAD_DIRECTORY_CONCURRENCY);
+      const keys = await Promise.all(
+        batch.map(async ({ filePath, entry }) => {
+          const key = `${prefix}/${entry}`;
+          await this.uploadFile(filePath, bucket, key);
+          return key;
+        }),
+      );
+      uploaded.push(...keys);
+    }
+
+    return uploaded;
+  }
+
+  // ==========================================================================
+  // Download
+  // ==========================================================================
+
+  /**
+   * Downloads an S3 object as a Buffer
+   * Complexity: O(1) — single GetObject call
+   *
+   * @param bucket - Source S3 bucket name
+   * @param key - S3 object key
+   * @returns Buffer containing the object data
+   * @throws Error if the object does not exist or the response body is empty
+   */
+  async downloadFile(bucket: string, key: string): Promise<Buffer> {
+    const response = await this.client.send(
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+      }),
+    );
+
+    if (response.Body === undefined) {
+      throw new Error(`Empty response body for s3://${bucket}/${key}`);
+    }
+
+    const bytes = await response.Body.transformToByteArray();
+    return Buffer.from(bytes);
+  }
+
+  /**
+   * Downloads an S3 object and saves it to a local file
+   * Complexity: O(1) — single GetObject call + file write
+   *
+   * @param bucket - Source S3 bucket name
+   * @param key - S3 object key
+   * @param outputPath - Absolute path for the output file
+   * @returns The output file path
+   */
+  async downloadToFile(bucket: string, key: string, outputPath: string): Promise<string> {
+    const buffer = await this.downloadFile(bucket, key);
+    await fs.writeFile(outputPath, buffer);
+    return outputPath;
+  }
+
+  // ==========================================================================
+  // Listing
+  // ==========================================================================
+
+  /**
+   * Lists all S3 buckets in the account
+   * Complexity: O(1) — single ListBuckets call
+   *
+   * @returns Array of bucket entries
+   */
+  async listBuckets(): Promise<ReadonlyArray<AWSS3BucketEntry>> {
+    const response = await this.client.send(new ListBucketsCommand({}));
+
+    if (!response.Buckets) {
+      return [];
+    }
+
+    const results: AWSS3BucketEntry[] = [];
+    for (const bucket of response.Buckets) {
+      if (bucket.Name) {
+        results.push({
+          name: bucket.Name,
+          ...(bucket.CreationDate ? { creationDate: bucket.CreationDate } : {}),
+        });
+      }
+    }
+    return results;
+  }
+
+  /**
+   * Lists objects in a bucket under a given prefix
+   * Handles pagination automatically
+   * Complexity: O(P) where P is the number of pages
+   *
+   * @param bucket - S3 bucket name
+   * @param prefix - Key prefix to filter objects (optional)
+   * @param maxKeys - Maximum number of keys to return per page (default: 1000)
+   * @returns Array of object entries
+   */
+  async listObjects(bucket: string, prefix?: string, maxKeys?: number): Promise<ReadonlyArray<AWSS3ObjectEntry>> {
+    const results: AWSS3ObjectEntry[] = [];
+    let continuationToken: string | undefined;
+
+    do {
+      const response = await this.client.send(
+        new ListObjectsV2Command({
+          Bucket: bucket,
+          MaxKeys: maxKeys ?? 1000,
+          ...(prefix ? { Prefix: prefix } : {}),
+          ...(continuationToken ? { ContinuationToken: continuationToken } : {}),
+        }),
+      );
+
+      if (response.Contents) {
+        for (const obj of response.Contents) {
+          if (obj.Key) {
+            results.push({
+              key: obj.Key,
+              size: obj.Size ?? 0,
+              ...(obj.LastModified ? { lastModified: obj.LastModified } : {}),
+            });
+          }
+        }
+      }
+
+      continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
+    } while (continuationToken);
+
+    return results;
+  }
+
+  // ==========================================================================
+  // Versioning & Glacier
+  // ==========================================================================
+
+  /**
+   * Lists all versions and delete markers for an object in S3.
+   * Results are filtered by exact key match (the Prefix parameter may return
+   * entries for keys that share the same prefix, so we filter client-side).
+   * Paginates automatically across multiple pages if the result is truncated.
+   * Complexity: O(P) where P is the number of pages returned by S3
+   *
+   * @param bucket - S3 bucket name
+   * @param key - S3 object key to look up
+   * @returns Array of version and delete-marker entries for that exact key
+   */
+  async listObjectVersions(bucket: string, key: string): Promise<ReadonlyArray<AWSS3VersionEntry>> {
+    const results: AWSS3VersionEntry[] = [];
+    let isTruncated: boolean;
+    let keyMarker: string | undefined;
+    let versionIdMarker: string | undefined;
+
+    do {
+      const response = await this.client.send(
+        new ListObjectVersionsCommand({
+          Bucket: bucket,
+          Prefix: key,
+          ...(keyMarker ? { KeyMarker: keyMarker } : {}),
+          ...(versionIdMarker ? { VersionIdMarker: versionIdMarker } : {}),
+        }),
+      );
+
+      for (const v of response.Versions ?? []) {
+        if (v.Key === key) {
+          results.push({
+            key: v.Key,
+            ...(v.VersionId !== undefined ? { versionId: v.VersionId } : {}),
+            ...(v.IsLatest !== undefined ? { isLatest: v.IsLatest } : {}),
+            isDeleteMarker: false,
+            ...(v.LastModified ? { lastModified: v.LastModified } : {}),
+          });
+        }
+      }
+
+      for (const dm of response.DeleteMarkers ?? []) {
+        if (dm.Key === key) {
+          results.push({
+            key: dm.Key,
+            ...(dm.VersionId !== undefined ? { versionId: dm.VersionId } : {}),
+            ...(dm.IsLatest !== undefined ? { isLatest: dm.IsLatest } : {}),
+            isDeleteMarker: true,
+            ...(dm.LastModified ? { lastModified: dm.LastModified } : {}),
+          });
+        }
+      }
+
+      isTruncated = response.IsTruncated ?? false;
+      keyMarker = response.NextKeyMarker;
+      versionIdMarker = response.NextVersionIdMarker;
+
+      // Ottimizzazione: S3 ordina le chiavi in modo strettamente lessicografico.
+      // Se il prossimo NextKeyMarker è già diverso da 'key', significa che tutte
+      // le versioni di 'key' sono già state restituite e possiamo fermarci.
+      if (keyMarker && keyMarker !== key) {
+        break;
+      }
+    } while (isTruncated && (keyMarker !== undefined || versionIdMarker !== undefined));
+
+    return results;
+  }
+
+  /**
+   * Downloads a byte range of an S3 object as a Buffer.
+   * Useful for reading file headers without fetching the full object.
+   * Complexity: O(1) — single GetObject call with a Range header
+   *
+   * @param bucket - S3 bucket name
+   * @param key - S3 object key
+   * @param startByte - First byte to read (inclusive, zero-based)
+   * @param endByte - Last byte to read (inclusive)
+   * @returns Buffer containing the requested byte range
+   * @throws Error if the object does not exist or the response body is empty
+   */
+  async getObjectBytes(bucket: string, key: string, startByte: number, endByte: number): Promise<Buffer> {
+    const response = await this.client.send(
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Range: `bytes=${startByte}-${endByte}`,
+      }),
+    );
+
+    if (response.Body === undefined) {
+      throw new Error(`Empty response body for s3://${bucket}/${key} range bytes=${startByte}-${endByte}`);
+    }
+
+    const bytes = await response.Body.transformToByteArray();
+    return Buffer.from(bytes);
+  }
+
+  /**
+   * Initiates a restore of an object from S3 Glacier (Flexible Retrieval / Deep Archive).
+   * The raw HTTP status code is returned so callers can distinguish:
+   *  - 202: restore accepted and started
+   *  - 200: a restored copy is already available (previous restore completed)
+   *  - 409: a restore is already in progress (not yet completed)
+   *  - 403: object is already in the active tier (not in Glacier)
+   * Other errors are thrown as-is so the caller can handle them.
+   * Complexity: O(1) — single RestoreObject call
+   *
+   * @param bucket - S3 bucket name
+   * @param key - S3 object key to restore
+   * @param days - Number of days the restored copy is kept available
+   * @param tier - Glacier retrieval tier ('Standard' | 'Expedited' | 'Bulk')
+   * @returns Result containing the HTTP status code from S3
+   */
+  async restoreObject(
+    bucket: string,
+    key: string,
+    days: number,
+    tier: Tier = Tier.Standard,
+  ): Promise<AWSS3RestoreResult> {
+    const response = await this.client.send(
+      new RestoreObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        RestoreRequest: {
+          Days: days,
+          GlacierJobParameters: { Tier: tier },
+        },
+      }),
+    );
+    return { httpStatusCode: response.$metadata?.httpStatusCode };
+  }
+
+  // ==========================================================================
+  // Private helpers
+  // ==========================================================================
+
+  /**
+   * Infers MIME type from file extension
+   */
+  private inferContentType(filePath: string): string {
+    const ext = path.extname(filePath).toLowerCase();
+    return MIME_TYPES[ext] ?? DEFAULT_MIME_TYPE;
+  }
+}

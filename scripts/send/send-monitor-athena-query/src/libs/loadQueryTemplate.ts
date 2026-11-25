@@ -1,12 +1,13 @@
+import type { GOPaths } from '@go-automation/go-script';
+import { GOPathType } from '@pagopa/go-common/files';
+import { trimToUndefined } from '@pagopa/go-common/utils';
 import { readFile } from 'node:fs/promises';
-
-import { Core } from '@go-automation/go-common';
 
 import type { SendMonitorAthenaQueryConfig } from '../types/index.js';
 
-export async function loadQueryTemplate(config: SendMonitorAthenaQueryConfig, paths: Core.GOPaths): Promise<string> {
-  const inlineQuery = normalizeOptionalText(config.athenaQuery);
-  const queryFile = normalizeOptionalText(config.athenaQueryFile);
+export async function loadQueryTemplate(config: SendMonitorAthenaQueryConfig, paths: GOPaths): Promise<string> {
+  const inlineQuery = trimToUndefined(config.athenaQuery);
+  const queryFile = trimToUndefined(config.athenaQueryFile);
 
   if (
     (inlineQuery === undefined && queryFile === undefined) ||
@@ -23,12 +24,7 @@ export async function loadQueryTemplate(config: SendMonitorAthenaQueryConfig, pa
     throw new Error('athena.query.file is required when athena.query is not provided');
   }
 
-  const filePath = paths.resolvePath(queryFile, Core.GOPathType.CONFIG);
+  const filePath = paths.resolvePath(queryFile, GOPathType.CONFIG);
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- query files are resolved by GOPaths from config directories or absolute operator input.
   return readFile(filePath, 'utf8');
-}
-
-function normalizeOptionalText(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed && trimmed.length > 0 ? trimmed : undefined;
 }

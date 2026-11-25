@@ -1,10 +1,11 @@
 import { GOBedrockClient, GOAISemanticMatcher } from '@go-automation/go-ai';
 
-import type { AnalysisMatcherFn } from '../compare/AnalysisMatcher.js';
-import { matchAnalysis } from '../compare/matchAnalysis.js';
-import { matchAnalysisAi } from '../compare/matchAnalysisAi.js';
-import type { AnalysisMatcherKind } from '../types/RtaCheckReport.js';
+import { matchAnalysis, matchAnalysisAi } from '@go-automation/go-watchtower-runbook';
+import type { AnalysisMatcherFn, AnalysisMatcherKind } from '@go-automation/go-watchtower-runbook';
+
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
+
+const DEFAULT_AI_AWS_PROFILE = 'sso_pn-analytics';
 
 export interface ResolvedAnalysisMatcher {
   readonly kind: AnalysisMatcherKind;
@@ -29,7 +30,7 @@ function normalizeThreshold(value: number | undefined): number {
 function createSemanticMatcher(config: GoRtaCheckConfig, semanticThreshold: number): GOAISemanticMatcher {
   const client = new GOBedrockClient({
     ...(config.awsRegion !== undefined ? { region: config.awsRegion } : {}),
-    ...(config.awsProfile !== undefined ? { profile: config.awsProfile } : {}),
+    profile: config.awsProfile ?? DEFAULT_AI_AWS_PROFILE,
   });
   return new GOAISemanticMatcher({
     client,

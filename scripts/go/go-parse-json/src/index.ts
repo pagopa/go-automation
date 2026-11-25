@@ -1,8 +1,8 @@
-import { Core } from '@go-automation/go-common';
+import { GOScript } from '@go-automation/go-script';
 import { scriptMetadata, scriptParameters } from './config.js';
 import { main } from './main.js';
 
-const script = new Core.GOScript({
+const script = new GOScript({
   metadata: scriptMetadata,
   config: { parameters: scriptParameters },
 });

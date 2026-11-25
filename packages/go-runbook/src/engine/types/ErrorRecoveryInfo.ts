@@ -1,0 +1,12 @@
+/**
+ * Recovery information for steps that failed but continued execution
+ * thanks to the `continueOnFailure` flag.
+ */
+export interface ErrorRecoveryInfo {
+  /** ID of the step that generated the error */
+  readonly stepId: string;
+  /** Original error message */
+  readonly originalError: string;
+  /** Timestamp of the failure */
+  readonly failedAt: Date;
+}

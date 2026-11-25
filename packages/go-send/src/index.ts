@@ -12,5 +12,8 @@ export * from './builders/index.js';
 // Export workers
 export * from './workers/index.js';
 
+// Unified dispatch module (namespace)
+export * as Dispatch from './dispatch/index.js';
+
 // Main SDK class for convenience
 export { SENDNotifications } from './SENDNotifications.js';

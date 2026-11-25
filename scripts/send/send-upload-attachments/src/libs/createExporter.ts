@@ -6,7 +6,7 @@
  * flushed to disk as uploads complete, not all at the end.
  */
 
-import { Core } from '@go-automation/go-common';
+import { GOCSVListExporter, GOJSONListExporter, type GOListExporter } from '@pagopa/go-common/exporters';
 
 import type { UploadFileFormat } from '../types/index.js';
 
@@ -21,26 +21,23 @@ import type { UploadFileFormat } from '../types/index.js';
  * @param outputPath - Resolved absolute output file path
  * @returns Exporter accepting flat export records
  */
-export function createExporter(
-  format: UploadFileFormat,
-  outputPath: string,
-): Core.GOListExporter<Record<string, unknown>> {
+export function createExporter(format: UploadFileFormat, outputPath: string): GOListExporter<Record<string, unknown>> {
   switch (format) {
     case 'csv':
-      return new Core.GOCSVListExporter<Record<string, unknown>>({
+      return new GOCSVListExporter<Record<string, unknown>>({
         outputPath,
         includeHeader: true,
         delimiter: ',',
       });
 
     case 'json':
-      return new Core.GOJSONListExporter<Record<string, unknown>>({
+      return new GOJSONListExporter<Record<string, unknown>>({
         outputPath,
         pretty: true,
       });
 
     case 'jsonl':
-      return new Core.GOJSONListExporter<Record<string, unknown>>({
+      return new GOJSONListExporter<Record<string, unknown>>({
         outputPath,
         jsonl: true,
       });

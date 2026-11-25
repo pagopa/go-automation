@@ -1,6 +1,6 @@
-import type { Core } from '@go-automation/go-common';
+import type { GOLogger } from '@pagopa/go-common/logging';
 
-import type { AnalysisMatchSource, RtaCheckReport, RtaCheckRow, V1Status } from '../types/RtaCheckReport.js';
+import type { AnalysisMatchSource, RtaCheckReport, RtaCheckRow, V1Status } from '@go-automation/go-watchtower-runbook';
 
 /** Preview shown after fetching occurrences, before running anything. */
 export interface RunPreview {
@@ -17,7 +17,7 @@ export interface RunPreview {
 const CRITICAL_V1_ORDER: ReadonlyArray<V1Status> = ['EXECUTION-ERROR', 'CONFIG-ERROR', 'MISS'];
 
 /** Renders the selection + preview block. */
-export function renderPreview(logger: Core.GOLogger, preview: RunPreview): void {
+export function renderPreview(logger: GOLogger, preview: RunPreview): void {
   logger.section('RTA Check');
   logger.info(`Prodotto: ${preview.productName}`);
   logger.info(`Ambiente: ${preview.environmentName}`);
@@ -47,7 +47,7 @@ export function productEnvLabel(productName: string, environmentName: string | u
 }
 
 /** Prints the header of the live per-execution table (call once before the loop). */
-export function renderResultsHeader(logger: Core.GOLogger): void {
+export function renderResultsHeader(logger: GOLogger): void {
   logger.section('Esecuzioni');
   logger.text(RESULT_COLUMNS.map((column) => cell(column.header, column.width)).join(' │ '));
   logger.text(RESULT_COLUMNS.map((column) => '─'.repeat(column.width)).join('─┼─'));
@@ -67,6 +67,14 @@ function matcherLabel(row: RtaCheckRow): string {
 /** Formats the live-table V2 verification cell, including matcher visibility. */
 export function formatVerificationCell(row: RtaCheckRow): string {
   const comparison = row.comparison;
+
+  // No comparison ran for an ignored analysis: show why it was ignored instead
+  // of the matcher, which would suggest a verification that never happened.
+  if (comparison.status === 'IGNORED') {
+    const reason = comparison.ignoreReasonCode ?? comparison.ignoreReasonLabel;
+    return reason === undefined || reason === '' ? comparison.status : `${comparison.status} (${reason})`;
+  }
+
   const base =
     comparison.confidence > 0 ? `${comparison.status} (${comparison.confidence.toFixed(2)})` : comparison.status;
   const matcher = matcherLabel(row);
@@ -74,16 +82,13 @@ export function formatVerificationCell(row: RtaCheckRow): string {
 }
 
 /** Prints one row of the live per-execution table as each occurrence completes. */
-export function renderResultsRow(
-  logger: Core.GOLogger,
-  productName: string,
-  alarmName: string,
-  row: RtaCheckRow,
-): void {
+export function renderResultsRow(logger: GOLogger, productName: string, alarmName: string, row: RtaCheckRow): void {
+  const cases = row.runbook.matchedCaseIds;
+  const incomplete = row.runbook.incompleteSources === undefined ? '' : ' · evidenza incompleta';
   const esito =
-    row.runbook.status === 'HIT' && row.runbook.primaryCaseId !== undefined
-      ? `HIT · ${row.runbook.primaryCaseId}`
-      : row.runbook.status;
+    row.runbook.status === 'HIT' && cases.length > 0
+      ? `HIT · ${cases.join(', ')}${incomplete}`
+      : `${row.runbook.status}${incomplete}`;
   logger.text(
     [
       cell(productEnvLabel(productName, row.event.environment), RESULT_COLUMNS[0].width),
@@ -96,7 +101,7 @@ export function renderResultsRow(
 }
 
 /** Renders the final summary table + the "to investigate" list ordered by criticality. */
-export function renderSummary(logger: Core.GOLogger, report: RtaCheckReport): void {
+export function renderSummary(logger: GOLogger, report: RtaCheckReport): void {
   const summary = report.summary;
   const total = summary.totalEvents === 0 ? 1 : summary.totalEvents;
   const percent = (value: number): string => `${((value / total) * 100).toFixed(1)}%`;
@@ -105,11 +110,12 @@ export function renderSummary(logger: Core.GOLogger, report: RtaCheckReport): vo
   logger.simpleTable([
     { Esito: 'HIT', Count: summary.hit, '%': percent(summary.hit) },
     { Esito: 'MISS', Count: summary.miss, '%': percent(summary.miss) },
+    { Esito: 'INCONCLUSIVE', Count: summary.inconclusive, '%': percent(summary.inconclusive) },
     { Esito: 'NO-DATA', Count: summary.noData, '%': percent(summary.noData) },
     { Esito: 'CONFIG-ERROR', Count: summary.configError, '%': percent(summary.configError) },
     { Esito: 'EXECUTION-ERROR', Count: summary.executionError, '%': percent(summary.executionError) },
   ]);
-  logger.info(`Copertura automation (HIT/(HIT+MISS)): ${summary.automationCoveragePct}%`);
+  logger.info(`Copertura automation (HIT/(HIT+MISS+INCONCLUSIVE)): ${summary.automationCoveragePct}%`);
   logger.info(
     `Eseguibili ((HIT+MISS)/tot): ${summary.executableRatePct}% · Config-error: ${summary.configErrorRatePct}%`,
   );
@@ -124,7 +130,7 @@ export function renderSummary(logger: Core.GOLogger, report: RtaCheckReport): vo
   renderCritical(logger, report.rows);
 }
 
-function renderAiErrors(logger: Core.GOLogger, rows: ReadonlyArray<RtaCheckRow>): void {
+function renderAiErrors(logger: GOLogger, rows: ReadonlyArray<RtaCheckRow>): void {
   const rowsWithErrors = rows.filter((row) => row.comparison.aiError !== undefined);
   if (rowsWithErrors.length === 0) return;
 
@@ -136,7 +142,7 @@ function renderAiErrors(logger: Core.GOLogger, rows: ReadonlyArray<RtaCheckRow>)
   if (rowsWithErrors.length > 20) logger.text(`  … e altri ${rowsWithErrors.length - 20} errori GO-AI (vedi report).`);
 }
 
-function renderCritical(logger: Core.GOLogger, rows: ReadonlyArray<RtaCheckRow>): void {
+function renderCritical(logger: GOLogger, rows: ReadonlyArray<RtaCheckRow>): void {
   const lines: string[] = [];
   for (const status of CRITICAL_V1_ORDER) {
     for (const row of rows.filter((candidate) => candidate.runbook.status === status)) {
@@ -159,11 +165,11 @@ function formatCritical(row: RtaCheckRow): string {
   const runbook = row.runbook;
   let detail: string;
   if (runbook.status === 'HIT') {
-    detail = `CONFLICT con caso "${runbook.primaryCaseId ?? ''}"`;
+    detail = `CONFLICT con casi "${runbook.matchedCaseIds.join(', ')}"`;
   } else if (runbook.error !== undefined && runbook.error !== '') {
     detail = runbook.error.slice(0, 90);
   } else {
-    detail = runbook.primaryCaseId ?? '';
+    detail = runbook.matchedCaseIds.join(', ');
   }
   return `  • [${runbook.status}] ${row.event.firedAt} ${detail}`.trimEnd();
 }

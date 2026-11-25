@@ -1,16 +1,19 @@
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { createSlackMessenger, type GOOutboundAttachment, type GOSlackMessengerOptions } from '@go-automation/go-slack';
+import type { AWSAthenaQueryResult } from '@pagopa/go-aws/athena';
+import type { GOThresholdEvaluation } from '@pagopa/go-common/analysis';
+import { valueToString } from '@pagopa/go-common/utils';
 
 import { buildSlackReportData } from './buildSlackReportData.js';
 import type { ReportArtifact, ReportFormat, SendMonitorAthenaQueryConfig, TimeRange } from '../types/index.js';
-import type { AWS } from '@go-automation/go-common';
 
 export async function notifySlackIfConfigured(
-  script: Core.GOScript,
+  script: GOScript,
   config: SendMonitorAthenaQueryConfig,
   timeRange: TimeRange,
-  athenaResult: AWS.AWSAthenaQueryResult,
+  athenaResult: AWSAthenaQueryResult,
   artifact: ReportArtifact,
-  evaluation: Core.GOThresholdEvaluation,
+  evaluation: GOThresholdEvaluation,
 ): Promise<boolean> {
   const slackConfig = getSlackConfig(config);
   if (slackConfig === undefined) {
@@ -23,7 +26,7 @@ export async function notifySlackIfConfigured(
     return false;
   }
 
-  const messenger = Core.createSlackMessenger(slackConfig);
+  const messenger = createSlackMessenger(slackConfig);
   const attachments = buildAttachments(config, artifact);
   const reportData = buildSlackReportData(timeRange, athenaResult, artifact, evaluation, config.timeZone);
   const receipt = await messenger.sendReport(config.slackMessageTemplate, reportData, attachments);
@@ -37,7 +40,7 @@ export async function notifySlackIfConfigured(
 }
 
 export async function notifySlackErrorIfConfigured(
-  script: Core.GOScript,
+  script: GOScript,
   config: SendMonitorAthenaQueryConfig,
   error: unknown,
 ): Promise<void> {
@@ -51,7 +54,7 @@ export async function notifySlackErrorIfConfigured(
   }
 
   try {
-    const messenger = Core.createSlackMessenger(slackConfig);
+    const messenger = createSlackMessenger(slackConfig);
     await messenger.sendError(
       'Athena monitor execution failed',
       error instanceof Error ? error : new Error(String(error)),
@@ -63,7 +66,7 @@ export async function notifySlackErrorIfConfigured(
   }
 }
 
-function getSlackConfig(config: SendMonitorAthenaQueryConfig): Core.GOSlackMessengerOptions | undefined {
+function getSlackConfig(config: SendMonitorAthenaQueryConfig): GOSlackMessengerOptions | undefined {
   const token = config.slackToken?.trim();
   const channel = config.slackChannel?.trim();
 
@@ -77,7 +80,7 @@ function getSlackConfig(config: SendMonitorAthenaQueryConfig): Core.GOSlackMesse
 function buildAttachments(
   config: SendMonitorAthenaQueryConfig,
   artifact: ReportArtifact,
-): ReadonlyArray<Core.GOOutboundAttachment> | undefined {
+): ReadonlyArray<GOOutboundAttachment> | undefined {
   if (artifact.rowCount === 0 && !config.outputAttachWhenEmpty) {
     return undefined;
   }
@@ -101,6 +104,6 @@ function mimeTypeForFormat(format: ReportFormat): string {
     case 'jsonl':
       return 'application/x-ndjson';
     default:
-      throw new Error(`Unsupported report format: ${Core.valueToString(format)}`);
+      throw new Error(`Unsupported report format: ${valueToString(format)}`);
   }
 }

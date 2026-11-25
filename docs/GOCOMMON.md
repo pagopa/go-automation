@@ -1,6 +1,21 @@
 # Documentazione go-common
 
-> Documentazione completa della libreria `@go-automation/go-common`.
+> Documentazione dei package condivisi nati dalla suddivisione di go-common: `@pagopa/go-common` (kernel), `@pagopa/go-aws`, `@go-automation/go-script`, `@go-automation/go-documents`, `@go-automation/go-slack`. Le sezioni seguenti mantengono i titoli storici ("Core", "AWS"): ogni esempio importa i simboli dal loro sottopercorso.
+
+## Struttura dei package
+
+| Package / sottopercorso                                                                 | Contenuto                                                                                                                                                                                                                                                                                                                                                                       |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@pagopa/go-common/errors` · `/events` · `/utils` · `/security` · `/json` · `/analysis` | errori e `GOResult`, event emitter, type guard e utility pure, chiavi pericolose, JSON, soglie                                                                                                                                                                                                                                                                                  |
+| `@pagopa/go-common/dates` · `/polling` · `/concurrency`                                 | date e durate (`luxon`), poller e backoff, pool di concorrenza e rate limiter                                                                                                                                                                                                                                                                                                   |
+| `@pagopa/go-common/process` · `/files` · `/parsers` · `/render`                         | processi figli, copia file e `GOPathType`, parser YAML/.env, tabelle e alberi                                                                                                                                                                                                                                                                                                   |
+| `@pagopa/go-common/importers` · `/exporters` · `/http` · `/logging`                     | importer/exporter CSV-JSON-HTML-binari, `GOHttpClient`, `GOLogger` e handler                                                                                                                                                                                                                                                                                                    |
+| `@pagopa/go-aws`                                                                        | credenziali SSO, profili, `AWSProfileClientCache`, `AWSActiveOperationRegistry`                                                                                                                                                                                                                                                                                                 |
+| `@pagopa/go-aws/<servizio>`                                                             | servizi e factory dei client, più `./profiles` (configurazione AWS senza SDK: voci dei profili, rubrica degli account logici, permission set dall'ARN) (`./s3`, `./sqs`, `./dynamodb`, `./athena`, `./cloudwatch-logs`, `./cloudwatch-logs/insights`, `./cloudwatch-metrics`, `./cloudwatch-alarms`, `./ecs`, `./lambda`, `./scheduler`, `./secrets-manager`, `./ssm`, `./ec2`) |
+| `@pagopa/go-aws/all`                                                                    | aggregati `AWSProvider`, `AWSClientProvider`, `AWSServiceProvider` (senza EC2: `client(EC2_CLIENT)`)                                                                                                                                                                                                                                                                            |
+| `@go-automation/go-script`                                                              | `GOScript`, configurazione, prompt, ambiente di esecuzione, `GOPaths` (privato)                                                                                                                                                                                                                                                                                                 |
+| `@go-automation/go-send`                                                                | SDK SEND (privato)                                                                                                                                                                                                                                                                                                                                                              |
+| `@go-automation/go-documents` · `@go-automation/go-slack`                               | estrazione testo + indice FTS5; messaggistica Slack (privati)                                                                                                                                                                                                                                                                                                                   |
 
 ## Indice
 
@@ -15,16 +30,18 @@
 9. [Core - File Operations](#core---file-operations)
 10. [Core - Environment Detection](#core---environment-detection)
 11. [Core - Deployment Mode](#core---deployment-mode)
-12. [Core - DynamoDB Query Service](#core---dynamodb-query-service)
-13. [AWS - Credentials Management](#aws---credentials-management)
-14. [SEND SDK](#send-sdk)
-15. [SEND - Timeline Service](#send---timeline-service)
+12. [Core - Rate Limiter](#core---rate-limiter)
+13. [Core - Child Process](#core---child-process)
+14. [Core - DynamoDB Query Service](#core---dynamodb-query-service)
+15. [AWS - Credentials Management](#aws---credentials-management)
+16. [SEND SDK](#send-sdk)
+17. [SEND - Timeline Service](#send---timeline-service)
 
 ---
 
 ## Overview
 
-`@go-automation/go-common` è la libreria condivisa che fornisce:
+`@pagopa/go-common` è la libreria condivisa che fornisce:
 
 - **GOScript** - Framework per creare script CLI
 - **Logging** - Sistema di logging strutturato (console e file)
@@ -39,21 +56,25 @@
 ### Esportazioni Principali
 
 ```typescript
-import { Core, SEND, GOAWSCredentialsManager } from '@go-automation/go-common';
+import { GOScript } from '@go-automation/go-script';
+import { GOAWSCredentialsManager } from '@pagopa/go-aws';
+import { DynamoDBQueryService } from '@pagopa/go-aws/dynamodb';
+import { GOCSVListImporter } from '@pagopa/go-common/importers';
+import { GOLogger } from '@pagopa/go-common/logging';
 
 // Core utilities
-const script = new Core.GOScript({ ... });
-const logger = new Core.GOLogger([...]);
-const importer = new Core.GOCSVListImporter({ ... });
+const script = new GOScript({ ... });
+const logger = new GOLogger([...]);
+const importer = new GOCSVListImporter({ ... });
 
 // DynamoDB Query Service (generico)
-const queryService = new Core.DynamoDBQueryService(script.aws.clients.dynamoDB);
+const queryService = new DynamoDBQueryService(script.aws.clients.dynamoDB);
 
 // SEND SDK
-const sdk = new SEND.SENDNotifications({ ... });
+const sdk = new SENDNotifications({ ... });
 
 // SEND Timeline Service (DynamoDB)
-const timelineService = new SEND.SENDTimelineService(script.aws.clients.dynamoDB);
+const timelineService = new SENDTimelineService(script.aws.clients.dynamoDB);
 
 // AWS Credentials
 const credManager = new GOAWSCredentialsManager({ ... });
@@ -65,14 +86,15 @@ const credManager = new GOAWSCredentialsManager({ ... });
 
 ```bash
 # In uno script del workspace
-pnpm add @go-automation/go-common@workspace:*
+pnpm add @go-automation/go-script@workspace:* @pagopa/go-common@workspace:*
 ```
 
 ```json
 // package.json
 {
   "dependencies": {
-    "@go-automation/go-common": "workspace:*"
+    "@go-automation/go-script": "workspace:*",
+    "@pagopa/go-common": "workspace:*"
   }
 }
 ```
@@ -81,28 +103,19 @@ pnpm add @go-automation/go-common@workspace:*
 
 ## Moduli Disponibili
 
-| Modulo | Namespace        | Descrizione                                         |
-| ------ | ---------------- | --------------------------------------------------- |
-| Core   | `Core`           | Utilities core (script, logging, config, importers) |
-| SEND   | `SEND`           | SDK per notifiche digitali SEND                     |
-| AWS    | (export diretto) | Gestione credenziali AWS SSO                        |
+Non ci sono più namespace (`Core`, `AWS`, `SEND`): ogni simbolo si importa dal suo package o sottopercorso (vedi [Struttura dei package](#struttura-dei-package)).
 
 ### Import Examples
 
 ```typescript
-// Import namespace
-import { Core } from '@go-automation/go-common';
-const script = new Core.GOScript({ ... });
+import { GOScript } from '@go-automation/go-script';
+import { GOLogger } from '@pagopa/go-common/logging';
+import { GOCSVListImporter } from '@pagopa/go-common/importers';
+import { GOAWSCredentialsManager } from '@pagopa/go-aws';
+import { SENDNotifications } from '@go-automation/go-send';
 
-// Import specifico
-import { GOScript, GOLogger, GOCSVListImporter } from '@go-automation/go-common/Core';
-
-// SEND SDK
-import { SEND } from '@go-automation/go-common';
-const sdk = new SEND.SENDNotifications({ ... });
-
-// AWS (export diretto)
-import { GOAWSCredentialsManager } from '@go-automation/go-common';
+const script = new GOScript({ ... });
+const sdk = new SENDNotifications({ ... });
 ```
 
 ---
@@ -114,9 +127,9 @@ import { GOAWSCredentialsManager } from '@go-automation/go-common';
 ### Creazione Base
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { GOConfigParameterType, GOScript } from '@go-automation/go-script';
 
-const script = new Core.GOScript({
+const script = new GOScript({
   metadata: {
     name: 'My Script',
     version: '1.0.0',
@@ -127,14 +140,14 @@ const script = new Core.GOScript({
     parameters: [
       {
         name: 'input.file',
-        type: Core.GOConfigParameterType.STRING,
+        type: GOConfigParameterType.STRING,
         description: 'File di input',
         required: true,
         aliases: ['i'],
       },
       {
         name: 'verbose',
-        type: Core.GOConfigParameterType.BOOL,
+        type: GOConfigParameterType.BOOL,
         description: 'Output dettagliato',
         required: false,
         defaultValue: false,
@@ -195,6 +208,8 @@ script
 | `DOUBLE_ARRAY` | Array decimali | `--values 1.5,2.5` |
 | `BUFFER`       | Dati binari    | `--data <base64>`  |
 
+**Valori con `=` o virgole.** Nella forma `--param=valore` solo il primo `=` separa nome e valore: `--defaults=sender.taxId=123` vale `sender.taxId=123`. Un valore singolo arriva intatto, virgole comprese, quindi un parametro `STRING` riceve esattamente quanto scritto (`--sender-denomination "Comune di X, Ufficio Y"`). I parametri array lo dividono sulle virgole nella conversione (`--tags a,b,c`). Un flag ripetuto (`--tags a,b --tags c`) o seguito da più valori (`--tags a b,c`) produce già una lista, i cui elementi vengono divisi sulle virgole.
+
 ### Async Fallback per Parametri
 
 La proprietà `asyncFallback` permette di fornire un valore di default tramite una funzione asincrona quando il parametro non e presente in CLI, file di configurazione o variabili d'ambiente.
@@ -217,7 +232,7 @@ I valori dei parametri vengono risolti in questo ordine (il primo valore trovato
 #### Esempio
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { GOConfigParameterType, GOScript } from '@go-automation/go-script';
 import * as fs from 'fs/promises';
 
 // Funzione che carica pattern da file
@@ -230,13 +245,13 @@ async function loadPatternsFromFile(): Promise<string[]> {
   }
 }
 
-const script = new Core.GOScript({
+const script = new GOScript({
   metadata: { ... },
   config: {
     parameters: [
       {
         name: 'ignore.patterns',
-        type: Core.GOConfigParameterType.STRING_ARRAY,
+        type: GOConfigParameterType.STRING_ARRAY,
         description: 'Patterns to ignore',
         required: false,
         // asyncFallback viene chiamato SOLO se il valore non e fornito
@@ -293,9 +308,17 @@ Quando viene ricevuto un segnale:
 
 1. **Log warning**: Viene loggato l'inizio dello shutdown
 2. **Cleanup**: Viene chiamato il metodo `cleanup()` per rilasciare le risorse
-3. **Exit**: Il processo termina con codice 0
+3. **Exit**: Il processo termina con codice `128 + numero del segnale` (130 per SIGINT, 131 per SIGQUIT, 143 per SIGTERM), così shell e scheduler distinguono un run interrotto da uno concluso; se un passo del cleanup fallisce (incluso l'hook `onCleanup`), codice 1
+
+I numeri dei segnali sono quelli POSIX, fissi su ogni piattaforma (anche su Windows, dove `os.constants.signals` non ha `SIGQUIT`).
 
 Se viene ricevuto un secondo segnale durante lo shutdown, il processo termina immediatamente con codice 1.
+
+**Interruzione durante un prompt.** Mentre un prompt di `GOPrompt` attende una risposta il terminale è in raw mode, quindi Ctrl+C arriva come tasto e non come `SIGINT`; un segnale mandato da fuori (`docker stop`, `kill`) invece non chiuderebbe il prompt, perché inquirer lo saprebbe solo da `signal-exit`, che tace quando c'è anche l'handler di GOScript. In entrambi i casi il prompt si chiude e lancia `GOPromptInterruptedError`, con il segnale (`signal`) e il codice d'uscita (`exitCode`). I blocchi `finally` del chiamante vengono eseguiti, `run()` fa il cleanup ordinario (incluso `onCleanup`) e il processo esce con `128 + segnale` (130 Ctrl+C, 143 SIGTERM, 131 SIGQUIT), lo stesso codice dell'handler dei segnali, o `1` se un passo del cleanup fallisce. Non viene loggato come errore e non chiama `onError`. Non intercettare questo errore in un `catch` generico: l'interruzione non arriverebbe a `run()`.
+
+> **Cambio di comportamento (exit code).** In precedenza un graceful shutdown terminava con codice `0`, indistinguibile da un run concluso. Ora termina con `128 + n` (130/131/143), o `1` se il cleanup fallisce. Wrapper, cron, pipeline CI o scheduler che trattavano l'interruzione come successo (es. `&&` dopo lo script, controlli `exit code == 0`) vanno rivisti.
+>
+> Il metodo pubblico `cleanup()` invece non cambia: non rifiuta mai (l'errore viene loggato in console). Solo il percorso dei segnali riflette il fallimento nel codice di uscita.
 
 #### Esempio di Flow
 
@@ -308,7 +331,7 @@ $ node dist/main.js
 [INFO] Waiting for current operations to complete...
 [INFO] Cleanup completed
 $ echo $?
-0
+130
 ```
 
 #### Hook onCleanup
@@ -316,7 +339,7 @@ $ echo $?
 Per eseguire logica custom durante lo shutdown, usa l'hook `onCleanup`:
 
 ```typescript
-const script = new Core.GOScript({
+const script = new GOScript({
   // ...
   hooks: {
     onCleanup: async () => {
@@ -341,7 +364,7 @@ const script = new Core.GOScript({
 ### Lifecycle Hooks
 
 ```typescript
-const script = new Core.GOScript({
+const script = new GOScript({
   // ...metadata e config
 
   hooks: {
@@ -376,7 +399,7 @@ const script = new Core.GOScript({
 ### Opzioni di Logging
 
 ```typescript
-const script = new Core.GOScript({
+const script = new GOScript({
   // ...
 
   logging: {
@@ -393,12 +416,12 @@ const script = new Core.GOScript({
 Se lo script definisce il parametro `aws.profile`, GOScript gestisce automaticamente le credenziali SSO.
 
 ```typescript
-const script = new Core.GOScript({
+const script = new GOScript({
   config: {
     parameters: [
       {
         name: 'aws.profile',
-        type: Core.GOConfigParameterType.STRING,
+        type: GOConfigParameterType.STRING,
         description: 'AWS SSO profile name',
         required: true,
         aliases: ['ap'],
@@ -423,13 +446,10 @@ Sistema di logging strutturato con supporto per console e file.
 ### Utilizzo Base
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { GOConsoleLoggerHandler, GOFileLoggerHandler, GOLogger } from '@pagopa/go-common/logging';
 
 // Crea logger con handlers
-const logger = new Core.GOLogger([
-  new Core.GOConsoleLoggerHandler(),
-  new Core.GOFileLoggerHandler(paths, 'script.log'),
-]);
+const logger = new GOLogger([new GOConsoleLoggerHandler(), new GOFileLoggerHandler(paths, 'script.log')]);
 
 // Oppure usa quello integrato in GOScript
 script.logger.info('Messaggio informativo');
@@ -572,6 +592,8 @@ const features = await script.prompt.multiselect('Features:', [
 const city = await script.prompt.autocomplete('Citta:', ['Roma', 'Milano', 'Napoli', 'Torino']);
 ```
 
+Esc chiude il prompt senza risposta (`undefined`). Ctrl+C, `SIGINT`, `SIGTERM` o `SIGQUIT` lo chiudono con `GOPromptInterruptedError`: dentro `GOScript.run()` lo script termina dopo il cleanup con `error.exitCode` (130, 143 o 131; vedi [Signal Handlers Automatici](#signal-handlers-automatici)). Chi usa `GOPrompt` fuori da `run()`, come `go-cli`, deve gestirlo ed uscire con `error.exitCode`. `GOPrompt` ascolta questi segnali solo mentre un prompt è aperto: importare go-common non cambia la risposta del processo ai segnali. Gli adapter ricevono come secondo argomento un contesto con l'`AbortSignal` che chiude il prompt, e devono passarlo all'implementazione.
+
 ---
 
 ## Core - Configuration
@@ -597,30 +619,36 @@ Sistema di configurazione multi-provider con priorita definita.
 ### Config Providers Disponibili
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import {
+  GOCommandLineConfigProvider,
+  GOEnvironmentConfigProvider,
+  GOInMemoryConfigProvider,
+  GOJSONConfigProvider,
+  GOYAMLConfigProvider,
+} from '@go-automation/go-script';
 
 // Command Line
-const cliProvider = new Core.GOCommandLineConfigProvider();
+const cliProvider = new GOCommandLineConfigProvider();
 
 // JSON File
-const jsonProvider = new Core.GOJSONConfigProvider({
+const jsonProvider = new GOJSONConfigProvider({
   filePath: './configs/config.json',
   optional: true,
 });
 
 // YAML File
-const yamlProvider = new Core.GOYAMLConfigProvider({
+const yamlProvider = new GOYAMLConfigProvider({
   filePath: './configs/config.yaml',
   optional: true,
 });
 
 // Environment Variables
-const envProvider = new Core.GOEnvironmentConfigProvider({
+const envProvider = new GOEnvironmentConfigProvider({
   environmentFilePath: './configs/.env',
 });
 
 // In-Memory (per testing)
-const memProvider = new Core.GOInMemoryConfigProvider({
+const memProvider = new GOInMemoryConfigProvider({
   'param.name': 'value',
 });
 ```
@@ -628,7 +656,7 @@ const memProvider = new Core.GOInMemoryConfigProvider({
 ### Config Reader Diretto
 
 ```typescript
-const reader = new Core.GOConfigReader([cliProvider, jsonProvider, yamlProvider, envProvider]);
+const reader = new GOConfigReader([cliProvider, jsonProvider, yamlProvider, envProvider]);
 
 // Leggi valore (restituisce undefined se non trovato)
 const value = reader.getValue('param.name');
@@ -648,7 +676,7 @@ Utilities per lettura e scrittura di file dati.
 ### CSV Importer
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { GOCSVListImporter } from '@pagopa/go-common/importers';
 
 interface DataRow {
   id: string;
@@ -656,7 +684,7 @@ interface DataRow {
   value: number;
 }
 
-const importer = new Core.GOCSVListImporter<DataRow>({
+const importer = new GOCSVListImporter<DataRow>({
   filePath: './data/input.csv',
   delimiter: ',',
   hasHeader: true,
@@ -680,7 +708,7 @@ console.log(`Imported ${result.rows.length} rows`);
 ### CSV Exporter
 
 ```typescript
-const exporter = new Core.GOCSVListExporter<DataRow>({
+const exporter = new GOCSVListExporter<DataRow>({
   filePath: './data/output.csv',
   delimiter: ',',
   includeHeader: true,
@@ -698,23 +726,41 @@ await exporter.export([
 
 ```typescript
 // Import
-const jsonImporter = new Core.GOJSONListImporter<DataRow>({
+const jsonImporter = new GOJSONListImporter<DataRow>({
   filePath: './data/input.json',
 });
 const result = await jsonImporter.import();
 
 // Export
-const jsonExporter = new Core.GOJSONListExporter<DataRow>({
+const jsonExporter = new GOJSONListExporter<DataRow>({
   filePath: './data/output.json',
   pretty: true,
 });
 await jsonExporter.export(data);
 ```
 
+**Streaming.** `importStream(path)` legge a memoria costante sia JSONL (riga per riga) sia un JSON il cui valore di primo livello è un array: il file viene letto a blocchi e ogni elemento viene analizzato appena è completo (`GOJSONArrayScanner`), quindi in memoria c'è un elemento alla volta, mai il documento intero. Gli elementi validi prima di un errore di sintassi vengono già restituiti; l'errore arriva quando il lettore lo incontra. Gli eventi di progresso non hanno `totalItems` (e `percentage` vale `undefined` fino al 100% finale). Con `jsonPath`, o con un oggetto di primo livello (`wrapSingleObject`), il documento viene invece analizzato per intero, come in `import()`.
+
+```typescript
+for await (const row of new GOJSONListImporter<DataRow>().importStream('./data/input.json')) {
+  process(row); // un elemento alla volta
+}
+```
+
+**Un valore grande.** `GOJSONFileExporter` scrive un solo valore (una traccia d'esecuzione, un riepilogo) con lo stesso testo di `JSON.stringify(value, null, indent)`, ma a pezzi: `GOJSONStreamWriter` genera il testo un pezzo alla volta e lo passa allo stream rispettandone la backpressure, quindi un valore il cui testo non sta in una stringa (`Invalid string length`) si scrive comunque. Il file si scrive in un temporaneo nella stessa cartella e prende il nome finale solo quando è completo: un'esportazione fallita (una struttura circolare, un disco pieno) lascia il file precedente com'era e nessun file parziale.
+
+`GOJSONStreamWriter` si usa anche da solo, su qualsiasi `Writable`: non chiude lo stream, la promessa si risolve quando l'ultimo pezzo è passato allo stream e si rifiuta con l'errore della serializzazione o dello stream.
+
+```typescript
+const stream = createWriteStream('./data/trace.json');
+await new GOJSONStreamWriter({ indent: 2 }).write(trace, stream);
+stream.end();
+```
+
 ### HTML Exporter
 
 ```typescript
-const htmlExporter = new Core.GOHTMLListExporter<DataRow>({
+const htmlExporter = new GOHTMLListExporter<DataRow>({
   filePath: './reports/report.html',
   title: 'Report Dati',
   columns: [
@@ -724,6 +770,40 @@ const htmlExporter = new Core.GOHTMLListExporter<DataRow>({
   ],
 });
 await htmlExporter.export(data);
+```
+
+### Binary File Importer
+
+`GOBinaryFileImporter` legge un file come `Buffer`: è il gemello di `GOBinaryFileExporter`. Serve per documenti da caricare, hash di contenuti, allegati.
+
+```typescript
+import { GOPathType } from '@pagopa/go-common/files';
+import { GOBinaryFileImporter } from '@pagopa/go-common/importers';
+
+const pdf = await new GOBinaryFileImporter({
+  inputPath: script.paths.resolvePath('atto.pdf', GOPathType.INPUT),
+  optional: true, // file assente → undefined invece di un errore
+  maxBytes: 200 * 1024 * 1024, // oltre: GOFileTooLargeError, senza leggere il file
+}).import();
+```
+
+| Opzione     | Default | Descrizione                                                                                                                                                                                       |
+| ----------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `inputPath` | —       | path assoluto (da `GOPaths`)                                                                                                                                                                      |
+| `optional`  | `false` | con `true` un file assente restituisce `undefined`                                                                                                                                                |
+| `maxBytes`  | —       | dimensione massima; un file più grande rifiuta con `GOFileTooLargeError` (`size`, `maxBytes`)                                                                                                     |
+| `confineTo` | —       | directory in cui il file deve trovarsi: confronta i path reali (symlink risolti), altrimenti rifiuta con `GOPathOutsideRootError` (`realPath`, `root`); per path che arrivano da input non fidati |
+
+Con `maxBytes` il file viene prima aperto e la dimensione controllata sull'handle aperto (niente finestra tra controllo e apertura); inoltre i byte letti vengono contati, quindi un file che cresce durante la lettura si ferma comunque al limite con `GOFileTooLargeError` (in quel caso `size` è il numero di byte letti quando il limite è stato superato).
+
+Per file grandi (hash, copie) `importStream()` legge a blocchi, a memoria costante, come l'`importStream()` degli importer di liste. Le opzioni valgono allo stesso modo: con `optional` un file assente non produce blocchi, e `maxBytes` rifiuta prima del primo blocco (o, se il file cresce durante la lettura, appena i byte letti superano il limite: i blocchi già prodotti restano prodotti). Interrompere l'iterazione (`break`, `return`, errore) chiude il file.
+
+`import()` restituisce `Buffer | undefined` anche senza `optional`, come `GOJSONFileImporter` e `GOTextFileImporter`.
+
+```typescript
+const hash = createHash('sha256');
+for await (const chunk of new GOBinaryFileImporter({ inputPath }).importStream()) hash.update(chunk);
+const digest = hash.digest('hex');
 ```
 
 ---
@@ -739,13 +819,13 @@ Utilities per la gestione dei file e path resolution con supporto per modalità 
 #### Costruttore
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { GOPaths } from '@go-automation/go-script';
 
 // Costruttore semplice (usa basename di argv[1] come script name)
-const paths = new Core.GOPaths('my-script');
+const paths = new GOPaths('my-script');
 
 // Costruttore con opzioni
-const pathsWithOptions = new Core.GOPaths({
+const pathsWithOptions = new GOPaths({
   scriptName: 'my-script',
   baseDir: '/custom/base/dir', // Override per standalone mode
 });
@@ -775,20 +855,21 @@ interface GOPathsOptions {
 #### Risoluzione Path
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { GOPaths } from '@go-automation/go-script';
+import { GOPathType } from '@pagopa/go-common/files';
 
-const paths = new Core.GOPaths('my-script');
+const paths = new GOPaths('my-script');
 
 // Risolvi path per tipo
-const inputPath = paths.resolvePath('data.csv', Core.GOPathType.INPUT);
+const inputPath = paths.resolvePath('data.csv', GOPathType.INPUT);
 // Monorepo: data/my-script/inputs/data.csv
 // Standalone: {baseDir}/data/inputs/data.csv
 
-const outputPath = paths.resolvePath('report.csv', Core.GOPathType.OUTPUT);
+const outputPath = paths.resolvePath('report.csv', GOPathType.OUTPUT);
 // Monorepo: data/my-script/outputs/my-script_{timestamp}/report.csv
 // Standalone: {baseDir}/data/outputs/my-script_{timestamp}/report.csv
 
-const configPath = paths.resolvePath('config.json', Core.GOPathType.CONFIG);
+const configPath = paths.resolvePath('config.json', GOPathType.CONFIG);
 // Monorepo: data/my-script/configs/config.json (con fallback locale)
 // Standalone: {baseDir}/configs/config.json
 ```
@@ -796,7 +877,7 @@ const configPath = paths.resolvePath('config.json', Core.GOPathType.CONFIG);
 #### Metodi Deployment Mode
 
 ```typescript
-const paths = new Core.GOPaths('my-script');
+const paths = new GOPaths('my-script');
 
 // Check deployment mode
 console.log('Mode:', paths.getDeploymentMode()); // 'monorepo' o 'standalone'
@@ -820,7 +901,7 @@ console.log(paths.getSummary());
 #### Metodi Directory
 
 ```typescript
-const paths = new Core.GOPaths('my-script');
+const paths = new GOPaths('my-script');
 
 // Directory dati script
 paths.getDataDir(); // data/{script}/ o {baseDir}/data/
@@ -839,14 +920,15 @@ paths.getExecutionOutputDir(); // outputs/{script}_{timestamp}/
 
 Tutte le directory possono essere sovrascritte tramite variabili d'ambiente:
 
-| Variabile            | Descrizione                            | Priorita    |
-| -------------------- | -------------------------------------- | ----------- |
-| `GO_DEPLOYMENT_MODE` | Forza `monorepo` o `standalone`        | 1 (massima) |
-| `GO_BASE_DIR`        | Override base directory per standalone | 2           |
-| `GO_DATA_DIR`        | Override data directory                | 3           |
-| `GO_CONFIG_DIR`      | Override config directory              | 3           |
-| `GO_INPUT_DIR`       | Override input directory               | 3           |
-| `GO_OUTPUT_DIR`      | Override output directory              | 3           |
+| Variabile            | Descrizione                                                                                                                         | Priorita    |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `GO_DEPLOYMENT_MODE` | Forza `monorepo` o `standalone`                                                                                                     | 1 (massima) |
+| `GO_ROOT_DIR`        | Root esplicita del monorepo (anche: opzione `GOScript({ paths: { rootDir } })`, che ha la precedenza; marker `.go-automation-root`) | 2           |
+| `GO_BASE_DIR`        | Override base directory per standalone                                                                                              | 2           |
+| `GO_DATA_DIR`        | Override data directory                                                                                                             | 3           |
+| `GO_CONFIG_DIR`      | Override config directory                                                                                                           | 3           |
+| `GO_INPUT_DIR`       | Override input directory                                                                                                            | 3           |
+| `GO_OUTPUT_DIR`      | Override output directory                                                                                                           | 3           |
 
 ```bash
 # Forza standalone mode con directory custom
@@ -860,7 +942,7 @@ node dist/main.js
 
 ```typescript
 // Con informazioni dettagliate per logging
-const result = paths.resolvePathWithInfo('file.csv', Core.GOPathType.OUTPUT);
+const result = paths.resolvePathWithInfo('file.csv', GOPathType.OUTPUT);
 
 if (result) {
   if (result.isAbsolute) {
@@ -877,8 +959,8 @@ if (result) {
 
 ```typescript
 // Registra file per la copia finale
-const inputPath = script.resolveAndRegisterFile('data.csv', Core.GOPathType.INPUT);
-const configPath = script.resolveAndRegisterFile('config.yaml', Core.GOPathType.CONFIG);
+const inputPath = script.resolveAndRegisterFile('data.csv', GOPathType.INPUT);
+const configPath = script.resolveAndRegisterFile('config.yaml', GOPathType.CONFIG);
 
 // ... esecuzione script ...
 
@@ -917,9 +999,9 @@ Il sistema rileva automaticamente se lo script e in esecuzione dentro il monorep
 ### Utilizzo Base
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { GOExecutionEnvironment } from '@go-automation/go-script';
 
-const env = Core.GOExecutionEnvironment.detect();
+const env = GOExecutionEnvironment.detect();
 
 // Informazioni ambiente
 console.log('Tipo ambiente:', env.type);
@@ -935,26 +1017,26 @@ console.log('Monorepo root:', env.monorepoRoot);
 ### Metodi Statici per Deployment Mode
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { GOExecutionEnvironment } from '@go-automation/go-script';
 
 // Check deployment mode
-if (Core.GOExecutionEnvironment.isMonorepo()) {
+if (GOExecutionEnvironment.isMonorepo()) {
   console.log('Running in monorepo mode');
-  const root = Core.GOExecutionEnvironment.getMonorepoRoot();
+  const root = GOExecutionEnvironment.getMonorepoRoot();
   console.log('Monorepo root:', root);
 }
 
-if (Core.GOExecutionEnvironment.isStandalone()) {
+if (GOExecutionEnvironment.isStandalone()) {
   console.log('Running in standalone mode');
 }
 
 // Altri metodi utili
-Core.GOExecutionEnvironment.isInteractive(); // true se può interagire con utente
-Core.GOExecutionEnvironment.isAWSManaged(); // true se in ambiente AWS gestito
-Core.GOExecutionEnvironment.isCI(); // true se in pipeline CI/CD
+GOExecutionEnvironment.isInteractive(); // true se può interagire con utente
+GOExecutionEnvironment.isAWSManaged(); // true se in ambiente AWS gestito
+GOExecutionEnvironment.isCI(); // true se in pipeline CI/CD
 
 // Summary per debug
-console.log(Core.GOExecutionEnvironment.getSummary());
+console.log(GOExecutionEnvironment.getSummary());
 ```
 
 ### Logica di Rilevamento Deployment Mode
@@ -1111,7 +1193,7 @@ CMD ["node", "dist/main.js"]
 
 ```typescript
 // handler.ts
-import { Core } from '@go-automation/go-common';
+import { GOPaths } from '@go-automation/go-script';
 
 // In Lambda, viene rilevato automaticamente come standalone
 // ma possiamo configurare i path
@@ -1120,7 +1202,7 @@ process.env.GO_BASE_DIR = '/tmp';
 process.env.GO_DATA_DIR = '/tmp/data';
 
 export const handler = async (event: unknown) => {
-  const paths = new Core.GOPaths('lambda-handler');
+  const paths = new GOPaths('lambda-handler');
 
   console.log('Deployment mode:', paths.getDeploymentMode());
   console.log('Base dir:', paths.getBaseDir());
@@ -1170,6 +1252,90 @@ La nuova funzionalità e **completamente retrocompatibile**:
 
 ---
 
+## Core - Rate Limiter
+
+`GORateLimiter` limita la **frequenza** delle operazioni con un token bucket; `GOConcurrencyPool` limita invece quante operazioni sono in corso contemporaneamente. I due si combinano: il limiter decide quando partire, il pool quante richieste restano aperte.
+
+```typescript
+import { GORateLimiter } from '@pagopa/go-common/concurrency';
+
+const limiter = new GORateLimiter({ ratePerSecond: 20, priorities: 2 });
+
+await limiter.acquire(0); // priorità alta (es. invio)
+await limiter.acquire(1, signal); // priorità bassa (es. verifica), annullabile
+
+limiter.setRate(15); // es. dopo un 429
+console.log(limiter.stats); // granted, queued, queuedByPriority, averageWaitMs, maxWaitMs
+```
+
+| Opzione         | Default             | Descrizione                                                                           |
+| --------------- | ------------------- | ------------------------------------------------------------------------------------- |
+| `ratePerSecond` | —                   | permessi generati al secondo (> 0)                                                    |
+| `burst`         | `1`                 | capienza del bucket; con `1` i permessi sono distanziati di `1000 / ratePerSecond` ms |
+| `priorities`    | `1`                 | numero di code; `0` è la priorità più alta                                            |
+| `sleeper`       | `GODefaultSleeper`  | timer interno, iniettabile nei test                                                   |
+| `now`           | `performance.now()` | clock **monotono** in millisecondi, iniettabile nei test (non usare `Date.now`)       |
+
+Caratteristiche:
+
+- **Priorità rigorosa:** un permesso va alla priorità `p` solo se le code più prioritarie sono vuote; FIFO nella stessa priorità. Un chiamante nuovo non scavalca chi è già in coda.
+- **Starvation delle priorità basse:** non c'è aging. Finché le priorità più alte hanno sempre qualcuno in coda (cioè saturano il bucket), le priorità più basse non ricevono **nessun** permesso e aspettano indefinitamente. Dimensionare il rate in modo che le priorità alte lascino capacità libera, oppure dare ai chiamanti a bassa priorità un `AbortSignal` con timeout.
+- **Un solo timer** interno, attivo solo mentre qualcuno aspetta; `acquire` e assegnazione O(1). Se l'ultimo chiamante in coda abortisce, il timer viene fermato subito (non tiene vivo l'event loop fino al token successivo).
+- **Abort:** con un `AbortSignal` il chiamante esce dalla coda senza consumare permessi; la promise viene rifiutata con il `reason` del segnale se è un `Error`, altrimenti (es. una stringa) con un `Error` generico che porta il `reason` originale in `cause`. Le voci abortite non si accumulano: quando una priorità non ha più chiamanti vivi la sua coda viene svuotata.
+- **Errori del timer:** se lo `sleeper` iniettato rifiuta per un motivo diverso dal risveglio interno, tutti i chiamanti in coda vengono rifiutati con quell'errore (nessun retry in loop); il limiter resta utilizzabile.
+- **Clock:** `now` deve essere monotono. Se torna indietro, il limiter si riallinea sulla nuova lettura (senza creare token) invece di bloccarsi finché il clock non recupera.
+- **Stato per istanza:** si crea un limiter per run e lo si passa ai componenti che condividono lo stesso budget.
+
+### Durate (`parseDuration`)
+
+Converte una durata di configurazione o CLI in millisecondi interi: unità `ms`, `s`, `m`, `h`, `d`, anche con decimali.
+
+```typescript
+parseDuration('10s', 'verify.timeout'); // 10000
+parseDuration('1.5h', 'request.id.timeout'); // 5400000
+parseDuration('10', 'verify.timeout'); // Error: verify.timeout: invalid duration "10" (examples: 500ms, 10s, 15m, 2h)
+parseDuration('0s', 'send.timeout', { minMs: 1 }); // Error: send.timeout: duration "0s" is 0 ms, below the minimum of 1 ms
+parseDuration('25d', 'verify.timeout'); // Error: verify.timeout: duration "25d" is 2160000000 ms, above the maximum of 2147483647 ms
+```
+
+Il secondo argomento è il nome del parametro, usato nei messaggi d'errore.
+
+Grammatica: un solo numero decimale non negativo seguito subito da una sola unità in minuscolo; gli spazi attorno vengono ignorati. Non sono ammessi unità combinate (`1h30m`), segni, spazi interni (`10 s`) né unità maiuscole (`10S`; `M` sarebbe ambiguo). Il risultato è arrotondato al millisecondo (`0.0001s` → `0`).
+
+Il terzo argomento opzionale (`GODurationParseOptions`) delimita l'intervallo ammesso, estremi inclusi, applicato dopo l'arrotondamento:
+
+| Opzione | Default                                           | Descrizione                                         |
+| ------- | ------------------------------------------------- | --------------------------------------------------- |
+| `minMs` | `0`                                               | minimo; `1` rifiuta le durate nulle (`0s`, `0.1ms`) |
+| `maxMs` | `2147483647` (`SET_TIMEOUT_MAX_MS`, ~24,8 giorni) | massimo; oltre, `setTimeout` scatterebbe dopo 1 ms  |
+
+---
+
+## Core - Child Process
+
+`GOChildProcess` gestisce un processo esterno di lunga durata posseduto dallo script, per esempio un port forwarding (`aws ssm start-session`): lo avvia, aspetta che serva una porta TCP e lo ferma a fine run.
+
+- Nessuna shell: gli argomenti passano così come sono.
+- Tiene le ultime righe di stdout/stderr (`outputTail`, default 20) e le mette nei messaggi di errore (`GOChildProcessError`): di solito spiegano il motivo (plugin mancante, credenziali scadute).
+- `waitForTcpPort(host, port, { timeoutMs, intervalMs })` rifiuta se il comando non parte (non installato), se il processo esce prima che la porta si apra, o allo scadere del timeout (default 30 s; in quel caso ferma il processo).
+- `stop(timeoutMs)` manda `SIGTERM` e, se dopo il periodo di grazia (default 5 s) il processo è ancora vivo, `SIGKILL`.
+- Finché è in esecuzione, il processo viene ucciso anche se lo script esce senza chiamare `stop()` (per esempio con `process.exit` dopo un errore fatale): non sopravvive mai allo script.
+
+`isTcpPortOpen(host, port, timeoutMs)` dice se qualcosa accetta connessioni TCP su `host:port` (handshake completato, nessun dato inviato); utile anche per riusare un tunnel già aperto.
+
+```typescript
+const tunnel = new GOChildProcess({ command: 'aws', args: ['ssm', 'start-session', ...] });
+tunnel.start();
+try {
+  await tunnel.waitForTcpPort('127.0.0.1', 8888);
+  // ... chiamate attraverso il tunnel
+} finally {
+  await tunnel.stop();
+}
+```
+
+---
+
 ## Core - DynamoDB Query Service
 
 Servizio generico per query su tabelle DynamoDB con supporto per prefix/suffix, unmarshalling automatico e query batch con concorrenza controllata.
@@ -1177,10 +1343,10 @@ Servizio generico per query su tabelle DynamoDB con supporto per prefix/suffix, 
 ### Inizializzazione
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { DynamoDBQueryService } from '@pagopa/go-aws/dynamodb';
 
 // Usa il client DynamoDB da GOScript
-const queryService = new Core.DynamoDBQueryService(script.aws.clients.dynamoDB);
+const queryService = new DynamoDBQueryService(script.aws.clients.dynamoDB);
 ```
 
 ### Query Singola
@@ -1285,7 +1451,7 @@ Gestione automatica delle credenziali AWS SSO.
 ### Utilizzo Base
 
 ```typescript
-import { GOAWSCredentialsManager } from '@go-automation/go-common';
+import { GOAWSCredentialsManager } from '@pagopa/go-aws';
 
 const manager = new GOAWSCredentialsManager({
   autoLogin: true, // Tenta login automatico se scadute
@@ -1314,12 +1480,12 @@ if (result) {
 Quando definisci il parametro `aws.profile`, GOScript gestisce automaticamente le credenziali.
 
 ```typescript
-const script = new Core.GOScript({
+const script = new GOScript({
   config: {
     parameters: [
       {
         name: 'aws.profile',
-        type: Core.GOConfigParameterType.STRING,
+        type: GOConfigParameterType.STRING,
         required: true,
       },
     ],
@@ -1338,8 +1504,6 @@ SDK TypeScript per le API di notifiche digitali SEND.
 ### Inizializzazione
 
 ```typescript
-import { SEND } from '@go-automation/go-common';
-
 const sdk = new SEND.SENDNotifications({
   basePath: 'https://api.send.pagopa.it',
   apiKey: 'your-api-key',
@@ -1409,8 +1573,6 @@ const docRef = {
 Per importazioni batch da CSV:
 
 ```typescript
-import { SEND } from '@go-automation/go-common';
-
 const worker = new SEND.SENDNotificationImportWorker({
   sdk: sdk,
   inputFile: './notifications.csv',
@@ -1434,8 +1596,6 @@ console.log(`Completate: ${result.successful}, Fallite: ${result.failed}`);
 ### Tipi e Modelli
 
 ```typescript
-import { SEND } from '@go-automation/go-common';
-
 // Tipi destinatario
 SEND.SENDRecipientType.PF; // Persona Fisica
 SEND.SENDRecipientType.PG; // Persona Giuridica
@@ -1464,10 +1624,8 @@ Servizio per query delle timeline notifiche SEND dalla tabella DynamoDB `pn-Time
 ### Inizializzazione
 
 ```typescript
-import { SEND } from '@go-automation/go-common';
-
 // Usa il client DynamoDB da GOScript
-const timelineService = new SEND.SENDTimelineService(script.aws.clients.dynamoDB);
+const timelineService = new SENDTimelineService(script.aws.clients.dynamoDB);
 ```
 
 ### Query Timeline Singola
@@ -1575,9 +1733,7 @@ interface SENDTimelineResult {
 ### Esempio: Estrazione RequestId
 
 ```typescript
-import { SEND } from '@go-automation/go-common';
-
-const timelineService = new SEND.SENDTimelineService(script.aws.clients.dynamoDB);
+const timelineService = new SENDTimelineService(script.aws.clients.dynamoDB);
 
 // Query timeline
 const results = await timelineService.queryTimelines(iuns);

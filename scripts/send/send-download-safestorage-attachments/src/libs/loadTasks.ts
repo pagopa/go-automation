@@ -2,9 +2,11 @@
  * Input loading: reads URI-list or JSONL files and produces download tasks.
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOPrompt } from '@go-automation/go-script';
+import { GOFileListImporter, GOJSONListImporter } from '@pagopa/go-common/importers';
 
-import { SafeStorageS3Client } from './SafeStorageS3Client.js';
+import { SENDSafeStorageS3Service } from '@go-automation/go-send';
+
 import { buildTasksFromUriList, buildTasksFromJsonlRecord } from './taskBuilders.js';
 import type { JsonlRecord } from './taskBuilders.js';
 import type { DownloadSafestorageAttachmentsConfig, InputMode } from '../types/DownloadSafestorageAttachmentsConfig.js';
@@ -21,15 +23,15 @@ import type { AttachmentDownloadTask } from '../types/AttachmentDownloadTask.js'
 async function loadTasksFromUriList(
   inputFile: string,
   baseOutputDir: string,
-  prompt: Core.GOPrompt,
+  prompt: GOPrompt,
 ): Promise<ReadonlyArray<AttachmentDownloadTask>> {
-  const importer = new Core.GOFileListImporter<string>({
+  const importer = new GOFileListImporter<string>({
     trim: true,
     skipEmptyLines: true,
     commentPrefix: '#',
     deduplicate: true,
     rowValidator: (line) => {
-      if (!SafeStorageS3Client.isSafeStorageUri(line)) {
+      if (!SENDSafeStorageS3Service.isSafeStorageUri(line)) {
         throw new Error(`Not a Safe Storage URI: ${line}`);
       }
     },
@@ -60,9 +62,9 @@ async function loadTasksFromUriList(
 async function loadTasksFromJsonl(
   inputFile: string,
   baseOutputDir: string,
-  prompt: Core.GOPrompt,
+  prompt: GOPrompt,
 ): Promise<ReadonlyArray<AttachmentDownloadTask>> {
-  const importer = new Core.GOJSONListImporter<JsonlRecord>({
+  const importer = new GOJSONListImporter<JsonlRecord>({
     jsonl: true,
     skipInvalidItems: true,
   });
@@ -100,7 +102,7 @@ export async function loadTasks(
   config: DownloadSafestorageAttachmentsConfig,
   inputFilePath: string,
   baseOutputDir: string,
-  prompt: Core.GOPrompt,
+  prompt: GOPrompt,
 ): Promise<ReadonlyArray<AttachmentDownloadTask>> {
   const mode: InputMode = config.inputMode;
 

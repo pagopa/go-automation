@@ -3,7 +3,7 @@
  *
  * Dispatches to the sub-command selected by `--action`.
  */
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import { CleanCommand } from './commands/CleanCommand.js';
 import { SearchCommand } from './commands/SearchCommand.js';
@@ -17,7 +17,7 @@ import { GoSearchJiraAction } from './types/GoSearchJiraAction.js';
  *
  * @param script - The GOScript instance for logging, prompts and config
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<GoSearchJiraConfig>();
   script.logger.section('Go Search Jira');
   script.logger.info(`Action: ${config.action}`);

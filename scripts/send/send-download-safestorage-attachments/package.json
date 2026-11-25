@@ -21,11 +21,12 @@
     "go-automation"
   ],
   "author": "Team GO - Gestione Operativa",
-  "license": "ISC",
+  "license": "EUPL-1.2",
   "dependencies": {
-    "@aws-sdk/client-s3": "catalog:",
-    "@aws-sdk/credential-provider-ini": "catalog:",
-    "@go-automation/go-common": "workspace:*"
+    "@go-automation/go-script": "workspace:*",
+    "@go-automation/go-send": "workspace:*",
+    "@pagopa/go-aws": "workspace:*",
+    "@pagopa/go-common": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:"

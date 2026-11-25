@@ -3,18 +3,23 @@
  *
  * Verifies alarm filtering by ignore patterns, summary generation,
  * full analysis (summary + timeline), and total count aggregation.
- * All inputs are static fixtures with realistic CloudWatch HistoryData.
+ * Inputs come from a static fixture with realistic CloudWatch HistoryData.
  */
 
-import { describe, it } from 'node:test';
+import { before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import * as path from 'path';
-import type { AlarmHistoryItem, HistoryItemType } from '@aws-sdk/client-cloudwatch';
 
 import { AlarmAnalyzer } from '../AlarmAnalyzer.js';
-import { Core } from '@go-automation/go-common';
+import type { AlarmHistoryItem, HistoryItemType } from '@pagopa/go-aws/cloudwatch-alarms';
+import { GOJSONFileImporter } from '@pagopa/go-common/importers';
 
 const FIXTURES_DIR = path.join(import.meta.dirname, '__fixtures__');
+
+const CPU = 'pn-core-HighCPU-Alarm';
+const CUMULATIVE = 'pn-core-CumulativeAlarm-test';
+const DLQ = 'pn-core-DLQ-HasMessage-test';
+const DELIVERY = 'pn-delivery-ErrorAlarm';
 
 interface AlarmFixture {
   readonly description: string;
@@ -26,8 +31,9 @@ interface AlarmFixture {
   }>;
 }
 
-async function loadAlarmItems(): Promise<AlarmHistoryItem[]> {
-  const importer = new Core.GOJSONFileImporter<AlarmFixture>({
+/** Loads the fixture: 5 ALARM transitions and 1 OK transition (on the CPU alarm). */
+async function loadAlarmItems(): Promise<ReadonlyArray<AlarmHistoryItem>> {
+  const importer = new GOJSONFileImporter<AlarmFixture>({
     inputPath: path.join(FIXTURES_DIR, 'alarm-history-items.json'),
   });
   const fixture = await importer.import();
@@ -40,198 +46,100 @@ async function loadAlarmItems(): Promise<AlarmHistoryItem[]> {
   }));
 }
 
+/** The alarm names of a list of items, sorted for order-insensitive comparison. */
+function sortedNames(items: ReadonlyArray<AlarmHistoryItem>): ReadonlyArray<string | undefined> {
+  return items.map((item) => item.AlarmName).sort();
+}
+
 describe('AlarmAnalyzer', () => {
   const analyzer = new AlarmAnalyzer();
+  let items: ReadonlyArray<AlarmHistoryItem> = [];
 
-  // ── filterAlarms ──────────────────────────────────────────────────
+  before(async () => {
+    items = await loadAlarmItems();
+  });
 
   describe('filterAlarms', () => {
-    it('filters ALARM state items only (excludes OK transitions)', async () => {
-      const items = await loadAlarmItems();
+    it('keeps only ALARM transitions when no pattern is given', () => {
       const result = analyzer.filterAlarms(items, []);
 
-      // Fixture has 5 ALARM + 1 OK transition → 5 notIgnored
-      const alarmNames = result.notIgnored.map((i) => i.AlarmName);
-      assert.ok(!alarmNames.includes('pn-core-HighCPU-Alarm') || alarmNames.length === 5);
-      assert.strictEqual(result.ignored.length, 0);
-
-      // The OK transition (NewStateValue: "OK") should be filtered out
-      assert.strictEqual(result.notIgnored.length + result.ignored.length, 5);
+      // The OK transition of the CPU alarm is dropped.
+      assert.deepStrictEqual(sortedNames(result.notIgnored), [CPU, CPU, CUMULATIVE, DLQ, DELIVERY].sort());
+      assert.deepStrictEqual(result.ignored, []);
     });
 
-    it('separates ignored alarms by patterns', async () => {
-      const items = await loadAlarmItems();
-      const patterns = ['-CumulativeAlarm', '-DLQ-HasMessage'];
+    it('separates the alarms matching an ignore pattern', () => {
+      const result = analyzer.filterAlarms(items, ['-CumulativeAlarm', '-DLQ-HasMessage']);
 
-      const result = analyzer.filterAlarms(items, patterns);
-
-      // pn-core-CumulativeAlarm-test and pn-core-DLQ-HasMessage-test match patterns
-      const ignoredNames = result.ignored.map((i) => i.AlarmName);
-      assert.ok(ignoredNames.includes('pn-core-CumulativeAlarm-test'));
-      assert.ok(ignoredNames.includes('pn-core-DLQ-HasMessage-test'));
-
-      // Remaining ALARM items should be notIgnored
-      const notIgnoredNames = result.notIgnored.map((i) => i.AlarmName);
-      assert.ok(notIgnoredNames.includes('pn-core-HighCPU-Alarm'));
-      assert.ok(notIgnoredNames.includes('pn-delivery-ErrorAlarm'));
+      assert.deepStrictEqual(sortedNames(result.ignored), [CUMULATIVE, DLQ].sort());
+      assert.deepStrictEqual(sortedNames(result.notIgnored), [CPU, CPU, DELIVERY].sort());
     });
 
-    it('returns all ALARM items when no patterns provided', async () => {
-      const items = await loadAlarmItems();
-      const result = analyzer.filterAlarms(items, []);
+    it('treats regex special characters in patterns as literals', () => {
+      // Unescaped, `.*` would match (and ignore) every alarm.
+      const result = analyzer.filterAlarms(items, ['.*', 'pn-core-HighCPU(']);
 
-      assert.strictEqual(result.ignored.length, 0);
+      assert.deepStrictEqual(result.ignored, []);
       assert.strictEqual(result.notIgnored.length, 5);
     });
 
-    it('handles empty alarm list', () => {
-      const result = analyzer.filterAlarms([], ['-test-']);
+    it('drops items whose HistoryData is missing or malformed', () => {
+      const result = analyzer.filterAlarms(
+        [
+          { AlarmName: 'no-data-alarm', Timestamp: new Date(), HistoryItemType: 'Action' },
+          { AlarmName: 'bad-json-alarm', Timestamp: new Date(), HistoryItemType: 'Action', HistoryData: '{invalid' },
+        ],
+        [],
+      );
 
-      assert.strictEqual(result.notIgnored.length, 0);
-      assert.strictEqual(result.ignored.length, 0);
-    });
-
-    it('handles items with missing HistoryData', () => {
-      const items: AlarmHistoryItem[] = [
-        { AlarmName: 'no-data-alarm', Timestamp: new Date(), HistoryItemType: 'Action' },
-      ];
-      const result = analyzer.filterAlarms(items, []);
-
-      assert.strictEqual(result.notIgnored.length, 0);
-      assert.strictEqual(result.ignored.length, 0);
-    });
-
-    it('handles items with malformed HistoryData JSON', () => {
-      const items: AlarmHistoryItem[] = [
-        {
-          AlarmName: 'bad-json-alarm',
-          Timestamp: new Date(),
-          HistoryItemType: 'Action',
-          HistoryData: '{invalid json}',
-        },
-      ];
-      const result = analyzer.filterAlarms(items, []);
-
-      assert.strictEqual(result.notIgnored.length, 0);
-      assert.strictEqual(result.ignored.length, 0);
-    });
-
-    it('escapes special regex characters in patterns', async () => {
-      const items = await loadAlarmItems();
-      // Patterns with regex special chars should be treated as literals
-      const patterns = ['pn-core-HighCPU-Alarm'];
-
-      const result = analyzer.filterAlarms(items, patterns);
-
-      const ignoredNames = result.ignored.map((i) => i.AlarmName);
-      for (const name of ignoredNames) {
-        assert.strictEqual(name, 'pn-core-HighCPU-Alarm');
-      }
+      assert.deepStrictEqual(result, { notIgnored: [], ignored: [] });
     });
   });
 
-  // ── generateSummary ───────────────────────────────────────────────
-
-  describe('generateSummary', () => {
-    it('groups and counts alarms by name', async () => {
-      const items = await loadAlarmItems();
+  describe('generateSummary and generateFullAnalysis', () => {
+    it('groups by name, sorts alphabetically and skips items without a name', () => {
       const { notIgnored } = analyzer.filterAlarms(items, []);
-      const summary = analyzer.generateSummary(notIgnored);
+      const input: ReadonlyArray<AlarmHistoryItem> = [...notIgnored, { HistoryItemType: 'Action' }];
 
-      const cpuEntry = summary.find((s) => s.alarmName === 'pn-core-HighCPU-Alarm');
-      assert.ok(cpuEntry);
-      assert.strictEqual(cpuEntry.count, 2);
+      const summary = analyzer.generateSummary(input);
 
-      const deliveryEntry = summary.find((s) => s.alarmName === 'pn-delivery-ErrorAlarm');
-      assert.ok(deliveryEntry);
-      assert.strictEqual(deliveryEntry.count, 1);
+      assert.deepStrictEqual(summary, [
+        { alarmName: CUMULATIVE, count: 1 },
+        { alarmName: DLQ, count: 1 },
+        { alarmName: CPU, count: 2 },
+        { alarmName: DELIVERY, count: 1 },
+      ]);
+      assert.deepStrictEqual(analyzer.generateFullAnalysis(input).summary, summary);
     });
 
-    it('sorts summary by alarm name alphabetically', async () => {
-      const items = await loadAlarmItems();
+    it('collects the timestamps per alarm, ignoring items without one', () => {
       const { notIgnored } = analyzer.filterAlarms(items, []);
-      const summary = analyzer.generateSummary(notIgnored);
 
-      const names = summary.map((s) => s.alarmName);
-      const sorted = [...names].sort((a, b) => a.localeCompare(b));
-      assert.deepStrictEqual(names, sorted);
-    });
+      const { timeline } = analyzer.generateFullAnalysis([...notIgnored, { AlarmName: CPU }, { AlarmName: 'untimed' }]);
 
-    it('returns empty array for empty input', () => {
-      const summary = analyzer.generateSummary([]);
-      assert.deepStrictEqual(summary, []);
-    });
-
-    it('skips items without AlarmName', () => {
-      const items: AlarmHistoryItem[] = [{ Timestamp: new Date(), HistoryItemType: 'Action' }];
-      const summary = analyzer.generateSummary(items);
-      assert.deepStrictEqual(summary, []);
+      assert.deepStrictEqual(
+        timeline.map((entry) => [entry.alarmName, entry.timestamps.length]),
+        [
+          [CUMULATIVE, 1],
+          [DLQ, 1],
+          [CPU, 2],
+          [DELIVERY, 1],
+          ['untimed', 0],
+        ],
+      );
     });
   });
-
-  // ── generateFullAnalysis ──────────────────────────────────────────
-
-  describe('generateFullAnalysis', () => {
-    it('returns both summary and timeline in single pass', async () => {
-      const items = await loadAlarmItems();
-      const { notIgnored } = analyzer.filterAlarms(items, []);
-      const analysis = analyzer.generateFullAnalysis(notIgnored);
-
-      assert.ok(analysis.summary.length > 0);
-      assert.ok(analysis.timeline.length > 0);
-      assert.strictEqual(analysis.summary.length, analysis.timeline.length);
-    });
-
-    it('timeline contains correct timestamps per alarm', async () => {
-      const items = await loadAlarmItems();
-      const { notIgnored } = analyzer.filterAlarms(items, []);
-      const analysis = analyzer.generateFullAnalysis(notIgnored);
-
-      const cpuTimeline = analysis.timeline.find((t) => t.alarmName === 'pn-core-HighCPU-Alarm');
-      assert.ok(cpuTimeline);
-      assert.strictEqual(cpuTimeline.timestamps.length, 2);
-    });
-
-    it('summary matches generateSummary output', async () => {
-      const items = await loadAlarmItems();
-      const { notIgnored } = analyzer.filterAlarms(items, []);
-
-      const summaryOnly = analyzer.generateSummary(notIgnored);
-      const { summary: fullSummary } = analyzer.generateFullAnalysis(notIgnored);
-
-      assert.deepStrictEqual(fullSummary, summaryOnly);
-    });
-
-    it('returns empty results for empty input', () => {
-      const analysis = analyzer.generateFullAnalysis([]);
-
-      assert.deepStrictEqual(analysis.summary, []);
-      assert.deepStrictEqual(analysis.timeline, []);
-    });
-  });
-
-  // ── getTotalCount ─────────────────────────────────────────────────
 
   describe('getTotalCount', () => {
-    it('sums counts across all summaries', () => {
-      const summaries = [
-        { alarmName: 'alarm-1', count: 5 },
-        { alarmName: 'alarm-2', count: 3 },
-        { alarmName: 'alarm-3', count: 1 },
-      ];
-      assert.strictEqual(analyzer.getTotalCount(summaries), 9);
-    });
-
-    it('returns 0 for empty array', () => {
+    it('sums the counts of any object carrying one', () => {
+      assert.strictEqual(
+        analyzer.getTotalCount([
+          { alarmName: 'alarm-1', count: 5 },
+          { alarmName: 'alarm-2', count: 3 },
+        ]),
+        8,
+      );
       assert.strictEqual(analyzer.getTotalCount([]), 0);
-    });
-
-    it('works with any object that has count property', () => {
-      const items = [
-        { count: 10, extra: 'data' },
-        { count: 20, extra: 'more' },
-      ];
-      assert.strictEqual(analyzer.getTotalCount(items), 30);
     });
   });
 });

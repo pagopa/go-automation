@@ -10,12 +10,12 @@
  * Schema version is tracked via `GOFtsIndex.setSchemaVersion()` and migrated
  * forward in `ensureSchema()`. Currently at version 1.
  */
-import type { Core } from '@go-automation/go-common';
+import type { GOFtsIndex } from '@go-automation/go-documents';
 
 const CURRENT_SCHEMA_VERSION = 1;
 
 export class IndexSchemaManager {
-  constructor(private readonly index: Core.GOFtsIndex) {}
+  constructor(private readonly index: GOFtsIndex) {}
 
   public ensureSchema(): void {
     const db = this.index.getDatabase();

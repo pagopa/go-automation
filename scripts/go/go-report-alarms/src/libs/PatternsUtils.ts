@@ -1,4 +1,5 @@
-import { Core } from '@go-automation/go-common';
+import type { GOConfigFallbackContext } from '@go-automation/go-script';
+import { GOJSONFileImporter } from '@pagopa/go-common/importers';
 
 /** Config file structure for ignore patterns */
 interface IgnorePatternsConfig {
@@ -34,10 +35,10 @@ const DEFAULT_IGNORE_PATTERNS: ReadonlyArray<string> = [
  * @param context - Fallback context with GOPaths for resolving config file location
  * @returns Ignore patterns from config file or defaults
  */
-export async function loadIgnorePatterns(context: Core.GOConfigFallbackContext): Promise<ReadonlyArray<string>> {
+export async function loadIgnorePatterns(context: GOConfigFallbackContext): Promise<ReadonlyArray<string>> {
   const configPath = context.paths.getConfigFilePath('ignore-patterns.json');
 
-  const importer = new Core.GOJSONFileImporter<IgnorePatternsConfig>({ inputPath: configPath, optional: true });
+  const importer = new GOJSONFileImporter<IgnorePatternsConfig>({ inputPath: configPath, optional: true });
   const config = await importer.import();
 
   const patterns = config?.ignorePatterns;

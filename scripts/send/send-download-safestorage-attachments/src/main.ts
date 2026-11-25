@@ -6,13 +6,16 @@
  *  - "jsonl"     : JSONL file where each row contains a record with nested attachments;
  *                  the `keyValue` field is used as a sub-folder name for the downloaded files
  *
- * Files are downloaded directly from the Safe Storage S3 bucket via AWS SDK,
+ * Files are downloaded directly from the Safe Storage S3 bucket via go-send's SENDSafeStorageS3Service,
  * using the AWS profile configured with access to the confinfo account.
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { AWSS3Service } from '@pagopa/go-aws/s3';
+import { GOJSONListExporter } from '@pagopa/go-common/exporters';
+import { GOPathType } from '@pagopa/go-common/files';
+import { SENDSafeStorageS3Service } from '@go-automation/go-send';
 
-import { SafeStorageS3Client } from './libs/SafeStorageS3Client.js';
 import { loadTasks } from './libs/loadTasks.js';
 import { parseExtensions, filterTasksByExtension } from './libs/extensionFilter.js';
 import { runDownloads } from './libs/runDownloads.js';
@@ -29,12 +32,12 @@ import type { DownloadResult } from './types/DownloadResult.js';
  *
  * @param script - The GOScript instance for logging and prompts
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   script.logger.section('Starting Send Download Safestorage Attachments');
 
   const config = await script.getConfiguration<DownloadSafestorageAttachmentsConfig>();
 
-  const inputFilePath = script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT);
+  const inputFilePath = script.paths.resolvePath(config.inputFile, GOPathType.INPUT);
   script.logger.info(`Input file  : ${inputFilePath}`);
   script.logger.info(`Input mode  : ${config.inputMode}`);
   script.logger.info(`AWS profile : ${config.awsProfile}`);
@@ -49,14 +52,14 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.info(`Output dir  : ${outputDir}`);
 
   const reportFilePath = script.paths.getExecutionOutputFilePath('download-report.jsonl');
-  const s3Client = new SafeStorageS3Client(script.aws.clients.s3);
-  const exporter = new Core.GOJSONListExporter<DownloadResult>({ outputPath: reportFilePath, jsonl: true });
+  const safeStorage = new SENDSafeStorageS3Service(new AWSS3Service(script.aws.clients.s3));
+  const exporter = new GOJSONListExporter<DownloadResult>({ outputPath: reportFilePath, jsonl: true });
   script.prompt.startSpinner('Loading input file...');
 
   try {
     // Discover the Safe Storage bucket once upfront so any auth error is caught early
     script.prompt.spinLog('Resolving Safe Storage bucket...');
-    const bucketName = await s3Client.findSafeStorageBucket();
+    const bucketName = await safeStorage.findBucket();
     script.prompt.spinLog(`Safe Storage bucket: ${bucketName}`);
 
     // Load tasks from input file
@@ -86,7 +89,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     script.logger.newline();
 
     // Download all attachments
-    const results = await runDownloads(tasks, s3Client, script.prompt);
+    const results = await runDownloads(tasks, safeStorage, script.prompt);
 
     script.prompt.spinSucceed('downloading', `Downloads completed: ${results.length} processed`);
 
@@ -99,6 +102,5 @@ export async function main(script: Core.GOScript): Promise<void> {
     script.logger.success('Done');
   } finally {
     script.prompt.stopSpinner();
-    s3Client.destroy();
   }
 }

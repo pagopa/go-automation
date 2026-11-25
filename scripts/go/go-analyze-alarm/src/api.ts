@@ -2,23 +2,28 @@
  * Programmatic API of `go-analyze-alarm` for in-process reuse.
  *
  * Importing this module does NOT bootstrap the CLI (unlike the package root
- * `index.ts`, which runs the script on import). Consumed by `go-rta-check`.
+ * `index.ts`, which runs the script on import).
+ *
+ * @deprecated Import the shared catalog directly from
+ * `@pagopa/go-runbook/inventory` and `@pagopa/go-runbook/runtime`.
  */
 export {
-  AUTOMATIC_RUNBOOK_REGISTRY,
-  AutomaticRunbookRegistry,
+  RUNBOOK_CATALOG,
+  RunbookCatalog,
   RUNBOOK_REGISTRY,
   validateCloudRunbookRegistry,
-} from './libs/runbookRegistry.js';
-export type {
-  AutomaticRunbookRegistration,
-  ResolvedAutomaticRunbook,
-  RunbookBuilderFn,
-} from './libs/runbookRegistry.js';
-export { executeRunbookForOccurrence } from './libs/executeRunbookForOccurrence.js';
+} from '@pagopa/go-runbook/inventory';
+export {
+  executeRunbookForOccurrence,
+  createServiceRegistry,
+  computeRunbookTimeRange,
+  resolveOccurrenceTimeWindow,
+  DEFAULT_OCCURRENCE_TIME_WINDOW,
+  DEFAULT_TIME_WINDOW_MINUTES,
+} from '@pagopa/go-runbook/runtime';
+export type { RunbookRegistration, ResolvedRunbook, RunbookBuilderFn } from '@pagopa/go-runbook/inventory';
 export type {
   ExecuteRunbookForOccurrenceDeps,
   ExecuteRunbookForOccurrenceInput,
-} from './libs/executeRunbookForOccurrence.js';
-export { createServiceRegistry } from './libs/createServiceRegistry.js';
-export { DEFAULT_TIME_WINDOW_MINUTES } from './libs/runbooks/constants.js';
+  OccurrenceTimeWindow,
+} from '@pagopa/go-runbook/runtime';

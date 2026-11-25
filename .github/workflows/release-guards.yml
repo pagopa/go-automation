@@ -1,0 +1,73 @@
+# every PR towards develop or main is a release (changeset-release/develop or
+# release/* → develop), a promotion (develop → main) or a contribution (everything else), and must pass
+# its own guard.
+#
+# Trust model: pull_request_target runs THIS file as it is on the base branch, and the job runs the
+# validator and the dependencies of the BASE commit. The PR is fetched only as data (git objects read
+# by the validator); nothing from it is installed or executed. A PR therefore cannot change the
+# checks that judge it. The token is read-only. "Release Guards" must be a required status check on
+# develop and main (docs/RELEASING.md §8).
+name: Release Guards
+
+on:
+  # Deliberate: the trust model above keeps the PR as data, never installed or executed.
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
+    types: [opened, synchronize, reopened, edited]
+    branches: [develop, main]
+
+permissions:
+  contents: read
+  packages: read
+  pull-requests: read
+
+concurrency:
+  group: release-guards-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    name: Release Guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      BASE_REF: ${{ github.event.pull_request.base.ref }}
+      HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Checkout the base (trusted code)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          # The repository is public: the fetch of the PR head below needs no credentials.
+          persist-credentials: false
+
+      - name: Fetch the PR head as data
+        run: |
+          git fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/pull/head"
+          git cat-file -e "${HEAD_SHA}^{commit}"
+
+      - name: Setup CI environment (dependencies of the base)
+        uses: ./.github/actions/setup-ci
+        with:
+          install-args: --frozen-lockfile --ignore-scripts
+          registry-url: https://npm.pkg.github.com
+          scope: '@pagopa'
+
+      - name: Guard of the PR category
+        run: |
+          # Release PR: the one of the GitHub App (changeset-release/develop) or a manual release/*.
+          if [[ "$BASE_REF" == "develop" && ( "$HEAD_REF" == "changeset-release/develop" || "$HEAD_REF" == release/* ) && "$HEAD_REPOSITORY" == "$GITHUB_REPOSITORY" ]]; then
+            guard=release-pr-guard
+          elif [[ "$BASE_REF" == "main" && "$HEAD_REF" == "develop" && "$HEAD_REPOSITORY" == "$GITHUB_REPOSITORY" ]]; then
+            guard=promotion-guard
+          else
+            guard=contribution-guard
+          fi
+          echo "PR category guard: $guard"
+          pnpm -s check:release-state "$guard" --base "$BASE_SHA" --head "$HEAD_SHA"

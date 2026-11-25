@@ -2,7 +2,7 @@
 
 > Versione: 1.0.0 | Autore: Team GO - Gestione Operativa
 
-Indicizza e cerca testo dentro gli attachment delle card Jira Cloud, senza plugin Jira e senza estensioni marketplace. Lo script scarica gli attachment visibili all'utente, estrae il testo con gli extractor di `@go-automation/go-common` e lo indicizza in un database SQLite FTS5 locale.
+Indicizza e cerca testo dentro gli attachment delle card Jira Cloud, senza plugin Jira e senza estensioni marketplace. Lo script scarica gli attachment visibili all'utente, estrae il testo con gli extractor di `@pagopa/go-common` e lo indicizza in un database SQLite FTS5 locale.
 
 Il client integrato usa Jira Cloud REST API v3 (`/rest/api/3/...`). Jira Data Center / Server non e supportato da questo client: richiederebbe endpoint e paginazione dedicati.
 

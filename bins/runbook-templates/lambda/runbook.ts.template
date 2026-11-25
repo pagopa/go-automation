@@ -2,8 +2,8 @@
  * Runbook: {{RUNBOOK_ID}}
  */
 
-import { lambda } from '@go-automation/go-runbook';
-import type { Runbook } from '@go-automation/go-runbook';
+import { lambda } from '../../../../toolkits/send/index.js';
+import type { Runbook } from '../../../../engine/index.js';
 
 import { LAMBDA_FUNCTION, DOWNSTREAMS } from './knownServices.js';
 import { DOWNSTREAM_ERROR_PATTERNS } from './knownErrors.js';
@@ -14,8 +14,8 @@ import { KNOWN_CASES } from './knownCases.js';
  *
  * @returns A validated {@link Runbook} ready for execution
  */
-export function {{BUILDER_NAME}}(): Runbook {
-  return lambda.createLambdaAlarmRunbook({
+export function buildRunbook(): Runbook {
+  return lambda.createSendLambdaAlarmRunbook({
     id: '{{RUNBOOK_ID}}',
     metadata: {
       name: '{{METADATA_NAME}}',

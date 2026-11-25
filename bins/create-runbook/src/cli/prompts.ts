@@ -2,10 +2,12 @@ import { input, select, confirm } from '@inquirer/prompts';
 
 import type { RunbookTemplate } from '../templates/RunbookTemplate.js';
 import type { RunbookAnswers } from '../templates/RunbookAnswers.js';
+import type { RunbookProduct } from '../templates/RunbookProduct.js';
+import { PRODUCT_FAMILIES } from '../inventoryLayout.js';
 import type { TemplateInput } from '../templates/TemplateInput.js';
 import type { CliArgs } from './parseArgs.js';
 import { RUNBOOK_TEMPLATES, findRunbookTemplate } from '../templates/runbookTemplates.js';
-import { deriveBuilderName } from '../naming/deriveBuilderName.js';
+import { categoriesError } from '../validation/categoriesError.js';
 import { runbookIdError } from '../validation/runbookIdError.js';
 
 type TextValidator = (value: string) => true | string;
@@ -16,11 +18,11 @@ interface TextPromptOptions {
   readonly validate?: TextValidator;
 }
 
-function parseTags(raw: string): ReadonlyArray<string> {
+function parseCommaSeparated(raw: string): ReadonlyArray<string> {
   return raw
     .split(',')
-    .map((tag) => tag.trim())
-    .filter((tag) => tag.length > 0);
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
 }
 
 function defaultTags(template: RunbookTemplate): string {
@@ -34,6 +36,82 @@ function validateIdInput(value: string): true | string {
 
 function requiredInput(value: string): true | string {
   return value.trim().length > 0 ? true : 'Campo obbligatorio.';
+}
+
+function validateCategoriesInput(value: string): true | string {
+  return categoriesError(parseCommaSeparated(value)) ?? true;
+}
+
+const RUNBOOK_PRODUCTS: ReadonlyArray<RunbookProduct> = ['SEND', 'INTEROP'];
+
+function isRunbookProduct(value: string): value is RunbookProduct {
+  return RUNBOOK_PRODUCTS.some((product) => product === value);
+}
+
+/**
+ * Resolves the Watchtower product. It is always resolved, also with
+ * `--no-wire`: the product chooses the inventory folder of the runbook.
+ *
+ * @param cliValue - `--product` value, if any
+ * @param template - Selected template, which declares the products it supports
+ * @returns The product
+ * @throws When the product is unknown or the template does not support it
+ */
+async function resolveProduct(cliValue: string | undefined, template: RunbookTemplate): Promise<RunbookProduct> {
+  let product: RunbookProduct;
+  if (cliValue !== undefined) {
+    const normalized = cliValue.trim().toUpperCase();
+    if (!isRunbookProduct(normalized)) {
+      throw new Error(`Prodotto sconosciuto: "${cliValue}". Disponibili: ${RUNBOOK_PRODUCTS.join(', ')}.`);
+    }
+    product = normalized;
+  } else {
+    product = await select({
+      message: 'Prodotto Watchtower (proprietario degli allarmi)',
+      choices: template.products.map((entry) => ({ name: entry, value: entry })),
+    });
+  }
+  if (!template.products.includes(product)) {
+    throw new Error(
+      `Il template "${template.id}" genera codice per ${template.products.join(', ')}: ` +
+        `non supporta il prodotto ${product}.`,
+    );
+  }
+  return product;
+}
+
+/**
+ * Resolves the inventory family: fixed by the template, otherwise from
+ * `--family` or a prompt, among the families of the product.
+ *
+ * @param cliValue - `--family` value, if any
+ * @param template - Selected template
+ * @param product - Resolved product
+ * @returns The family
+ * @throws When the family does not exist for the product or contradicts the template
+ */
+async function resolveFamily(
+  cliValue: string | undefined,
+  template: RunbookTemplate,
+  product: RunbookProduct,
+): Promise<string> {
+  const families = PRODUCT_FAMILIES[product];
+  if (template.family !== undefined) {
+    if (cliValue !== undefined && cliValue !== template.family) {
+      throw new Error(`Il template "${template.id}" genera solo la famiglia ${template.family}.`);
+    }
+    return template.family;
+  }
+  const family =
+    cliValue ??
+    (await select({
+      message: 'Famiglia (cartella in inventory)',
+      choices: families.map((entry) => ({ name: entry, value: entry })),
+    }));
+  if (!families.includes(family)) {
+    throw new Error(`Famiglia sconosciuta per ${product}: "${family}". Disponibili: ${families.join(', ')}.`);
+  }
+  return family;
 }
 
 /**
@@ -146,10 +224,6 @@ export async function collectAnswers(template: RunbookTemplate, cli: CliArgs): P
     throw new Error(idError);
   }
 
-  const builderName = await resolveText(cli.builder, {
-    message: 'Builder function name',
-    default: deriveBuilderName(id),
-  });
   const description = await resolveText(cli.description, { message: 'Descrizione', default: '' });
   const version = await resolveText(cli.version, { message: 'Versione', default: '1.0.0' });
   const team = await resolveText(cli.team, { message: 'Team', default: 'GO' });
@@ -157,18 +231,33 @@ export async function collectAnswers(template: RunbookTemplate, cli: CliArgs): P
     message: 'Tags (separati da virgola)',
     default: defaultTags(template),
   });
+  const product = await resolveProduct(cli.product, template);
+  const family = await resolveFamily(cli.family, template, product);
+  const categoriesRaw = cli.wire
+    ? await resolveText(cli.categories, {
+        message: 'Categorie catalogo (separate da virgola)',
+        validate: validateCategoriesInput,
+      })
+    : (cli.categories ?? '');
+  const categories = parseCommaSeparated(categoriesRaw);
+  const categoryError = categoriesError(categories);
+  if (cli.wire && categoryError !== undefined) {
+    throw new Error(categoryError);
+  }
 
   const extras = await collectExtras(template, id, cli);
 
   return {
     templateId: template.id,
     id,
-    builderName,
     metadataName: id,
     description,
     version,
     team,
-    tags: parseTags(tagsRaw),
+    tags: parseCommaSeparated(tagsRaw),
+    product,
+    family,
+    categories,
     extras,
   };
 }

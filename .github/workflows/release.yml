@@ -1,0 +1,123 @@
+# Releases of the @pagopa/* packages. Guide: docs/RELEASING.md.
+# - version-pr: on every push to develop with changesets, the GitHub App opens or updates the release PR.
+# - release: when the release PR is merged, publish exactly its merge commit and push the git tags.
+#   After a partial failure: "Re-run failed jobs" (changeset publish skips what is already published).
+name: Release
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    types: [closed]
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  version-pr:
+    name: Release PR
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: release-version-pr
+      cancel-in-progress: true
+    steps:
+      - name: GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-ci
+        with:
+          install-args: --frozen-lockfile --ignore-scripts
+
+      # changesets/action/version fails when there is nothing to version.
+      - name: Changesets to version?
+        id: needed
+        run: pnpm -s check:release-state version-needed
+
+      # The pnpm of the runner is @pnpm/exe and records itself in the packageManagerDependencies of the
+      # lockfile; the action commits every change, and pnpm-lock.yaml is outside the release perimeter.
+      - name: Restore the lockfile
+        if: steps.needed.outputs.needed == 'true'
+        run: git checkout -- pnpm-lock.yaml
+
+      - name: Create or update the release PR
+        if: steps.needed.outputs.needed == 'true'
+        uses: changesets/action/version@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          commit-message: 'chore(release): version packages'
+          pr-title: 'chore(release): version packages'
+          pr-base-branch: develop
+
+  release:
+    name: Release
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.pull_request.head.ref == 'changeset-release/develop' ||
+       startsWith(github.event.pull_request.head.ref, 'release/'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # GitHub Packages refuses app tokens ("installation not allowed to Create organization package"):
+    # publishing uses the GITHUB_TOKEN, as the PagoPA DX release workflow does. The app token is used for
+    # checkout and for pushing the tags.
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    steps:
+      - name: GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+
+      # The app token stays in the git configuration on purpose: the last step pushes the tags with it.
+      - name: Checkout the merge commit of the release PR
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - uses: ./.github/actions/setup-ci
+
+      - name: Build and publication gates
+        run: pnpm build && pnpm test:published
+        env:
+          IMPORT_COST_TIME_FACTOR: '2'
+
+      # Publishes with dist-tag next in pre mode, otherwise latest. `changeset git-tag` then creates every
+      # missing <name>@<version> tag, also for versions published by an earlier attempt of a re-run.
+      - name: Publish
+        run: |
+          # The token stays a literal ${NODE_AUTH_TOKEN} in .npmrc: npm expands it, so it never lands on disk.
+          # shellcheck disable=SC2016
+          {
+            echo '@pagopa:registry=https://npm.pkg.github.com'
+            echo '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}'
+          } >> "$HOME/.npmrc"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          pnpm changeset publish
+          pnpm changeset git-tag
+          git push origin --tags
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

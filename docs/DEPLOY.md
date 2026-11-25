@@ -75,7 +75,7 @@ Questo script orchestra l'intero processo:
 
 ```bash
 # Sintassi: ./bins/build-image.sh <script-name> [tag]
-./bins/build-image.sh send-monitor-tpp-messages v1.2.0
+./bins/build-image.sh send-monitor-athena-query v1.2.0
 ```
 
 ### Vantaggi
@@ -107,7 +107,7 @@ Ogni script che supporta l'esecuzione in Docker ha una propria directory `docker
 ### Struttura Directory
 
 ```
-scripts/send/send-monitor-tpp-messages/
+scripts/<team>/<script-name>/
 ├── src/
 │   ├── index.ts        # Entry point principale
 │   └── cron.ts         # Scheduler per modalità cron
@@ -154,7 +154,7 @@ services:
 Copia il template e configura le variabili:
 
 ```bash
-cd scripts/send/send-monitor-tpp-messages/docker/
+cd scripts/<team>/<script-name>/docker/
 cp .env.example .env
 # Modifica .env con i tuoi valori
 ```
@@ -178,14 +178,14 @@ Esegue lo script una volta e termina. Ideale per:
 ```bash
 docker run --rm \
   -e RUN_MODE=once \
-  go-automation/send-monitor-tpp-messages:latest
+  go-automation/<script-name>:latest
 ```
 
 Con argomenti CLI:
 
 ```bash
 docker run --rm \
-  go-automation/send-monitor-tpp-messages:latest \
+  go-automation/<script-name>:latest \
   --from 2025-01-01 --to 2025-01-15
 ```
 
@@ -205,7 +205,7 @@ docker run -d \
   -e RUN_MODE=cron \
   -e CRON_SCHEDULE="0 9,11,15,17 * * *" \
   -e TZ=Europe/Rome \
-  go-automation/send-monitor-tpp-messages:latest
+  go-automation/<script-name>:latest
 ```
 
 Il formato cron e standard: `MIN HOUR DAY MONTH WEEKDAY`
@@ -226,7 +226,7 @@ Avvia una shell interattiva per debug:
 ```bash
 docker run --rm -it \
   -e RUN_MODE=shell \
-  go-automation/send-monitor-tpp-messages:latest
+  go-automation/<script-name>:latest
 ```
 
 ---
@@ -266,36 +266,36 @@ Per semplificare la gestione dei container, usa lo script helper `bins/docker-ru
 
 ```bash
 # Esegui script una volta
-./bins/docker-run.sh send-monitor-tpp-messages run
+./bins/docker-run.sh <script-name> run
 
 # Esegui con argomenti
-./bins/docker-run.sh send-monitor-tpp-messages run -- --from 2025-01-01
+./bins/docker-run.sh <script-name> run -- --from 2025-01-01
 
 # Build immagine ed esegui
-./bins/docker-run.sh send-monitor-tpp-messages build run
+./bins/docker-run.sh <script-name> build run
 ```
 
 **Esecuzione schedulata (cron):**
 
 ```bash
 # Avvia scheduler cron in background
-./bins/docker-run.sh send-monitor-tpp-messages up --scheduled
+./bins/docker-run.sh <script-name> up --scheduled
 
 # Visualizza log in tempo reale
-./bins/docker-run.sh send-monitor-tpp-messages logs -f --scheduled
+./bins/docker-run.sh <script-name> logs -f --scheduled
 
 # Ferma scheduler
-./bins/docker-run.sh send-monitor-tpp-messages down --scheduled
+./bins/docker-run.sh <script-name> down --scheduled
 ```
 
 **Debug:**
 
 ```bash
 # Apri shell nel container
-./bins/docker-run.sh send-monitor-tpp-messages shell
+./bins/docker-run.sh <script-name> shell
 
 # Stato container
-./bins/docker-run.sh send-monitor-tpp-messages ps
+./bins/docker-run.sh <script-name> ps
 ```
 
 ---
@@ -305,7 +305,7 @@ Per semplificare la gestione dei container, usa lo script helper `bins/docker-ru
 Se preferisci usare docker-compose direttamente:
 
 ```bash
-cd scripts/send/send-monitor-tpp-messages/docker/
+cd scripts/<team>/<script-name>/docker/
 ```
 
 **Esecuzione singola:**
@@ -351,7 +351,7 @@ Per testare localmente con credenziali AWS SSO:
    docker run --rm \
      -e AWS_PROFILE=tuo-profilo \
      -v ~/.aws:/home/gouser/.aws:ro \
-     go-automation/send-monitor-tpp-messages:latest
+     go-automation/<script-name>:latest
    ```
 
    Oppure decommenta la riga nel `docker-compose.yml`:
@@ -424,10 +424,10 @@ mkdir -p scripts/<team>/<script-name>/docker
 
 ### 2. Crea docker-compose.yml
 
-Usa il template da uno script esistente:
+Usa come template i file dello script archiviato `send-monitor-tpp-messages` (in `archive/`), l'esempio completo di configurazione Docker e cron:
 
 ```bash
-cp scripts/send/send-monitor-tpp-messages/docker/docker-compose.yml \
+cp archive/send-monitor-tpp-messages/docker/docker-compose.yml \
    scripts/<team>/<script-name>/docker/
 
 # Modifica il file con il nome corretto dell'immagine
@@ -438,7 +438,7 @@ cp scripts/send/send-monitor-tpp-messages/docker/docker-compose.yml \
 Documenta tutte le variabili d'ambiente necessarie:
 
 ```bash
-cp scripts/send/send-monitor-tpp-messages/docker/.env.example \
+cp archive/send-monitor-tpp-messages/docker/.env.example \
    scripts/<team>/<script-name>/docker/
 
 # Personalizza le variabili per il tuo script
@@ -449,7 +449,7 @@ cp scripts/send/send-monitor-tpp-messages/docker/.env.example \
 Se lo script deve supportare la modalità cron:
 
 ```bash
-cp scripts/send/send-monitor-tpp-messages/src/cron.ts \
+cp archive/send-monitor-tpp-messages/src/cron.ts \
    scripts/<team>/<script-name>/src/
 ```
 

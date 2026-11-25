@@ -408,7 +408,7 @@ pnpm --filter=go-ai-client dev -- \
 - spostare il file in `data/go-ai-client/inputs/`
 - usare un path assoluto
 
-### `Cannot find module '@go-automation/go-common'`
+### `Cannot find module '@pagopa/go-common'`
 
 **Causa**: pacchetti workspace non buildati correttamente.
 

@@ -1,0 +1,94 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+
+import { GOLogEvent, GOLogger, type GOLoggerHandler } from '@pagopa/go-common/logging';
+
+import { ActionExecutor } from '../ActionExecutor.js';
+import type { LogActionRenderer } from '../LogActionRenderer.js';
+import { createTestContext } from '../../../__tests__/helpers/createTestContext.js';
+
+class RecordingHandler implements GOLoggerHandler {
+  readonly events: GOLogEvent[] = [];
+
+  handle(event: GOLogEvent): void {
+    this.events.push(event);
+  }
+
+  async reset(): Promise<void> {
+    await Promise.resolve();
+    this.events.length = 0;
+  }
+}
+
+describe('ActionExecutor', () => {
+  it('renders a log action as plain text by default, without prefixes, whatever renderAs says', async () => {
+    const handler = new RecordingHandler();
+    const result = await new ActionExecutor(new GOLogger([handler])).execute(
+      {
+        type: 'log',
+        level: 'info',
+        renderAs: 'known-case',
+        title: 'Errore {{vars.code}}',
+        details: [
+          ['Codice', '{{vars.code}}'],
+          ['Ambiente', '{{vars.missing}}'],
+        ],
+      },
+      createTestContext({ vars: { code: 'E42' } }),
+    );
+
+    assert.strictEqual(result.status, 'success');
+    assert.strictEqual(result.resolvedMessage, 'Errore E42\nCodice: E42\nAmbiente: non disponibile');
+    assert.deepStrictEqual(
+      handler.events.map((event) => event.message),
+      ['Errore E42\nCodice: E42\nAmbiente: non disponibile'],
+    );
+  });
+
+  it('delegates text and console rendering to the injected renderer', async () => {
+    const rendered: string[] = [];
+    const renderer: LogActionRenderer = {
+      renderText: (action) => `custom ${action.title}`,
+      renderToLogger: (_logger, action) => {
+        rendered.push(action.title);
+      },
+    };
+
+    const result = await new ActionExecutor(new GOLogger(), renderer).execute(
+      { type: 'log', level: 'warn', title: 'boom' },
+      createTestContext(),
+    );
+
+    assert.strictEqual(result.resolvedMessage, 'custom boom');
+    assert.deepStrictEqual(rendered, ['boom']);
+  });
+
+  it('resolves notifications and escalations against the context', async () => {
+    const executor = new ActionExecutor(new GOLogger());
+    const context = createTestContext({ vars: { team: 'GO' } });
+
+    const notify = await executor.execute({ type: 'notify', channel: '#ops', template: 'to {{vars.team}}' }, context);
+    const escalate = await executor.execute(
+      { type: 'escalate', team: 'GO', severity: 'high', message: 'page {{vars.team}}' },
+      context,
+    );
+
+    assert.strictEqual(notify.resolvedMessage, 'to GO');
+    assert.strictEqual(escalate.resolvedMessage, 'page GO');
+  });
+
+  it('returns a failed result when the message cannot be rendered', async () => {
+    const renderer: LogActionRenderer = {
+      renderText: () => {
+        throw new Error('render failed');
+      },
+    };
+    const result = await new ActionExecutor(new GOLogger(), renderer).execute(
+      { type: 'log', level: 'info', title: 'boom' },
+      createTestContext(),
+    );
+    assert.strictEqual(result.status, 'failed');
+    assert.strictEqual(result.error, 'render failed');
+    assert.strictEqual(result.resolvedMessage, undefined);
+  });
+});

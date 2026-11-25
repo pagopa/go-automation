@@ -4,14 +4,14 @@
  * Script che recupera le info tramite query da una tabella dynamo
  */
 
-import { Core } from '@go-automation/go-common';
+import { GOScript } from '@go-automation/go-script';
 import { scriptMetadata, scriptParameters } from './config.js';
 import { main } from './main.js';
 
 /**
  * Create the GOScript instance with metadata and parameters from config
  */
-const script = new Core.GOScript({
+const script = new GOScript({
   metadata: scriptMetadata,
   config: {
     parameters: scriptParameters,

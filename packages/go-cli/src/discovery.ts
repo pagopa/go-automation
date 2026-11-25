@@ -1,8 +1,9 @@
-import { glob } from 'glob';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import fs from 'node:fs/promises';
-import { Core } from '@go-automation/go-common';
+import type { GOConfigParameterOptions, GOScriptMetadata } from '@go-automation/go-script';
+
+import { findScriptConfigFiles } from './scriptConfigFiles.js';
 
 const fileName = fileURLToPath(import.meta.url);
 const dirName = path.dirname(fileName);
@@ -12,8 +13,8 @@ const CACHE_FILE = path.join(dirName, '../.discovery-cache.json');
 export interface DiscoveredScript {
   readonly id: string; // Directory name (e.g., go-report-alarms)
   readonly category: string; // Parent directory name (e.g., go, send)
-  readonly metadata: Core.GOScriptMetadata;
-  readonly parameters?: ReadonlyArray<Core.GOConfigParameterOptions>;
+  readonly metadata: GOScriptMetadata;
+  readonly parameters?: ReadonlyArray<GOConfigParameterOptions>;
   readonly mtime: number; // Last modification time of the config file
   readonly paths: DiscoveredScriptPaths;
 }
@@ -33,14 +34,14 @@ interface FailedScript {
 }
 
 interface ScriptConfigModule {
-  scriptMetadata: Core.GOScriptMetadata;
-  scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions>;
+  scriptMetadata: GOScriptMetadata;
+  scriptParameters: ReadonlyArray<GOConfigParameterOptions>;
 }
 
 interface DiscoveryCacheEntry {
   id: string;
   category: string;
-  metadata: Core.GOScriptMetadata;
+  metadata: GOScriptMetadata;
   mtime: number;
   paths: DiscoveredScriptPaths;
 }
@@ -70,10 +71,7 @@ export async function discoverScripts(): Promise<DiscoveredScript[]> {
   }
 
   // 2. Find all src/config.ts files
-  const configFiles = await glob('**/src/config.ts', {
-    cwd: scriptsDir,
-    absolute: true,
-  });
+  const configFiles = await findScriptConfigFiles(scriptsDir);
 
   const discovered: DiscoveredScript[] = [];
   let cacheUpdated = false;
@@ -114,7 +112,7 @@ export async function discoverScripts(): Promise<DiscoveredScript[]> {
           // package.json missing or invalid keywords, ignore
         }
 
-        const metadata: Core.GOScriptMetadata = {
+        const metadata: GOScriptMetadata = {
           ...module.scriptMetadata,
           keywords: [...(module.scriptMetadata.keywords ?? []), ...keywords],
         };
@@ -185,9 +183,7 @@ export function getDiscoveryErrors(): FailedScript[] {
 /**
  * Loads script parameters on demand
  */
-export async function loadScriptParameters(
-  script: DiscoveredScript,
-): Promise<ReadonlyArray<Core.GOConfigParameterOptions>> {
+export async function loadScriptParameters(script: DiscoveredScript): Promise<ReadonlyArray<GOConfigParameterOptions>> {
   if (script.parameters) {
     return script.parameters;
   }

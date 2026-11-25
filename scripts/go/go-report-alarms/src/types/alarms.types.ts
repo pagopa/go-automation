@@ -2,7 +2,7 @@
  * Types for CloudWatch Alarms Analysis
  */
 
-import type { AlarmHistoryItem } from '@aws-sdk/client-cloudwatch';
+import type { AlarmHistoryItem } from '@pagopa/go-aws/cloudwatch-alarms';
 
 /**
  * Filtered alarms result

@@ -2,130 +2,43 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { parseThresholdRules } from '../parseThresholdRules.js';
-import type { SendMonitorAthenaQueryConfig } from '../../types/index.js';
+import { createConfig } from './helpers/createConfig.js';
 
 describe('parseThresholdRules', () => {
-  it('requires field for default any-row aggregation', () => {
-    assert.throws(
-      () =>
-        parseThresholdRules(
-          createConfig({
-            analysisRules: ['name=missing-field;operator=>;value=10'],
-          }),
-        ),
-      /analysis\.rules\[0\].*field is required/,
-    );
-  });
-
   it('allows count aggregation without field', () => {
-    const rules = parseThresholdRules(
-      createConfig({
-        analysisRules: ['name=row-count;operator=>=;value=10;aggregation=count'],
-      }),
+    assert.deepStrictEqual(
+      parseThresholdRules(createConfig({ analysisRules: ['name=row-count;operator=>=;value=10;aggregation=count'] })),
+      [{ name: 'row-count', operator: '>=', value: 10, aggregation: 'count', severity: 'warning' }],
     );
-
-    assert.deepStrictEqual(rules, [
-      {
-        name: 'row-count',
-        operator: '>=',
-        value: 10,
-        aggregation: 'count',
-        severity: 'warning',
-      },
-    ]);
   });
 
   it('keeps legacy threshold compatibility', () => {
-    const rules = parseThresholdRules(
-      createConfig({
-        analysisRules: [],
-        analysisThresholdField: 'total',
-        analysisThreshold: 100,
-      }),
-    );
-
-    assert.deepStrictEqual(rules, [
-      {
-        name: 'legacy-threshold',
-        field: 'total',
-        operator: '>',
-        value: 100,
-        aggregation: 'any-row',
-        severity: 'warning',
-      },
-    ]);
-  });
-
-  it('wraps malformed JSON rules with analysis.rules index context', () => {
-    assert.throws(
-      () =>
-        parseThresholdRules(
-          createConfig({
-            analysisRules: ['{"name":"broken"'],
-          }),
-        ),
-      /Invalid JSON analysis rule at analysis\.rules\[0\]/,
+    assert.deepStrictEqual(
+      parseThresholdRules(createConfig({ analysisThresholdField: 'total', analysisThreshold: 100 })),
+      [
+        {
+          name: 'legacy-threshold',
+          field: 'total',
+          operator: '>',
+          value: 100,
+          aggregation: 'any-row',
+          severity: 'warning',
+        },
+      ],
     );
   });
 
-  it('rejects empty numeric values from DSL rules', () => {
-    assert.throws(
-      () =>
-        parseThresholdRules(
-          createConfig({
-            analysisRules: ['name=empty-value;field=total;operator=>;value='],
-          }),
-        ),
-      /Invalid numeric value for analysis\.rules\[0\]\.value/,
-    );
-  });
-
-  it('rejects non-string and non-number numeric values from JSON rules', () => {
-    assert.throws(
-      () =>
-        parseThresholdRules(
-          createConfig({
-            analysisRules: ['{"name":"null-value","field":"total","operator":">","value":null}'],
-          }),
-        ),
-      /Invalid numeric value for analysis\.rules\[0\]\.value/,
-    );
-
-    assert.throws(
-      () =>
-        parseThresholdRules(
-          createConfig({
-            analysisRules: ['{"name":"boolean-value","field":"total","operator":">","value":true}'],
-          }),
-        ),
-      /Invalid numeric value for analysis\.rules\[0\]\.value/,
-    );
+  it('rejects invalid rules with the analysis.rules index context', () => {
+    const invalidValue = /Invalid numeric value for analysis\.rules\[0\]\.value/;
+    const cases: ReadonlyArray<readonly [string, RegExp]> = [
+      ['name=missing-field;operator=>;value=10', /analysis\.rules\[0\].*field is required/],
+      ['{"name":"broken"', /Invalid JSON analysis rule at analysis\.rules\[0\]/],
+      ['name=empty-value;field=total;operator=>;value=', invalidValue],
+      ['{"name":"null-value","field":"total","operator":">","value":null}', invalidValue],
+      ['{"name":"boolean-value","field":"total","operator":">","value":true}', invalidValue],
+    ];
+    for (const [rule, message] of cases) {
+      assert.throws(() => parseThresholdRules(createConfig({ analysisRules: [rule] })), message, rule);
+    }
   });
 });
-
-function createConfig(overrides: Partial<SendMonitorAthenaQueryConfig> = {}): SendMonitorAthenaQueryConfig {
-  return {
-    timeLookbackHours: 24,
-    timeZone: 'Europe/Rome',
-    awsRegion: 'eu-south-1',
-    athenaDatabase: 'db',
-    athenaCatalog: 'AwsDataCatalog',
-    athenaWorkgroup: 'primary',
-    athenaOutputLocation: 's3://bucket/prefix/',
-    athenaQuery: 'select 1',
-    athenaMaxPollAttempts: 60,
-    athenaPollIntervalMs: 5000,
-    templateParams: [],
-    templateRaw: [],
-    templateLegacyAliases: true,
-    outputFolder: 'reports',
-    outputFormat: 'csv',
-    outputFilePrefix: 'athena-report',
-    outputAttachWhenEmpty: false,
-    slackMessageTemplate: 'report',
-    slackSendOnEmpty: true,
-    slackSendOnError: true,
-    analysisRules: [],
-    ...overrides,
-  };
-}

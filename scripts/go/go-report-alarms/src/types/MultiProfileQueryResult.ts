@@ -2,8 +2,9 @@
  * MultiProfileQueryResult - Aggregated result from querying multiple AWS profiles
  */
 
-import type { AlarmHistoryItem } from '@aws-sdk/client-cloudwatch';
-import type { ProfileQuerySuccess, ProfileQueryFailure } from './ProfileQueryResult.js';
+import type { AlarmHistoryItem } from '@pagopa/go-aws/cloudwatch-alarms';
+import type { ProfileQuerySuccess } from './ProfileQuerySuccess.js';
+import type { ProfileQueryFailure } from './ProfileQueryFailure.js';
 
 /**
  * Aggregated result from querying all AWS profiles

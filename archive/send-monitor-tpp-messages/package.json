@@ -1,0 +1,49 @@
+{
+  "name": "send-monitor-tpp-messages",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Monitor TPP messages via Athena queries and generate reports with optional Slack notifications",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./config": "./dist/config.js",
+    "./main": "./dist/main.js",
+    "./libs": "./dist/libs/index.js",
+    "./types": "./dist/types/index.js"
+  },
+  "files": [
+    "dist",
+    "configs"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "start": "pnpm build && node dist/index.js",
+    "start:cron": "node dist/cron.js",
+    "dev": "tsx src/index.ts",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "keywords": [
+    "athena",
+    "aws",
+    "csv",
+    "slack",
+    "report",
+    "typescript",
+    "tpp",
+    "send"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "EUPL-1.2",
+  "dependencies": {
+    "@aws-sdk/client-athena": "catalog:",
+    "@aws-sdk/credential-provider-ini": "catalog:",
+    "@go-automation/go-common": "workspace:*",
+    "croner": "catalog:",
+    "yaml": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

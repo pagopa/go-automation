@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "description": "Generated TypeScript client for the Watchtower API (auth, alarm analyses, product census), regenerated from contracts/runbook-automation/v1/upstream/go-watchtower.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -14,13 +15,11 @@
   "scripts": {
     "build": "tsc -b",
     "clean": "rm -rf dist *.tsbuildinfo",
-    "generate": "openapi-typescript ../../contracts/runbook-automation/v1/upstream/go-watchtower/watchtower-openapi.json --alphabetize --output src/generated/openapi.ts && json2ts --input ../../contracts/runbook-automation/v1/upstream/go-watchtower/automatic-alarm-analysis-command-v1.schema.json --output src/generated/AutomaticAlarmAnalysisCommandV1.ts --bannerComment '/* Generated from the WT-owned JSON Schema. Do not edit. */' && cp ../../contracts/runbook-automation/v1/upstream/go-watchtower/automatic-alarm-analysis-command-v1.schema.json src/generated/automatic-alarm-analysis-command-v1.schema.json",
-    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'"
+    "generate": "openapi-typescript ../../contracts/runbook-automation/v1/upstream/go-watchtower/watchtower-openapi.json --alphabetize --output src/generated/openapi.ts && json2ts --input ../../contracts/runbook-automation/v1/upstream/go-watchtower/automatic-alarm-analysis-command-v1.schema.json --output src/generated/AutomaticAlarmAnalysisCommandV1.ts --bannerComment '/* Generated from the WT-owned JSON Schema. Do not edit. */' && json2ts --input ../../contracts/runbook-automation/v1/upstream/go-watchtower/analysis-draft-v1.schema.json --output src/generated/AnalysisDraftV1.ts --bannerComment '/* Generated from the WT-owned JSON Schema. Do not edit. */' && cp ../../contracts/runbook-automation/v1/upstream/go-watchtower/automatic-alarm-analysis-command-v1.schema.json src/generated/automatic-alarm-analysis-command-v1.schema.json && cp ../../contracts/runbook-automation/v1/upstream/go-watchtower/analysis-draft-v1.schema.json src/generated/analysis-draft-v1.schema.json",
+    "test": "node --import tsx/esm --test --experimental-test-isolation=none 'src/**/__tests__/**/*.test.ts'"
   },
   "dependencies": {
-    "@go-automation/go-common": "workspace:*",
-    "ajv": "catalog:",
-    "ajv-formats": "catalog:"
+    "@pagopa/go-common": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

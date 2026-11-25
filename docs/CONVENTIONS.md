@@ -1,6 +1,6 @@
 # CONVENTIONS.md - go-common Usage Guide for Scripts
 
-> **Ogni script in `scripts/` DEVE utilizzare le funzionalità di `@go-automation/go-common` invece di reimplementarle o installare librerie di terze parti equivalenti.**
+> **Ogni script in `scripts/` DEVE utilizzare le funzionalità di `@pagopa/go-common` invece di reimplementarle o installare librerie di terze parti equivalenti.**
 
 Queste convenzioni sono **enforce** automaticamente da:
 
@@ -34,6 +34,7 @@ Per bypassare una regola in casi eccezionali, usa:
   - [Events](#events)
   - [AWS Services](#aws-services)
   - [Utilities](#utilities)
+  - [Runbook: `Step.execute` resta un metodo (bivarianza)](#runbook-stepexecute-resta-un-metodo-bivarianza)
   - [Riepilogo Regole ESLint](#riepilogo-regole-eslint)
     - [`no-restricted-imports`](#no-restricted-imports)
     - [`no-restricted-syntax`](#no-restricted-syntax)
@@ -49,9 +50,9 @@ Per bypassare una regola in casi eccezionali, usa:
 | Metadata (nome, versione, descrizione) | `GOScriptMetadata` | -                 |
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { GOScript } from '@go-automation/go-script';
 
-const script = new Core.GOScript({
+const script = new GOScript({
   metadata: { name: 'my-script', version: '1.0.0', description: '...' },
   config: {
     parameters: [/* ... */],
@@ -74,22 +75,21 @@ Ogni script **deve** usare `GOScript` come entry point. Non creare entry point c
 
 ```typescript
 // Definizione parametri nel config
-const parameters: Core.GOConfigParameter[] = [
+const parameters: GOConfigParameter[] = [
   {
     name: 'input.file',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'File di input',
     required: true,
     aliases: ['i'],
   },
   {
     name: 'output.format',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     required: false,
     defaultValue: 'txt',
     validator: (value) =>
-      Core.isGOExportFormat(String(value)) ||
-      `Invalid format "${String(value)}". Valid: ${Core.GO_EXPORT_FORMATS.join(', ')}`,
+      isGOExportFormat(String(value)) || `Invalid format "${String(value)}". Valid: ${GO_EXPORT_FORMATS.join(', ')}`,
   },
 ];
 
@@ -120,7 +120,7 @@ script.logger.section('Titolo Sezione');
 script.logger.subsection('Sotto-sezione');
 
 // Tabelle
-const table = new Core.GOTableFormatter({ columns: ['Nome', 'Valore'] });
+const table = new GOTableFormatter({ columns: ['Nome', 'Valore'] });
 table.addRow(['chiave', '123']);
 script.logger.info(table.render());
 ```
@@ -187,7 +187,7 @@ Nota tecnica: in AST TypeScript ESLint, le property di `interface`/type literal 
 
 ```typescript
 // JSON / NDJSON import con streaming
-const importer = new Core.GOJSONListImporter<MyType>({
+const importer = new GOJSONListImporter<MyType>({
   jsonl: 'auto', // rileva automaticamente JSON vs NDJSON
   skipInvalidItems: true,
   wrapSingleObject: true, // singolo oggetto → array di 1 elemento
@@ -199,13 +199,13 @@ for await (const item of importer.importStream(inputPath)) {
 }
 
 // CSV import
-const csvImporter = new Core.GOCSVListImporter<MyRow>({ delimiter: ',' });
+const csvImporter = new GOCSVListImporter<MyRow>({ delimiter: ',' });
 for await (const row of csvImporter.importStream(inputPath)) {
   // processa riga
 }
 
 // File di testo (una riga per elemento)
-const fileImporter = new Core.GOFileListImporter();
+const fileImporter = new GOFileListImporter();
 for await (const line of fileImporter.importStream(inputPath)) {
   // processa riga
 }
@@ -227,23 +227,23 @@ Tutti gli importer supportano **streaming** via `importStream()` (async generato
 
 ```typescript
 // TXT export
-const txtExporter = new Core.GOFileListExporter({ outputPath });
+const txtExporter = new GOFileListExporter({ outputPath });
 await txtExporter.export(values);
 
 // JSON export (pretty-printed)
-const jsonExporter = new Core.GOJSONListExporter({ outputPath, jsonl: false });
+const jsonExporter = new GOJSONListExporter({ outputPath, jsonl: false });
 await jsonExporter.export(values);
 
 // JSONL export
-const jsonlExporter = new Core.GOJSONListExporter({ outputPath, jsonl: true });
+const jsonlExporter = new GOJSONListExporter({ outputPath, jsonl: true });
 await jsonlExporter.export(values);
 
 // CSV export
-const csvExporter = new Core.GOCSVListExporter({ outputPath, columns: ['id', 'name'] });
+const csvExporter = new GOCSVListExporter({ outputPath, columns: ['id', 'name'] });
 await csvExporter.export(records);
 
 // HTML export
-const htmlExporter = new Core.GOHTMLListExporter({ outputPath, title: 'Report' });
+const htmlExporter = new GOHTMLListExporter({ outputPath, title: 'Report' });
 await htmlExporter.export(records);
 ```
 
@@ -264,7 +264,7 @@ Costanti e utility disponibili:
 Se uno script supporta solo un sottoinsieme di formati, usa `Extract<>`:
 
 ```typescript
-type MyFormat = Extract<Core.GOExportFormat, 'json' | 'csv' | 'html'>;
+type MyFormat = Extract<GOExportFormat, 'json' | 'csv' | 'html'>;
 ```
 
 ---
@@ -278,13 +278,13 @@ type MyFormat = Extract<Core.GOExportFormat, 'json' | 'csv' | 'html'>;
 
 ```typescript
 // Risoluzione path di input
-const inputPath = script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT);
+const inputPath = script.paths.resolvePath(config.inputFile, GOPathType.INPUT);
 
 // Risoluzione path di output
-const outputPath = script.paths.resolvePath(config.outputFile ?? `report_${Date.now()}.txt`, Core.GOPathType.OUTPUT);
+const outputPath = script.paths.resolvePath(config.outputFile ?? `report_${Date.now()}.txt`, GOPathType.OUTPUT);
 
 // Con info aggiuntive (isRelative, resolvedPath, originalPath)
-const pathInfo = script.paths.resolvePathWithInfo(config.inputFile, Core.GOPathType.INPUT);
+const pathInfo = script.paths.resolvePathWithInfo(config.inputFile, GOPathType.INPUT);
 ```
 
 I percorsi relativi vengono risolti automaticamente:
@@ -306,11 +306,11 @@ I percorsi relativi vengono risolti automaticamente:
 
 ```typescript
 // Rilevamento formato
-const format = await Core.GOJSONFormatDetector.detect(filePath);
+const format = await GOJSONFormatDetector.detect(filePath);
 // format: 'json' | 'jsonl'
 
 // Estrazione campi
-const extractor = new Core.GOJSONFieldExtractor({ parseEmbeddedJson: true });
+const extractor = new GOJSONFieldExtractor({ parseEmbeddedJson: true });
 const value = extractor.extract(jsonObject, 'user.address.city');
 // Cerca prima per percorso esatto, poi ricorsivamente
 ```
@@ -331,13 +331,13 @@ script.prompt.spinner.start('Caricamento...');
 script.prompt.spinner.stop('Completato!');
 
 // Multi-spinner
-const multi = new Core.GOMultiSpinner();
+const multi = new GOMultiSpinner();
 multi.add('task1', 'Download file...');
 multi.add('task2', 'Parsing dati...');
 multi.succeed('task1', 'File scaricato');
 
 // Loading bar
-const bar = new Core.GOLoadingBar({ total: 100 });
+const bar = new GOLoadingBar({ total: 100 });
 bar.increment(10);
 ```
 
@@ -350,7 +350,7 @@ bar.increment(10);
 | Richieste HTTP | `GOHttpClient`   | `axios`, `got`, `node-fetch`, `undici` |
 
 ```typescript
-const client = new Core.GOHttpClient({ baseUrl: 'https://api.example.com' });
+const client = new GOHttpClient({ baseUrl: 'https://api.example.com' });
 const response = await client.get('/endpoint');
 const data = await client.post('/endpoint', { body: payload });
 ```
@@ -371,12 +371,12 @@ const data = await client.post('/endpoint', { body: payload });
 try {
   await operation();
 } catch (err: unknown) {
-  const message = Core.getErrorMessage(err);
+  const message = getErrorMessage(err);
   script.logger.error(`Operazione fallita: ${message}`);
 }
 
 // Result pattern
-const result: Core.GOResult<Data, Error> = await safeOperation();
+const result: GOResult<Data, Error> = await safeOperation();
 if (result.ok) {
   // result.value
 } else {
@@ -399,7 +399,7 @@ interface MyEvents {
   'data:error': { message: string };
 }
 
-class MyProcessor extends Core.GOEventEmitterBase<MyEvents> {
+class MyProcessor extends GOEventEmitterBase<MyEvents> {
   // ...
 }
 ```
@@ -417,8 +417,8 @@ class MyProcessor extends Core.GOEventEmitterBase<MyEvents> {
 
 ```typescript
 // Client AWS
-const credentials = new Core.GOAWSCredentialsManager({ profile: 'my-profile', region: 'eu-south-1' });
-const clientProvider = new Core.AWSClientProvider(credentials);
+const credentials = new GOAWSCredentialsManager({ profile: 'my-profile', region: 'eu-south-1' });
+const clientProvider = new AWSClientProvider(credentials);
 const dynamoClient = clientProvider.getClient(DynamoDBClient);
 ```
 
@@ -434,6 +434,39 @@ const dynamoClient = clientProvider.getClient(DynamoDBClient);
 | Polling stato + retry        | `GOPoller` / `GORetryRunner`      | Preset in `GOPollingPolicies`       |
 | Troncamento smart            | `smartTruncate`                   | Tronca stringhe lunghe con ellipsis |
 | File copy                    | `GOFileCopier`                    | Copia con progress e validazione    |
+
+---
+
+## Runbook: `Step.execute` resta un metodo (bivarianza)
+
+> Regola di go-runbook.
+
+**La regola.** In `Step` (`packages/go-runbook/src/engine/types/Step.ts`) e negli step che lo implementano, `execute` si dichiara come **metodo**:
+
+```typescript
+// ✅ CORRETTO: firma di metodo
+execute(context: OperationalContext): Promise<StepResult<Rows>>;
+
+// ❌ SBAGLIATO: proprietà con tipo funzione
+readonly execute: (context: OperationalContext) => Promise<StepResult<Rows>>;
+```
+
+**Non attivare** la regola ESLint `@typescript-eslint/method-signature-style: 'property'` e non riscrivere `execute` come proprietà.
+
+**Perché.**
+
+- `Step.execute` riceve il contesto neutro dell'engine (`RunbookContext`). Gli step AWS lo dichiarano invece con il contesto operativo (`OperationalContext`, cioè `RunbookContext<ServiceRegistry>`), che ha più servizi.
+- TypeScript controlla i parametri dei **metodi** in modo bivariante: uno step con `execute(context: OperationalContext)` implementa comunque `Step`. Così l'engine resta senza servizi AWS e non servono generici su `Step`, `StepDescriptor`, `PipelineHook`, `Runbook`, `RunbookBuilder` e `RunbookBuilderFn`.
+- Con una firma di **proprietà** il parametro diventa controvariante: quegli step non implementerebbero più `Step`, e bisognerebbe propagare un generico in circa 170 file.
+
+**Il prezzo e come si paga.** Con la bivarianza il typecheck non garantisce che il runbook riceva i servizi di cui gli step hanno bisogno: un runbook operativo eseguito con soli `{ reporter }` compila. Il controllo si fa quindi **a runtime, prima del primo step**:
+
+- ogni step dichiara sul prototipo i servizi che usa con `requiredServices()`;
+- `RunbookEngine.execute` visita tutti gli step con `collectRunbookSteps` (pipeline, livelli dell'albero degli errori, azioni dei casi noti e del fallback) e, se manca un servizio, lancia `RunbookMissingServicesError` prima di eseguire qualsiasi step.
+
+**Per chi scrive uno step.** Se lo step usa `context.services.<servizio>`, quel servizio deve comparire in `requiredServices()`. Il modo più semplice è estendere `OperationalStep` (`@pagopa/go-runbook/toolkits/common`), che rende `requiredServices()` obbligatorio.
+
+**Il controllo.** Il test di tipo `packages/go-runbook/src/toolkits/common/steps/__tests__/stepMethodBivariance.test.ts` smette di compilare se `Step.execute` perde la bivarianza.
 
 ---
 

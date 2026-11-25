@@ -2,8 +2,7 @@
  * Worker options
  */
 
-import type { ColumnConflictStrategy } from '@go-automation/go-common/core';
-import type { GOListExporter } from '@go-automation/go-common/core';
+import type { ColumnConflictStrategy, GOListExporter } from '@pagopa/go-common/exporters';
 
 import type { SENDUploadedAttachment } from './SENDUploadedAttachment.js';
 

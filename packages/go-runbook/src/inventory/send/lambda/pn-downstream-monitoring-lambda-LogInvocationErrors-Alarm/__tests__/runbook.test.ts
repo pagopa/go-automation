@@ -1,0 +1,170 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
+
+import type { RunbookExecutionResult } from '../../../../../engine/index.js';
+import { awsLogicalAccountName, createTestServiceRegistry, SEND_ACCOUNTS } from '../../../../../toolkits/send/index.js';
+import { rejectsWith } from '../../../../../toolkits/common/accounts/__tests__/fixtures.js';
+import { OperationalRunbookEngine } from '../../../../../toolkits/common/engine/OperationalRunbookEngine.js';
+import type { InMemoryAwsAccountsPortOptions } from '../../../../../toolkits/common/testing/InMemoryAwsAccountsPortOptions.js';
+import {
+  fakeReader,
+  occurrenceIn,
+  SEND_ACCOUNT_IDS,
+  sendAccountsPort,
+  SEND_TEST_ENVIRONMENT,
+} from '../../../../../toolkits/send/accounts/__tests__/fixtures.js';
+import { DOWNSTREAM_MONITORING_LAMBDA_ALARM } from '../registration.js';
+import { buildRunbook } from '../runbook.js';
+import { treeNodeVars } from '../../../../../__tests__/helpers/treeNodeVars.js';
+
+type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
+/** Rows a logical account (`core`, `confinfo`) returns for a query. */
+type ReadQueryFn = (account: string, query: string) => Rows;
+
+/**
+ * Runs the runbook through the operational engine, so the pre-execution account
+ * check prepares the readers, with an occurrence in production SEND core by default.
+ */
+async function run(
+  read: ReadQueryFn,
+  portOptions: Partial<InMemoryAwsAccountsPortOptions> = occurrenceIn(SEND_ACCOUNT_IDS.coreProd),
+): Promise<RunbookExecutionResult> {
+  const readers = Object.fromEntries(
+    [SEND_ACCOUNTS.core, SEND_ACCOUNTS.confinfo].map((account) => [
+      account,
+      fakeReader({
+        // eslint-disable-next-line @typescript-eslint/require-await
+        async queryWithStatistics(_groups: ReadonlyArray<string>, query: string) {
+          const rows = read(awsLogicalAccountName(account), query);
+          return {
+            rows,
+            statistics: { bytesScanned: 1, recordsScanned: rows.length, recordsMatched: rows.length },
+            queryExecutions: [],
+          };
+        },
+      }),
+    ]),
+  );
+  return new OperationalRunbookEngine(new GOLogger()).execute(
+    buildRunbook(),
+    new Map([
+      ['alarmName', DOWNSTREAM_MONITORING_LAMBDA_ALARM],
+      ['startTime', '2026-09-08T13:55:00.000Z'],
+      ['endTime', '2026-09-08T14:05:00.000Z'],
+    ]),
+    createTestServiceRegistry({ awsAccounts: sendAccountsPort({ ...portOptions, readers }) }),
+    SEND_TEST_ENVIRONMENT,
+  );
+}
+
+describe('pn-downstream-monitoring-lambda runbook', () => {
+  it('analyzes invocation evidence from distinct request IDs in core and confinfo', async () => {
+    const coreRequestId = 'b95bb742-cc30-4f07-80bc-45a38011e5c4';
+    const confinfoRequestId = 'd848f0c5-1089-5c2b-9a3b-91a94511ee52';
+    const invocationCalls: { account: string; query: string }[] = [];
+    const row = (message: string, requestId: string): ReadonlyArray<GOLogsInsightsResultField> => [
+      { field: '@timestamp', value: '2026-09-08T14:00:00.000Z' },
+      { field: '@requestId', value: requestId },
+      { field: '@message', value: message },
+    ];
+
+    const result = await run((account, query) => {
+      const isErrorScan = query.includes("@message like 'ERROR'");
+      if (!isErrorScan) invocationCalls.push({ account, query });
+      if (isErrorScan) {
+        return account === 'core'
+          ? [row('ERROR core invocation', coreRequestId)]
+          : [row('ERROR confinfo invocation', confinfoRequestId)];
+      }
+      if (account === 'confinfo' && query.includes(confinfoRequestId)) {
+        return [
+          row(
+            'Invoke Error {"errorType":"SlowDown","errorMessage":"Please reduce your request rate.","$metadata":{"httpStatusCode":503}}',
+            confinfoRequestId,
+          ),
+        ];
+      }
+      return account === 'core' && query.includes(coreRequestId)
+        ? [row(`START RequestId: ${coreRequestId}`, coreRequestId)]
+        : [];
+    });
+
+    assert.strictEqual(result.status, 'completed');
+    assert.deepStrictEqual(
+      invocationCalls.map(({ account, query }) => ({
+        account,
+        coreRequestId: query.includes(coreRequestId),
+        confinfoRequestId: query.includes(confinfoRequestId),
+      })),
+      [
+        { account: 'core', coreRequestId: true, confinfoRequestId: false },
+        { account: 'confinfo', coreRequestId: false, confinfoRequestId: true },
+      ],
+    );
+    assert.deepStrictEqual(
+      result.detections.map(({ knownCase }) => knownCase.id),
+      ['downstream-monitoring-aws-slow-down'],
+    );
+    const invocationRows = result.finalContext.stepResults.get('query-lambda-invocation') as Rows;
+    assert.deepStrictEqual(
+      invocationRows.map((logRow) => logRow.find((field) => field.field === 'sourceAccount')?.value),
+      ['core', 'confinfo'],
+    );
+  });
+
+  it('classifies a signal-killed runtime line when it is the only error in confinfo', async () => {
+    const requestId = 'd848f0c5-1089-5c2b-9a3b-91a94511ee52';
+    const invocationCalls: { account: string; query: string }[] = [];
+
+    const result = await run(
+      (account, query) => {
+        const isErrorScan = query.includes("@message like 'ERROR'");
+        if (!isErrorScan) invocationCalls.push({ account, query });
+        return isErrorScan &&
+          account === 'confinfo' &&
+          query.includes('Runtime exited with error:\\s*signal:\\s*killed')
+          ? [
+              [
+                { field: '@timestamp', value: '2026-09-08T14:00:00.000Z' },
+                { field: '@requestId', value: requestId },
+                { field: '@message', value: 'Runtime exited with error: signal: killed' },
+              ],
+            ]
+          : [];
+      },
+      { environment: 'prod' },
+    );
+
+    assert.strictEqual(result.status, 'completed');
+    assert.strictEqual(treeNodeVars(result).get('lambdaErrorCategory'), 'out-of-memory');
+    assert.deepStrictEqual(
+      result.detections.map(({ knownCase }) => knownCase.id),
+      ['lambda-out-of-memory'],
+    );
+    assert.deepStrictEqual(
+      invocationCalls.map(({ account, query }) => ({ account, correlated: query.includes(requestId) })),
+      [{ account: 'confinfo', correlated: true }],
+    );
+  });
+
+  it('rejects, before any query, an occurrence outside the SEND accounts or an unreachable account', async () => {
+    for (const [portOptions, code] of [
+      [occurrenceIn(SEND_ACCOUNT_IDS.unrelated), 'AWS_OCCURRENCE_ACCOUNT_MISMATCH'],
+      [{ environment: 'prod', unreachable: [SEND_ACCOUNTS.confinfo] }, 'AWS_ACCOUNT_UNREACHABLE'],
+    ] as const) {
+      const queries: string[] = [];
+      await assert.rejects(
+        async () =>
+          run((_account, query) => {
+            queries.push(query);
+            return [];
+          }, portOptions),
+        rejectsWith(code),
+      );
+      assert.deepStrictEqual(queries, []);
+    }
+  });
+});

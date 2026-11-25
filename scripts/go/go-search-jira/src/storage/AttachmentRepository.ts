@@ -7,7 +7,7 @@
  * every call — `db.prepare(...)` is non-trivial in better-sqlite3 (SQL
  * planning, parameter analysis) and these methods are on the sync hot path.
  */
-import type { Core } from '@go-automation/go-common';
+import type { GOFtsIndex, GOSqliteStatement } from '@go-automation/go-documents';
 
 import { AttachmentSyncStatus, type AttachmentSyncStatusValue } from '../types/AttachmentSyncStatus.js';
 import type { JiraAttachment } from '../types/JiraAttachment.js';
@@ -128,19 +128,19 @@ interface UpsertIssueBind {
 }
 
 export class AttachmentRepository {
-  private readonly isIndexedStmt: Core.GOSqliteStatement<[string], IdRow>;
-  private readonly getAttachmentStmt: Core.GOSqliteStatement<[string], RawAttachmentRow>;
-  private readonly upsertAttachmentStmt: Core.GOSqliteStatement<UpsertAttachmentBind>;
-  private readonly upsertIssueStmt: Core.GOSqliteStatement<UpsertIssueBind>;
-  private readonly countIssuesStmt: Core.GOSqliteStatement<[], CountRow>;
-  private readonly statusBreakdownStmt: Core.GOSqliteStatement<[], StatusCountRow>;
-  private readonly mimeTypeBreakdownStmt: Core.GOSqliteStatement<[], MimeCountRow>;
-  private readonly skipReasonBreakdownStmt: Core.GOSqliteStatement<[], ReasonCountRow>;
-  private readonly skipMimeBreakdownStmt: Core.GOSqliteStatement<[], ReasonMimeCountRow>;
-  private readonly getLastSyncStmt: Core.GOSqliteStatement<[], ValueRow>;
-  private readonly setLastSyncStmt: Core.GOSqliteStatement<[string]>;
+  private readonly isIndexedStmt: GOSqliteStatement<[string], IdRow>;
+  private readonly getAttachmentStmt: GOSqliteStatement<[string], RawAttachmentRow>;
+  private readonly upsertAttachmentStmt: GOSqliteStatement<UpsertAttachmentBind>;
+  private readonly upsertIssueStmt: GOSqliteStatement<UpsertIssueBind>;
+  private readonly countIssuesStmt: GOSqliteStatement<[], CountRow>;
+  private readonly statusBreakdownStmt: GOSqliteStatement<[], StatusCountRow>;
+  private readonly mimeTypeBreakdownStmt: GOSqliteStatement<[], MimeCountRow>;
+  private readonly skipReasonBreakdownStmt: GOSqliteStatement<[], ReasonCountRow>;
+  private readonly skipMimeBreakdownStmt: GOSqliteStatement<[], ReasonMimeCountRow>;
+  private readonly getLastSyncStmt: GOSqliteStatement<[], ValueRow>;
+  private readonly setLastSyncStmt: GOSqliteStatement<[string]>;
 
-  constructor(index: Core.GOFtsIndex) {
+  constructor(index: GOFtsIndex) {
     const db = index.getDatabase();
 
     this.isIndexedStmt = db.prepare<[string], IdRow>(

@@ -2,15 +2,15 @@
  * Display helpers for rendering alarm reports to the console.
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import type { AlarmHistoryItem } from '@pagopa/go-aws/cloudwatch-alarms';
+import { formatUtcDateTime } from '@pagopa/go-common/dates';
 
-import type { AlarmHistoryItem } from '@aws-sdk/client-cloudwatch';
 import type { AlarmReportSummary, AlarmTimelineEntry } from '../types/alarms.types.js';
 import type { GoReportAlarmsConfig } from '../types/GoReportAlarmsConfig.js';
 import type { MultiProfileQueryResult } from '../types/MultiProfileQueryResult.js';
 
 import { AlarmAnalyzer } from './AlarmAnalyzer.js';
-import { googleSheetTimestamp } from './DateUtils.js';
 
 /**
  * Display multi-profile query summary.
@@ -18,7 +18,7 @@ import { googleSheetTimestamp } from './DateUtils.js';
  * @param script - GOScript instance for logging
  * @param result - The multi-profile query result
  */
-export function displayProfileSummary(script: Core.GOScript, result: MultiProfileQueryResult): void {
+export function displayProfileSummary(script: GOScript, result: MultiProfileQueryResult): void {
   script.logger.section('Profile Query Summary');
 
   // Show successful profiles
@@ -52,7 +52,7 @@ export function displayProfileSummary(script: Core.GOScript, result: MultiProfil
  * @param ignored - Array of ignored alarm history items
  */
 export function displayIgnoredAlarmsReport(
-  script: Core.GOScript,
+  script: GOScript,
   analyzer: AlarmAnalyzer,
   ignored: ReadonlyArray<AlarmHistoryItem>,
 ): void {
@@ -81,7 +81,7 @@ export function displayIgnoredAlarmsReport(
  * @param summary - Array of alarm report summaries
  */
 export function displayAnalyzableSummary(
-  script: Core.GOScript,
+  script: GOScript,
   analyzer: AlarmAnalyzer,
   summary: ReadonlyArray<AlarmReportSummary>,
 ): void {
@@ -103,7 +103,7 @@ export function displayAnalyzableSummary(
  * @param timeline - Array of alarm timeline entries
  */
 export function displayDetailedTimeline(
-  script: Core.GOScript,
+  script: GOScript,
   config: GoReportAlarmsConfig,
   timeline: ReadonlyArray<AlarmTimelineEntry>,
 ): void {
@@ -116,12 +116,12 @@ export function displayDetailedTimeline(
       const last = entry.timestamps[0];
       const first = entry.timestamps[entry.timestamps.length - 1];
       if (first && last) {
-        script.logger.text(` - Last:  ${last.toISOString()} - (${googleSheetTimestamp(last)})`);
-        script.logger.text(` - First: ${first.toISOString()} - (${googleSheetTimestamp(first)})`);
+        script.logger.text(` - Last:  ${last.toISOString()} - (${formatUtcDateTime(last)})`);
+        script.logger.text(` - First: ${first.toISOString()} - (${formatUtcDateTime(first)})`);
       }
     } else {
       for (const timestamp of entry.timestamps) {
-        script.logger.text(`  - ${timestamp.toISOString()} - (${googleSheetTimestamp(timestamp)})`);
+        script.logger.text(`  - ${timestamp.toISOString()} - (${formatUtcDateTime(timestamp)})`);
       }
     }
     script.logger.newline();

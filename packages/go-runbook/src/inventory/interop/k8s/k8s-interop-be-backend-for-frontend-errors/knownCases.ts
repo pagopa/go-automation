@@ -1,0 +1,151 @@
+import {
+  INTEROP_DOWNSTREAMS,
+  interopK8sKnownCase,
+  type InteropK8sKnownCaseRefs,
+} from '../../../../toolkits/interop/index.js';
+import { any, type KnownCase, stepEvidenceMatches } from '../../../../engine/index.js';
+import { BFF_ALARM } from './alarmDefinition.js';
+import { BFF_EVIDENCE_STEP_ID } from './AnalyzeBffEvidenceStep.js';
+
+const REFS: InteropK8sKnownCaseRefs = {
+  applicationLogsStepId: BFF_ALARM.stepIds.queryApplicationLogs,
+  cidTrackerStepId: BFF_ALARM.stepIds.queryCidTracker,
+  varPrefix: BFF_ALARM.varPrefix,
+};
+const BFF_ROWS = `${BFF_EVIDENCE_STEP_ID}.bffRows`;
+
+/** Sources: Confluence 2585559041 v9/v11/v16/v18/v21-v24 and actual 2026-10-06 BFF logs. */
+export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
+  interopK8sKnownCase(REFS, {
+    id: 'purpose-process-duplicate-event-stream-version',
+    description: 'Duplicate key su events_stream_id_version_key gestito tramite retry',
+    environments: ['prod'],
+    condition: stepEvidenceMatches(
+      `${BFF_EVIDENCE_STEP_ID}.purposeRows`,
+      'duplicate key value violates unique constraint[^\\w]+events_stream_id_version_key\\b',
+    ),
+    resolution: 'Nessuna azione necessaria. Questo tipo di errori viene gestito automaticamente dai ms tramite retry.',
+    proposedStatus: 'COMPLETED',
+    analysisType: 'ANALYZABLE',
+    finalActions: [],
+    links: [],
+  }),
+  interopK8sKnownCase(REFS, {
+    id: 'bff-invalid-content-disposition-header',
+    description: 'Header Content-Disposition non valido nella risposta gestita dal BFF',
+    environments: ['prod'],
+    condition: stepEvidenceMatches(BFF_ROWS, 'Invalid character in header content[^\\r\\n]*Content-Disposition'),
+    resolution: 'PIN-7865',
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    links: [{ url: 'https://pagopa.atlassian.net/browse/PIN-7865', name: 'PIN-7865', type: 'JIRA' }],
+    finalActions: [],
+  }),
+  interopK8sKnownCase(REFS, {
+    id: 'bff-adm-zip-invalid-format',
+    description: 'Archivio ZIP non valido o troncato ricevuto dal BFF',
+    environments: ['prod'],
+    condition: stepEvidenceMatches(BFF_ROWS, 'ADM-ZIP: Invalid or unsupported zip format\\. No END header found'),
+    resolution: 'PIN-9483',
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    links: [{ url: 'https://pagopa.atlassian.net/browse/PIN-9483', name: 'PIN-9483', type: 'JIRA' }],
+    finalActions: [],
+  }),
+  interopK8sKnownCase(REFS, {
+    id: 'bff-token-expired',
+    description: 'Token JWT scaduto',
+    environments: ['prod'],
+    condition: any(stepEvidenceMatches(BFF_ROWS, 'Token verification failed: TokenExpiredError: jwt expired'), {
+      type: 'exists',
+      ref: `steps.${BFF_EVIDENCE_STEP_ID}.expiredNotificationRequests`,
+    }),
+    resolution: 'Risoluzione non documentata.',
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    finalActions: [],
+    links: [],
+  }),
+  interopK8sKnownCase(REFS, {
+    id: 'bff-error-getting-public-key',
+    description: 'Errore nel recupero o nella validazione della public key',
+    environments: ['prod'],
+    condition: stepEvidenceMatches(
+      BFF_ROWS,
+      'Error getting public key|Token verification failed: JsonWebTokenError: error in secret or public key callback: Error getting signing key',
+    ),
+    resolution: 'PIN-7777. Thread Slack 15/07/2026.',
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    links: [
+      { url: 'https://pagopa.atlassian.net/browse/PIN-7777', name: 'PIN-7777', type: 'JIRA' },
+      {
+        url: 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1784123132240289',
+        name: 'Thread Slack 15/07/2026',
+        type: 'SLACK',
+      },
+    ],
+    finalActions: [],
+  }),
+  interopK8sKnownCase(REFS, {
+    id: 'bff-agreement-api-econnreset',
+    description: 'ECONNRESET segnalato dal BFF; riferimento AgreementApi da verificare',
+    title: 'ECONNRESET nella chiamata agreement API dal BFF (da verificare)',
+    environments: ['prod'],
+    condition: stepEvidenceMatches(BFF_ROWS, 'errors:\\s*008-9991[^\\r\\n]*read ECONNRESET\\b'),
+    resolution: '(Da verificare) [PIN-6400] BFF - AgreementApi read ECONNRESET - Jira',
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    links: [{ url: 'https://pagopa.atlassian.net/browse/PIN-6400', name: 'PIN-6400', type: 'JIRA' }],
+    finalActions: [],
+  }),
+  interopK8sKnownCase(REFS, {
+    id: 'purpose-process-unavailable-econnreset',
+    description: 'Errore transitorio verso purpose-process',
+    supersedes: ['bff-agreement-api-econnreset'],
+    environments: ['prod'],
+    condition: stepEvidenceMatches(
+      BFF_ROWS,
+      '(?=[^\\r\\n]*purpose-process)[^\\r\\n]*(?:read ECONNRESET|socket hang up)',
+    ),
+    resolution: 'PIN-10449',
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    links: [{ url: 'https://pagopa.atlassian.net/browse/PIN-10449', name: 'PIN-10449', type: 'JIRA' }],
+    finalActions: [],
+  }),
+  interopK8sKnownCase(REFS, {
+    id: 'bff-tenant-kind-not-found',
+    description: 'Tenant kind non trovato',
+    environments: ['prod'],
+    condition: stepEvidenceMatches(BFF_ROWS, 'errors:\\s*004-0004, Tenant kind[^\\r\\n]*not found'),
+    resolution: 'In attesa di feedback dal team di prodotto.',
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    finalActions: [],
+    links: [],
+  }),
+  interopK8sKnownCase(REFS, {
+    id: 'bff-selfcare-users-timeout',
+    description: 'Timeout HTTP 504 nel recupero degli utenti del tenant da Selfcare',
+    environments: ['prod'],
+    condition: { type: 'exists', ref: `steps.${BFF_EVIDENCE_STEP_ID}.selfcareUsersTimeouts` },
+    resolution: 'Risoluzione non documentata.',
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    downstreams: [INTEROP_DOWNSTREAMS.SELFCARE],
+    finalActions: [],
+    links: [],
+  }),
+  interopK8sKnownCase(REFS, {
+    id: 'bff-connection-refused-9098',
+    description: 'Connessione rifiutata verso la porta 9098',
+    environments: ['prod'],
+    condition: stepEvidenceMatches(BFF_ROWS, 'Connection error: connect ECONNREFUSED [^\\s]+:9098\\b'),
+    resolution: 'Risoluzione non documentata.',
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    finalActions: [],
+    links: [],
+  }),
+];

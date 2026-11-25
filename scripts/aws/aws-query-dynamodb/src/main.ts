@@ -7,7 +7,11 @@
  * Also prints a clean JSON mapping of results to the console.
  */
 
-import { Core, AWS } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { DynamoDBQueryService } from '@pagopa/go-aws/dynamodb';
+import { GOJSONFileExporter } from '@pagopa/go-common/exporters';
+import { GOPathType } from '@pagopa/go-common/files';
+import { GOPollingPolicies, GORetryRunner } from '@pagopa/go-common/polling';
 
 import { loadPartitionKeys } from './libs/loadPartitionKeys.js';
 import { getSchemaInfo, validateSchemaConfig } from './libs/getSchemaInfo.js';
@@ -17,14 +21,14 @@ import { formatConsoleJson } from './libs/OutputFormatter.js';
 import { displayDryRunPreview } from './libs/displayDryRunPreview.js';
 import type { AwsQueryDynamodbConfig } from './types/index.js';
 
-const describeTableRetry = new Core.GORetryRunner(Core.GOPollingPolicies.awsThrottling());
+const describeTableRetry = new GORetryRunner(GOPollingPolicies.awsThrottling());
 
 /**
  * Main script execution function.
  *
  * @param script - The GOScript instance for logging, config, and AWS access
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<AwsQueryDynamodbConfig>();
 
   // Step 1: Import PKs
@@ -39,7 +43,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   // Step 2: Schema check and validation
   script.logger.section('Checking Table Schema');
   script.prompt.startSpinner(`Describing table ${config.tableName}...`);
-  const queryService = new AWS.DynamoDBQueryService(script.aws.clients.dynamoDB);
+  const queryService = new DynamoDBQueryService(script.aws.clients.dynamoDB);
   const tableDesc = await describeTableRetry.run(async () => queryService.describeTable(config.tableName));
   script.prompt.spinnerStop(`Table ${config.tableName} is ${tableDesc?.TableStatus}`);
 
@@ -68,17 +72,17 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   // Step 5: Save default JSON results
   script.logger.section('Saving Results');
-  const defaultOutputPath = script.paths.resolvePath('results.json', Core.GOPathType.OUTPUT);
+  const defaultOutputPath = script.paths.resolvePath('results.json', GOPathType.OUTPUT);
   script.prompt.startSpinner('Saving default JSON results mapping...');
-  const defaultExporter = new Core.GOJSONFileExporter({ outputPath: defaultOutputPath, pretty: true, indent: 2 });
+  const defaultExporter = new GOJSONFileExporter({ outputPath: defaultOutputPath, pretty: true, indent: 2 });
   await defaultExporter.export(resultMap);
   script.prompt.spinnerStop(`Default results mapping saved to: ${defaultOutputPath}`);
 
   // Step 6: Save failures.json (only when there are failures, side-by-side with results.json)
   if (failures.length > 0) {
-    const failuresOutputPath = script.paths.resolvePath('failures.json', Core.GOPathType.OUTPUT);
+    const failuresOutputPath = script.paths.resolvePath('failures.json', GOPathType.OUTPUT);
     script.prompt.startSpinner(`Saving ${failures.length} failures...`);
-    const failuresExporter = new Core.GOJSONFileExporter({ outputPath: failuresOutputPath, pretty: true, indent: 2 });
+    const failuresExporter = new GOJSONFileExporter({ outputPath: failuresOutputPath, pretty: true, indent: 2 });
     await failuresExporter.export(failures);
     script.prompt.spinnerStop(`Failures written to: ${failuresOutputPath}`);
   }
@@ -86,7 +90,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   // Step 7: Write to custom output file if requested
   if (config.outputFile) {
     script.logger.section('Writing Custom Output');
-    const outputFilePath = script.paths.resolvePath(config.outputFile, Core.GOPathType.OUTPUT);
+    const outputFilePath = script.paths.resolvePath(config.outputFile, GOPathType.OUTPUT);
     script.prompt.startSpinner(`Exporting custom results to ${config.outputFile} (${config.outputFormat})...`);
     await writeResultsToFile(outputFilePath, resultMap, config.outputFormat, config.tableKey);
     script.prompt.spinnerStop(`Custom results successfully written to ${config.outputFile}`);

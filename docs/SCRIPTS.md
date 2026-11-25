@@ -24,7 +24,7 @@
 
 Uno **script** è un programma TypeScript autonomo che esegue un compito specifico: analizzare allarmi CloudWatch, importare notifiche da CSV, interrogare tabelle DynamoDB, monitorare code SQS. Ogni script vive dentro il monorepo `go-automation` ed è un progetto npm a sé stante, con il proprio `package.json`, `tsconfig.json` e struttura di directory.
 
-Gli script non partono da zero. Si appoggiano su **`@go-automation/go-common`**, la libreria condivisa del monorepo che fornisce:
+Gli script non partono da zero. Si appoggiano su **`@pagopa/go-common`**, la libreria condivisa del monorepo che fornisce:
 
 - **GOScript** — il framework che gestisce il ciclo di vita (avvio, configurazione, cleanup, signal handling)
 - **GOLogger** — logging strutturato su console e file
@@ -77,12 +77,12 @@ Vediamo ogni file in dettaglio.
 Il file `index.ts` ha il solo compito di **collegare i pezzi**: importa la configurazione, crea l'istanza `GOScript`, e lancia la funzione `main()`. Non contiene logica di business.
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { GOScript } from '@go-automation/go-script';
 
 import { scriptMetadata, scriptParameters } from './config.js';
 import { main } from './main.js';
 
-const script = new Core.GOScript({
+const script = new GOScript({
   metadata: scriptMetadata,
   config: {
     parameters: scriptParameters,
@@ -113,26 +113,26 @@ Il file `config.ts` centralizza **cosa** lo script si aspetta dal mondo esterno:
 - **`scriptParameters`** — definizione dei parametri CLI (tipo, obbligatorietà, alias, valori di default)
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { type GOConfigParameterOptions, GOConfigParameterType, type GOScriptMetadata } from '@go-automation/go-script';
 
-export const scriptMetadata: Core.GOScriptMetadata = {
+export const scriptMetadata: GOScriptMetadata = {
   name: 'GO Report Alarms',
   version: '1.0.0',
   description: 'Analizza e genera report degli allarmi CloudWatch',
   authors: ['Team GO - Gestione Operativa'],
 };
 
-export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
+export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
   {
     name: 'aws.profile',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'AWS SSO profile name',
     required: true,
     aliases: ['ap'],
   },
   {
     name: 'days',
-    type: Core.GOConfigParameterType.NUMBER,
+    type: GOConfigParameterType.NUMBER,
     description: 'Number of days to analyze',
     required: false,
     defaultValue: 7,
@@ -148,11 +148,11 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
 Il file `main.ts` contiene la logica di business dello script. Esporta una singola funzione `main()`:
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import type { ReportAlarmsConfig } from './types/index.js';
 
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<ReportAlarmsConfig>();
 
   script.logger.section('Fetching alarms');
@@ -276,7 +276,7 @@ Dopo la creazione, esegue automaticamente `pnpm install` e verifica il build.
 
 Il nome finale dello script segue il pattern: `{prodotto}-{verbo}-{descrizione}`.
 
-- **Prodotto**: `go-`, `send-`, `interop-`
+- **Prodotto**: `go-`, `send-`, `interop-`, `aws-`
 - **Verbo**: un'azione chiara (vedi tabella in [ARCHITECTURE.md](ARCHITECTURE.md))
 - **Descrizione**: l'oggetto dell'azione
 
@@ -313,7 +313,8 @@ mkdir -p scripts/go/go-my-script/{configs,data}
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
-    "@go-automation/go-common": "workspace:*"
+    "@go-automation/go-script": "workspace:*",
+    "@pagopa/go-common": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.10.9"
@@ -344,6 +345,9 @@ Punti chiave:
   "references": [
     {
       "path": "../../../packages/go-common"
+    },
+    {
+      "path": "../../../packages/go-script"
     }
   ]
 }
@@ -520,39 +524,59 @@ La lista completa è in [CONVENTIONS.md](CONVENTIONS.md).
 
 ## Quality Gates: i Check Automatici
 
-La qualità del codice in GO Automation non è affidata solo alla code review. Una **pipeline CI** con 8 check paralleli protegge il repository da regressioni.
+La qualità del codice in GO Automation non è affidata solo alla code review. Una **pipeline CI** con job paralleli protegge il repository da regressioni.
 
 ### La CI Pipeline
 
 Ogni push su `main`/`develop` e ogni Pull Request esegue questi check:
 
 ```
-┌─────────────┐  ┌───────┐  ┌──────────┐  ┌──────┐
-│  Type Check  │  │ Lint  │  │  Format  │  │ Knip │
-└──────┬───────┘  └───┬───┘  └─────┬────┘  └──┬───┘
-       │              │            │           │
-┌──────┴───────┐  ┌───┴───┐  ┌────┴────┐  ┌───┴──────┐
-│  Scaffold    │  │ Build │  │  Test   │  │ Coverage │
-└──────────────┘  └───────┘  └─────────┘  └──────────┘
-                       │
-                       ▼
-              ┌─────────────────┐
-              │   CI Success    │  Tutti devono passare
-              └─────────────────┘
+┌───────────────┐ ┌──────┐ ┌────────────────┐ ┌────────────────────┐ ┌───────────────────────────┐
+│ Static Checks │ │ Lint │ │ Build and Test │ │ Published Packages │ │ Published Packages (pack) │
+└───────┬───────┘ └──┬───┘ └───────┬────────┘ └─────────┬──────────┘ └─────────────┬─────────────┘
+        │            │             │                    │                          ▼
+        │            │             │                    │             ┌──────────────────────────┐
+        │            │             │                    │             │  Smoke: Node × 3 shard   │
+        │            │             │                    │             └─────────────┬────────────┘
+        └────────────┴─────────────┴─────────┬──────────┴───────────────────────────┘
+                                             ▼
+                                    ┌─────────────────┐
+                                    │   CI Success    │  Tutti devono passare
+                                    └─────────────────┘
 ```
 
-| Check          | Comando             | Cosa verifica                        |
-| -------------- | ------------------- | ------------------------------------ |
-| **Type Check** | `tsc --noEmit`      | Compilazione TypeScript senza errori |
-| **Lint**       | `eslint`            | Regole di qualità del codice         |
-| **Format**     | `prettier --check`  | Formattazione uniforme               |
-| **Knip**       | `knip`              | Codice e export inutilizzati         |
-| **Scaffold**   | `validate:scaffold` | Struttura corretta degli script      |
-| **Build**      | `tsc`               | Compilazione produce output valido   |
-| **Test**       | `vitest`            | Test unitari passano                 |
-| **Coverage**   | `vitest --coverage` | Copertura >= 90% linee, 80% branch   |
+| Job                           | Comandi                                                                                                                                                     | Cosa verifica                                                                                                                                                                           |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Static Checks**             | `format:check`, `knip`, `deps:check`, `dup:report`, `type-coverage`, `validate:scaffold`, `check:new-class-tests` (solo PR), actionlint, zizmor, ShellCheck | Formato, codice inutilizzato, dipendenze, duplicati, copertura dei tipi, struttura degli script, test delle classi nuove, workflow GitHub (errori e sicurezza), script shell di `bins/` |
+| **Lint**                      | `pnpm lint`                                                                                                                                                 | Regole ESLint e dati sensibili nei sorgenti pubblicati                                                                                                                                  |
+| **Build and Test**            | `pnpm build`, `pnpm test`, `pnpm test:coverage`                                                                                                             | Compilazione, test, copertura >= 90% linee, 80% branch, 90% funzioni                                                                                                                    |
+| **Published Packages**        | `pnpm test:published:static`                                                                                                                                | publint, attw, fotografia dell'API, costo degli import, dati sensibili                                                                                                                  |
+| **Published Packages (pack)** | `check:published-packages --pack-to`                                                                                                                        | Archivi `.tgz` e matrice dello smoke                                                                                                                                                    |
+| **Smoke** (Node × shard)      | `check:published-packages --from-tarballs`                                                                                                                  | Installazione e uso dei package come li vede chi li installa                                                                                                                            |
 
-**Tutti e 8 i check devono passare** perché la PR possa essere mergiata.
+**Tutti i job devono passare** perché la PR possa essere mergiata: lo controlla `CI Success`, il check obbligatorio.
+
+### Lo stesso gate in locale: `pnpm check`
+
+Ogni controllo è un comando di [`bins/check.sh`](../bins/check.sh), che la CI e gli script di `package.json` richiamano:
+in locale e in CI girano gli stessi comandi.
+
+```bash
+pnpm check                          # tutto il gate: la build, poi gli altri controlli anche se uno fallisce, e il riepilogo
+bins/check.sh lint                  # un controllo solo (bins/check.sh --help per l'elenco)
+bins/check.sh new-classes --base origin/main
+```
+
+Il gate non comprende lo smoke dei package pubblicati (`bins/check.sh smoke`), che dura minuti e gira in CI su ogni
+PR. Il controllo dei workflow (`bins/check.sh workflows`) usa Docker e le stesse immagini fissate in `ci.yml`; con
+`GH_TOKEN` impostato zizmor fa anche i controlli online.
+
+**La cache di ESLint.** Fuori dalla CI `pnpm lint` tiene una cache in `node_modules/.cache/eslint/`: dopo il primo
+giro ricontrolla solo i file cambiati (circa 5 secondi invece di 90). Le regole con le informazioni di tipo dipendono
+anche da file che la cache non guarda, quindi un risultato in cache può essere vecchio: la CI, dove `CI=true`, fa sempre
+il lint da zero e resta il controllo che fa fede. Un `eslint-disable` che non sopprime più nulla è un errore
+(`reportUnusedDisableDirectives`). Per un lint locale da zero basta cancellare
+`node_modules/.cache/eslint/`.
 
 ### ESLint: Regole Custom
 
@@ -609,7 +633,7 @@ Il **Scaffold Validator** (`bins/validate-scaffold/`) verifica che ogni script r
 
 **Contenuto `index.ts`:**
 
-- Importa da `@go-automation/go-common`
+- Importa da `@pagopa/go-common`
 - Importa da `./config.js` e `./main.js`
 
 **Contenuto `main.ts`:**
@@ -620,7 +644,7 @@ Il **Scaffold Validator** (`bins/validate-scaffold/`) verifica che ogni script r
 **`package.json`:**
 
 - `private: true`, `type: "module"`, `main: "dist/index.js"`
-- Dipende da `@go-automation/go-common` con `workspace:*`
+- Dipende da `@pagopa/go-common` con `workspace:*`
 - Ha gli script `build`, `start`, `dev`, `watch`, `clean`
 
 **`tsconfig.json`:**
@@ -650,7 +674,7 @@ pnpm knip
 
 ### Prettier: Formattazione Automatica
 
-Prettier è configurato come ultima regola ESLint (override) per garantire formattazione uniforme. Non serve pensarci: configura il tuo editor per formattare al salvataggio.
+Prettier gira da solo (`pnpm format:check`, passo di Static Checks); in ESLint c'è solo `eslint-config-prettier`, che spegne le regole in conflitto con Prettier. Non serve pensarci: configura il tuo editor per formattare al salvataggio.
 
 ```bash
 # Verifica (non modifica i file)
@@ -800,7 +824,7 @@ Le Lambda vivono in una directory dedicata `functions/` nella root del monorepo:
 
 ```
 functions/
-└── go-SendMonitorTppMessagesLambda/
+└── go-SendMonitorAthenaQueryLambda/
     ├── src/
     │   ├── handler.ts       # Lambda handler
     │   └── test-local.ts    # Test locale
@@ -813,27 +837,25 @@ functions/
 
 ```typescript
 import type { ScheduledEvent } from 'aws-lambda';
-import { Core, AWS } from '@go-automation/go-common';
-import { scriptMetadata, scriptParameters } from 'send-monitor-tpp-messages/config';
-import { main } from 'send-monitor-tpp-messages/main';
+
+import { GOScript } from '@go-automation/go-script';
+import { prepareConfig, scriptMetadata, scriptParameters } from 'send-monitor-athena-query/config';
+import { main } from 'send-monitor-athena-query/main';
 
 // GOScript istanziato a scope di modulo per container reuse
-const script = new Core.GOScript({
+const script = new GOScript({
   metadata: scriptMetadata,
-  config: { parameters: scriptParameters },
+  config: {
+    parameters: scriptParameters,
+  },
+  hooks: {
+    onAfterConfigLoad: prepareConfig,
+  },
 });
 
-// Handler Lambda
+// Handler Lambda: delega alla stessa main() dello script CLI
 export const handler = script.createLambdaHandler<ScheduledEvent>(async (_event) => {
   await main(script);
-
-  // Post-execution: upload report su S3
-  const reportsBucket = process.env['REPORTS_S3_BUCKET'];
-  if (reportsBucket) {
-    const s3Service = new AWS.AWSS3Service(new S3Client({}));
-    const uploaded = await s3Service.uploadDirectory(reportsDir, reportsBucket, prefix);
-    // ...
-  }
 });
 ```
 
@@ -842,6 +864,7 @@ Punti chiave:
 - **Importa `config` e `main` dallo script originale** — nessuna duplicazione
 - **`createLambdaHandler()`** gestisce il lifecycle Lambda (init, invoke, error handling)
 - **GOScript è istanziato fuori dall'handler** per sfruttare il container reuse di Lambda
+- **Gli hook dello script** (es. `onAfterConfigLoad: prepareConfig`) vengono riusati così come sono
 - **La configurazione arriva dalle env vars** (`GOEnvironmentConfigProvider`) e dall'event payload (`GOLambdaEventConfigProvider`), non da CLI args
 - **Credenziali AWS** vengono dal execution role IAM (no SSO)
 
@@ -865,7 +888,7 @@ Per parametri sensibili (come token), la Lambda li riceve da AWS Secrets Manager
 
 Quando deployi su Lambda, devi fornire un **singolo artefatto** (zip o directory) che contiene tutto il codice necessario. In un monorepo con workspace dependencies, questo è un problema:
 
-- Lo script importa da `@go-automation/go-common` (workspace dependency)
+- Lo script importa da `@pagopa/go-common` (workspace dependency)
 - `go-common` importa da `@aws-sdk/*`, `csv-parse`, `yaml`, ecc.
 - Lambda ha un limite di 250 MB per il package
 - I `node_modules` con le dipendenze transitive possono essere enormi
@@ -903,7 +926,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 
 const MONOREPO_ROOT = path.resolve('..', '..');
-const ARTIFACT_DIR = path.join(MONOREPO_ROOT, 'artifacts', 'go-SendMonitorTppMessagesLambda');
+const ARTIFACT_DIR = path.join(MONOREPO_ROOT, 'artifacts', 'go-SendMonitorAthenaQueryLambda');
 
 // Pulisci e ricrea la directory artifact
 await fs.rm(ARTIFACT_DIR, { recursive: true, force: true });
@@ -953,9 +976,9 @@ src/handler.ts
       ▼
 ┌─────────────────────────────────────────────────┐
 │  handler.ts importa:                             │
-│  ├── send-monitor-tpp-messages/config            │
-│  ├── send-monitor-tpp-messages/main              │
-│  ├── @go-automation/go-common (Core, AWS, SEND)  │
+│  ├── send-monitor-athena-query/config            │
+│  ├── send-monitor-athena-query/main              │
+│  ├── @pagopa/go-common, go-aws, go-script        │
 │  ├── csv-parse, yaml, prompts, ...               │
 │  └── (tutto viene inlined)                       │
 │                                                  │
@@ -964,7 +987,7 @@ src/handler.ts
 └─────────────────────────────────────────────────┘
       │
       ▼
-artifacts/go-SendMonitorTppMessagesLambda/
+artifacts/go-SendMonitorAthenaQueryLambda/
 ├── handler.mjs          # Singolo file con tutto il codice
 ├── handler.mjs.map      # Source map per debug
 └── configs/             # File di configurazione copiati
@@ -1034,7 +1057,7 @@ L'artefatto contiene `dist/`, `node_modules/` (solo production), e `configs/`. P
 `bins/build-image.sh` crea un'immagine Docker ottimizzata:
 
 ```bash
-./bins/build-image.sh send-monitor-tpp-messages v1.2.0
+./bins/build-image.sh send-monitor-athena-query v1.2.0
 ```
 
 Il flusso: `deploy.sh` → artifacts → `Dockerfile.runtime` → immagine Docker.
@@ -1101,6 +1124,7 @@ packages:
   - packages/* # Librerie condivise
   - scripts/go/* # Script team GO
   - scripts/send/* # Script team SEND
+  - scripts/aws/* # Script multi-account AWS
   - scripts/interop/* # Script team INTEROP
 ```
 
@@ -1134,7 +1158,7 @@ Le opzioni strict più importanti:
 | `noUnusedLocals`             | Variabili locali inutilizzate sono errore               |
 | `noUnusedParameters`         | Parametri inutilizzati sono errore                      |
 
-**Project References**: Ogni script dichiara la dipendenza da go-common in `tsconfig.json` con `"references": [{ "path": "../../../packages/go-common" }]`. Questo abilita build incrementali e garanzia sull'ordine di compilazione.
+**Project References**: Ogni script dichiara in `tsconfig.json` i package del workspace che usa, per esempio `"references": [{ "path": "../../../packages/go-common" }, { "path": "../../../packages/go-script" }]` (più `go-aws` se usa AWS). Questo abilita build incrementali e garanzia sull'ordine di compilazione.
 
 ### ESLint 9 (Linter)
 
@@ -1146,21 +1170,21 @@ Le opzioni strict più importanti:
 
 Struttura della configurazione:
 
-| Sezione                   | Cosa fa                                            |
-| ------------------------- | -------------------------------------------------- |
-| **TypeScript rules**      | Strict typing, no-any, naming conventions          |
-| **Import rules**          | Ordine import, no duplicati, no circular           |
-| **Security rules**        | No eval, no unsafe regex, no prototype pollution   |
-| **no-restricted-imports** | Blocca librerie con equivalente in go-common       |
-| **no-restricted-syntax**  | Blocca pattern come `new EventEmitter()`           |
-| **main.ts rules**         | Regole strutturali per i file main.ts degli script |
-| **Prettier**              | Override finale per formattazione                  |
+| Sezione                   | Cosa fa                                               |
+| ------------------------- | ----------------------------------------------------- |
+| **TypeScript rules**      | Strict typing, no-any, naming conventions             |
+| **Import rules**          | Ordine import, no duplicati, no circular              |
+| **Security rules**        | No eval, no unsafe regex, no prototype pollution      |
+| **no-restricted-imports** | Blocca librerie con equivalente in go-common          |
+| **no-restricted-syntax**  | Blocca pattern come `new EventEmitter()`              |
+| **main.ts rules**         | Regole strutturali per i file main.ts degli script    |
+| **Prettier**              | Regole in conflitto spente (`eslint-config-prettier`) |
 
 La configurazione include anche un **plugin custom inline** (`goAutomationPlugin`) che definisce la regola `no-extra-functions-in-main`.
 
 ```bash
-pnpm lint          # Esegui ESLint
-pnpm lint --fix    # Correggi automaticamente dove possibile
+pnpm lint          # Esegui ESLint (con la cache, fuori dalla CI)
+pnpm lint:fix      # Correggi automaticamente dove possibile
 ```
 
 ### Prettier (Formatter)
@@ -1169,7 +1193,7 @@ pnpm lint --fix    # Correggi automaticamente dove possibile
 
 **Perché è stato scelto**: Elimina le discussioni sullo stile di formattazione. Tutti scrivono codice che sembra uguale.
 
-**Configurazione**: Integrato come ultima regola ESLint (`eslint-plugin-prettier`). Le impostazioni base sono in `prettier.config.*` o nel `package.json`.
+**Configurazione**: Gira da solo, non dentro ESLint: `pnpm format:check` controlla, `pnpm format` corregge. ESLint spegne le regole in conflitto con `eslint-config-prettier`. Le impostazioni sono in `.prettierrc.json`.
 
 ```bash
 pnpm format:check  # Verifica senza modificare
@@ -1239,9 +1263,9 @@ pnpm validate:scaffold
 
 **Configurazione**: `.github/workflows/ci.yml`
 
-La pipeline definisce 8 job paralleli (typecheck, lint, format, knip, scaffold, build, test, coverage) e un job finale `ci-success` che verifica che tutti siano passati. Questo job è il **branch protection check** — senza il suo successo, la PR non può essere mergiata.
+La pipeline definisce i job della tabella sopra e un job finale `ci-success` che verifica che tutti siano passati. Questo job è il **branch protection check** — senza il suo successo, la PR non può essere mergiata.
 
-I job usano un workflow riutilizzabile (`.github/workflows/ci-job.yml`) per evitare duplicazione della configurazione di setup (checkout, Node.js, pnpm, cache).
+La preparazione comune (pnpm, Node.js, cache, installazione) sta nell'action locale `.github/actions/setup-ci`. Ogni job compila ciò che gli serve: la build dura circa 30 secondi, meno di quanto costerebbe passarla da un job all'altro come artefatto.
 
 ---
 

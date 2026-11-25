@@ -24,7 +24,7 @@ Il sistema di type-checking e integrato da strumenti di **analisi statica (ESLin
 
 ### Common Core
 
-La libreria `@go-automation/go-common` implementa il livello di astrazione condiviso dell'SDK. Questo componente centralizza le funzionalità trasversali, fornendo un'interfaccia unificata per:
+La libreria `@pagopa/go-common` implementa il livello di astrazione condiviso dell'SDK. Questo componente centralizza le funzionalità trasversali, fornendo un'interfaccia unificata per:
 
 | Funzionalità     | Descrizione                                                |
 | ---------------- | ---------------------------------------------------------- |
@@ -40,7 +40,7 @@ L'adozione di un core condiviso garantisce che gli script rimangano snelli e foc
 
 L'organizzazione del repository segue una struttura modulare domain-driven, con separazione netta tra componenti core e script eseguibili. I principi organizzativi includono:
 
-- **Namespace gerarchico**: script raggruppati per dominio (`go/`, `send/`, `interop/`)
+- **Namespace gerarchico**: script raggruppati per dominio (`aws/`, `go/`, `send/`, `interop/`)
 - **Convenzioni di naming uniformi**: coerenza tra package, file e identificatori
 - **Configurazioni standardizzate**: template condivisi per `tsconfig.json` e `package.json`
 
@@ -69,7 +69,7 @@ Le dipendenze condivise del monorepo sono centralizzate nel catalogo di `pnpm-wo
 
 - `catalogMode: strict` impedisce di aggiungere versioni fuori catalogo con `pnpm add`.
 - `Renovate` gestisce gli aggiornamenti `npm/pnpm` del monorepo, inclusi i cataloghi pnpm.
-- `Dependabot` resta attivo solo per le `github-actions`, così non genera PR duplicate sulle dipendenze Node.
+- `Renovate` aggiorna anche le `github-actions`, con le PR raggruppate e gli SHA fissati; non c'è più Dependabot.
 
 ## Documentazione
 
@@ -77,12 +77,12 @@ Le dipendenze condivise del monorepo sono centralizzate nel catalogo di `pnpm-wo
 | ---------------------------------------------- | -------------------------------------------------------------- |
 | [**Onboarding**](docs/ONBOARDING.md)           | **Guida rapida per i nuovi sviluppatori (Setup IDE, AWS SSO)** |
 | [Architettura](docs/ARCHITECTURE.md)           | Struttura del monorepo, workspace pnpm, build system           |
-| [go-common](docs/GOCOMMON.md)                  | Documentazione della libreria `@go-automation/go-common`       |
+| [go-common](docs/GOCOMMON.md)                  | Documentazione della libreria `@pagopa/go-common`              |
 | [Coding Guidelines](docs/GUIDE_LINES.md)       | Standard di codifica, naming conventions, best practices       |
 | [Scripts - Guida Completa](docs/SCRIPTS.md)    | Architettura, convenzioni, quality gates, Lambda, toolchain    |
 | [**Deploy**](docs/DEPLOY.md)                   | **Guida alla pacchettizzazione e rilascio degli script**       |
 | [**Troubleshooting**](docs/TROUBLESHOOTING.md) | **Soluzioni ai problemi comuni e FAQ**                         |
-| [Runbook Engine](docs/RUNBOOKENGINE.md)        | Reference del motore di esecuzione runbook (go-common)         |
+| [Runbook Engine](docs/RUNBOOKENGINE.md)        | Reference del motore di esecuzione runbook (go-runbook)        |
 
 ## Comandi Principali
 
@@ -102,6 +102,14 @@ pnpm --filter=<script-name> dev -- [options]
 
 # Production mode (build + node)
 pnpm --filter=<script-name> start -- [options]
+```
+
+In alternativa, `pnpm go` offre un entry point centralizzato (backed by
+`@go-automation/go-cli`) con discovery e scaffold integrati, senza dover
+conoscere in anticipo il nome esatto del filtro pnpm:
+
+```bash
+pnpm go
 ```
 
 ### Creazione Nuovo Script

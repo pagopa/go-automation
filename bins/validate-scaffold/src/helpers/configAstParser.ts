@@ -16,10 +16,35 @@ interface ConfigParameter {
   readonly name: string;
   /** CLI-style flag (e.g. '--start-date') derived from the name */
   readonly cliFlag: string;
+  /** Environment variable (e.g. 'START_DATE') derived from the name */
+  readonly envVar: string;
   /** Alias flags (e.g. ['-sd']) */
   readonly aliases: ReadonlyArray<string>;
   /** Whether the parameter is required */
   readonly required: boolean;
+  /** `cliFlag` as written in the source, when the parameter spells it out */
+  readonly explicitCliFlag?: string | undefined;
+  /** `envVar` as written in the source, when the parameter spells it out */
+  readonly explicitEnvVar?: string | undefined;
+  /** 1-based line of the parameter declaration */
+  readonly line: number;
+}
+
+/**
+ * An explicit `envVar` or `cliFlag` that only restates what GOScript already
+ * derives from `name`.
+ */
+export interface RedundantOverride {
+  /** Name of the parameter carrying the override */
+  readonly parameter: string;
+  /** Which of the two properties is redundant */
+  readonly property: 'envVar' | 'cliFlag';
+  /** Value as written in the source */
+  readonly value: string;
+  /** Value GOScript would derive on its own */
+  readonly derived: string;
+  /** 1-based line of the parameter declaration */
+  readonly line: number;
 }
 
 /** Converts a parameter name to the same kebab-case CLI flag format used by GOScript. */
@@ -30,6 +55,16 @@ function toCliFlag(name: string): string {
     .join('-')
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, '-')}`;
+}
+
+/** Converts a parameter name to the same environment variable used by GOScript. */
+function toEnvironmentKey(name: string): string {
+  return name
+    .split('.')
+    .flatMap((part) => splitCamelCase(part))
+    .join('_')
+    .toUpperCase()
+    .replace(/[^A-Z0-9_]/g, '_');
 }
 
 function toAliasFlag(alias: string): string {
@@ -57,6 +92,38 @@ function getStringLiteral(node: ts.Node): string | undefined {
 }
 
 /**
+ * Resolves a string value, following identifiers back to the string constants
+ * declared in the same file (the framework names its parameters that way).
+ */
+function resolveStringValue(node: ts.Node, constants: ReadonlyMap<string, string>): string | undefined {
+  const literal = getStringLiteral(node);
+  if (literal !== undefined) return literal;
+
+  if (ts.isIdentifier(node)) return constants.get(node.text);
+
+  return undefined;
+}
+
+/**
+ * Indexes every top-level `const NAME = 'value'` so identifier references can be resolved.
+ */
+function collectStringConstants(sourceFile: ts.SourceFile): ReadonlyMap<string, string> {
+  const constants = new Map<string, string>();
+
+  function visit(node: ts.Node): void {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer !== undefined) {
+      const value = getStringLiteral(node.initializer);
+      if (value !== undefined) constants.set(node.name.text, value);
+    }
+
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return constants;
+}
+
+/**
  * Extracts the boolean value from a boolean literal AST node.
  * Returns undefined for non-boolean nodes.
  */
@@ -81,11 +148,11 @@ function getPropertyNode(obj: ts.ObjectLiteralExpression, propertyName: string):
 /**
  * Extracts string array values from an array literal AST node.
  */
-function getStringArray(node: ts.Node): ReadonlyArray<string> {
+function getStringArray(node: ts.Node, constants: ReadonlyMap<string, string>): ReadonlyArray<string> {
   if (!ts.isArrayLiteralExpression(node)) return [];
   const result: string[] = [];
   for (const element of node.elements) {
-    const value = getStringLiteral(element);
+    const value = resolveStringValue(element, constants);
     if (value !== undefined) {
       result.push(value);
     }
@@ -96,40 +163,62 @@ function getStringArray(node: ts.Node): ReadonlyArray<string> {
 /**
  * Parses a single parameter object literal from the AST.
  */
-function parseParameterObject(obj: ts.ObjectLiteralExpression): ConfigParameter | undefined {
+function parseParameterObject(
+  obj: ts.ObjectLiteralExpression,
+  sourceFile: ts.SourceFile,
+  constants: ReadonlyMap<string, string>,
+): ConfigParameter | undefined {
   const nameNode = getPropertyNode(obj, 'name');
   if (nameNode === undefined) return undefined;
 
-  const name = getStringLiteral(nameNode);
+  const name = resolveStringValue(nameNode, constants);
   if (name === undefined) return undefined;
 
   const requiredNode = getPropertyNode(obj, 'required');
   const required = requiredNode !== undefined ? (getBooleanLiteral(requiredNode) ?? false) : false;
 
   const aliasesNode = getPropertyNode(obj, 'aliases');
-  const rawAliases = aliasesNode !== undefined ? getStringArray(aliasesNode) : [];
+  const rawAliases = aliasesNode !== undefined ? getStringArray(aliasesNode, constants) : [];
   const aliases = rawAliases.map(toAliasFlag);
+
+  const cliFlagNode = getPropertyNode(obj, 'cliFlag');
+  const envVarNode = getPropertyNode(obj, 'envVar');
 
   return {
     name,
     cliFlag: toCliFlag(name),
+    envVar: toEnvironmentKey(name),
     aliases,
     required,
+    explicitCliFlag: cliFlagNode !== undefined ? resolveStringValue(cliFlagNode, constants) : undefined,
+    explicitEnvVar: envVarNode !== undefined ? resolveStringValue(envVarNode, constants) : undefined,
+    line: sourceFile.getLineAndCharacterOfPosition(obj.getStart()).line + 1,
   };
 }
 
 /**
- * Finds the `scriptParameters` variable declaration in the AST
- * and extracts all parameter objects from its array initializer.
+ * Tells whether a declaration holds a list of GOScript parameters.
+ *
+ * The name is the convention every script follows, the type annotation catches
+ * the lists the framework itself declares under other names.
+ */
+function isParameterArrayDeclaration(declaration: ts.VariableDeclaration): boolean {
+  if (ts.isIdentifier(declaration.name) && declaration.name.text === 'scriptParameters') return true;
+  return declaration.type?.getText().includes('GOConfigParameterOptions') === true;
+}
+
+/**
+ * Finds every exported list of parameters in the AST and extracts their objects.
  */
 function findScriptParameters(sourceFile: ts.SourceFile): ReadonlyArray<ConfigParameter> {
   const parameters: ConfigParameter[] = [];
+  const constants = collectStringConstants(sourceFile);
 
   function visit(node: ts.Node): void {
     // Look for: export const scriptParameters = [ ... ]
     if (ts.isVariableStatement(node) && node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) {
       for (const decl of node.declarationList.declarations) {
-        if (ts.isIdentifier(decl.name) && decl.name.text === 'scriptParameters' && decl.initializer) {
+        if (isParameterArrayDeclaration(decl) && decl.initializer) {
           let arrayNode = decl.initializer;
 
           // Handle `[ ... ] as const` expression
@@ -140,7 +229,7 @@ function findScriptParameters(sourceFile: ts.SourceFile): ReadonlyArray<ConfigPa
           if (ts.isArrayLiteralExpression(arrayNode)) {
             for (const element of arrayNode.elements) {
               if (ts.isObjectLiteralExpression(element)) {
-                const param = parseParameterObject(element);
+                const param = parseParameterObject(element, sourceFile, constants);
                 if (param !== undefined) {
                   parameters.push(param);
                 }
@@ -165,16 +254,89 @@ function findScriptParameters(sourceFile: ts.SourceFile): ReadonlyArray<ConfigPa
  * @returns Array of parsed parameters, or empty array if config.ts is missing or unparseable
  */
 export async function extractConfigParameters(scriptPath: string): Promise<ReadonlyArray<ConfigParameter>> {
-  const configPath = path.join(scriptPath, 'src', 'config.ts');
+  return await extractParametersFromFile(path.join(scriptPath, 'src', 'config.ts'));
+}
 
+/**
+ * Parses any file declaring GOScript parameters and extracts their definitions.
+ *
+ * @param filePath - Absolute path to the TypeScript file
+ * @returns Array of parsed parameters, or empty array if the file is missing or unparseable
+ */
+export async function extractParametersFromFile(filePath: string): Promise<ReadonlyArray<ConfigParameter>> {
   let content: string;
   try {
-    content = await fs.readFile(configPath, 'utf-8');
+    content = await fs.readFile(filePath, 'utf-8');
   } catch {
     return [];
   }
 
-  const sourceFile = ts.createSourceFile(configPath, content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const sourceFile = ts.createSourceFile(filePath, content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 
   return findScriptParameters(sourceFile);
+}
+
+/**
+ * Reports the explicit `envVar` and `cliFlag` that only restate the default.
+ *
+ * GOScript derives both from `name` (`GOConfigParameter`: `options.envVar ??
+ * toEnvironmentKey(name)`), so spelling out the same value adds nothing and
+ * silently drifts the day the parameter is renamed. Flags are compared without
+ * their leading dashes, since `aws-profile` and `--aws-profile` reach the same
+ * parameter.
+ *
+ * @param parameters - Parameters parsed from a file
+ * @returns One entry per redundant property, in declaration order
+ *
+ * @example
+ * ```typescript
+ * const redundant = findRedundantOverrides(await extractConfigParameters(scriptPath));
+ * ```
+ */
+export function findRedundantOverrides(parameters: ReadonlyArray<ConfigParameter>): ReadonlyArray<RedundantOverride> {
+  const redundant: RedundantOverride[] = [];
+
+  for (const parameter of parameters) {
+    const { explicitEnvVar, explicitCliFlag } = parameter;
+
+    if (explicitEnvVar !== undefined && explicitEnvVar === parameter.envVar) {
+      redundant.push({
+        parameter: parameter.name,
+        property: 'envVar',
+        value: explicitEnvVar,
+        derived: parameter.envVar,
+        line: parameter.line,
+      });
+    }
+
+    if (explicitCliFlag !== undefined && stripDashes(explicitCliFlag) === stripDashes(parameter.cliFlag)) {
+      redundant.push({
+        parameter: parameter.name,
+        property: 'cliFlag',
+        value: explicitCliFlag,
+        derived: parameter.cliFlag,
+        line: parameter.line,
+      });
+    }
+  }
+
+  return redundant;
+}
+
+/** Compares flags by what they select, not by how many dashes they were written with. */
+function stripDashes(flag: string): string {
+  return flag.replace(/^-+/, '');
+}
+
+/**
+ * Renders redundant overrides as one message line per entry.
+ *
+ * @param redundant - Overrides reported by `findRedundantOverrides`
+ * @returns Human-readable descriptions, ready to be joined
+ */
+export function describeRedundantOverrides(redundant: ReadonlyArray<RedundantOverride>): ReadonlyArray<string> {
+  return redundant.map(
+    (entry) =>
+      `"${entry.parameter}" restates ${entry.property}: "${entry.value}" is already derived from the name (${entry.derived}) — remove it`,
+  );
 }

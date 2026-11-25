@@ -1,4 +1,4 @@
-import { AWS } from '@go-automation/go-common';
+import { AWSS3Uri } from '@pagopa/go-aws/s3';
 
 import type { SendMonitorAthenaQueryConfig } from '../types/index.js';
 
@@ -22,9 +22,9 @@ export function validateConfig(config: SendMonitorAthenaQueryConfig): void {
     throw new Error('analysis.threshold.field and analysis.threshold must be provided together');
   }
 
-  AWS.AWSS3Uri.parse(config.athenaOutputLocation);
+  AWSS3Uri.parse(config.athenaOutputLocation);
   if (hasText(config.artifactS3Location)) {
-    AWS.AWSS3Uri.parse(config.artifactS3Location);
+    AWSS3Uri.parse(config.artifactS3Location);
   }
 
   if (!['csv', 'json', 'jsonl'].includes(config.outputFormat)) {

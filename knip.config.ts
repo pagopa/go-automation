@@ -2,6 +2,10 @@ import type { KnipConfig } from 'knip';
 
 const config: KnipConfig = {
   workspaces: {
+    // Root: bins/check.sh runs these entry points, and knip reads only the scripts of package.json.
+    '.': {
+      entry: ['bins/check-new-class-tests/src/index.ts', 'bins/validate-scaffold/src/index.ts'],
+    },
     // Shared libraries
     'packages/go-ai': {
       project: ['src/**/*.ts'],
@@ -9,10 +13,22 @@ const config: KnipConfig = {
     'packages/go-common': {
       project: ['src/**/*.ts'],
     },
-    'packages/go-execute-runbook-contracts': {
+    'packages/go-aws': {
+      project: ['src/**/*.ts'],
+    },
+    'packages/go-script': {
+      project: ['src/**/*.ts'],
+    },
+    'packages/go-documents': {
+      project: ['src/**/*.ts'],
+    },
+    'packages/go-slack': {
       project: ['src/**/*.ts'],
     },
     'packages/go-watchtower-client': {
+      project: ['src/**/*.ts'],
+    },
+    'packages/go-watchtower-runbook': {
       project: ['src/**/*.ts'],
     },
     'packages/go-cli': {
@@ -32,39 +48,18 @@ const config: KnipConfig = {
     'scripts/go/*': {
       project: ['src/**/*.ts'],
     },
-    // Invoked as a subprocess by the environment deploy orchestrator so that
-    // the deploy bin does not depend directly on a runbook script package.
-    'scripts/go/go-analyze-alarm': {
-      entry: ['src/index.ts', 'src/exportAutomaticRunbookDescriptors.ts'],
-      project: ['src/**/*.ts'],
-    },
     // SEND scripts (default entry: src/index.ts, discovered automatically)
     'scripts/send/*': {
-      project: ['src/**/*.ts'],
-    },
-    // SEND script with cron entry point
-    'scripts/send/send-monitor-tpp-messages': {
-      entry: ['src/cron.ts'],
-      project: ['src/**/*.ts'],
-    },
-    // Lambda functions with standalone handler entrypoints
-    'functions/go-AILambda': {
-      entry: ['src/handler.ts'],
-      project: ['src/**/*.ts'],
-    },
-    'functions/go-BotQESlackHandler': {
-      entry: ['src/handler.ts'],
       project: ['src/**/*.ts'],
     },
     // Lambda functions
     'functions/*': {
       project: ['src/**/*.ts'],
     },
-    'infra/*': {
-      project: ['src/**/*.ts'],
-    },
   },
   ignore: [
+    // Archived scripts and functions: kept for reference, outside the workspace
+    'archive/**',
     // Barrel index.ts files: re-export hubs for module organization.
     // knip flags them as unused because their parent barrel re-exports transitively.
     '**/index.ts',
@@ -72,8 +67,8 @@ const config: KnipConfig = {
     'packages/go-watchtower-client/src/generated/**',
   ],
   ignoreDependencies: [
-    // yaml is consumed transitively by go-common GOYAMLParser at runtime
-    'yaml',
+    // Run by bins/check.sh (types), which knip does not read
+    'type-coverage',
     // ESLint plugins used in flat config (eslint.config.mjs)
     '@typescript-eslint/eslint-plugin',
     '@typescript-eslint/parser',

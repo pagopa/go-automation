@@ -33,3 +33,4 @@ export * from './SENDNotificationRecipient.js';
 export * from './SENDNotificationRequest.js';
 export * from './SENDNotificationCreationResponse.js';
 export * from './SENDNotificationStatusResponse.js';
+export * from './SENDApiVersion.js';

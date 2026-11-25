@@ -1,0 +1,14 @@
+import type { RunbookOutput } from '@pagopa/go-runbook/output';
+
+import type { AlarmAnalysisDto } from '@go-automation/go-watchtower-client';
+import type { AnalysisMatch, RunbookCheck } from '../types/RtaCheckReport.js';
+import type { MatchAnalysisOptions } from './matchAnalysis.js';
+
+/** Async V2 matcher used by per-occurrence orchestration. */
+export type AnalysisMatcherFn = (
+  output: RunbookOutput,
+  check: RunbookCheck,
+  analysis: AlarmAnalysisDto | undefined,
+  firedAt: string,
+  options: MatchAnalysisOptions,
+) => Promise<AnalysisMatch>;

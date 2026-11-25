@@ -3,7 +3,7 @@
  * @module AlarmAnalyzer
  */
 
-import type { AlarmHistoryItem } from '@aws-sdk/client-cloudwatch';
+import type { AlarmHistoryItem } from '@pagopa/go-aws/cloudwatch-alarms';
 
 import type { FilteredAlarms, AlarmTimelineEntry, AlarmReportSummary } from '../types/alarms.types.js';
 import type {

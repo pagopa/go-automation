@@ -5,7 +5,9 @@
  * Supports text, JSON, and CSV input formats.
  */
 
-import { Core, AWS } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { AWSSQSService, SQS_MAX_BATCH_SIZE } from '@pagopa/go-aws/sqs';
+import { GOPathType } from '@pagopa/go-common/files';
 
 import type { AwsPutSqsConfig } from './types/AwsPutSqsConfig.js';
 import { initializeImporter, processBatch, updateProgress, type BulkStats } from './libs/SqsService.js';
@@ -15,7 +17,7 @@ import { initializeImporter, processBatch, updateProgress, type BulkStats } from
  *
  * @param script - The GOScript instance
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<AwsPutSqsConfig>();
   script.logger.section('AWS Put SQS');
   const stats: BulkStats = { processed: 0, success: 0, failed: 0, retries: 0 };
@@ -28,7 +30,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     throw new Error('Either --queue-name or --queue-url must be provided');
   }
 
-  const sqsService = new AWS.AWSSQSService(script.aws.clients.sqs, script.aws.clients.cloudWatch);
+  const sqsService = new AWSSQSService(script.aws.clients.sqs, script.aws.clients.cloudWatch);
   const metadata = await sqsService.resolveQueueMetadata(queueNameOrUrl);
 
   script.logger.info(`Target Queue: ${metadata.queueUrl}`);
@@ -36,13 +38,13 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   // Step 1: Initialize the appropriate importer
   const importer = initializeImporter(script, config);
-  const inputPath = script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT);
+  const inputPath = script.paths.resolvePath(config.inputFile, GOPathType.INPUT);
 
   script.logger.section('Processing Messages');
   script.prompt.startSpinner('Reading and sending messages...');
 
   let currentBatch: string[] = [];
-  const batchSize = Math.min(config.batchSize, AWS.SQS_MAX_BATCH_SIZE);
+  const batchSize = Math.min(config.batchSize, SQS_MAX_BATCH_SIZE);
 
   try {
     for await (const message of importer.importStream(inputPath)) {

@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { RtaCheckRow } from '../../types/RtaCheckReport.js';
-import { toHtmlRow } from '../writeReport.js';
+import type { RtaCheckRow } from '@go-automation/go-watchtower-runbook';
+import { reportSubdirectory, toHtmlRow } from '../writeReport.js';
 
 function rowWithAiExplanation(explanation: string): RtaCheckRow {
   return {
@@ -15,7 +15,6 @@ function rowWithAiExplanation(explanation: string): RtaCheckRow {
     },
     runbook: {
       status: 'HIT',
-      primaryCaseId: 'lambda-timeout',
       matchedCaseIds: ['lambda-timeout'],
     },
     comparison: {
@@ -52,4 +51,25 @@ describe('toHtmlRow', () => {
     assert.match(exported.aiDetail, /"semanticVerdict": "equivalent"/);
     assert.ok(exported.aiDetail.includes(explanation));
   });
+});
+
+describe('reportSubdirectory', () => {
+  const cases: ReadonlyArray<readonly [string, number, string, string]> = [
+    [
+      'prefixes the folder with the position of the run in the session',
+      1,
+      'pn-delivery-B2B-ApiGwAlarm',
+      '01-pn-delivery-B2B-ApiGwAlarm',
+    ],
+    ['keeps a two-digit position as it is', 12, 'same-alarm', '12-same-alarm'],
+    ['drops the separators a folder name must not carry', 3, 'pn-delivery/B2B Alarm', '03-pn-delivery-B2B-Alarm'],
+    ['drops a path traversal', 4, '../escape', '04-escape'],
+    ['falls back to the bare ordinal when nothing usable is left', 5, '///', '05'],
+  ];
+
+  for (const [name, index, alarmName, expected] of cases) {
+    it(name, () => {
+      assert.strictEqual(reportSubdirectory(index, alarmName), expected);
+    });
+  }
 });

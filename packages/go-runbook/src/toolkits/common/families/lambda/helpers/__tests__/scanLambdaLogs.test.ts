@@ -1,0 +1,114 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { logRow, messageRow } from '../../../../../../__tests__/helpers/logRow.js';
+
+import { scanLambdaLogs as scanWithSignatures } from '../scanLambdaLogs.js';
+
+/** A product downstream signature (SEND's, in SEND_LAMBDA_PROFILE). */
+const DOWNSTREAM_SIGNATURES = [/External service\s+\S+\s+returned errors/i];
+
+function scanLambdaLogs(
+  rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
+): ReturnType<typeof scanWithSignatures> {
+  return scanWithSignatures(rows, DOWNSTREAM_SIGNATURES);
+}
+
+const REPORT_TIMEOUT =
+  'REPORT RequestId: d848f0c5-1089-5c2b-9a3b-91a94511ee52 Duration: 10000.00 ms Billed Duration: 10434 ms ' +
+  'Memory Size: 128 MB Max Memory Used: 102 MB Status: timeout';
+
+const REPORT_ERROR =
+  'REPORT RequestId: 11111111-2222-3333-4444-555555555555 Duration: 1234.00 ms Billed Duration: 1300 ms ' +
+  'Memory Size: 256 MB Max Memory Used: 120 MB Status: error';
+
+describe('scanLambdaLogs', () => {
+  it('returns undefined for no rows', () => {
+    assert.strictEqual(scanLambdaLogs([]), undefined);
+  });
+
+  it('classifies a bare REPORT timeout (no application error line)', () => {
+    const scan = scanLambdaLogs([messageRow(REPORT_TIMEOUT)]);
+    assert.ok(scan !== undefined);
+    assert.strictEqual(scan.category, 'timeout');
+    assert.strictEqual(scan.requestId, 'd848f0c5-1089-5c2b-9a3b-91a94511ee52');
+    assert.strictEqual(scan.report?.status, 'timeout');
+    assert.strictEqual(scan.errorCount, 1);
+  });
+
+  it('classifies a bare REPORT Status: error (no application ERROR line)', () => {
+    const scan = scanLambdaLogs([messageRow(REPORT_ERROR)]);
+    assert.ok(scan !== undefined);
+    assert.strictEqual(scan.category, 'application-error');
+    assert.strictEqual(scan.report?.status, 'error');
+    assert.strictEqual(scan.requestId, '11111111-2222-3333-4444-555555555555');
+    assert.strictEqual(scan.errorCount, 1);
+  });
+
+  it('prefers a real error line over runtime lines as the representative message', () => {
+    const scan = scanLambdaLogs([
+      messageRow('START RequestId: 11111111-2222-3333-4444-555555555555 Version: $LATEST'),
+      messageRow('ERROR Invalid source details header QRCODE'),
+      messageRow(REPORT_TIMEOUT),
+    ]);
+    assert.ok(scan !== undefined);
+    assert.strictEqual(scan.message, 'ERROR Invalid source details header QRCODE');
+    // requestId is still recovered from the runtime lines
+    assert.strictEqual(scan.requestId, '11111111-2222-3333-4444-555555555555');
+    assert.strictEqual(scan.errorCount, 3);
+  });
+
+  it('prioritizes explicit runtime failures in later rows over an application error', () => {
+    const applicationError = 'ERROR Record routed to quarantine. Result=Ok';
+    for (const [runtimeMessage, category] of [
+      ['Task timed out after 10.00 seconds', 'timeout'],
+      ['FATAL ERROR: JavaScript heap out of memory', 'out-of-memory'],
+    ] as const) {
+      const scan = scanLambdaLogs([messageRow(applicationError), messageRow(runtimeMessage)]);
+      assert.ok(scan !== undefined);
+      assert.strictEqual(scan.message, applicationError);
+      assert.strictEqual(scan.category, category);
+    }
+  });
+
+  it('gives timeout precedence when timeout and explicit OOM both appear', () => {
+    const scan = scanLambdaLogs([
+      messageRow('ERROR Record routed to quarantine. Result=Ok'),
+      messageRow('FATAL ERROR: JavaScript heap out of memory'),
+      messageRow('Task timed out after 10.00 seconds'),
+    ]);
+    assert.ok(scan !== undefined);
+    assert.strictEqual(scan.category, 'timeout');
+  });
+
+  it('does not treat a saturated REPORT as explicit OOM over an application error', () => {
+    const scan = scanLambdaLogs([
+      messageRow('ERROR Record routed to quarantine. Result=Ok'),
+      messageRow('REPORT RequestId: 11111111-2222-3333-4444-555555555555 Memory Size: 128 MB Max Memory Used: 128 MB'),
+    ]);
+    assert.ok(scan !== undefined);
+    assert.strictEqual(scan.category, 'application-error');
+  });
+
+  it('prefers the @requestId field when the message has no RequestId: token', () => {
+    const scan = scanLambdaLogs([
+      logRow({
+        '@message': 'ERROR Something failed without a request id token',
+        '@requestId': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      }),
+    ]);
+    assert.ok(scan !== undefined);
+    assert.strictEqual(scan.requestId, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
+    assert.strictEqual(scan.category, 'application-error');
+  });
+
+  it('keeps the downstream category across the two classification passes and repeated scans with a global signature', () => {
+    const signatures = [/External service\s+\S+\s+returned errors/gi];
+    const rows = [messageRow('External service pn-emd-integration returned errors')];
+
+    assert.deepStrictEqual(
+      [1, 2].map(() => scanWithSignatures(rows, signatures)?.category),
+      ['downstream', 'downstream'],
+    );
+  });
+});

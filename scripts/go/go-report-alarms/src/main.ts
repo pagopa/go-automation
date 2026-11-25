@@ -5,7 +5,7 @@
  * Supports both single-account and multi-account modes.
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import type { GoReportAlarmsConfig } from './types/GoReportAlarmsConfig.js';
 
@@ -25,7 +25,7 @@ import {
  *
  * @param script - The GOScript instance for logging and prompts
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<GoReportAlarmsConfig>();
 
   // Fetch alarm history

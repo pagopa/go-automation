@@ -7,11 +7,11 @@
   "artifacts": [
     {
       "path": "../../contracts/runbook-automation/v1/upstream/go-watchtower/watchtower-openapi.json",
-      "sha256": "d83df755c15ebe1014fccd8fde30917bea71030031d7f4cefe2e6cb7c7790d03"
+      "sha256": "d23f2c3f1880a028f29786d2b0ba7749b16a0aa0b80629f8b531da44ddba8a64"
     },
     {
       "path": "src/generated/openapi.ts",
-      "sha256": "0b9cbb3940edfdfaf21badf76feca83282261a959ea37b6c1fd975f352163668"
+      "sha256": "ac2164d6dccc0b569cc22aba833d78ce2f22b4fa540064c7bf3e5cebaafc1bdd"
     },
     {
       "path": "../../contracts/runbook-automation/v1/upstream/go-watchtower/automatic-alarm-analysis-command-v1.schema.json",
@@ -24,6 +24,18 @@
     {
       "path": "src/generated/automatic-alarm-analysis-command-v1.schema.json",
       "sha256": "d0c286d84e80074991269439efbb333ab55e4ba83f2f814fbdbab48ec5957637"
+    },
+    {
+      "path": "../../contracts/runbook-automation/v1/upstream/go-watchtower/analysis-draft-v1.schema.json",
+      "sha256": "254e0cb59a44239cf4e28fad30c96da0e8b0f0cef70227ad171881b0bf167fcf"
+    },
+    {
+      "path": "src/generated/AnalysisDraftV1.ts",
+      "sha256": "a5474bc8a4eaeddb03cbf5e7dcdfd8c74450af6415587cc2e8856069bc35e2ed"
+    },
+    {
+      "path": "src/generated/analysis-draft-v1.schema.json",
+      "sha256": "254e0cb59a44239cf4e28fad30c96da0e8b0f0cef70227ad171881b0bf167fcf"
     }
   ]
 }

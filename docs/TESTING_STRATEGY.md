@@ -1,0 +1,130 @@
+# Testing Strategy
+
+Questo documento descrive come il monorepo esegue i test oggi: runner, convenzioni
+di coverage, cosa gira in CI e lo stile di mocking in uso. Non è un obiettivo da
+raggiungere — è lo stato reale, incluso dove la copertura è più stretta di quanto
+il nome degli script suggerisca.
+
+## Test Runner e Convenzioni
+
+Il runner è **`node --test`**, caricato via `tsx/esm` per eseguire `.ts` senza
+build preventiva:
+
+```bash
+node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'
+```
+
+Questo comando (o una sua variante) è lo script `test` di ogni workspace che ne
+ha uno: `packages/*` (incluso `go-cli`), `scripts/go/*`, `scripts/send/*`,
+`scripts/aws/*`. I test vivono accanto al codice, sotto
+`src/**/__tests__/`, con suffisso `.test.ts`. Non c'è un secondo runner: niente
+`vitest`, nessun file `.spec.ts` in tutto il repo — `node --test` è l'unico.
+
+**Eccezioni allo script base:**
+
+- `packages/go-watchtower-runbook` e `scripts/go/go-rta-check` antepongono un
+  build step:
+  `pnpm --filter=@pagopa/go-runbook build && node --import tsx/esm --test ...`.
+  Dipendono da `go-runbook` compilato, non dai suoi sorgenti TypeScript.
+- `bins/` non sono package pnpm del workspace (non hanno `package.json` nel
+  grafo `references[]`): dove hanno test, usano glob più permissivi e un
+  proprio comando, invocato a mano — non sono raggiunti da `pnpm test` né da
+  nessun job CI.
+
+## Coverage
+
+Il meccanismo è `--experimental-test-coverage` di `node:test`, con soglie
+passate come flag:
+
+```bash
+--test-coverage-lines=${GO_COVERAGE_LINES_THRESHOLD:-90}
+--test-coverage-branches=${GO_COVERAGE_BRANCHES_THRESHOLD:-80}
+--test-coverage-functions=${GO_COVERAGE_FUNCTIONS_THRESHOLD:-90}
+```
+
+90% linee, 80% branch, 90% funzioni — overridabili via le tre env var, mai
+abbassate silenziosamente. **Attenzione al meccanismo di
+`--test-coverage-include='src/**/*.ts'`**: filtra l'insieme dei file che
+`node --test` ha effettivamente **caricato** nel corso della suite, non forza
+dentro al denominatore i file che nessun test importa, direttamente o
+transitivamente. Un file sorgente nuovo che nessun test tocca non abbassa la
+percentuale: semplicemente non compare nel report, come se non esistesse. La
+soglia misura quanto è testato ciò che viene testato, non quanto del pacchetto
+è coperto — un package con metà dei file privi di qualunque import da un test
+può comunque leggere 100% linee.
+
+**Scope reale, dichiarato esplicitamente perché più stretto di "tutto il
+monorepo":** solo **3** workspace hanno uno script `test:coverage` —
+`packages/go-common`, `scripts/go/go-report-alarms`,
+`scripts/aws/aws-schedule-eventbridge`. Lo script root:
+
+```bash
+pnpm test:coverage   # = pnpm test:common:coverage && pnpm test:scripts:coverage
+```
+
+non invoca `test:packages:coverage` (esiste come script ma non è mai chiamato
+da `test:coverage`), e non ha equivalente per `test:runbooks` o
+`test:functions`/`test:infra`. `test:scripts:coverage` è un
+`pnpm -r --filter='./scripts/**' test:coverage`: un workspace sotto
+`scripts/` senza quello script viene **saltato in silenzio**, non fallisce.
+Delle 24 package `scripts/{go,send,aws,interop}` (esclusa `scripts/aws/cfn`,
+che non ha un proprio `package.json` e non è un workspace pnpm), 17 non hanno
+nemmeno uno script `test`: zero test file. Nessuna delle Lambda in
+`functions/` ha `test` o `test:coverage`.
+
+In pratica: la cifra "90/80/90" è vera dove si applica, ma si applica solo ai
+tre workspace sopra. Un nuovo package che vuole il gate di coverage deve
+aggiungere il proprio script `test:coverage` con lo stesso pattern — copiarlo da
+uno dei tre è la via più rapida, e `pnpm go new` + `go-cli` scaffoldano già
+`test`/`test:coverage` nella forma corretta per i nuovi script.
+
+## CI
+
+In `.github/workflows/ci.yml` i test stanno nel job **Build and Test**, bloccante su
+`ci-success` (il job di summary su cui punta la branch protection). Dopo la build esegue:
+
+- **`pnpm test`**, che aggrega
+  `test:packages && test:scripts && test:functions && test:infra && test:bins`.
+  Copre ogni workspace con uno script `test`, indipendentemente dal coverage, e i test dei `bins`.
+- **`pnpm test:coverage`**, con le soglie 90/80/90 passate come variabili d'ambiente
+  (`GO_COVERAGE_*_THRESHOLD`). Copre solo i workspace di cui sopra, per i motivi descritti.
+
+## Mocking e Test Doubles
+
+Nessuna libreria di mocking in dipendenza: zero `jest`, `sinon`, `mocha` o
+`testdouble` in tutto il repo. Lo stile dominante è **fake scritte a mano +
+dependency injection**: una funzione o una classe riceve le proprie
+dipendenze come parametro (un client HTTP, un logger, un provider di
+credenziali) e il test passa un'implementazione fittizia al posto di quella
+reale. Import standard: `node:assert/strict`, `describe`/`it` da `node:test`;
+il `mock` built-in di `node:test` è usato solo sporadicamente (una ventina di
+file in tutto il repo) dove un fake scritto a mano sarebbe più verboso di uno
+spy.
+
+`go-runbook` ha un helper DI dedicato,
+[`createTestServiceRegistry`](../packages/go-runbook/src/toolkits/common/testing/createTestServiceRegistry.ts),
+esportato da `@pagopa/go-runbook/toolkits/common`, che costruisce un
+`ServiceRegistry` completo con override selettivi:
+
+```typescript
+const services = createTestServiceRegistry({ cloudWatchLogs });
+```
+
+Ogni servizio è un falso con tutti i metodi richiesti dal motore; gli override
+si fondono metodo per metodo. Per i metodi non forniti valgono tre regole:
+
+- `forTarget` e `forExecution` restituiscono lo stesso falso e registrano gli
+  argomenti, così il test può verificare account, regione e cancellazione;
+- per CloudWatch Logs, `query` e `queryWithStatistics` sono due viste della
+  stessa lettura: se il test ne fornisce una, l'altra viene ricavata. Quella
+  ricavata da `query` restituisce statistiche a zero e nessuna esecuzione;
+- ogni altro metodo, se chiamato, lancia `UnexpectedServiceCallError` con il
+  suo nome, così il test fallisce in modo esplicito.
+
+La porta opzionale degli account AWS logici (`awsAccounts`) c'è solo se il test
+la passa, di solito come `InMemoryAwsAccountsPort` con id finti.
+
+È il pattern usato da oltre cento file di test dentro `packages/go-runbook` e
+dai package che ne dipendono (`go-watchtower-runbook`, `scripts/go/go-rta-check`):
+invece di mockare il client reale, si passa
+un registry con solo i servizi che il test esercita.
