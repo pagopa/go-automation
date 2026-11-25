@@ -11,5 +11,11 @@ export type { GOLoadingBarOptions } from './GOLoadingBarOptions.js';
 export * from './GOPrompt.js';
 export { confirmWrite, GO_WRITE_NEEDS_CONFIRMATION } from './confirmWrite.js';
 export type { GOWriteConfirmationRequest } from './confirmWrite.js';
+export {
+  confirmProductionWrite,
+  confirmWriteWithProduction,
+  GO_PROD_WRITE_NEEDS_OPERATOR,
+} from './confirmProductionWrite.js';
+export type { GOProductionWriteRequest, GOWriteWithProductionRequest } from './confirmProductionWrite.js';
 export { GO_PRODUCTION_ACCOUNT_IDS, isProductionIdentifier, isProductionTarget } from './productionTarget.js';
 export type { GOProductionTarget } from './productionTarget.js';
