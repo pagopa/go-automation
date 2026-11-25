@@ -21,7 +21,7 @@ const SYNC_MODES: ReadonlyArray<string> = ['replace', 'merge'];
  * Mode assumed when a table does not declare one.
  *
  * `replace` matches the reference, where `SyncMode` is absent on fifteen of
- * sixteen tables and the fall-through branch is the batched put.
+ * seventeen tables and the fall-through branch is the batched put.
  */
 const DEFAULT_SYNC_MODE: SyncMode = 'replace';
 

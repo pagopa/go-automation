@@ -141,7 +141,7 @@ pnpm send:sync:anagrafica:prod --cp … --ev test --aps …
 
 **1. Il confronto completo di un ambiente**
 
-Sola lettura, ed è il modo normale di usarlo: 16 tabelle, repository contro Parameter Store, in entrambi i versi.
+Sola lettura, ed è il modo normale di usarlo: 17 tabelle, repository contro Parameter Store, in entrambi i versi.
 
 ```bash
 pnpm go send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test

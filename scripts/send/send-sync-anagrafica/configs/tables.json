@@ -13,6 +13,10 @@
       "keys": ["hashKey", "sortKey"],
       "syncMode": "merge"
     },
+    "pn-Campaigns": {
+      "account": "core",
+      "keys": ["senderId", "campaignId"]
+    },
     "pn-EcAnagrafica": {
       "account": "confinfo",
       "keys": ["cxId"],

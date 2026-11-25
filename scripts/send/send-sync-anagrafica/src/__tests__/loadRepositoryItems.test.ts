@@ -61,7 +61,7 @@ describe('parseItems', () => {
 
 describe('loadRepositoryItems', () => {
   it('returns undefined when the table has no file, rather than throwing', async () => {
-    // Two of the sixteen configured tables really have no file, and that is a
+    // Two of the seventeen configured tables really have no file, and that is a
     // finding to report, not a crash.
     const result = await loadRepositoryItems(LAYOUT, 'core', 'pn-AuthJwtIssuers');
 

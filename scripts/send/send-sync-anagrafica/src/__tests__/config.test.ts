@@ -36,7 +36,7 @@ describe('scriptParameters', () => {
     }
   });
 
-  it('takes profiles plural, because nine tables live on core and seven on confinfo', () => {
+  it('takes profiles plural, because ten tables live on core and seven on confinfo', () => {
     assert.equal(parameter('aws.profiles').type, GOConfigParameterType.STRING_ARRAY);
   });
 

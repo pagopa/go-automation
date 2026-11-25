@@ -5,7 +5,7 @@
  * attribute is a String, and it has two failure modes that are worse than an
  * error: a key attribute of another type reads `undefined` on both sides, and
  * `undefined == undefined` is true, so every item matches the first candidate;
- * a missing attribute throws halfway through a run. Every key of all sixteen
+ * a missing attribute throws halfway through a run. Every key of all seventeen
  * tables is a String today, so neither is live — which is exactly why it is
  * worth fixing now rather than after it changes.
  *
