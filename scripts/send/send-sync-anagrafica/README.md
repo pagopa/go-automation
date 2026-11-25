@@ -15,13 +15,14 @@ confronto è ciò che si vuole guardare _prima_.
 
 I file sono **NDJSON già in forma DynamoDB** (`{"cap":{"S":"83030"}}`), e la
 tabella viene letta con `AWSDynamoDBService.scanRaw`, che **non** deserializza.
-Non avvengono conversioni, quindi non si rischia di perdere dati:`{"N":"1.0"}` e `{"N":"1"}` restano distinti, e `{"NULL":true}` resta distinto da un attributo assente.
+Non avvengono conversioni, quindi non si rischia di perdere dati: `{"N":"1.0"}` e
+`{"N":"1"}` restano distinti, e `{"NULL":true}` resta distinto da un attributo assente.
 
 ### L'ordine degli attributi non conta
 
 DynamoDB restituisce gli attributi nel proprio ordine, che non è necessariamente
 quello del file: la `pn-EcAnagrafica` comincia con `sqsArn` mentre il file
-potrebbe cominciare con`sqsName`. Confrontare il testo serializzato rischierebbe di
+potrebbe cominciare con `sqsName`. Confrontare il testo serializzato rischierebbe di
 dichiarare diverso ogni oggetto, quando in realtà non lo sono.
 
 ### Categorie di esito
@@ -50,8 +51,8 @@ Il perché sono due, e opposti:
 - **Nel file** (`protected-in-file`): è un difetto, anche in sola lettura. Un
   file che dichiara un oggetto protetto, con `--sync`, **sovrascriverebbe**
   quello vivo con un `PutRequest`. Per questo viene controllato a ogni run e fa
-  uscire `1`; con `--sync` rifiuta l'intera esecuzione (vedi _Codici di
-  uscita_).
+  uscire `1`; con `--sync` rifiuta l'intera esecuzione (vedi [Codici di
+  uscita](#codici-di-uscita)).
 
 Niente viene mai cancellato: la protezione riguarda la sovrascrittura, non la
 rimozione.
@@ -160,6 +161,8 @@ vale per nessuno (ancora).
 
 Ogni caso è dato nelle **tre forme equivalenti**: `pnpm go` dalla root del monorepo, lo script di root `pnpm send:sync:anagrafica:dev` e il wrapper `go-cli` dove è installato.
 
+#### Script di root
+
 Gli script di root sono gli stessi degli altri script del monorepo:
 
 ```bash
@@ -171,7 +174,7 @@ pnpm send:sync:anagrafica:build
 pnpm send:sync:anagrafica:prod --cp … --ev test --aps …
 ```
 
-**1. Il confronto completo di un ambiente**
+#### 1. Il confronto completo di un ambiente
 
 Sola lettura, ed è il modo normale di usarlo: 17 tabelle, repository contro Parameter Store, in entrambi i versi.
 
@@ -181,7 +184,7 @@ pnpm send:sync:anagrafica:dev --cp ~/workspaces/pagopa/send/pn-configuration --e
 go-cli  send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test
 ```
 
-**2. Una tabella sola, quando si sta guardando una differenza precisa**
+#### 2. Una tabella sola, quando si sta guardando una differenza precisa
 
 `--table-names` restringe il confronto. Su una run ristretta i file non configurati non vengono cercati, perchè sarebbero tutti non configurati per costruzione.
 
@@ -191,7 +194,7 @@ pnpm send:sync:anagrafica:dev --cp ~/workspaces/pagopa/send/pn-configuration --e
 go-cli  send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --tn pn-EcAnagrafica
 ```
 
-**3. Cosa scriverebbe un sync, senza scriverlo**
+#### 3. Cosa scriverebbe un sync, senza scriverlo
 
 Viene pianificata **solo la drift**, non ogni riga del file. E gli attributi che un replace cancellerebbe sono elencati **prima** della domanda: un `PutRequest` sostituisce l'oggetto intero, e un attributo che la tabella ha e il file no sparirebbe senza comparire in nessuna diff di oggetti.
 
@@ -201,7 +204,7 @@ pnpm send:sync:anagrafica:dev --cp ~/workspaces/pagopa/send/pn-configuration --e
 go-cli  send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --sync --dry-run
 ```
 
-**4. Il sync vero**
+#### 4. Il sync vero
 
 Niente viene mai cancellato: gli oggetti che vivono in tabella e che nessun file dichiara sono riportati e lasciati stare.
 
@@ -211,25 +214,35 @@ pnpm send:sync:anagrafica:dev --cp ~/workspaces/pagopa/send/pn-configuration --e
 go-cli  send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --sync
 ```
 
-**5. Scrivere in produzione**
+#### 5. Scrivere in produzione
 
-Prima la dry run, poi il sync: la seconda conferma chiede di digitare il nome di ogni profilo di produzione.
+Prima la dry run: mostra le scritture e non chiede di digitare nulla.
 
 ```bash
 pnpm go send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev prod --aps send-core-prod,send-confinfo-prod --sync --dry-run
 pnpm send:sync:anagrafica:dev --cp ~/workspaces/pagopa/send/pn-configuration --ev prod --aps send-core-prod,send-confinfo-prod --sync --dry-run
+go-cli  send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev prod --aps send-core-prod,send-confinfo-prod --sync --dry-run
+```
+
+Poi il sync vero: oltre al sì/no, la seconda conferma chiede di digitare il nome di ogni profilo di produzione.
+
+```bash
+pnpm go send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev prod --aps send-core-prod,send-confinfo-prod --sync
+pnpm send:sync:anagrafica:dev --cp ~/workspaces/pagopa/send/pn-configuration --ev prod --aps send-core-prod,send-confinfo-prod --sync
 go-cli  send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev prod --aps send-core-prod,send-confinfo-prod --sync
 ```
 
-**6. Far fallire la run quando manca un file, o ne avanza uno**
+#### 6. Far fallire la run quando manca un file, o ne avanza uno
 
-Due tabelle sono dichiarate e non hanno file in **nessuno** dei cinque alberi, quindi di default quelle righe sono riportate ma non fanno fallire. `--strict-configuration` è per chi sa che non dovrebbero esserci.
+Una tabella che l'ambiente definisce e che non ha file (`missing-file`), o un file che la mappa non dichiara (`unconfigured`), sono riportati ma di default non fanno fallire la run. `--strict-configuration` è per chi sa che non dovrebbero esserci. Le tabelle `not-defined` non contano mai.
 
 ```bash
 pnpm go send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --stc
 pnpm send:sync:anagrafica:dev --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --stc
 go-cli  send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --stc
 ```
+
+#### Riepilogo con `go-cli`
 
 ```bash
 go-cli send-sync-anagrafica \
