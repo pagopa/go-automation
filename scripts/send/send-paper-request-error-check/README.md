@@ -35,12 +35,13 @@ tramite la CLI `--mode` (`-m`).
    concorrenza ad alte prestazioni.
 7. **`fetch-timelines`**: Scarica le timeline complete da DynamoDB (`pn-Timelines`) per un elenco di IUN e le salva in
    `results/timelines.json`.
+8. **`verify-pcretry`**: Verifica progressivamente i suffissi `.PCRETRY_<idx>` su `pn-EcRichiesteMetadati` (account confinfo) senza effettuare risottomissioni, individuando i PCRETRY pronti in `pcretry_to_resubmit.txt` e scartando quelli già in stato senza errori in `pcretry_discarded.csv`.
 
 ### Parametri CLI
 
 | Parametro                     | Alias           | Tipo   | Default | Descrizione                                                                                                                                        |
 | ----------------------------- | --------------- | ------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--mode`                      | `-m`            | string | `all`   | Modalità di esecuzione (`all`, `check-feedback`, `get-attachments`, `retrieve-attachments`, `retrieve-glacier`, `validate-pdf`, `fetch-timelines`) |
+| `--mode`                      | `-m`            | string | `all`   | Modalità di esecuzione (`all`, `check-feedback`, `get-attachments`, `retrieve-attachments`, `retrieve-glacier`, `validate-pdf`, `fetch-timelines`, `verify-pcretry`) |
 | `--aws.profiles`              |                 | string | -       | Nome dei profili AWS SSO                                                                                                                           |
 | `--envName`                   | `-e`            | string | -       | Nome dell'ambiente (`dev`, `uat`, `test`, `prod`, `hotfix`)                                                                                        |
 | `--inputFile`                 | `-f`, `--input` | string | -       | Percorso del file di input contenente IUN, requestId o chiavi S3                                                                                   |

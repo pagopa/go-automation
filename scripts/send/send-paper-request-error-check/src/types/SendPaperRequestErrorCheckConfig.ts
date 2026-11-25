@@ -7,6 +7,7 @@
  * - `retrieve-glacier`: effettua il restore da S3 Glacier
  * - `validate-pdf`: convalida i magic bytes dei PDF su S3
  * - `fetch-timelines`: scarica le timeline da DynamoDB per IUN
+ * - `verify-pcretry`: verifica PCRETRY su pn-EcRichiesteMetadati (account confinfo)
  */
 type ExecutionMode =
   | 'all'
@@ -15,7 +16,8 @@ type ExecutionMode =
   | 'retrieve-attachments'
   | 'retrieve-glacier'
   | 'validate-pdf'
-  | 'fetch-timelines';
+  | 'fetch-timelines'
+  | 'verify-pcretry';
 
 /**
  * Struttura delle metriche di report finale per l'elaborazione
@@ -108,6 +110,19 @@ export interface PdfValidationResult {
   readonly validPdfCount: number;
   readonly invalidPdfCount: number;
   readonly errorCount: number;
+}
+
+/**
+ * Risultati dell'elaborazione per la verifica PCRETRY su pn-EcRichiesteMetadati
+ */
+export interface VerifyPcRetryResult {
+  readonly totalChecked: number;
+  readonly toResubmitCount: number;
+  readonly discardedCount: number;
+  readonly errorsCount: number;
+  readonly toResubmitRequestIds: ReadonlyArray<string>;
+  readonly discardedItems: ReadonlyArray<{ requestId: string; checkedRequestId: string; status: string }>;
+  readonly statusCounters: Record<string, number>;
 }
 
 /**

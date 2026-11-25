@@ -6,8 +6,9 @@ export type {
   CheckFeedbackResult,
   GetNotificationAttachmentsResult,
   PaperRequestMetrics,
-  PdfValidationResult,
   RetrieveAttachmentsResult,
   RetrieveGlacierResult,
   SendPaperRequestErrorCheckConfig,
+  VerifyPcRetryResult,
+  PdfValidationResult,
 } from './SendPaperRequestErrorCheckConfig.js';

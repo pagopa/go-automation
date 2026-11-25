@@ -10,6 +10,7 @@ import type {
   PdfValidationResult,
   RetrieveAttachmentsResult,
   RetrieveGlacierResult,
+  VerifyPcRetryResult,
 } from '../types/index.js';
 import { resolveOutputPath } from '../utils/resolveOutputPath.js';
 
@@ -42,6 +43,7 @@ export class PaperRequestReporter {
   private retrieveAttachmentsResult: RetrieveAttachmentsResult | undefined;
   private glacierResult: RetrieveGlacierResult | undefined;
   private pdfValidationResult: PdfValidationResult | undefined;
+  private verifyPcRetryResult: VerifyPcRetryResult | undefined;
   private fetchTimelinesResult:
     | {
         totalIuns: number;
@@ -145,6 +147,15 @@ export class PaperRequestReporter {
     this.metrics.canceledCount = this.metrics.canceledCount + result.notificationCanceled;
     this.metrics.viewedCount = this.metrics.viewedCount + result.notificationViewed;
     this.metrics.refinedCount = this.metrics.refinedCount + result.notificationRefined;
+  }
+
+  /**
+   * Registra i risultati dello step finale di verifica PCRETRY su pn-EcRichiesteMetadati.
+   */
+  public recordVerifyPcRetry(result: VerifyPcRetryResult): void {
+    this.verifyPcRetryResult = result;
+    this.metrics.toResubmitCount += result.toResubmitCount;
+    this.metrics.errorsCount = (this.metrics.errorsCount ?? 0) + result.errorsCount;
   }
 
   /**
@@ -255,6 +266,17 @@ export class PaperRequestReporter {
         timelinesFetched: ft.timelinesFetchedCount,
         emptyTimelines: ft.emptyTimelinesCount,
         errors: ft.errorsCount,
+      };
+    }
+
+    if (this.verifyPcRetryResult) {
+      const pr = this.verifyPcRetryResult;
+      stepDetails['verifyPcRetry'] = {
+        totalChecked: pr.totalChecked,
+        toResubmitCount: pr.toResubmitCount,
+        discardedCount: pr.discardedCount,
+        errorsCount: pr.errorsCount,
+        statusCounters: pr.statusCounters,
       };
     }
 
@@ -384,6 +406,16 @@ export class PaperRequestReporter {
       );
     }
 
+    // Dettaglio per step: Verify PCRETRY
+    if (this.verifyPcRetryResult) {
+      const pr = this.verifyPcRetryResult;
+      script.logger.info(
+        `[Verify PCRETRY]     Request IDs verificati: ${pr.totalChecked}` +
+          ` → da risottomettere: ${pr.toResubmitCount}, scartati (senza errori): ${pr.discardedCount}` +
+          `, errori: ${pr.errorsCount}`,
+      );
+    }
+
     script.logger.info('----------------------------------------------------');
     script.logger.info(`Total initial Requests         : ${this.metrics.totalInitialRequestIds}`);
     script.logger.info(`Requests with Feedback         : ${this.metrics.withFeedback}`);
@@ -393,6 +425,7 @@ export class PaperRequestReporter {
     script.logger.info(`Viewed Requests                : ${this.metrics.viewedCount}`);
     script.logger.info(`Canceled Requests              : ${this.metrics.canceledCount}`);
     script.logger.info(`Refined Requests               : ${this.metrics.refinedCount}`);
+    script.logger.info(`To Resubmit (PCRETRY)          : ${this.metrics.toResubmitCount}`);
     script.logger.info(`Invalid Attachments            : ${this.metrics.invalidAttachmentsCount}`);
     script.logger.info(`Glacier Restored Objects       : ${this.metrics.glacierRestoredCount}`);
     script.logger.info(`Valid PDFs Checked             : ${this.metrics.validPdfCount ?? 0}`);

@@ -30,7 +30,7 @@ export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
     name: 'mode',
     type: GOConfigParameterType.STRING,
     description:
-      'Modalità di esecuzione: all (default pipeline completa), check-feedback, get-attachments, retrieve-attachments, retrieve-glacier, validate-pdf, fetch-timelines',
+      'Modalità di esecuzione: all (default pipeline completa), check-feedback, get-attachments, retrieve-attachments, retrieve-glacier, validate-pdf, fetch-timelines, verify-pcretry',
     required: false,
     aliases: ['m'],
     defaultValue: 'all',
@@ -44,9 +44,10 @@ export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
         'retrieve-glacier',
         'validate-pdf',
         'fetch-timelines',
+        'verify-pcretry',
       ].includes(val)
         ? true
-        : 'Mode deve essere uno tra: all, check-feedback, get-attachments, retrieve-attachments, retrieve-glacier, validate-pdf, fetch-timelines',
+        : 'Mode deve essere uno tra: all, check-feedback, get-attachments, retrieve-attachments, retrieve-glacier, validate-pdf, fetch-timelines, verify-pcretry',
   },
   {
     name: 'envName',

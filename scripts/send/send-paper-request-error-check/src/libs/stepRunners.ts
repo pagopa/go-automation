@@ -15,6 +15,8 @@ import { retrieveAttachmentsFromIun } from './retrieveAttachmentsFromIun.js';
 import { retrieveGlacierS3 } from './retrieveGlacierS3.js';
 import { validateS3Pdfs } from './s3PdfValidator.js';
 import { fetchTimelines } from './fetchTimelines.js';
+import { verifyPcRetry } from './verifyPcRetry.js';
+import { extractIun } from '../utils/get.js';
 import type { PaperRequestReporter } from './reporter.js';
 
 async function runCheckFeedbackStep(
@@ -137,6 +139,25 @@ async function runFetchTimelinesStep(
   return result.filteredIuns;
 }
 
+async function runVerifyPcRetryStep(
+  script: GOScript,
+  inputLines: string[],
+  reporter: PaperRequestReporter,
+): Promise<void> {
+  script.logger.section('Step: Verify PCRETRY on pn-EcRichiesteMetadati (Confinfo)');
+  if (inputLines.length === 0) {
+    script.logger.warning(
+      'Nessun requestId disponibile per la verifica PCRETRY. Step saltato.',
+    );
+    return;
+  }
+  const result = await verifyPcRetry(script, inputLines);
+  reporter.recordVerifyPcRetry(result);
+  script.logger.info(
+    `Risultato Verifica PCRETRY: ${result.toResubmitCount} da risottomettere, ${result.discardedCount} scartati (senza errori), ${result.errorsCount} errori su ${result.totalChecked} verificati.`,
+  );
+}
+
 export async function executeStepByMode(
   script: GOScript,
   config: SendPaperRequestErrorCheckConfig,
@@ -145,11 +166,13 @@ export async function executeStepByMode(
 ): Promise<void> {
   const isAll = config.mode === 'all';
   let currentLines = inputLines;
+  let pendingRequestIdsForPcRetry = inputLines;
 
   if (config.mode === 'check-feedback' || isAll) {
     const feedbackResult = await runCheckFeedbackStep(script, currentLines, reporter);
     if (isAll) {
       currentLines = [...feedbackResult.notFoundRequestIds];
+      pendingRequestIdsForPcRetry = [...feedbackResult.notFoundRequestIds];
       if (currentLines.length === 0) {
         script.logger.info(
           'Tutti i requestId presentano un feedback in pn-Timelines (salvati in found.json). Nessun requestId non trovato da verificare per i passaggi successivi.',
@@ -164,6 +187,12 @@ export async function executeStepByMode(
 
   if (config.mode === 'fetch-timelines' || isAll) {
     currentLines = await runFetchTimelinesStep(script, currentLines, reporter);
+    if (isAll) {
+      const survivedIunSet = new Set(currentLines);
+      pendingRequestIdsForPcRetry = pendingRequestIdsForPcRetry.filter((rid) =>
+        survivedIunSet.has(extractIun(rid)),
+      );
+    }
   }
 
   let retrieveResult: RetrieveAttachmentsResult | undefined;
@@ -203,5 +232,10 @@ export async function executeStepByMode(
     } else {
       await runValidatePdfStep(script, currentLines, reporter);
     }
+  }
+
+  if (config.mode === 'verify-pcretry' || isAll) {
+    const pcRetryLines = isAll ? pendingRequestIdsForPcRetry : currentLines;
+    await runVerifyPcRetryStep(script, pcRetryLines, reporter);
   }
 }
