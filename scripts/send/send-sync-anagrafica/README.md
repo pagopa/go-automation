@@ -126,14 +126,26 @@ del file.
 
 ### Esempi d'uso
 
-Ogni caso è dato nelle **due forme equivalenti**: `pnpm go` dalla root del monorepo, e il wrapper `go-cli` dove è installato.
+Ogni caso è dato nelle **tre forme equivalenti**: `pnpm go` dalla root del monorepo, lo script di root `pnpm send:sync:anagrafica:dev` e il wrapper `go-cli` dove è installato.
+
+Gli script di root sono gli stessi degli altri script del monorepo:
+
+```bash
+# Dev (tsx, senza build)
+pnpm send:sync:anagrafica:dev --cp … --ev test --aps …
+
+# Production (build + node)
+pnpm send:sync:anagrafica:build
+pnpm send:sync:anagrafica:prod --cp … --ev test --aps …
+```
 
 **1. Il confronto completo di un ambiente**
 
-Sola lettura, ed è il modo normale di usarlo: 16 tabelle, repository contro Parameter Store vivo, in entrambi i versi.
+Sola lettura, ed è il modo normale di usarlo: 16 tabelle, repository contro Parameter Store, in entrambi i versi.
 
 ```bash
 pnpm go send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test
+pnpm send:sync:anagrafica:dev --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test
 go-cli  send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test
 ```
 
@@ -143,6 +155,7 @@ go-cli  send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev
 
 ```bash
 pnpm go send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --tn pn-EcAnagrafica
+pnpm send:sync:anagrafica:dev --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --tn pn-EcAnagrafica
 go-cli  send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --tn pn-EcAnagrafica
 ```
 
@@ -152,6 +165,7 @@ Viene pianificata **solo la drift**, non ogni riga del file. E gli attributi che
 
 ```bash
 pnpm go send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --sync --dry-run
+pnpm send:sync:anagrafica:dev --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --sync --dry-run
 go-cli  send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --sync --dry-run
 ```
 
@@ -161,6 +175,7 @@ Niente viene mai cancellato: gli oggetti che vivono in tabella e che nessun file
 
 ```bash
 pnpm go send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --sync
+pnpm send:sync:anagrafica:dev --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --sync
 go-cli  send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --sync
 ```
 
@@ -170,6 +185,7 @@ Prima la dry run, poi il sync: la seconda conferma chiede di digitare il nome di
 
 ```bash
 pnpm go send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev prod --aps send-core-prod,send-confinfo-prod --sync --dry-run
+pnpm send:sync:anagrafica:dev --cp ~/workspaces/pagopa/send/pn-configuration --ev prod --aps send-core-prod,send-confinfo-prod --sync --dry-run
 go-cli  send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev prod --aps send-core-prod,send-confinfo-prod --sync
 ```
 
@@ -179,6 +195,7 @@ Due tabelle sono dichiarate e non hanno file in **nessuno** dei cinque alberi, q
 
 ```bash
 pnpm go send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --stc
+pnpm send:sync:anagrafica:dev --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --stc
 go-cli  send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --stc
 ```
 
