@@ -103,6 +103,32 @@ describe('loadTableMap', () => {
     await assert.rejects(loadTableMap('/nowhere/tables.json'), /is missing/);
   });
 
+  it('reads the environments a table is defined in, and treats none as all of them', async () => {
+    const tables = await loadFrom({
+      tables: {
+        'pn-A': { account: 'core', keys: ['k'], environments: ['uat', 'prod'] },
+        'pn-B': { account: 'core', keys: ['k'], environments: [] },
+        'pn-C': { account: 'core', keys: ['k'] },
+      },
+    });
+
+    assert.deepEqual(
+      tables.map((table) => table.environments),
+      [['uat', 'prod'], [], undefined],
+    );
+  });
+
+  it('refuses environments that are not a list of names', async () => {
+    await assert.rejects(
+      async () => await loadFrom({ tables: { 'pn-A': { account: 'core', keys: ['k'], environments: 'uat' } } }),
+      /environments must be an array of environment names/,
+    );
+    await assert.rejects(
+      async () => await loadFrom({ tables: { 'pn-A': { account: 'core', keys: ['k'], environments: ['uat', ''] } } }),
+      /environments must be an array/,
+    );
+  });
+
   it('defaults a table with no syncMode to replace, as the reference does', async () => {
     const [table] = await loadFrom({ tables: { 'pn-PaperZone': { account: 'core', keys: ['countryIt'] } } });
 

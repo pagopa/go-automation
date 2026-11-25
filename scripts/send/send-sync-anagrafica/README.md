@@ -111,9 +111,18 @@ provider, e `GOEnvironmentConfigProvider` carica l'intero `process.env`.
 ### `configs/tables.json`
 
 La mappa delle tabelle: per ognuna l'account che la possiede, lo schema di
-chiave, l'eventuale `protectedKey` e l'eventuale `syncMode`. Sono **dati e non
-codice** perchè nomi di risorse, e nessuno dei due è deducibile dal percorso
-del file.
+chiave, l'eventuale `protectedKey`, l'eventuale `syncMode` e l'eventuale
+`environments`. Sono **dati e non codice** perchè nomi di risorse, e nessuno dei
+due è deducibile dal percorso del file.
+
+`environments` elenca gli ambienti in cui la tabella è definita: non esiste
+ovunque (le `pn-Paper*` non sono in `test`, `pn-Campaigns` non ha file in
+`hotfix`, le `pn-AuthJwt*` non hanno file in nessun ambiente). Fuori da quella
+lista la tabella non viene né letta né confrontata ed è riportata come
+`not-defined`: non è un errore, non fa fallire la run nemmeno con
+`--strict-configuration`, e se il repository ha comunque un file lo nomina. Senza
+`environments` la tabella vale per tutti gli ambienti; con la lista vuota non
+vale per nessuno (ancora).
 
 ## Prerequisiti
 
@@ -238,5 +247,7 @@ tabelle si scrivono a partire dallo stesso repository, e un file che dichiara un
 oggetto di proprietà dell'ambiente dice che quell'insieme di file non è
 affidabile in blocco.
 
-Su `test` oggi `pn-AuthJwtIssuers` e `pn-AuthJwtAttributes` sono dichiarate
-nella mappa e non hanno file: la run esce `1` per questo, ed è corretto.
+Le tabelle non definite nell'ambiente (`not-defined`) non contano: su `test`
+`pn-AuthJwtIssuers`, `pn-AuthJwtAttributes` e le `pn-Paper*` sono riportate e
+saltate. Una tabella che l'ambiente definisce e che non ha file (`missing-file`)
+continua a essere riportata, e fa fallire solo con `--strict-configuration`.

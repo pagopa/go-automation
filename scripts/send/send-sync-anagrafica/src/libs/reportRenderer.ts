@@ -53,6 +53,10 @@ export function renderOutcomes(script: GOScript, outcomes: ReadonlyArray<TableOu
       script.logger.error(line);
       continue;
     }
+    if (outcome.status === 'not-defined') {
+      script.logger.info(line);
+      continue;
+    }
     if (outcome.status === 'drifted') {
       script.logger.warning(line);
       renderSample(script, outcome);
@@ -94,7 +98,8 @@ export function renderSummary(script: GOScript, outcomes: ReadonlyArray<TableOut
   script.logger.info(
     `${String(outcomes.length)} table(s): ${String(count('aligned'))} aligned, ` +
       `${String(count('drifted'))} drifted, ` +
-      `${String(outcomes.filter((outcome) => needsAttention(outcome)).length)} needing attention`,
+      `${String(outcomes.filter((outcome) => needsAttention(outcome)).length)} needing attention, ` +
+      `${String(count('not-defined'))} not defined in this environment`,
   );
   script.logger.info(`${String(items)} item(s) differ; ${String(guarded)} protected item(s) are expected live-only`);
 }

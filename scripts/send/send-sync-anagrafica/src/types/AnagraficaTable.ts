@@ -33,6 +33,16 @@ export interface AnagraficaTable {
   /** Items deliberately absent from the repository, when the table has any. */
   readonly protectedKey: ProtectedKey | undefined;
 
+  /**
+   * Environments in which the table is defined, or undefined when it is defined in all of them.
+   *
+   * Not every table exists everywhere: the paper tables are not in `test`, and
+   * a table may have no file in the repository for an environment. Outside this
+   * list the table is reported as `not-defined` and neither read nor compared.
+   * An empty list means no environment defines it yet.
+   */
+  readonly environments: ReadonlyArray<string> | undefined;
+
   /** How a sync writes this table's items. */
   readonly syncMode: SyncMode;
 }

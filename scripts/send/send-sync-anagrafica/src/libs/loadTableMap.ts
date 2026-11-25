@@ -83,6 +83,18 @@ function readTable(name: string, raw: unknown, errors: string[]): AnagraficaTabl
     errors.push(`${label}.protectedKey.name '${protectedKey.name}' is not one of the key attributes`);
   }
 
+  const environments = record['environments'];
+  if (
+    environments !== undefined &&
+    (!Array.isArray(environments) || !environments.every((entry) => typeof entry === 'string' && entry !== ''))
+  ) {
+    errors.push(`${label}.environments must be an array of environment names`);
+  }
+  const definedIn =
+    Array.isArray(environments) && environments.every((entry) => typeof entry === 'string' && entry !== '')
+      ? (environments as string[])
+      : undefined;
+
   const rawSyncMode = record['syncMode'];
   if (rawSyncMode !== undefined && (typeof rawSyncMode !== 'string' || !SYNC_MODES.includes(rawSyncMode))) {
     errors.push(`${label}.syncMode must be one of ${SYNC_MODES.join(', ')}`);
@@ -90,7 +102,14 @@ function readTable(name: string, raw: unknown, errors: string[]): AnagraficaTabl
   const syncMode = typeof rawSyncMode === 'string' && SYNC_MODES.includes(rawSyncMode) ? rawSyncMode : undefined;
 
   return typeof account === 'string'
-    ? { name, account, keys, protectedKey, syncMode: (syncMode as SyncMode | undefined) ?? DEFAULT_SYNC_MODE }
+    ? {
+        name,
+        account,
+        keys,
+        protectedKey,
+        environments: definedIn,
+        syncMode: (syncMode as SyncMode | undefined) ?? DEFAULT_SYNC_MODE,
+      }
     : undefined;
 }
 

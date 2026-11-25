@@ -152,6 +152,13 @@ describe('hasBlocking', () => {
   });
 });
 
+describe('not-defined', () => {
+  it('neither blocks the run nor needs attention, even under --strict-configuration', () => {
+    assert.equal(hasBlocking([outcome('not-defined')], true), false);
+    assert.equal(needsAttention(outcome('not-defined')), false);
+  });
+});
+
 describe('needsAttention', () => {
   for (const status of ['missing-file', 'unconfigured', 'failed', 'protected-in-file'] as const) {
     it(`is true for ${status}, so the confirmation names it whatever the exit code is`, () => {

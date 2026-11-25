@@ -6,16 +6,19 @@
     },
     "pn-AuthJwtAttributes": {
       "account": "core",
-      "keys": ["hashKey", "sortKey"]
+      "keys": ["hashKey", "sortKey"],
+      "environments": []
     },
     "pn-AuthJwtIssuers": {
       "account": "core",
       "keys": ["hashKey", "sortKey"],
-      "syncMode": "merge"
+      "syncMode": "merge",
+      "environments": []
     },
     "pn-Campaigns": {
       "account": "core",
-      "keys": ["senderId", "campaignId"]
+      "keys": ["senderId", "campaignId"],
+      "environments": ["test", "uat", "prod"]
     },
     "pn-EcAnagrafica": {
       "account": "confinfo",
@@ -27,19 +30,23 @@
     },
     "pn-PaperCost": {
       "account": "core",
-      "keys": ["driverCode", "uuidCode"]
+      "keys": ["driverCode", "uuidCode"],
+      "environments": ["uat", "hotfix", "prod"]
     },
     "pn-PaperDeliveryDriver": {
       "account": "core",
-      "keys": ["tenderCode", "taxId"]
+      "keys": ["tenderCode", "taxId"],
+      "environments": ["uat", "hotfix", "prod"]
     },
     "pn-PaperTender": {
       "account": "core",
-      "keys": ["tenderCode"]
+      "keys": ["tenderCode"],
+      "environments": ["uat", "hotfix", "prod"]
     },
     "pn-PaperZone": {
       "account": "core",
-      "keys": ["countryIt"]
+      "keys": ["countryIt"],
+      "environments": ["uat", "hotfix", "prod"]
     },
     "pn-SmStates": {
       "account": "confinfo",

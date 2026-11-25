@@ -82,6 +82,26 @@ export async function compareOne(
   const empty = { different: [], onlyLive: [], onlyRepository: [], protectedItems: [], protectedInFile: [] };
 
   try {
+    if (table.environments !== undefined && !table.environments.includes(layout.env)) {
+      // Not read at all: a table that does not exist here would answer
+      // ResourceNotFound, and a table with no file would answer missing-file,
+      // and neither is a defect of this environment. A file may well be there
+      // (the repository carries the paper tables' files for `test`, where the
+      // tables are not provisioned), so it is named, not treated as an error.
+      const ignored = await loadRepositoryItems(layout, table.account, table.name);
+      const definedIn = table.environments.join(', ') || 'no environment yet';
+      const note = ignored === undefined ? '' : `; ${ignored.source} is not compared`;
+
+      return {
+        table: table.name,
+        account: table.account,
+        profile,
+        status: 'not-defined',
+        detail: `not defined in ${layout.env} (defined in ${definedIn})${note}`,
+        ...empty,
+      };
+    }
+
     const repository = await loadRepositoryItems(layout, table.account, table.name);
     if (repository === undefined) {
       return {

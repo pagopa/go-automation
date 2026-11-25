@@ -70,6 +70,7 @@ export function makeTable(overrides: Partial<AnagraficaTable> = {}): AnagraficaT
     account: 'confinfo',
     keys: ['cxId'],
     protectedKey: undefined,
+    environments: undefined,
     syncMode: 'replace',
     ...overrides,
   };

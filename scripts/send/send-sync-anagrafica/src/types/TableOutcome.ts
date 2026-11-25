@@ -4,6 +4,8 @@ export type TableStatus =
   | 'aligned'
   /** They disagree, which is the answer a comparison run asks for. */
   | 'drifted'
+  /** The table map says the table is not defined in this environment, so nothing was read. */
+  | 'not-defined'
   /** The table is configured but its file is not in the repository. */
   | 'missing-file'
   /** A file exists that configs/tables.json names nowhere. */

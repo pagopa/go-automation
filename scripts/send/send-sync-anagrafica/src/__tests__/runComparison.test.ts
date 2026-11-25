@@ -39,6 +39,62 @@ async function repositoryWith(table: string, lines: string): Promise<string> {
   return root;
 }
 
+describe('compareOne, a table not defined in this environment', () => {
+  /** A service that fails the test if anything is read from it. */
+  const unreadable = {
+    scanRaw: async (): Promise<never> => await Promise.reject(new Error('the table must not be read')),
+  } as unknown as AWSDynamoDBService;
+
+  it('is reported as not defined, without reading the table or looking for a missing file', async () => {
+    const outcome = await compareOne(
+      unreadable,
+      layoutOf(makeConfig({ configPath: '/nowhere' })),
+      makeTable({ environments: ['uat', 'prod'] }),
+      'send-confinfo-test',
+    );
+
+    assert.equal(outcome.status, 'not-defined');
+    assert.match(outcome.detail, /not defined in test \(defined in uat, prod\)/);
+  });
+
+  it('says no environment defines it when the list is empty', async () => {
+    const outcome = await compareOne(
+      unreadable,
+      layoutOf(makeConfig({ configPath: '/nowhere' })),
+      makeTable({ environments: [] }),
+      'send-confinfo-test',
+    );
+
+    assert.equal(outcome.status, 'not-defined');
+    assert.match(outcome.detail, /no environment yet/);
+  });
+
+  it('names a file it does not compare, since the repository may carry one for a table that is not provisioned', async () => {
+    const root = await repositoryWith('pn-EcAnagrafica', '{"cxId":{"S":"pn-delivery"}}\n');
+
+    const outcome = await compareOne(
+      unreadable,
+      layoutOf(makeConfig({ configPath: root })),
+      makeTable({ environments: ['uat'] }),
+      'send-confinfo-test',
+    );
+
+    assert.equal(outcome.status, 'not-defined');
+    assert.match(outcome.detail, /pn-EcAnagrafica\.json is not compared/);
+  });
+
+  it('is compared as usual in an environment that defines it', async () => {
+    const outcome = await compareOne(
+      stubService([]),
+      layoutOf(makeConfig({ configPath: '/nowhere' })),
+      makeTable({ environments: ['test'] }),
+      'send-confinfo-test',
+    );
+
+    assert.equal(outcome.status, 'missing-file');
+  });
+});
+
 describe('compareOne', () => {
   it('reports a configured table whose file is not in the repository', async () => {
     const outcome = await compareOne(
