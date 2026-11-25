@@ -1,15 +1,15 @@
 # send-sync-anagrafica
 
-Confronta le tabelle di anagrafica di SEND con i file che le dichiarano in
+Confronta le tabelle Dynamo di anagrafica di SEND con i file che le dichiarano in
 `pn-configuration`: oggetti che la tabella ha e il repository
 non dichiara, oggetti che il repository dichiara e la tabella non ha, e oggetti che
 entrambi hanno ma su cui non concordano.
 
-Con `--sync` riscrive anche la drift. **Senza, non scrive niente**: il
+Con `--sync` bonifica anche la differenza. **Senza, non scrive niente**: il
 confronto è ciò che si vuole guardare _prima_.
 
 > **Niente viene mai cancellato.** Ogni richiesta è una PUT, quindi un oggetto che
-> la tabella ha e nessun file dichiara viene riportato e ignorato.
+> la tabella ha e nessun file dichiara viene segnalato e ignorato.
 
 ## Come avviene il confronto
 
@@ -21,7 +21,7 @@ Non avvengono conversioni, quindi non si rischia di perdere dati: `{"N":"1.0"}` 
 ### L'ordine degli attributi non conta
 
 DynamoDB restituisce gli attributi nel proprio ordine, che non è necessariamente
-quello del file: la `pn-EcAnagrafica` comincia con `sqsArn` mentre il file
+quello del file: la `pn-EcAnagrafica` comincia con `sqsArn` mentre un file
 potrebbe cominciare con `sqsName`. Confrontare il testo serializzato rischierebbe di
 dichiarare diverso ogni oggetto, quando in realtà non lo sono.
 
@@ -36,22 +36,22 @@ dichiarare diverso ogni oggetto, quando in realtà non lo sono.
 
 ### Gli oggetti protetti
 
-Un oggetto è **protetto** quando una tabella lo tiene in vita di proposito e
-nessun file di configurazione lo dichiara: oggi `pn-cons-000` in
+Un oggetto è **protetto** quando una tabella lo tiene di proposito e
+nessun file di configurazione lo dichiara: ad esempio, `pn-cons-000` in
 `pn-EcAnagrafica` e in `pn-SsAnagraficaClient`, `pn-norm-000` in
 `pn-addressManager-AnagraficaClient`. Si dichiarano in `configs/tables.json`
 con `protectedKey` (l'attributo di chiave e i valori attesi solo in tabella).
 
-Il perché sono due, e opposti:
+I motivi sono due, e opposti:
 
-- **Solo in tabella** (`protectedItems`): non è drift. Senza questa categoria lo
-  stesso falso positivo comparirebbe a ogni run, e abituerebbe a ignorare la
-  riga di quella tabella, dove prima o poi ci sarebbe una differenza vera. Sono
-  contati a parte (`protected item(s) are expected live-only`).
+- **Solo in tabella** (`protectedItems`): non è differenza da sanare. Senza questa
+  categoria lo stesso falso positivo comparirebbe a ogni esecuzione, e abituerebbe
+  a ignorare la riga di quella tabella, dove prima o poi ci sarebbe una differenza vera.
+  Sono contati a parte (`protected item(s) are expected live-only`).
 - **Nel file** (`protected-in-file`): è un difetto, anche in sola lettura. Un
   file che dichiara un oggetto protetto, con `--sync`, **sovrascriverebbe**
-  quello vivo con un `PutRequest`. Per questo viene controllato a ogni run e fa
-  uscire `1`; con `--sync` rifiuta l'intera esecuzione (vedi [Codici di
+  quello in tabella con un `PutRequest`. Per questo viene controllato a ogni esecuzione
+  e fa uscire `1`; con `--sync` rifiuta l'intera esecuzione (vedi [Codici di
   uscita](#codici-di-uscita)).
 
 Niente viene mai cancellato: la protezione riguarda la sovrascrittura, non la
@@ -59,10 +59,10 @@ rimozione.
 
 ## Come avviene la scrittura
 
-### Si scrive solo la differenza, non tutto il file
+### Viene riscritta solo la differenza, non tutto il file
 
 Dopo il confronto si scrivono solo gli oggetti che differiscono: su una tabella come
-`pn-addressManager-Cap` è la differenza fra una singola richiesta e 4000+ reinserimenti.
+`pn-addressManager-Cap` è la differenza fra una singola richiesta e 4000+ scritture.
 
 ### Due modalità di scrittura
 
@@ -73,8 +73,8 @@ Dopo il confronto si scrivono solo gli oggetti che differiscono: su una tabella 
 
 ### Gli attributi che una scrittura cancellerebbe
 
-Un `PutRequest` sostituisce l'oggetto intero, quindi un attributo che la tabella
-ha e il file invece non ha **sparisce senza comparire in nessuna diff**. Prima
+Una `PutRequest` sostituisce l'oggetto intero, quindi un attributo che la tabella
+ha e il file invece non ha **sparisce senza comparire in nessun confronto**. Prima
 di scrivere, vengono elencati quegli attributi per ciascun oggetto.
 
 ### `UnprocessedItems` non viene ignorato
@@ -89,10 +89,10 @@ _backoff_ ed i rimanenti sono **riportati** con _exit code_ 1.
 1. il sì/no che copre tutte le scritture (`--yes` lo salta);
 2. per **ogni profilo di produzione** su cui si scrive, il nome del profilo va
    **digitato** per intero. `--yes`, una variabile d'ambiente, un preset o un file di
-   configurazione non rispondono mai a questa domanda, e senza terminale la
-   run fallisce: una scrittura in produzione non può girare non presidiata.
+   configurazione non rispondono mai a questa domanda, e senza terminale l'esecuzione
+   fallisce: una scrittura in produzione non può girare non presidiata.
 
-Un profilo è di produzione se vale **uno qualunque** di questi segnali: il nome
+Un profilo è di produzione se vale **uno qualunque** di questi criteri: il nome
 contiene come token `prod`, `prd` o `production`; l'account a cui risolvono le sue
 credenziali è uno dei `GO_PRODUCTION_ACCOUNT_IDS` di go-script (quindi anche un
 profilo senza marker); il nome contiene uno dei `guard.prodProfileMarkers`, che
@@ -143,7 +143,7 @@ due è deducibile dal percorso del file.
 ovunque (le `pn-Paper*` non sono in `test`, `pn-Campaigns` non ha file in
 `hotfix`, le `pn-AuthJwt*` non hanno file in nessun ambiente). Fuori da quella
 lista la tabella non viene né letta né confrontata ed è riportata come
-`not-defined`: non è un errore, non fa fallire la run nemmeno con
+`not-defined`: non è un errore, non fa fallire l'esecuzione nemmeno con
 `--strict-configuration`, e se il repository ha comunque un file lo nomina. Senza
 `environments` la tabella vale per tutti gli ambienti; con la lista vuota non
 vale per nessuno (ancora).
@@ -186,7 +186,7 @@ go-cli  send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev
 
 #### 2. Una tabella sola, quando si sta guardando una differenza precisa
 
-`--table-names` restringe il confronto. Su una run ristretta i file non configurati non vengono cercati, perchè sarebbero tutti non configurati per costruzione.
+`--table-names` restringe il confronto. Su un'esecuzione ristretta i file non configurati non vengono cercati, perchè sarebbero tutti non configurati per costruzione.
 
 ```bash
 pnpm go send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --tn pn-EcAnagrafica
@@ -232,9 +232,9 @@ pnpm send:sync:anagrafica:dev --cp ~/workspaces/pagopa/send/pn-configuration --e
 go-cli  send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev prod --aps send-core-prod,send-confinfo-prod --sync
 ```
 
-#### 6. Far fallire la run quando manca un file, o ne avanza uno
+#### 6. Far fallire l'esecuzione quando manca un file, o ne avanza uno
 
-Una tabella che l'ambiente definisce e che non ha file (`missing-file`), o un file che la mappa non dichiara (`unconfigured`), sono riportati ma di default non fanno fallire la run. `--strict-configuration` è per chi sa che non dovrebbero esserci. Le tabelle `not-defined` non contano mai.
+Una tabella che l'ambiente definisce e che non ha file (`missing-file`), o un file che la mappa non dichiara (`unconfigured`), sono riportati ma di default non fanno fallire l'esecuzione. `--strict-configuration` è per chi sa che non dovrebbero esserci. Le tabelle `not-defined` non contano mai.
 
 ```bash
 pnpm go send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --stc
@@ -266,10 +266,10 @@ il dry run saltasse la domanda diventerebbe il modo per aggirarla.
 
 ## Codici di uscita
 
-**La differenza non è un fallimento**: è la risposta che si era chiesta, quindi
-esce `0`. Esce `1` quando l'esecuzione non può rispondere — una scan rifiutata,
+**Una differenza da sanare non è un fallimento**: è la risposta che si cerca, quindi
+esce `0`. Esce `1` quando l'esecuzione non può rispondere: una scan rifiutata,
 un file non processato, una tabella dichiarata senza file (`missing-file`),
-un file che la mappa non dichiara (`unconfigured`), un file che dichiara un oggetto
+un file non dichiarato (`unconfigured`), un file che dichiara un oggetto
 protetto (`protected-in-file`). Con `--sync`, esce `1` anche se una scrittura
 non è andata a buon fine.
 
