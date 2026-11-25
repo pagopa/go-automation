@@ -39,6 +39,7 @@ import { NOTIFIER_REGISTRATION } from './k8s/k8s-interop-be-notifier-errors/regi
 import { NOTIFICATION_USER_LIFECYCLE_REGISTRATION } from './k8s/k8s-interop-be-notification-user-lifecycle-consumer-errors/registration.js';
 import { IN_APP_NOTIFICATION_DISPATCHER_REGISTRATION } from './k8s/k8s-interop-be-in-app-notification-dispatcher-errors/registration.js';
 import { PURPOSE_OUTBOUND_WRITER_REGISTRATION } from './k8s/k8s-interop-be-purpose-outbound-writer-errors/registration.js';
+import { PURPOSE_READMODEL_WRITER_SQL_REGISTRATION } from './k8s/k8s-interop-be-purpose-readmodel-writer-sql-errors/registration.js';
 import { NOTIFICATION_SCHEDULER_REGISTRATION } from './k8s/k8s-interop-be-scheduled-notification-scheduler-errors/registration.js';
 import { PUBLIC_CATALOG_REGISTRATION } from './k8s/k8s-interop-public-catalog-astro-frontend-errors/registration.js';
 import { PUBLIC_CATALOG_STRAPI_REGISTRATION } from './k8s/k8s-interop-public-catalog-strapi-errors/registration.js';
@@ -80,6 +81,7 @@ export const INTEROP_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   NOTIFICATION_USER_LIFECYCLE_REGISTRATION,
   IN_APP_NOTIFICATION_DISPATCHER_REGISTRATION,
   PURPOSE_OUTBOUND_WRITER_REGISTRATION,
+  PURPOSE_READMODEL_WRITER_SQL_REGISTRATION,
   NOTIFICATION_SCHEDULER_REGISTRATION,
   PUBLIC_CATALOG_REGISTRATION,
   PUBLIC_CATALOG_STRAPI_REGISTRATION,
