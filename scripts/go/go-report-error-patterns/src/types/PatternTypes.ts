@@ -3,23 +3,23 @@
  */
 export interface AlarmPatternConfigFile {
   /** Name of the CloudWatch Alarm */
-  readonly 'alarm-name': string;
+  readonly alarmName: string;
   /** Start timestamp/date string for alarm history search */
-  readonly 'alarm-history-start-date': string | number;
+  readonly alarmHistoryStartDate: string | number;
   /** End timestamp/date string for alarm history search */
-  readonly 'alarm-history-end-date': string | number;
+  readonly alarmHistoryEndDate: string | number;
   /** CloudWatch log group used for pattern analysis */
-  readonly 'log-group': string;
+  readonly logGroup: string;
   /** CloudWatch query string (e.g. pattern analysis query) */
-  readonly 'query-aws-cloudwatch': string;
+  readonly queryAwsCloudWatch: string;
   /** Optional extra seconds to add before and after the analysis window (defaults to 0) */
-  readonly 'time-window-extra-seconds'?: number | undefined;
-  /** Deprecated alias for time-window-extra-seconds */
-  readonly 'buffer-seconds'?: number | undefined;
+  readonly timeWindowExtraSeconds?: number | undefined;
+  /** Deprecated alias for timeWindowExtraSeconds */
+  readonly bufferSeconds?: number | undefined;
   /** Optional AWS profile name for this specific alarm */
   readonly profile?: string | undefined;
   /** Optional flag to enable empirical resolution of static <*> tokens in patterns (defaults to false) */
-  readonly 'resolve-static-tokens'?: boolean | undefined;
+  readonly resolveStaticTokens?: boolean | undefined;
 }
 
 /**

@@ -17,14 +17,14 @@ Script per analizzare le occorrenze di attivazione di allarmi AWS CloudWatch ed 
 
 - **Ispezione storico allarmi**: interroga lo storico delle transizioni di stato verso `ALARM` in un arco temporale configurabile (`AWSCloudWatchAlarmsService.describeAlarmStateTransitions`).
 - **Finestra temporale automatica e mirata**: calcola dinamicamente l'intervallo temporale `[queryStartTime, queryEndTime]` a partire dai timestamp dei datapoint responsabili dell'attivazione (`evaluatingDatapoints`), minimizzando il volume di log scansionati.
-- **Espansione finestra configurabile**: possibilità di configurare un margine temporale simmetrico prima e dopo la finestra calcolata tramite il parametro `time-window-extra-seconds`.
+- **Espansione finestra configurabile**: possibilità di configurare un margine temporale simmetrico prima e dopo la finestra calcolata tramite il parametro `timeWindowExtraSeconds`.
 - **Pattern analysis CloudWatch Logs**: esecuzione di query CloudWatch Logs Insights mirate con estrazione automatica dei pattern e dei rispettivi valori di ratio (%) e conteggi (`AWSCloudWatchLogsService.query`).
 - **Sistema di report modulari**:
   - **Report A — Dominant Pattern**: individua il pattern con il `ratio (%)` massimo per ciascuna occorrenza e calcola la frequenza con cui ciascun pattern è risultato la causa dominante dell'allarme.
   - **Report B — Pattern Coverage**: misura la trasversalità dei pattern contando in quante occorrenze distinte ciascun pattern è comparso nei log analizzati.
   - **Report C — Tied Pattern Combinations**: traccia le occorrenze con pareggi (pattern con ratio (%) massimo equivalente) e aggrega le combinazioni ricorrenti di pattern in pareggio.
 - **Flessibilità di profiling**: il profilo AWS associato ad un allarme può essere specificato tramite opportuna proprietà (`profile`) all'interno del file di configurazione e che, in assenza di questo, lo script verificherà la presenza di tale allarme tra tutti i profili forniti in input allo script tramite il parametro `--aws-profiles`.
-- **Risoluzione token statici (opt-in)**: se abilitato tramite il campo `resolve-static-tokens`, lo script esegue query di risoluzione sulle stesse finestre temporali delle occorrenze per determinare empiricamente quali token `<*>` nei pattern CloudWatch hanno valore costante. I token stabili vengono sostituiti con il loro valore reale nei report, migliorando la leggibilità diagnostica. I token genuinamente variabili mantengono il segnaposto `<*>`.
+- **Risoluzione token statici (opt-in)**: se abilitato tramite il campo `resolveStaticTokens`, lo script esegue query di risoluzione sulle stesse finestre temporali delle occorrenze per determinare empiricamente quali token `<*>` nei pattern CloudWatch hanno valore costante. I token stabili vengono sostituiti con il loro valore reale nei report, migliorando la leggibilità diagnostica. I token genuinamente variabili mantengono il segnaposto `<*>`.
 - **Output dettagliato**: rendering tabellare a console ed esportazione automatica dei report in file JSON strutturati e indentati.
 
 ## Prerequisiti
@@ -76,46 +76,46 @@ Il file può contenere un singolo oggetto oppure un array di oggetti configurazi
 [
   {
     "profile": "prod-account",
-    "alarm-name": "service-a-5xx",
-    "log-group": "/aws/ecs/service-a",
-    "alarm-history-start-date": "2026-11-01T00:00:00Z",
-    "alarm-history-end-date": "2026-11-03T23:59:59Z",
-    "query-aws-cloudwatch": "fields @timestamp, @message | filter @message like /ERROR/ | pattern @message",
-    "time-window-extra-seconds": 30,
-    "resolve-static-tokens": true
+    "alarmName": "service-a-5xx",
+    "logGroup": "/aws/ecs/service-a",
+    "alarmHistoryStartDate": "2026-11-01T00:00:00Z",
+    "alarmHistoryEndDate": "2026-11-03T23:59:59Z",
+    "queryAwsCloudWatch": "fields @timestamp, @message | filter @message like /ERROR/ | pattern @message",
+    "timeWindowExtraSeconds": 30,
+    "resolveStaticTokens": true
   },
   {
     "profile": "dev-account",
-    "alarm-name": "service-b-latency",
-    "log-group": "/aws/ecs/service-b",
-    "alarm-history-start-date": "2026-11-01T00:00:00Z",
-    "alarm-history-end-date": "2026-11-03T23:59:59Z",
-    "query-aws-cloudwatch": "fields @timestamp, @message | pattern @message",
-    "time-window-extra-seconds": 0,
-    "resolve-static-tokens": false
+    "alarmName": "service-b-latency",
+    "logGroup": "/aws/ecs/service-b",
+    "alarmHistoryStartDate": "2026-11-01T00:00:00Z",
+    "alarmHistoryEndDate": "2026-11-03T23:59:59Z",
+    "queryAwsCloudWatch": "fields @timestamp, @message | pattern @message",
+    "timeWindowExtraSeconds": 0,
+    "resolveStaticTokens": false
   }
 ]
 ```
 
 #### Dettaglio Campi di Configurazione
 
-| Proprietà                   | Tipo             | Obbligatorio | Descrizione                                                                                           |
-| --------------------------- | ---------------- | ------------ | ----------------------------------------------------------------------------------------------------- |
-| `alarm-name`                | string           | Sì           | Nome dell'allarme CloudWatch da analizzare.                                                           |
-| `alarm-history-start-date`  | string \| number | Sì           | Data/ora iniziale dell'intervallo di ricerca dello storico (ISO 8601 o millisecondi).                 |
-| `alarm-history-end-date`    | string \| number | Sì           | Data/ora finale dell'intervallo di ricerca dello storico (ISO 8601 o millisecondi).                   |
-| `log-group`                 | string           | Sì           | Nome del CloudWatch Log Group da interrogare.                                                         |
-| `query-aws-cloudwatch`      | string           | Sì           | Query CloudWatch Logs Insights (deve contenere il comando `pattern`).                                 |
-| `profile`                   | string           | No           | Profilo AWS specifico per l'allarme. Se omesso, si utilizzano i profili passati via `--aws-profiles`. |
-| `time-window-extra-seconds` | number           | No           | Secondi extra da aggiungere prima e dopo la finestra temporale di analisi (default: `0`).             |
-| `resolve-static-tokens`     | boolean          | No           | Se `true`, abilita la risoluzione empirica dei token `<*>` statici nei pattern tramite query aggiuntive. Comporta costo CloudWatch aggiuntivo proporzionale al numero di pattern distinti e occorrenze. Default: `false`. |
+| Proprietà                | Tipo             | Obbligatorio | Descrizione                                                                                                                                                                                                               |
+| ------------------------ | ---------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `alarmName`              | string           | Sì           | Nome dell'allarme CloudWatch da analizzare.                                                                                                                                                                               |
+| `alarmHistoryStartDate`  | string \| number | Sì           | Data/ora iniziale dell'intervallo di ricerca dello storico (ISO 8601 o millisecondi).                                                                                                                                     |
+| `alarmHistoryEndDate`    | string \| number | Sì           | Data/ora finale dell'intervallo di ricerca dello storico (ISO 8601 o millisecondi).                                                                                                                                       |
+| `logGroup`               | string           | Sì           | Nome del CloudWatch Log Group da interrogare.                                                                                                                                                                             |
+| `queryAwsCloudWatch`     | string           | Sì           | Query CloudWatch Logs Insights (deve contenere il comando `pattern`).                                                                                                                                                     |
+| `profile`                | string           | No           | Profilo AWS specifico per l'allarme. Se omesso, si utilizzano i profili passati via `--aws-profiles`.                                                                                                                     |
+| `timeWindowExtraSeconds` | number           | No           | Secondi extra da aggiungere prima e dopo la finestra temporale di analisi (default: `0`).                                                                                                                                 |
+| `resolveStaticTokens`    | boolean          | No           | Se `true`, abilita la risoluzione empirica dei token `<*>` statici nei pattern tramite query aggiuntive. Comporta costo CloudWatch aggiuntivo proporzionale al numero di pattern distinti e occorrenze. Default: `false`. |
 
 ### Priorità di Configurazione
 
 1. Campo `profile` specificato nel file di configurazione per il singolo allarme
 2. Parametri CLI (`--aws-profiles`, `--config-file`)
 3. Variabili d'ambiente AWS (`AWS_PROFILE`, `AWS_REGION`)
-4. Valori di default (es. `time-window-extra-seconds: 0`)
+4. Valori di default (es. `timeWindowExtraSeconds: 0`)
 
 ## Utilizzo
 
@@ -270,7 +270,7 @@ aws sso login --profile [nome-profilo]
 
 #### Errore: "Invalid date format"
 
-**Causa**: I valori `alarm-history-start-date` o `alarm-history-end-date` contengono una stringa non interpretabile come data.
+**Causa**: I valori `alarmHistoryStartDate` o `alarmHistoryEndDate` contengono una stringa non interpretabile come data.
 
 **Soluzione**: Usare il formato standard ISO 8601 (es. `2026-11-01T00:00:00Z`) o un timestamp numerico in millisecondi.
 
@@ -286,11 +286,11 @@ pnpm build:common
 pnpm --filter=go-report-error-patterns build
 ```
 
-#### I pattern nei report contengono ancora `<*>` anche con `resolve-static-tokens: true`
+#### I pattern nei report contengono ancora `<*>` anche con `resolveStaticTokens: true`
 
 **Causa**: Il token varia genuinamente tra le occorrenze o tra i log nell'intervallo analizzato. La risoluzione è corretta: quel valore non è stabile.
 
-**Causa alternativa**: La query CloudWatch specificata in `query-aws-cloudwatch` non usa il comando `pattern`, oppure il campo `@pattern` non viene restituito correttamente.
+**Causa alternativa**: La query CloudWatch specificata in `queryAwsCloudWatch` non usa il comando `pattern`, oppure il campo `@pattern` non viene restituito correttamente.
 
 ### Debug Mode
 

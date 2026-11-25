@@ -51,7 +51,7 @@ export function resolveProfiles(
     return awsProfiles;
   }
   throw new Error(
-    `Nessun profilo AWS specificato per l'allarme "${item['alarm-name']}". Specificare il campo "profile" nel file di configurazione oppure il parametro "--aws-profiles".`,
+    `Nessun profilo AWS specificato per l'allarme "${item.alarmName}". Specificare il campo "profile" nel file di configurazione oppure il parametro "--aws-profiles".`,
   );
 }
 
@@ -68,12 +68,12 @@ export async function analyzeAlarm(
   item: AlarmPatternConfigFile,
   awsProfiles: ReadonlyArray<string> | undefined,
 ): Promise<ReadonlyArray<GeneratedReports>> {
-  const startDate = parseDateInput(item['alarm-history-start-date']);
-  const endDate = parseDateInput(item['alarm-history-end-date']);
+  const startDate = parseDateInput(item.alarmHistoryStartDate);
+  const endDate = parseDateInput(item.alarmHistoryEndDate);
 
-  script.logger.info(`Analisi configurazione per allarme: "${item['alarm-name']}"`);
+  script.logger.info(`Analisi configurazione per allarme: "${item.alarmName}"`);
   script.logger.info(`Intervallo ricerca allarme: ${startDate.toISOString()} -> ${endDate.toISOString()}`);
-  script.logger.info(`Log Group: ${item['log-group']}`);
+  script.logger.info(`Log Group: ${item.logGroup}`);
 
   const reports: GeneratedReports[] = [];
   for (const profile of resolveProfiles(item, awsProfiles)) {
@@ -88,7 +88,7 @@ async function analyzeAlarmOnProfile(
   profile: string,
   timeRange: { readonly start: Date; readonly end: Date },
 ): Promise<GeneratedReports> {
-  const alarmName = item['alarm-name'];
+  const alarmName = item.alarmName;
   script.logger.section(`Esecuzione su profilo AWS: ${profile}`);
 
   const alarmsService = new AWSCloudWatchAlarmsService(script.aws.clients.get(profile).cloudWatch);
@@ -98,15 +98,15 @@ async function analyzeAlarmOnProfile(
   const transitions = await alarmsService.describeAlarmStateTransitions({ alarmName, timeRange });
   script.logger.info(`Trovate ${transitions.length} transizioni verso ALARM.`);
 
-  const extraSeconds = item['time-window-extra-seconds'] ?? item['buffer-seconds'] ?? 0;
+  const extraSeconds = item.timeWindowExtraSeconds ?? item.bufferSeconds ?? 0;
   const occurrences = transitions
     .map((transition) => extractAlarmOccurrenceWindow(transition, extraSeconds))
     .filter((occurrence): occurrence is AlarmOccurrence => occurrence !== undefined);
 
   const queried = await queryOccurrences(script, logsService, item, occurrences);
   const occurrenceResults =
-    item['resolve-static-tokens'] === true
-      ? await resolveStaticTokens(script, logsService, item['log-group'], queried)
+    item.resolveStaticTokens === true
+      ? await resolveStaticTokens(script, logsService, item.logGroup, queried)
       : queried;
 
   const generatedReports = buildAllReports(profile, alarmName, occurrenceResults);
@@ -126,7 +126,7 @@ async function queryOccurrences(
       `[${index + 1}/${occurrences.length}] Esecuzione query pattern per allarme delle ${occ.timestamp.toISOString()} (finestra: ${occ.queryStartTime.toISOString()} -> ${occ.queryEndTime.toISOString()})...`,
     );
     try {
-      const res = await queryPatternsForOccurrence(logsService, item['log-group'], item['query-aws-cloudwatch'], occ);
+      const res = await queryPatternsForOccurrence(logsService, item.logGroup, item.queryAwsCloudWatch, occ);
       results.push(res);
       script.logger.text(`  -> Rilevati ${res.patterns.length} pattern.`);
     } catch (error: unknown) {
