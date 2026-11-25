@@ -31,8 +31,8 @@ export function buildRunbook(): Runbook {
     .metadata({
       name: 'interop-att-eservices-att-apigw-4xx',
       description:
-        'Analizza i 4xx dell’API Gateway e-services in Attestazione e riconosce le richieste 403 ai percorsi sospetti documentati.',
-      version: '1.0.0',
+        'Analizza i 4xx dell’API Gateway e-services in Attestazione e riconosce le richieste 403 respinte senza chiamare il backend.',
+      version: '1.1.0',
       type: 'alarm-resolution',
       team: 'GO',
       tags: ['interop', 'api-gateway', '4xx', 'eservices', 'attestation'],
@@ -85,7 +85,7 @@ export function buildRunbook(): Runbook {
       unknownCaseFallback(UNKNOWN_CASE_TITLE, [
         ['Ambiente', '{{vars.interopEnvironment}}'],
         ['Richieste 4xx', '{{vars.attEservicesRequestCount}}'],
-        ['Richieste 403 documentate', '{{vars.attEservicesProbeCount}}'],
+        ['Richieste 403 senza integrazione', '{{vars.attEservicesRejectedCount}}'],
         ['Path osservati', '{{vars.attEservicesPaths}}'],
       ]),
     );

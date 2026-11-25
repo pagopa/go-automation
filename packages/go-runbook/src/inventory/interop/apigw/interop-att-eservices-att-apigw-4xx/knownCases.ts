@@ -1,18 +1,17 @@
 import { knownCase } from '../../../../toolkits/interop/index.js';
 import { type KnownCase, varEquals } from '../../../../engine/index.js';
 
-/** Source: Confluence 2843770902 v5 note on suspicious paths, verified against the real access logs. */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
-    id: 'att-eservices-documented-probe-paths-403',
-    description: 'HTTP 403 su richieste GET ai percorsi sospetti documentati',
-    condition: varEquals('attEservicesAllDocumentedProbes', 'true'),
+    id: 'att-eservices-403-without-integration',
+    description: 'HTTP 403 senza riscontro sui log applicativi',
+    condition: varEquals('attEservicesAllRejectedBeforeIntegration', 'true'),
     resolution: "In caso di chiamate effettuate a path sospetti, non c'è alcuna azione da intraprendere.",
     details: [
       ['Ambiente', '{{vars.interopEnvironment}}'],
       ['API Gateway ID', '{{vars.interopApiGwId}}'],
       ['Richieste 4xx', '{{vars.attEservicesRequestCount}}'],
-      ['Richieste 403 documentate', '{{vars.attEservicesProbeCount}}'],
+      ['Richieste 403 senza integrazione', '{{vars.attEservicesRejectedCount}}'],
       ['Path osservati', '{{vars.attEservicesPaths}}'],
     ],
     analysis: {

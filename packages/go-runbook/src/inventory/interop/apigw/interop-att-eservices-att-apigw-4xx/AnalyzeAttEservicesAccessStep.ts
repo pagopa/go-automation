@@ -12,20 +12,19 @@ import {
   ANALYSIS_STEP_ID,
   API_GW_ID,
   API_GW_LOG_GROUP,
-  DOCUMENTED_PROBE_PATHS,
   QUERY_STEP_ID,
 } from './alarmDefinition.js';
 
 export interface AttEservicesAccessAnalysis {
   readonly requestCount: number;
-  readonly documentedProbeCount: number;
-  readonly allDocumentedProbes: boolean;
+  readonly rejectedBeforeIntegrationCount: number;
+  readonly allRejectedBeforeIntegration: boolean;
   readonly coverageLimited: boolean;
   readonly paths: ReadonlyArray<string>;
   readonly statusCounts: Readonly<Record<string, number>>;
 }
 
-/** Recognize the documented 403 context per request, without attributing other errors to a backend. */
+/** Recognize, per request, the 403 that API Gateway returned without calling the integration. */
 export class AnalyzeAttEservicesAccessStep implements Step<AttEservicesAccessAnalysis> {
   readonly id: string = ANALYSIS_STEP_ID;
   readonly label: string = 'Analisi richieste 4xx e-services in Attestazione';
@@ -38,7 +37,7 @@ export class AnalyzeAttEservicesAccessStep implements Step<AttEservicesAccessAna
     const rows = upstream.value;
     const paths = new Set<string>();
     const statusCounts = new Map<string, number>();
-    let documentedProbeCount = 0;
+    let rejectedBeforeIntegrationCount = 0;
     for (const row of rows) {
       const status = readRowField(row, 'status') ?? '';
       const path = readRowField(row, 'requestPath') ?? '';
@@ -48,27 +47,27 @@ export class AnalyzeAttEservicesAccessStep implements Step<AttEservicesAccessAna
       if (
         readRowField(row, 'apigwId') === API_GW_ID &&
         status === '403' &&
-        readRowField(row, 'httpMethod') === 'GET' &&
+        path !== '' &&
         readRowField(row, 'integrationStatus') === '-' &&
-        readRowField(row, 'integrationError') === '-' &&
-        DOCUMENTED_PROBE_PATHS.has(path)
+        readRowField(row, 'integrationError') === '-'
       )
-        documentedProbeCount++;
+        rejectedBeforeIntegrationCount++;
     }
     // A result at the declared query ceiling cannot establish coverage of the whole window.
     const coverageLimited = rows.length >= ACCESS_LOG_RESULT_LIMIT;
-    const allDocumentedProbes = rows.length > 0 && !coverageLimited && documentedProbeCount === rows.length;
+    const allRejectedBeforeIntegration =
+      rows.length > 0 && !coverageLimited && rejectedBeforeIntegrationCount === rows.length;
     const output: AttEservicesAccessAnalysis = {
       requestCount: rows.length,
-      documentedProbeCount,
-      allDocumentedProbes,
+      rejectedBeforeIntegrationCount,
+      allRejectedBeforeIntegration,
       coverageLimited,
       paths: [...paths].sort(),
       statusCounts: Object.fromEntries(statusCounts),
     };
     const pathSummary = output.paths.slice(0, 10).join(', ');
     context.services.reporter.add({
-      label: `Richieste 4xx e-services: ${String(rows.length)}; richieste 403 documentate: ${String(documentedProbeCount)}`,
+      label: `Richieste 4xx e-services: ${String(rows.length)}; richieste 403 senza integrazione: ${String(rejectedBeforeIntegrationCount)}`,
     });
     return {
       success: true,
@@ -79,11 +78,11 @@ export class AnalyzeAttEservicesAccessStep implements Step<AttEservicesAccessAna
         interopApiGwLogGroup: API_GW_LOG_GROUP,
         apiGwErrorCount: String(rows.length),
         attEservicesRequestCount: String(rows.length),
-        attEservicesProbeCount: String(documentedProbeCount),
-        attEservicesAllDocumentedProbes: String(allDocumentedProbes),
+        attEservicesRejectedCount: String(rejectedBeforeIntegrationCount),
+        attEservicesAllRejectedBeforeIntegration: String(allRejectedBeforeIntegration),
         attEservicesCoverageLimited: String(coverageLimited),
         attEservicesPaths: pathSummary,
-        attEservicesRequestSummary: `${String(documentedProbeCount)} richieste 403 documentate su ${String(rows.length)} richieste 4xx. Path osservati: ${pathSummary}`,
+        attEservicesRequestSummary: `${String(rejectedBeforeIntegrationCount)} richieste 403 senza integrazione su ${String(rows.length)} richieste 4xx. Path osservati: ${pathSummary}`,
       },
     };
   }

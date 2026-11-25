@@ -23,12 +23,16 @@ function row(overrides: Readonly<Record<string, string>> = {}): LogRows[number] 
 }
 
 describe('Attestazione e-services API Gateway 4xx known case', () => {
-  it('recognizes the observed 403 requests to the documented probe paths', async () => {
+  it('recognizes the observed 403 requests rejected before the integration, on any path', async () => {
     const { matchedIds, queries } = await executeAlarmWithLogs(buildRunbook(), ALARM_NAME, () => [
       row(),
       row({ requestPath: '/favicon.ico' }),
+      row({ requestPath: '/.DS_Store' }),
+      row({ requestPath: '/.git/config' }),
+      row({ requestPath: '/xmlrpc.php', httpMethod: 'POST' }),
+      row({ requestPath: '/', httpMethod: 'HEAD' }),
     ]);
-    assert.deepStrictEqual(matchedIds, ['att-eservices-documented-probe-paths-403']);
+    assert.deepStrictEqual(matchedIds, ['att-eservices-403-without-integration']);
     assert.deepStrictEqual(
       queries.flatMap(({ groups }) => groups),
       [API_GW_LOG_GROUP],
@@ -37,13 +41,12 @@ describe('Attestazione e-services API Gateway 4xx known case', () => {
     assert.ok(!queries[0]?.query.includes('sourceIp'));
   });
 
-  it('does not classify empty, mixed, application, undocumented or 504 contexts', async () => {
+  it('does not classify empty, mixed, integrated, other 4xx or 504 contexts', async () => {
     for (const rows of [
       [],
-      [row({ requestPath: '/residence-verification/status' })],
       [row({ integrationStatus: '403' })],
-      [row(), row({ status: '401', requestPath: '/residence-verification/check' })],
-      [row({ requestPath: '/unknown-probe' })],
+      [row(), row({ status: '401', requestPath: '/residence-verification/check', integrationStatus: '401' })],
+      [row({ status: '400' })],
       [row({ status: '504', integrationStatus: '504', integrationError: 'Execution failed due to a timeout error' })],
     ]) {
       assert.deepStrictEqual((await executeAlarmWithLogs(buildRunbook(), ALARM_NAME, () => rows)).matchedIds, []);
