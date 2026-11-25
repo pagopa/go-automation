@@ -20,7 +20,7 @@ export async function main(script: GOScript): Promise<void> {
   script.logger.section('Starting Go Report Error Patterns');
 
   const config = await script.getConfiguration<GoReportErrorPatternsConfig>();
-  const alarmConfigs = await loadAlarmConfigs(config.configFile);
+  const alarmConfigs = await loadAlarmConfigs(script, config.configFile);
 
   const reports: GeneratedReports[] = [];
   for (const item of alarmConfigs) {

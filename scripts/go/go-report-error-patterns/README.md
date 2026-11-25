@@ -69,7 +69,7 @@ aws sso login --profile [nome-profilo]
 
 ### File di Configurazione
 
-Percorso specificabile tramite parametro `--config-file` (es. `configs/config.json`).
+Nome del file passato con il parametro `--config-file` (es. `config.json`). Un percorso relativo viene cercato prima in `data/go-report-error-patterns/configs/` e poi nella cartella `configs/` dello script; un percorso assoluto viene usato così com'è.
 Il file può contenere un singolo oggetto oppure un array di oggetti configurazione per eseguire l'analisi sequenziale su più allarmi.
 
 ```json
@@ -123,16 +123,16 @@ Il file può contenere un singolo oggetto oppure un array di oggetti configurazi
 
 ```bash
 # Dalla root del monorepo tramite shortcut
-pnpm go:report:error:patterns:dev -- --config-file scripts/go/go-report-error-patterns/configs/config.json
+pnpm go:report:error:patterns:dev -- --config-file config.json
 
 # Dalla root con pnpm filter
-pnpm --filter=go-report-error-patterns dev --config-file configs/config.json
+pnpm --filter=go-report-error-patterns dev --config-file config.json
 
 # Dalla cartella dello script
-pnpm dev --config-file configs/config.json
+pnpm dev --config-file config.json
 
 # Con specifica profili AWS via CLI
-pnpm dev --config-file configs/config.json --aws-profiles prod-account,dev-account
+pnpm dev --config-file config.json --aws-profiles prod-account,dev-account
 ```
 
 ### Modalità Production (build + node)
@@ -140,31 +140,31 @@ pnpm dev --config-file configs/config.json --aws-profiles prod-account,dev-accou
 ```bash
 # Dalla root del monorepo
 pnpm go:report:error:patterns:build
-pnpm go:report:error:patterns:prod -- --config-file scripts/go/go-report-error-patterns/configs/config.json
+pnpm go:report:error:patterns:prod -- --config-file config.json
 
 # Dalla cartella dello script
 pnpm build
-pnpm start -- --config-file configs/config.json
+pnpm start -- --config-file config.json
 ```
 
 ### Modalità Standalone
 
 ```bash
 # Esecuzione diretta del bundle compilato
-node dist/index.js --config-file configs/config.json --aws-profiles prod-account
+node dist/index.js --config-file config.json --aws-profiles prod-account
 ```
 
 ### Esempi Pratici
 
 ```bash
 # Esempio 1: Esecuzione con profili specificati all'interno della configurazione JSON
-pnpm dev --config-file configs/config.json
+pnpm dev --config-file config.json
 
 # Esempio 2: Esecuzione indicando i profili AWS tramite CLI
-pnpm dev --config-file configs/config.json --aws-profiles prod-account
+pnpm dev --config-file config.json --aws-profiles prod-account
 
 # Esempio 3: Utilizzo degli alias brevi dei parametri
-pnpm dev -cf configs/config.json -aps prod-account
+pnpm dev -cf config.json -aps prod-account
 ```
 
 ## Output
@@ -296,7 +296,7 @@ pnpm --filter=go-report-error-patterns build
 
 ```bash
 # Esecuzione con log di debug
-DEBUG=* pnpm dev --config-file configs/config.json
+DEBUG=* pnpm dev --config-file config.json
 
 # Type-check TypeScript senza compilare
 pnpm exec tsc --noEmit

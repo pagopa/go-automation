@@ -8,6 +8,7 @@ import { AWSAccountProfileSet } from '@pagopa/go-aws';
 import { AWSCloudWatchAlarmsService } from '@pagopa/go-aws/cloudwatch-alarms';
 import { AWSCloudWatchLogsService } from '@pagopa/go-aws/cloudwatch-logs';
 import { getErrorMessage } from '@pagopa/go-common/errors';
+import { GOPathType } from '@pagopa/go-common/files';
 import { GOJSONFileImporter } from '@pagopa/go-common/importers';
 import type { AlarmOccurrence, AlarmPatternConfigFile, OccurrenceQueryResult } from '../types/index.js';
 import { extractAlarmOccurrenceWindow, parseDateInput } from './alarm-evaluator.js';
@@ -17,17 +18,23 @@ import type { GeneratedReports } from './report.js';
 
 /**
  * Loads the alarm configuration file, accepting either a single entry or an array of entries.
+ * A relative path is resolved by GOPaths in the configs directory: `data/{script}/configs/` first,
+ * then the script's local `configs/`.
  *
- * @param configFile - Path to the JSON configuration file
+ * @param script - The GOScript instance for path resolution and logging
+ * @param configFile - Name or path of the JSON configuration file
  * @returns The alarm configuration entries
  */
-export async function loadAlarmConfigs(configFile: string): Promise<ReadonlyArray<AlarmPatternConfigFile>> {
-  const importer = new GOJSONFileImporter<AlarmPatternConfigFile | AlarmPatternConfigFile[]>({
-    inputPath: configFile,
-  });
+export async function loadAlarmConfigs(
+  script: GOScript,
+  configFile: string,
+): Promise<ReadonlyArray<AlarmPatternConfigFile>> {
+  const inputPath = script.paths.resolvePath(configFile, GOPathType.CONFIG);
+  script.logger.info(`File di configurazione: ${inputPath}`);
+  const importer = new GOJSONFileImporter<AlarmPatternConfigFile | AlarmPatternConfigFile[]>({ inputPath });
   const raw = await importer.import();
   if (raw === undefined) {
-    throw new Error(`File di configurazione vuoto: "${configFile}"`);
+    throw new Error(`File di configurazione vuoto: "${inputPath}"`);
   }
   return Array.isArray(raw) ? raw : [raw];
 }
