@@ -228,6 +228,64 @@
           "rules": []
         }
       }
+    },
+    {
+      "name": "national-registries-missing-response",
+      "description": "Chiamate acquisite nei CDC nel giorno UTC D-5 senza una risposta visibile al controllo.",
+      "values": {
+        "from": null,
+        "to": null,
+        "time": {
+          "lookback": {
+            "hours": 120
+          },
+          "zone": "UTC"
+        },
+        "athena": {
+          "database": "cdc_analytics_database",
+          "query": "WITH run AS (\n    SELECT TIMESTAMP '{{endDate}}' AS checked_at\n),\nbounds AS (\n    SELECT date_add('day', -5, date_trunc('day', checked_at)) AS cohort_day,\n           checked_at\n    FROM run\n),\npartitions AS (\n    SELECT date_format(cohort_day, '%Y-%m-%d') AS ingestion_day,\n           date_format(cohort_day, '%Y') AS start_year,\n           date_format(cohort_day, '%m') AS start_month,\n           date_format(cohort_day, '%d') AS start_day,\n           date_format(checked_at, '%Y') AS end_year,\n           date_format(checked_at, '%m') AS end_month,\n           date_format(checked_at, '%d') AS end_day,\n           date_format(checked_at, '%H') AS end_hour\n    FROM bounds\n),\nevents AS (\n    SELECT t.iun,\n           CASE WHEN t.category = 'PUBLIC_REGISTRY_CALL' THEN t.timelineElementId\n                ELSE substr(t.timelineElementId, length('NATIONAL_REGISTRY_RESPONSE.CORRELATIONID_') + 1)\n           END AS call_id,\n           b.ingestion_day,\n           t.category\n    FROM pn_timelines_json_view t\n    CROSS JOIN partitions b\n    WHERE t.p_year BETWEEN b.start_year AND b.end_year\n      AND (t.p_year > b.start_year OR t.p_month > b.start_month\n           OR (t.p_month = b.start_month AND t.p_day >= b.start_day))\n      AND (t.p_year < b.end_year OR t.p_month < b.end_month\n           OR (t.p_month = b.end_month AND (t.p_day < b.end_day\n               OR (t.p_day = b.end_day AND t.p_hour <= b.end_hour))))\n      AND (\n          (t.category = 'PUBLIC_REGISTRY_CALL'\n           AND t.p_year = b.start_year AND t.p_month = b.start_month AND t.p_day = b.start_day)\n          OR (t.category = 'PUBLIC_REGISTRY_RESPONSE'\n              AND starts_with(t.timelineElementId, 'NATIONAL_REGISTRY_RESPONSE.CORRELATIONID_'))\n      )\n)\nSELECT iun, call_id, ingestion_day\nFROM events\nGROUP BY iun, call_id, ingestion_day\nHAVING count(*) FILTER (WHERE category = 'PUBLIC_REGISTRY_CALL') > 0\n   AND count(*) FILTER (WHERE category = 'PUBLIC_REGISTRY_RESPONSE') = 0\nORDER BY iun, call_id;\n"
+        },
+        "template": {
+          "params": [],
+          "raw": [],
+          "legacy": {
+            "aliases": true
+          }
+        },
+        "output": {
+          "folder": "reports",
+          "format": "csv",
+          "file": {
+            "prefix": "report"
+          },
+          "attach": {
+            "when": {
+              "empty": false
+            }
+          }
+        },
+        "artifact": {
+          "s3": {
+            "location": "s3://pn-log-analytics-athena-results-eu-south-1-151559006927-001"
+          }
+        },
+        "slack": {
+          "token": null,
+          "channel": "C09S6NBBBQF",
+          "send": {
+            "on": {
+              "empty": false,
+              "error": true
+            }
+          },
+          "message": {
+            "template": "*Registri nazionali: richieste senza risposta visibile nei CDC*\n• Giorno di ingestione richieste: D-5 rispetto al {{endYear}}-{{endMonth}}-{{endDay}} (UTC)\n• Risposte cercate fino alla partizione UTC del {{endYear}}-{{endMonth}}-{{endDay}} alle {{endHour}}:00, inclusa\n• Richieste senza risposta visibile: {{rowCount}}"
+          }
+        },
+        "analysis": {
+          "rules": []
+        }
+      }
     }
   ]
 }

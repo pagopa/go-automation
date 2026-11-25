@@ -124,6 +124,18 @@ Parameters:
     Default: 'cron(30 12,17 ? * MON-FRI *)'
     Description: 'Schedule expression for critical notification monitoring preset. Effective only when schedule is enabled'
 
+  GoSendMonitorAthenaQueryLambdaNationalRegistriesScheduleExpression:
+    Type: String
+    Default: 'cron(30 9 * * ? *)'
+    Description: 'Daily Europe/Rome schedule for the missing national registries responses report'
+
+  GoSendMonitorAthenaQueryLambdaNationalRegistriesScheduleEnabled:
+    Type: String
+    Default: 'DISABLED'
+    AllowedValues:
+      - 'ENABLED'
+      - 'DISABLED'
+
 Resources:
   GoSendMonitorAthenaQueryLambda:
     Type: AWS::Lambda::Function
@@ -321,3 +333,18 @@ Resources:
         Arn: !GetAtt GoSendMonitorAthenaQueryLambda.Arn
         RoleArn: !GetAtt GoSendMonitorAthenaQueryLambdaSchedulerRole.Arn
         Input: '{"body":{"script.preset.name":"critical-notification-monitoring"}}'
+
+  GoSendMonitorAthenaQueryLambdaNationalRegistriesScheduler:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: 'MonitorAthenaQueryLambdaNationalRegistries-scheduler'
+      Description: 'Scheduler for the national-registries-missing-response preset'
+      ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaNationalRegistriesScheduleExpression
+      ScheduleExpressionTimezone: !Ref Timezone
+      State: !Ref GoSendMonitorAthenaQueryLambdaNationalRegistriesScheduleEnabled
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      Target:
+        Arn: !GetAtt GoSendMonitorAthenaQueryLambda.Arn
+        RoleArn: !GetAtt GoSendMonitorAthenaQueryLambdaSchedulerRole.Arn
+        Input: '{"body":{"script.preset.name":"national-registries-missing-response","time.zone":"UTC","to":"<aws.scheduler.scheduled-time>"}}'
