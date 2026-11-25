@@ -73,6 +73,7 @@ function pnpmWorkspace(local: Readonly<Record<string, string>>): string {
     'hoistPattern: []',
     'engineStrict: true',
     'autoInstallPeers: false',
+    'minimumReleaseAge: 0',
     'overrides:',
     ...Object.entries(local).map(([name, spec]) => `  '${name}': '${spec}'`),
     '',
