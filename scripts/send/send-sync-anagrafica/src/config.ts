@@ -29,6 +29,12 @@ export const scriptMetadata: GOScriptMetadata = {
  * every provider and `GOEnvironmentConfigProvider` loads the whole of
  * `process.env`, so a word-shaped alias silently picks up an unrelated
  * exported variable. The `Resources` group carries no alias at all.
+ *
+ * The `Resources` parameters are shipped in `configs/config.json` and declared
+ * `required: false` on purpose: go-cli's pre-flight check reads only the
+ * command line, so a `required: true` parameter that the config file satisfies
+ * is reported missing and the run never starts. `assertResourcesConfigured`
+ * enforces them once the configuration has been loaded.
  */
 export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
   {
@@ -114,42 +120,42 @@ export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
     name: 'accounts.core',
     type: GOConfigParameterType.STRING,
     description: 'Profile-name fragment marking the core account. Shipped in configs/config.json',
-    required: true,
+    required: false,
     group: 'Resources',
   },
   {
     name: 'accounts.confinfo',
     type: GOConfigParameterType.STRING,
     description: 'Profile-name fragment marking the confinfo account. Shipped in configs/config.json',
-    required: true,
+    required: false,
     group: 'Resources',
   },
   {
     name: 'configuration.confDir',
     type: GOConfigParameterType.STRING,
     description: 'Per-account configuration directory inside an environment. Shipped in configs/config.json',
-    required: true,
+    required: false,
     group: 'Resources',
   },
   {
     name: 'configuration.dynamodbDir',
     type: GOConfigParameterType.STRING,
     description: 'Table-file directory inside an account. Shipped in configs/config.json',
-    required: true,
+    required: false,
     group: 'Resources',
   },
   {
     name: 'configuration.tablesFile',
     type: GOConfigParameterType.STRING,
     description: 'File naming the tables, their account and their key schema. Shipped in configs/config.json',
-    required: true,
+    required: false,
     group: 'Resources',
   },
   {
     name: 'environments.allowed',
     type: GOConfigParameterType.STRING_ARRAY,
     description: 'Environments this script accepts. Shipped in configs/config.json',
-    required: true,
+    required: false,
     group: 'Resources',
   },
   {
@@ -157,7 +163,8 @@ export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
     type: GOConfigParameterType.STRING_ARRAY,
     description:
       'Extra profile-name fragments marking production, added to the built-in ones: a --sync write through them needs the profile typed back',
-    required: true,
+    required: false,
+    defaultValue: [],
     group: 'Resources',
   },
 ] as const;

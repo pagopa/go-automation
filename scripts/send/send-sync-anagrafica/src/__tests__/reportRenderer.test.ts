@@ -17,7 +17,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 
-import { assertEnvironment, assertKnownTables, assertProfilesMatchEnvironment } from '../libs/assertInputs.js';
+import {
+  assertEnvironment,
+  assertKnownTables,
+  assertProfilesMatchEnvironment,
+  assertResourcesConfigured,
+} from '../libs/assertInputs.js';
 import {
   exportOutcomes,
   hasBlocking,
@@ -62,6 +67,21 @@ describe('assertEnvironment', () => {
     for (const sync of [false, true]) {
       assert.doesNotThrow(() => assertEnvironment(makeConfig({ env: 'prod', sync, environmentsAllowed: ['test'] })));
     }
+  });
+});
+
+describe('assertResourcesConfigured', () => {
+  it('accepts a configuration that carries every resource name', () => {
+    assert.doesNotThrow(() => assertResourcesConfigured(makeConfig()));
+  });
+
+  it('names each flag that came from nowhere, and where it should have come from', () => {
+    const config = makeConfig({ accountsCore: undefined, environmentsAllowed: [] } as never);
+
+    assert.throws(
+      () => assertResourcesConfigured(config),
+      /--accounts-core, --environments-allowed.*configs\/config\.json/s,
+    );
   });
 });
 

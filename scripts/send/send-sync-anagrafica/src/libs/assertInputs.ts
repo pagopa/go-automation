@@ -10,6 +10,41 @@
 import type { SendSyncAnagraficaConfig } from '../types/index.js';
 import { isProductionIdentifier } from '@go-automation/go-script';
 
+/** The configuration fields that must come from `configs/config.json` or the command line, with their flags. */
+const RESOURCE_FLAGS: ReadonlyArray<readonly [keyof SendSyncAnagraficaConfig, string]> = [
+  ['accountsCore', '--accounts-core'],
+  ['accountsConfinfo', '--accounts-confinfo'],
+  ['configurationConfDir', '--configuration-conf-dir'],
+  ['configurationDynamodbDir', '--configuration-dynamodb-dir'],
+  ['configurationTablesFile', '--configuration-tables-file'],
+  ['environmentsAllowed', '--environments-allowed'],
+];
+
+/**
+ * Refuses a run whose resource names were found nowhere.
+ *
+ * Declared `required: false` so that go-cli's pre-flight, which only reads the
+ * command line, does not reject a run the config file satisfies; this is the
+ * check that the value is there after every provider has been consulted.
+ *
+ * @param config - Configuration as loaded, whose resource fields may be absent
+ * @throws Error naming each missing flag and the file that should carry it
+ */
+export function assertResourcesConfigured(config: SendSyncAnagraficaConfig): void {
+  const missing = RESOURCE_FLAGS.filter(([field]) => {
+    const value: unknown = config[field];
+    return value === undefined || value === '' || (Array.isArray(value) && value.length === 0);
+  }).map(([, flag]) => flag);
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing ${missing.join(', ')}. They are shipped in configs/config.json, which was not found ` +
+        'or does not declare them: check that the file is there (data/send-sync-anagrafica/configs/ ' +
+        "takes priority over the script's own configs/), or pass the flags.",
+    );
+  }
+}
+
 /**
  * Refuses an environment this script does not serve.
  *

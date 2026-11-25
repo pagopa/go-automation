@@ -89,7 +89,11 @@ describe('scriptParameters', () => {
     const shipped = readShippedConfig() as unknown as Record<string, Record<string, unknown>>;
 
     for (const candidate of scriptParameters.filter((entry) => entry.group === 'Resources')) {
-      assert.equal(candidate.defaultValue, undefined, `${candidate.name} must not default`);
+      // The marker list only adds to the built-in production signals, so an empty
+      // list is the safe baseline and not a resource name hard-coded in code.
+      if (candidate.name !== 'guard.prodProfileMarkers') {
+        assert.equal(candidate.defaultValue, undefined, `${candidate.name} must not default`);
+      }
       const [group, key] = candidate.name.split('.');
       assert.ok(group !== undefined && key !== undefined);
       const section = shipped[group];

@@ -17,7 +17,12 @@
 
 import type { GOScript } from '@go-automation/go-script';
 import { GOPathType } from '@pagopa/go-common/files';
-import { assertEnvironment, assertKnownTables, assertProfilesMatchEnvironment } from './libs/assertInputs.js';
+import {
+  assertEnvironment,
+  assertKnownTables,
+  assertProfilesMatchEnvironment,
+  assertResourcesConfigured,
+} from './libs/assertInputs.js';
 import { findUnconfiguredFiles } from './libs/findUnconfiguredFiles.js';
 import { loadTableMap } from './libs/loadTableMap.js';
 import {
@@ -41,6 +46,7 @@ import type { SendSyncAnagraficaConfig } from './types/index.js';
 export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<SendSyncAnagraficaConfig>();
 
+  assertResourcesConfigured(config);
   assertEnvironment(config);
   assertProfilesMatchEnvironment(config);
 
