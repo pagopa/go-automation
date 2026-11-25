@@ -93,6 +93,12 @@ export interface FakeScriptOptions {
   /** Valore reso da `prompt.confirm`; `undefined` e' l'annullamento con Ctrl+C. */
   readonly confirm?: boolean | undefined;
 
+  /** Cosa risponde `prompt.text`, in ordine: i profili di produzione digitati a mano. */
+  readonly typed?: ReadonlyArray<string | undefined>;
+
+  /** Account a cui risolvono le credenziali di ogni profilo. */
+  readonly accountId?: string;
+
   /** Se c'e' un terminale a cui chiedere. Falso in chain, CI e Lambda */
   readonly canPromptUser?: boolean;
 }
@@ -108,8 +114,13 @@ export function fakeScript(
 } {
   const logs: RecordedLogs = { errors: [], warnings: [], lines: [], sections: [] };
   const questions: string[] = [];
+  const typed = [...(options.typed ?? [])];
+  const provider = {
+    resolveAccountId: async (): Promise<string> => await Promise.resolve(options.accountId ?? '000000000000'),
+  };
 
   const script = {
+    aws: { clients: { profileNames: [], first: provider, getClientProvider: () => provider } },
     logger: {
       section: (text: string) => logs.sections.push(text),
       info: (text: string) => logs.lines.push(text),
@@ -120,6 +131,10 @@ export function fakeScript(
     },
     paths: { resolvePath: (name: string) => path.join(outputDirectory ?? os.tmpdir(), name) },
     prompt: {
+      text: async (message: string): Promise<string | undefined> => {
+        questions.push(message);
+        return await Promise.resolve(typed.shift());
+      },
       confirm: async (question: string): Promise<boolean | undefined> => {
         questions.push(question);
         return await Promise.resolve(options.confirm);

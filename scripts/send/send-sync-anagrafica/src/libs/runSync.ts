@@ -7,11 +7,12 @@
  * `send-apply-system-params`.
  */
 
-import { type GOScript, confirmWrite } from '@go-automation/go-script';
+import { type GOScript, confirmWriteWithProduction } from '@go-automation/go-script';
 import { AWSDynamoDBService } from '@pagopa/go-aws/dynamodb';
 import { applyPlan } from './applySync.js';
 import type { TableSyncResult } from './applySync.js';
 import type { TableSyncPlan } from './planSync.js';
+import { resolveProductionTargets } from './productionTargets.js';
 import type { SendSyncAnagraficaConfig } from '../types/index.js';
 
 /** How many writes are listed per table before the count takes over. */
@@ -88,14 +89,26 @@ function renderResults(script: GOScript, results: ReadonlyArray<TableSyncResult>
 }
 
 /**
- * Asks the operator, through the shared gate of go-script.
+ * Asks the operator, through the two shared gates of go-script.
  *
- * `--yes` answers up front; a dry run with nobody to ask previews anyway, since it
+ * `--yes` answers the yes/no up front; a dry run with nobody to ask previews anyway, since it
  * writes nothing; a real run with nobody to ask throws instead of exiting quietly.
+ *
+ * Every production profile a write goes through must then be typed back, which
+ * `--yes` never answers and which needs a terminal: a production write cannot
+ * run unattended.
  */
-async function confirm(script: GOScript, config: SendSyncAnagraficaConfig, question: string): Promise<boolean> {
-  return await confirmWrite(script.prompt, script.logger, {
+async function confirm(
+  script: GOScript,
+  config: SendSyncAnagraficaConfig,
+  plans: ReadonlyArray<TableSyncPlan>,
+  question: string,
+): Promise<boolean> {
+  const written = [...new Set(plans.filter((plan) => plan.writes.length > 0).map((plan) => plan.profile))];
+
+  return await confirmWriteWithProduction(script.prompt, script.logger, {
     question,
+    targets: await resolveProductionTargets(script.aws.clients, written, config.guardProdProfileMarkers),
     assumeYes: config.yes,
     isDryRun: config.dryRun,
     canPromptUser: script.environment.canPromptUser,
@@ -144,7 +157,7 @@ export async function runSync(
       `${warning}${unansweredNote} Continue?`
     : `WRITE the ${String(writes)} item(s) above to DynamoDB on ${config.env}?${warning}${unansweredNote}`;
 
-  if (!(await confirm(script, config, question))) return undefined;
+  if (!(await confirm(script, config, plans, question))) return undefined;
 
   if (config.dryRun) {
     script.logger.warning('Dry run: no write was sent to DynamoDB.');

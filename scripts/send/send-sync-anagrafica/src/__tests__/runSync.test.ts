@@ -247,3 +247,70 @@ describe('main, when the operator declines the write', () => {
     );
   });
 });
+
+describe('runSync on production', () => {
+  const prod = 'sso_pn-confinfo-prod';
+  const prodPlan = (): TableSyncPlan => plan({ profile: prod });
+
+  it('asks for the profile to be typed back, which --yes does not answer', async () => {
+    const { script, questions } = fakeScript(undefined, { confirm: false, typed: [undefined] });
+
+    const results = await runSync(script, makeConfig({ sync: true, env: 'prod', yes: true }), [prodPlan()]);
+
+    assert.equal(results, undefined);
+    assert.ok(questions.some((question) => question.includes(`Type "${prod}"`)));
+  });
+
+  it('declines when the typed answer is left, so nothing is written', async () => {
+    const { script } = fakeScript(undefined, { confirm: true, typed: [undefined] });
+
+    assert.equal(await runSync(script, makeConfig({ sync: true, env: 'prod' }), [prodPlan()]), undefined);
+  });
+
+  it('asks both questions, the yes/no first and then the typed one', async () => {
+    const { script, questions } = fakeScript(undefined, { confirm: true, typed: [prod] });
+
+    // The write itself needs a real client, which the fake script has none of.
+    await runSync(script, makeConfig({ sync: true, env: 'prod' }), [prodPlan()]).catch(() => undefined);
+
+    assert.match(questions[0] ?? '', /^WRITE the 1 item\(s\) above to DynamoDB on prod\?/);
+    assert.match(questions[1] ?? '', new RegExp(`Type "${prod}"`));
+  });
+
+  it('throws with no terminal even when --yes was given, because it cannot run unattended', async () => {
+    const { script } = fakeScript(undefined, { confirm: undefined, canPromptUser: false });
+
+    await assert.rejects(
+      async () => await runSync(script, makeConfig({ sync: true, env: 'prod', yes: true }), [prodPlan()]),
+      /needs an operator at a terminal/,
+    );
+  });
+
+  it('recognises a production account whose profile name carries no marker', async () => {
+    const { script, questions } = fakeScript(undefined, {
+      confirm: true,
+      typed: [undefined],
+      accountId: '510769970275',
+    });
+
+    await runSync(script, makeConfig({ sync: true }), [plan({ profile: 'team-alias' })]);
+
+    assert.ok(questions.some((question) => question.includes('Type "team-alias"')));
+  });
+
+  it('does not ask for typing on a dry run, which writes nothing', async () => {
+    const { script, questions } = fakeScript(undefined, { confirm: true });
+
+    await runSync(script, makeConfig({ sync: true, env: 'prod', dryRun: true }), [prodPlan()]);
+
+    assert.equal(questions.length, 1);
+  });
+
+  it('does not ask for typing on a test profile', async () => {
+    const { script, questions } = fakeScript(undefined, { confirm: false });
+
+    await runSync(script, makeConfig({ sync: true }), [plan()]);
+
+    assert.equal(questions.length, 1);
+  });
+});

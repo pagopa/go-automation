@@ -17,12 +17,7 @@
 
 import type { GOScript } from '@go-automation/go-script';
 import { GOPathType } from '@pagopa/go-common/files';
-import {
-  assertEnvironment,
-  assertKnownTables,
-  assertNoProductionWrite,
-  assertProfilesMatchEnvironment,
-} from './libs/assertInputs.js';
+import { assertEnvironment, assertKnownTables, assertProfilesMatchEnvironment } from './libs/assertInputs.js';
 import { findUnconfiguredFiles } from './libs/findUnconfiguredFiles.js';
 import { loadTableMap } from './libs/loadTableMap.js';
 import {
@@ -48,7 +43,6 @@ export async function main(script: GOScript): Promise<void> {
 
   assertEnvironment(config);
   assertProfilesMatchEnvironment(config);
-  await assertNoProductionWrite(config, script.aws.clients);
 
   const tablesPath = script.paths.resolvePath(config.configurationTablesFile, GOPathType.CONFIG);
   const declared = await loadTableMap(tablesPath);

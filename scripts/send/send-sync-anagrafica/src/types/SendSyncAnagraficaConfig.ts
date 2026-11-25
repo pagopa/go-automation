@@ -8,7 +8,7 @@ export interface SendSyncAnagraficaConfig {
   /** Local checkout of pn-configuration. */
   readonly configPath: string;
 
-  /** Environment whose configuration is compared. Never prod, never dev. */
+  /** Environment whose configuration is compared. Never dev. */
   readonly env: string;
 
   /** Profiles of both accounts; each table is routed to the one that owns it. */
@@ -56,6 +56,6 @@ export interface SendSyncAnagraficaConfig {
   /** Environments this script accepts. */
   readonly environmentsAllowed: ReadonlyArray<string>;
 
-  /** Profile-name fragments that mark an account as production. */
+  /** Profile-name fragments that mark an account as production, added to the built-in signals. */
   readonly guardProdProfileMarkers: ReadonlyArray<string>;
 }

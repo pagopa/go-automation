@@ -2,12 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import type { AWSProfileClients, AWSProfileSet } from '@pagopa/go-aws';
-import {
-  findProductionProfiles,
-  findProductionProfileVerdicts,
-  formatProductionProfiles,
-  resolveProductionTargets,
-} from '../libs/productionTargets.js';
+import { resolveProductionTargets } from '../libs/productionTargets.js';
 
 /**
  * A profile set whose providers resolve to fixed accounts.
@@ -30,7 +25,10 @@ function profileSet(accounts: Readonly<Record<string, string | Error>>): AWSProf
 
 describe('resolveProductionTargets', () => {
   it('labels each profile and carries the account its credentials resolve to', async () => {
-    const targets = await resolveProductionTargets(profileSet({ alias: '510769970275', dev: '111111111111' }));
+    const targets = await resolveProductionTargets(profileSet({ alias: '510769970275', dev: '111111111111' }), [
+      'alias',
+      'dev',
+    ]);
 
     assert.deepEqual(targets, [
       { label: 'alias', profile: 'alias', accountId: '510769970275' },
@@ -49,69 +47,24 @@ describe('resolveProductionTargets', () => {
   });
 });
 
-describe('findProductionProfiles', () => {
-  it('fails closed on a profile whose account cannot be resolved, whatever its name', async () => {
-    const set = profileSet({ 'unnamed-alias': new Error('expired'), 'send-test': '3' });
+describe('resolveProductionTargets, configured markers', () => {
+  const set = profileSet({ 'team-live': '2', 'send-test': '3' });
 
-    assert.deepEqual(await findProductionProfiles(set, []), ['unnamed-alias']);
-  });
+  it('lets a configured marker add production, case-insensitively', async () => {
+    const targets = await resolveProductionTargets(set, ['team-live', 'send-test'], ['LIVE', '']);
 
-  const set = profileSet({ 'send-core-prod': '1', alias: '697818730278', 'team-live': '2', 'send-test': '3' });
-
-  it('keeps the baseline even when the configured markers are emptied', async () => {
-    assert.deepEqual(await findProductionProfiles(set, []), ['send-core-prod', 'alias']);
-  });
-
-  it('lets configured markers add to the baseline, case-insensitively', async () => {
-    assert.deepEqual(await findProductionProfiles(set, ['LIVE', '']), ['send-core-prod', 'alias', 'team-live']);
-  });
-
-  it('checks only the profiles it is given', async () => {
-    assert.deepEqual(await findProductionProfiles(set, ['live'], ['send-test', 'team-live']), ['team-live']);
-  });
-});
-
-describe('findProductionProfileVerdicts', () => {
-  it('says unresolved only when the account failed and no other signal says production', async () => {
-    const set = profileSet({
-      'sso_pn-core-prod': new Error('expired'),
-      'team-alias': new Error('expired'),
-      alias: '697818730278',
-      'send-test': '3',
-    });
-
-    assert.deepEqual(await findProductionProfileVerdicts(set, []), [
-      { profile: 'sso_pn-core-prod', unresolved: false },
-      { profile: 'team-alias', unresolved: true },
-      { profile: 'alias', unresolved: false },
+    assert.deepEqual(targets, [
+      { label: 'team-live', profile: 'team-live', accountId: '2', isProduction: true },
+      { label: 'send-test', profile: 'send-test', accountId: '3' },
     ]);
   });
 
-  it('counts a configured marker as production even when the account failed', async () => {
-    const set = profileSet({ 'team-live': new Error('expired') });
+  it('describes only the profiles it is given', async () => {
+    const targets = await resolveProductionTargets(set, ['send-test']);
 
-    assert.deepEqual(await findProductionProfileVerdicts(set, ['live']), [{ profile: 'team-live', unresolved: false }]);
-  });
-
-  it('marks the resolved target of an unresolvable profile so a prompt can say why', async () => {
-    const [target] = await resolveProductionTargets(profileSet({ 'team-alias': new Error('expired') }));
-
-    assert.equal(target?.unresolved, true);
-  });
-});
-
-describe('formatProductionProfiles', () => {
-  it('words production and an unresolved account apart', () => {
-    const text = formatProductionProfiles([
-      { profile: 'a', unresolved: false },
-      { profile: 'b', unresolved: true },
-    ]);
-
-    assert.match(text, /these profiles are production: a/);
-    assert.match(text, /the account of b could not be resolved \(expired SSO session or no access\)/);
-  });
-
-  it('does not call an unresolved profile production', () => {
-    assert.doesNotMatch(formatProductionProfiles([{ profile: 'b', unresolved: true }]), /are production/);
+    assert.deepEqual(
+      targets.map((target) => target.label),
+      ['send-test'],
+    );
   });
 });

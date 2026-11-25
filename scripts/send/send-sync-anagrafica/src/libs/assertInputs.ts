@@ -1,72 +1,31 @@
 /**
  * Refusals that happen before any client is built.
  *
- * The comparison is a read, and production is a legitimate place to read:
- * it is the reference for what a working environment looks like. `--sync`
- * writes, and on production it is refused, by the release-track policy that
- * production belongs to another team. That refusal does not depend on config:
- * go-script's production tokens and account ids always apply, and
- * `guard.prodProfileMarkers` can only add to them. dev is out of scope.
+ * Production is a place to read and, behind the double confirmation of
+ * `runSync`, to write: `--sync` there needs `--yes`-proof typed confirmation
+ * of every production profile, which nothing but an operator at a terminal
+ * can give. dev is out of scope.
  */
 
-import { isProductionIdentifier } from '@go-automation/go-script';
-import type { AWSProfileSet } from '@pagopa/go-aws';
-import { findProductionProfileVerdicts, formatProductionProfiles } from './productionTargets.js';
 import type { SendSyncAnagraficaConfig } from '../types/index.js';
+import { isProductionIdentifier } from '@go-automation/go-script';
 
 /**
  * Refuses an environment this script does not serve.
  *
- * Production is served for the comparison only, whatever `environments.allowed`
- * says: a list read from config is not what decides whether production is
- * written.
+ * Production is always served, whatever `environments.allowed` says: it is
+ * the write itself that is gated, per profile, in `runSync`.
  *
  * @param config - Validated configuration
  * @throws Error naming the environments that are accepted
  */
 export function assertEnvironment(config: SendSyncAnagraficaConfig): void {
-  if (isProductionIdentifier(config.env)) {
-    if (!config.sync) return;
-    throw new Error(
-      `--env '${config.env}' is production: the comparison is allowed, --sync is not. ` +
-        'Production belongs to another team, and environments.allowed cannot change that.',
-    );
-  }
+  if (isProductionIdentifier(config.env)) return;
 
   if (!config.environmentsAllowed.includes(config.env)) {
     throw new Error(
-      `--env is '${config.env}', but this script serves ${config.environmentsAllowed.join(', ')}, ` +
-        'and production for the comparison only. dev is out of scope.',
-    );
-  }
-}
-
-/**
- * Refuses `--sync` on a production profile.
- *
- * Matched on the name, case-insensitively, and on the account the profile's
- * credentials resolve to, so a production profile named without a marker is
- * refused too.
- *
- * @param config - Validated configuration
- * @param profileSet - The run's profiles, resolved to their accounts
- * @throws Error naming the profile that was refused
- */
-export async function assertNoProductionWrite(
-  config: SendSyncAnagraficaConfig,
-  profileSet: AWSProfileSet,
-): Promise<void> {
-  if (!config.sync) return;
-
-  const production = await findProductionProfileVerdicts(
-    profileSet,
-    config.guardProdProfileMarkers,
-    config.awsProfiles,
-  );
-  if (production.length > 0) {
-    throw new Error(
-      `Refusing --sync: ${formatProductionProfiles(production)}. Production belongs to another team. ` +
-        'The comparison runs without --sync.',
+      `--env is '${config.env}', but this script serves ${config.environmentsAllowed.join(', ')} and production. ` +
+        'dev is out of scope.',
     );
   }
 }

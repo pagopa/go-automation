@@ -11,19 +11,13 @@
  * dei cinque alberi, quindi una run completa usciva 1 ovunque.
  */
 
-import type { AWSProfileSet } from '@pagopa/go-aws';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 
-import {
-  assertEnvironment,
-  assertKnownTables,
-  assertNoProductionWrite,
-  assertProfilesMatchEnvironment,
-} from '../libs/assertInputs.js';
+import { assertEnvironment, assertKnownTables, assertProfilesMatchEnvironment } from '../libs/assertInputs.js';
 import {
   exportOutcomes,
   hasBlocking,
@@ -32,7 +26,7 @@ import {
   renderSummary,
   unconfiguredOutcomes,
 } from '../libs/reportRenderer.js';
-import type { SendSyncAnagraficaConfig, TableOutcome, TableStatus } from '../types/index.js';
+import type { TableOutcome, TableStatus } from '../types/index.js';
 
 import { fakeScript, makeConfig } from './fixtures.js';
 
@@ -62,15 +56,12 @@ describe('assertEnvironment', () => {
     assert.throws(() => assertEnvironment(makeConfig({ env: 'dev' })), /this script serves/);
   });
 
-  it('lets the comparison read production, which is a read', () => {
-    assert.doesNotThrow(() => assertEnvironment(makeConfig({ env: 'prod', sync: false })));
-  });
-
-  it('refuses --sync on production, even when environments.allowed lists it', () => {
-    assert.throws(
-      () => assertEnvironment(makeConfig({ env: 'prod', sync: true, environmentsAllowed: ['prod'] })),
-      /cannot change that/,
-    );
+  it('serves production for the comparison and for --sync, whatever environments.allowed says', () => {
+    // The write is gated per profile by the typed confirmation in runSync, so
+    // an environments.allowed that omits prod cannot be what stops or admits it.
+    for (const sync of [false, true]) {
+      assert.doesNotThrow(() => assertEnvironment(makeConfig({ env: 'prod', sync, environmentsAllowed: ['test'] })));
+    }
   });
 });
 
@@ -94,51 +85,6 @@ describe('assertProfilesMatchEnvironment', () => {
         makeConfig({ env: 'test', awsProfiles: ['sso_pn-core-test', 'sso_pn-confinfo-test'] }),
       ),
     );
-  });
-});
-
-describe('assertNoProductionWrite', () => {
-  /** A profile set whose every profile resolves to the given account. */
-  function profileSetOf(profiles: ReadonlyArray<string>, accountId = '000000000000'): AWSProfileSet {
-    const provider = { resolveAccountId: async (): Promise<string> => await Promise.resolve(accountId) };
-    return {
-      profileNames: profiles,
-      first: provider,
-      getClientProvider: () => provider,
-    } as unknown as AWSProfileSet;
-  }
-
-  async function guard(config: SendSyncAnagraficaConfig, accountId?: string): Promise<void> {
-    await assertNoProductionWrite(config, profileSetOf(config.awsProfiles, accountId));
-  }
-
-  it('refuses --sync on a production profile, whatever its case', async () => {
-    await assert.rejects(
-      async () => await guard(makeConfig({ sync: true, awsProfiles: ['send-core-test', 'SEND-CONFINFO-PROD'] })),
-      /SEND-CONFINFO-PROD/,
-    );
-  });
-
-  it('keeps refusing when the configured markers are emptied', async () => {
-    await assert.rejects(
-      async () => await guard(makeConfig({ sync: true, awsProfiles: ['send-core-prod'], guardProdProfileMarkers: [] })),
-      /send-core-prod/,
-    );
-  });
-
-  it('refuses a production account whose profile name carries no marker', async () => {
-    await assert.rejects(
-      async () => await guard(makeConfig({ sync: true, awsProfiles: ['team-alias'] }), '510769970275'),
-      /team-alias/,
-    );
-  });
-
-  it('lets the comparison run on production', async () => {
-    await assert.doesNotReject(async () => await guard(makeConfig({ sync: false, awsProfiles: ['send-core-prod'] })));
-  });
-
-  it('accepts the non-production pair', async () => {
-    await assert.doesNotReject(async () => await guard(makeConfig({ sync: true })));
   });
 });
 

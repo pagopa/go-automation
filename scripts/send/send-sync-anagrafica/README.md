@@ -26,12 +26,12 @@ dichiarare diverso ogni oggetto, quando in realtà non lo sono.
 
 ### Categorie di esito
 
-| Categoria        | Significa                                       |
-| ---------------- | ----------------------------------------------- |
-| `different`      | Entrambi hanno l'oggetto, ma non concordano     |
-| `onlyLive`       | Solo la tabella ce l'ha                         |
-| `onlyRepository` | Solo il file lo dichiara                        |
-| `protectedItems` | Solo la tabella ce l'ha, **ed è atteso**       |
+| Categoria        | Significa                                   |
+| ---------------- | ------------------------------------------- |
+| `different`      | Entrambi hanno l'oggetto, ma non concordano |
+| `onlyLive`       | Solo la tabella ce l'ha                     |
+| `onlyRepository` | Solo il file lo dichiara                    |
+| `protectedItems` | Solo la tabella ce l'ha, **ed è atteso**    |
 
 ## Come avviene la scrittura
 
@@ -58,21 +58,39 @@ di scrivere, vengono elencati quegli attributi per ciascun oggetto.
 In caso di _throttling_, gli oggetti rifiutati vengono ritentati con
 _backoff_ ed i rimanenti sono **riportati** con _exit code_ 1.
 
+### Scrittura in produzione: doppia conferma
+
+`--sync` scrive anche su produzione, ma solo con **due** conferme:
+
+1. il sì/no che copre tutte le scritture (`--yes` lo salta);
+2. per **ogni profilo di produzione** su cui si scrive, il nome del profilo va
+   **digitato** per intero. `--yes`, una variabile d'ambiente, un preset o un file di
+   configurazione non rispondono mai a questa domanda, e senza terminale la
+   run fallisce: una scrittura in produzione non può girare non presidiata.
+
+Un profilo è di produzione se vale **uno qualunque** di questi segnali: il nome
+contiene come token `prod`, `prd` o `production`; l'account a cui risolvono le sue
+credenziali è uno dei `GO_PRODUCTION_ACCOUNT_IDS` di go-script (quindi anche un
+profilo senza marker); il nome contiene uno dei `guard.prodProfileMarkers`, che
+possono solo aggiungere. Se l'account non si risolve (SSO scaduto) il profilo
+è trattato come produzione. Sotto `--dry-run` non si scrive e non si digita nulla.
+
 ## Configurazione
 
 ### Parametri CLI
 
-| Parametro         | Alias   | Obbl. | Default      | Descrizione                                             |
-| ----------------- | ------- | :---: | ------------ | ------------------------------------------------------- |
-| `--config-path`   | `--cp`  |  si   | —            | Checkout locale di `pn-configuration`                   |
-| `--env`           | `--ev`  |  si   | —            | `test` \| `uat` \| `hotfix`                             |
-| `--aws-profiles`  | `--aps` |  si   | —            | Profili SSO dei **due** account, separati da virgola    |
-| `--aws-region`    | `--ar`  |  no   | `eu-south-1` | Regione delle tabelle                                   |
-| `--table-names`   | `--tn`  |  no   | tutte        | Restringe l'esecuzione a queste tabelle                 |
-| `--sync`          | `--sy`  |  no   | `false`      | Scrive la differenza su DynamoDB.                       |
-| `--yes`           | —       |  no   | `false`      | Salta la conferma che copre tutte le scritture          |
-| `--output-file`   | `--of`  |  no   | —            | Resoconto di **tutti** gli oggetti diversi              |
-| `--output-format` | `--ofm` |  no   | `json`       | Formato del resoconto                                   |
+| Parametro         | Alias   | Obbl. | Default      | Descrizione                                          |
+| ----------------- | ------- | :---: | ------------ | ---------------------------------------------------- |
+| `--config-path`   | `--cp`  |  si   | —            | Checkout locale di `pn-configuration`                |
+| `--env`           | `--ev`  |  si   | —            | `test` \| `uat` \| `hotfix` \| `prod`                |
+| `--aws-profiles`  | `--aps` |  si   | —            | Profili SSO dei **due** account, separati da virgola |
+| `--aws-region`    | `--ar`  |  no   | `eu-south-1` | Regione delle tabelle                                |
+| `--table-names`   | `--tn`  |  no   | tutte        | Restringe l'esecuzione a queste tabelle              |
+| `--sync`          | `--sy`  |  no   | `false`      | Scrive la differenza su DynamoDB.                    |
+| `--dry-run`       | `--dr`  |  no   | `false`      | Con `--sync`: mostra le scritture, non ne invia      |
+| `--yes`           | `--y`   |  no   | `false`      | Salta il sì/no, **non** la conferma digitata in prod |
+| `--output-file`   | `--of`  |  no   | —            | Resoconto di **tutti** gli oggetti diversi           |
+| `--output-format` | `--ofm` |  no   | `json`       | Formato del resoconto                                |
 
 ### Parametri del gruppo `Resources`
 
@@ -87,6 +105,8 @@ provider, e `GOEnvironmentConfigProvider` carica l'intero `process.env`.
 | `--configuration-conf-dir`     | Directory di configurazione per account dentro un ambiente |
 | `--configuration-dynamodb-dir` | Directory dei file di tabella dentro un account            |
 | `--configuration-tables-file`  | File che dichiara tabelle, account e schema di chiave      |
+| `--environments-allowed`       | Ambienti serviti oltre a produzione, sempre ammessa        |
+| `--guard-prod-profile-markers` | Frammenti di nome che marcano un profilo come produzione   |
 
 ### `configs/tables.json`
 
@@ -144,7 +164,16 @@ pnpm go send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev
 go-cli  send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev test --aps send-core-test,send-confinfo-test --sync
 ```
 
-**5. Far fallire la run quando manca un file, o ne avanza uno**
+**5. Scrivere in produzione**
+
+Prima la dry run, poi il sync: la seconda conferma chiede di digitare il nome di ogni profilo di produzione.
+
+```bash
+pnpm go send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev prod --aps send-core-prod,send-confinfo-prod --sync --dry-run
+go-cli  send-sync-anagrafica --cp ~/workspaces/pagopa/send/pn-configuration --ev prod --aps send-core-prod,send-confinfo-prod --sync
+```
+
+**6. Far fallire la run quando manca un file, o ne avanza uno**
 
 Due tabelle sono dichiarate e non hanno file in **nessuno** dei cinque alberi, quindi di default quelle righe sono riportate ma non fanno fallire. `--strict-configuration` è per chi sa che non dovrebbero esserci.
 

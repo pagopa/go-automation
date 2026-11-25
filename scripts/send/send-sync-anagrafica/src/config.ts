@@ -41,7 +41,7 @@ export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
   {
     name: 'env',
     type: GOConfigParameterType.STRING,
-    description: 'Environment to compare: test | uat | hotfix, or prod without --sync',
+    description: 'Environment to compare: test | uat | hotfix | prod',
     required: true,
     aliases: ['ev'],
   },
@@ -155,7 +155,8 @@ export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
   {
     name: 'guard.prodProfileMarkers',
     type: GOConfigParameterType.STRING_ARRAY,
-    description: 'Extra profile-name fragments marking production, added to the built-in ones: --sync is refused there',
+    description:
+      'Extra profile-name fragments marking production, added to the built-in ones: a --sync write through them needs the profile typed back',
     required: true,
     group: 'Resources',
   },
