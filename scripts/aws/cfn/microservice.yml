@@ -340,7 +340,7 @@ Resources:
       Name: 'MonitorAthenaQueryLambdaNationalRegistries-scheduler'
       Description: 'Scheduler for the national-registries-missing-response preset'
       ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaNationalRegistriesScheduleExpression
-      ScheduleExpressionTimezone: 'Europe/Rome'
+      ScheduleExpressionTimezone: !Ref Timezone
       State: !Ref GoSendMonitorAthenaQueryLambdaNationalRegistriesScheduleEnabled
       FlexibleTimeWindow:
         Mode: 'OFF'
