@@ -38,6 +38,7 @@ import { M2M_EVENT_DISPATCHER_REGISTRATION } from './k8s/k8s-interop-be-m2m-even
 import { M2M_AUDIT_SIGNER_REGISTRATION } from './k8s/k8s-interop-be-m2m-audit-signer-errors/registration.js';
 import { M2M_TOKEN_DETAILS_PERSISTER_REGISTRATION } from './k8s/k8s-interop-be-m2m-token-details-persister-errors/registration.js';
 import { BFF_REGISTRATION } from './k8s/k8s-interop-be-backend-for-frontend-errors/registration.js';
+import { NOTIFIER_SEEDER_REGISTRATION } from './k8s/k8s-interop-be-notifier-seeder-errors/registration.js';
 import { NOTIFIER_REGISTRATION } from './k8s/k8s-interop-be-notifier-errors/registration.js';
 import { NOTIFICATION_USER_LIFECYCLE_REGISTRATION } from './k8s/k8s-interop-be-notification-user-lifecycle-consumer-errors/registration.js';
 import { IN_APP_NOTIFICATION_DISPATCHER_REGISTRATION } from './k8s/k8s-interop-be-in-app-notification-dispatcher-errors/registration.js';
@@ -84,6 +85,7 @@ export const INTEROP_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   M2M_TOKEN_DETAILS_PERSISTER_REGISTRATION,
   BFF_REGISTRATION,
   NOTIFIER_REGISTRATION,
+  NOTIFIER_SEEDER_REGISTRATION,
   NOTIFICATION_USER_LIFECYCLE_REGISTRATION,
   IN_APP_NOTIFICATION_DISPATCHER_REGISTRATION,
   PURPOSE_OUTBOUND_WRITER_REGISTRATION,
