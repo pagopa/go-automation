@@ -10,10 +10,11 @@ import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/i
 import { GOLogger } from '@pagopa/go-common/logging';
 
 import { RunbookEngine } from '../../../../../engine/index.js';
-import { createTestServiceRegistry, SEND_SERVICE_PROFILE } from '../../../../../toolkits/send/index.js';
+import { createTestServiceRegistry, service } from '../../../../../toolkits/send/index.js';
 import { buildRunbook } from '../runbook.js';
 import { POSTEL_WORKED_BATCH_QUERY, VerifyPostelBatchesStep } from '../VerifyPostelBatchesStep.js';
 import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
+import { EMPTY_RUNBOOK_READS } from '../../../../../engine/reads/EMPTY_RUNBOOK_READS.js';
 
 const BATCH_1 = '4e761d4d-5b3d-4c7b-8d77-7f81353b2d5b';
 const BATCH_2 = '8a859d33-fb60-47da-a429-879ba7f9c609';
@@ -46,7 +47,6 @@ function context(
     stepResults: new Map([['query-pn-address-manager', errorRows]]),
     vars: new Map(),
     params: new Map(params),
-    logs: [],
     services: createTestServiceRegistry({
       cloudWatchLogs: {
         async queryWithStatistics(
@@ -66,6 +66,8 @@ function context(
       },
     }),
     recoveredErrors: [],
+    reads: EMPTY_RUNBOOK_READS,
+    readPolicy: 'partial',
   };
 }
 
@@ -82,11 +84,11 @@ describe('VerifyPostelBatchesStep', () => {
   it('uses the canonical SEND service profile in its execution trace', () => {
     const traceInfo = step().getTraceInfo(context([], [], []));
 
-    assert.strictEqual(traceInfo['queryProfileId'], SEND_SERVICE_PROFILE.id);
+    assert.strictEqual(traceInfo['queryProfileId'], service.SEND_SERVICE_PROFILE.id);
     assert.strictEqual(traceInfo['queryKind'], 'postel-batch-recovery');
   });
 
-  it('deduplicates impacted batch ids and resolves only when every batch reached WORKED', async () => {
+  it('deduplicates impacted batch ids and never claims recovery while an error row has no batch', async () => {
     const calls: QueryCall[] = [];
     const result = await step().execute(
       context(
@@ -106,9 +108,10 @@ describe('VerifyPostelBatchesStep', () => {
     assert.deepStrictEqual(result.output?.workedBatchIds, [BATCH_1, BATCH_2]);
     assert.deepStrictEqual(result.output?.pendingBatchIds, []);
     assert.strictEqual(result.output?.allWorked, true);
-    assert.strictEqual(result.vars?.['postelAllBatchesWorked'], 'true');
+    assert.strictEqual(result.vars?.['postelAllBatchesWorked'], 'unknown');
+    assert.strictEqual(result.vars?.['postelUnverifiedRowCount'], '1');
     assert.strictEqual(result.vars?.['postelImpactedBatchCount'], '2');
-    assert.strictEqual(result.next, 'resolve');
+    assert.strictEqual(result.next, undefined);
 
     assert.strictEqual(calls.length, 1);
     assert.deepStrictEqual(calls[0]?.logGroups, ['/aws/ecs/pn-address-manager']);
@@ -116,6 +119,7 @@ describe('VerifyPostelBatchesStep', () => {
     assert.strictEqual(calls[0]?.timeRange.start.toISOString(), '2026-07-24T12:20:00.000Z');
     assert.strictEqual(calls[0]?.timeRange.end.toISOString(), '2026-07-24T15:00:00.000Z');
     assert.deepStrictEqual(calls[0]?.options, {
+      partialResults: true,
       logGroupResolutionMode: 'search-configured-profiles',
       paginateResults: true,
     });
@@ -162,7 +166,7 @@ describe('VerifyPostelBatchesStep', () => {
     assert.strictEqual(result.vars?.['postelPendingBatchIds'], 'nessuno');
   });
 
-  it('resolves the complete runbook at the recovery step when all impacted batches are WORKED', async () => {
+  it('recognizes the recovery when all impacted batches are WORKED and still asks for the trace of the error', async () => {
     const queries: string[] = [];
     const errorMessage = '[DOWNSTREAM] Service POSTEL returned errors=503 Service Unavailable';
     const services = createTestServiceRegistry({
@@ -209,15 +213,14 @@ describe('VerifyPostelBatchesStep', () => {
 
     assert.strictEqual(result.status, 'completed');
     assert.deepStrictEqual(
-      result.matchedCases.map(({ id }) => id),
+      result.detections.map(({ knownCase }) => knownCase.id),
       ['postel-all-batches-worked-after-retry'],
     );
-    assert.strictEqual(result.earlyResolution, true);
-    assert.strictEqual(result.resolvedAtStep, 'verify-postel-batches');
     assert.deepStrictEqual(
       result.trace.pipeline.map(({ stepId }) => stepId),
-      ['prepare-service-section', 'query-pn-address-manager', 'analyze-pn-address-manager', 'verify-postel-batches'],
+      ['prepare-service-section', 'query-pn-address-manager', 'verify-postel-batches', 'descend-pn-address-manager'],
     );
+    // The trace step runs, but a batch_id is not a trace to query.
     assert.strictEqual(queries.length, 2);
   });
 });

@@ -1,3 +1,4 @@
+import type { CoverageEntry } from '../../engine/types/CoverageEntry.js';
 import type { ErrorRecoveryInfo } from '../../engine/types/ErrorRecoveryInfo.js';
 import type { TestServiceOverrides } from '../../toolkits/common/testing/TestServiceOverrides.js';
 
@@ -15,4 +16,5 @@ export interface TestContextOptions {
   readonly recoveredErrors?: ReadonlyArray<ErrorRecoveryInfo>;
   /** Abort signal of the execution. */
   readonly signal?: AbortSignal;
+  readonly gaps?: ReadonlyArray<CoverageEntry>;
 }

@@ -1,7 +1,4 @@
-import type { Step } from '../../../../../engine/types/Step.js';
-import type { StepKind } from '../../../../../engine/types/StepKind.js';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
-import type { StepResult } from '../../../../../engine/types/StepResult.js';
+import type { RunbookContext, Step, StepKind, StepResult } from '../../../../../engine/index.js';
 
 export interface StopApiGwExecutionLogAnalysisConfig {
   /** Unique step identifier. */
@@ -10,6 +7,9 @@ export interface StopApiGwExecutionLogAnalysisConfig {
   readonly label: string;
 }
 
+/**
+ * Stops the analysis when the execution log was read without explaining the error.
+ */
 export class StopApiGwExecutionLogAnalysisStep implements Step<void> {
   readonly id: string;
   readonly label: string;
@@ -31,9 +31,7 @@ export class StopApiGwExecutionLogAnalysisStep implements Step<void> {
       success: true,
       vars: {
         terminationReason: 'api-gw-execution-log-unresolved',
-        lastErrorMsg:
-          context.vars.get('lastErrorMsg') ??
-          "API Gateway execution log analizzati, ma non e' stato possibile determinare il problema.",
+        lastErrorMsg: "API Gateway execution log analizzati, ma non e' stato possibile determinare il problema.",
       },
       next: 'stop',
     };

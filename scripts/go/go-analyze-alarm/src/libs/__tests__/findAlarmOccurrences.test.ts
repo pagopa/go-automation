@@ -56,6 +56,8 @@ describe('findAlarmOccurrences', () => {
       awsProfiles: ['profile'],
       statsDetail: true,
       statsSave: false,
+      outputTrace: true,
+      outputResult: true,
     };
     assert.doesNotThrow(() => assertRangeModeConfig(rangeConfig));
 

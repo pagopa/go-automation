@@ -1,5 +1,5 @@
 import { unknownCaseFallback, UNKNOWN_CASE_TITLE } from '../../../analysis/reporting/unknownCaseFallback.js';
-import type { CaseAction } from '../../../../../engine/types/CaseAction.js';
+import type { CaseAction } from '../../../../../engine/index.js';
 import type { ServiceDescriptor } from '../types/ServiceDescriptor.js';
 
 /**

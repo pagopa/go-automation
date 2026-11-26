@@ -1,5 +1,7 @@
 import {
   INTEROP_DOWNSTREAMS,
+  INTEROP_KAFKA_SIGNATURES,
+  interopErrorLine,
   interopK8sKnownCase,
   type InteropK8sKnownCaseRefs,
 } from '../../../../toolkits/interop/index.js';
@@ -15,9 +17,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'tenant-readmodel-writer-sql-kafka-tls-connection-error',
     description: 'Connessione TLS verso il cluster Kafka interrotta',
-    priority: 100,
-    regex:
-      'ERROR\\s*-\\s*Connection error: Client network socket disconnected before secure TLS connection was established',
+    regex: interopErrorLine(INTEROP_KAFKA_SIGNATURES.tlsDisconnected),
     resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
     analysisType: 'ANALYZABLE',

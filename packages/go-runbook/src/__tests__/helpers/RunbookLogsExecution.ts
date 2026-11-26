@@ -6,7 +6,7 @@ import type { LoggedQuery } from './LoggedQuery.js';
 export interface RunbookLogsExecution {
   readonly result: RunbookExecutionResult;
   readonly draft: AnalysisDraftV1 | undefined;
-  /** Ids of the matched known cases, highest priority first. */
+  /** Ids of the detections, in time order (declaration order on ties). */
   readonly matchedIds: ReadonlyArray<string>;
   /** Every query sent, in order. */
   readonly queries: ReadonlyArray<LoggedQuery>;

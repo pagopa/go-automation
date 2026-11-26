@@ -25,9 +25,6 @@ const config: KnipConfig = {
     'packages/go-slack': {
       project: ['src/**/*.ts'],
     },
-    'packages/go-execute-runbook-contracts': {
-      project: ['src/**/*.ts'],
-    },
     'packages/go-watchtower-client': {
       project: ['src/**/*.ts'],
     },
@@ -57,9 +54,6 @@ const config: KnipConfig = {
     },
     // Lambda functions
     'functions/*': {
-      project: ['src/**/*.ts'],
-    },
-    'infra/*': {
       project: ['src/**/*.ts'],
     },
   },

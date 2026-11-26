@@ -6,45 +6,16 @@
  * external tools (e.g. `go-rta-check`) can run a runbook per occurrence
  * without spawning a subprocess or parsing files.
  */
-import type { GOLogger } from '@pagopa/go-common/logging';
 
 import { OperationalRunbookEngine } from '../../toolkits/common/engine/OperationalRunbookEngine.js';
 import { buildRunbookOutput } from '../../toolkits/common/output/buildRunbookOutput.js';
 import type { RunbookOutput } from '../../toolkits/common/output/RunbookOutput.js';
-import type { ServiceRegistry } from '../../toolkits/common/services/ServiceRegistry.js';
 import type { AwsExecutionEnvironment } from '../../toolkits/common/telemetry/AwsExecutionEnvironment.js';
 import { assertCloudExecutableRunbook } from '../../toolkits/common/policies/assertCloudExecutableRunbook.js';
-
 import { RUNBOOK_CATALOG } from '../../inventory/registry/runbookRegistry.js';
-import { buildCatalogOutputContext } from './buildCatalogOutputContext.js';
-import { computeRunbookTimeRange } from '../../toolkits/common/time/occurrence/computeRunbookTimeRange.js';
-import { createTimeRangeReference } from '../../toolkits/common/time/occurrence/createTimeRangeReference.js';
-
-/** Dependencies built once and reused across occurrences. */
-export interface ExecuteRunbookForOccurrenceDeps {
-  readonly services: ServiceRegistry;
-  readonly logger: GOLogger;
-}
-
-/** Per-occurrence input. */
-export interface ExecuteRunbookForOccurrenceInput {
-  readonly alarmName: string;
-  /** Stable registry key pinned by the managed cloud command. */
-  readonly runbookKey?: string;
-  /** Occurrence timestamp (ISO 8601) used as `alarmDatetime`. */
-  readonly firedAt: string;
-  /** Optional last-occurrence timestamp (ISO 8601) for multi-occurrence mode. */
-  readonly alarmDatetimeEnd?: string;
-  /** Source account queried through OAM. */
-  readonly awsAccountId: string;
-  /** AWS region of the occurrence and OAM sink/link. */
-  readonly region: string;
-  readonly awsProfiles: ReadonlyArray<string>;
-  /** Managed cloud execution enforces the read-only v1 policy. */
-  readonly executionMode?: 'local' | 'cloud';
-  /** Cooperative cancellation propagated into the engine and services. */
-  readonly signal?: AbortSignal;
-}
+import { buildOccurrenceParams } from './buildOccurrenceParams.js';
+import type { ExecuteRunbookForOccurrenceDeps } from './ExecuteRunbookForOccurrenceDeps.js';
+import type { ExecuteRunbookForOccurrenceInput } from './ExecuteRunbookForOccurrenceInput.js';
 
 /**
  * Builds and executes the runbook registered for `input.alarmName` against the
@@ -78,21 +49,14 @@ export async function executeRunbookForOccurrence(
     assertCloudExecutableRunbook(runbook);
   }
 
-  const reference = createTimeRangeReference(input.firedAt, input.alarmDatetimeEnd);
-  const { startTime, endTime } = computeRunbookTimeRange(runbook, reference);
-
-  const params = new Map<string, string>([
-    ['alarmName', input.alarmName],
-    ['alarmDatetime', input.firedAt],
-    ['awsAccountId', input.awsAccountId],
-    ['awsRegion', input.region],
-    ['awsProfiles', input.awsProfiles.join(',')],
-    ['startTime', startTime],
-    ['endTime', endTime],
-  ]);
-  if (input.alarmDatetimeEnd !== undefined && input.alarmDatetimeEnd.trim() !== '') {
-    params.set('alarmDatetimeEnd', input.alarmDatetimeEnd);
-  }
+  const params = buildOccurrenceParams(runbook, {
+    alarmName: input.alarmName,
+    alarmDatetime: input.firedAt,
+    ...(input.alarmDatetimeEnd === undefined ? {} : { alarmDatetimeEnd: input.alarmDatetimeEnd }),
+    awsAccountId: input.awsAccountId,
+    awsRegion: input.region,
+    awsProfiles: input.awsProfiles,
+  });
 
   const environment: AwsExecutionEnvironment = {
     awsProfiles: [...input.awsProfiles],
@@ -104,7 +68,5 @@ export async function executeRunbookForOccurrence(
   const engine = new OperationalRunbookEngine(deps.logger);
   const result = await engine.execute(runbook, params, deps.services, environment, input.signal);
 
-  return buildRunbookOutput(runbook, result, {
-    contextBuilder: buildCatalogOutputContext,
-  });
+  return buildRunbookOutput(runbook, result);
 }

@@ -1,3 +1,4 @@
+import { omitUndefined } from '@pagopa/go-common/utils';
 import type { AWSProfileSet } from '@pagopa/go-aws';
 import type { AWSCloudWatchLogsQueryService } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { parseAwsAccountDirectory } from '@pagopa/go-aws/profiles';
@@ -37,10 +38,12 @@ export function createAwsAccountsPort(
     directory: parseAwsAccountDirectory(config.directory),
     region: config.region,
     binding: config.binding,
-    ...(config.environment === undefined ? {} : { environment: config.environment }),
-    ...(config.permissionSets === undefined ? {} : { permissionSets: config.permissionSets }),
-    ...(credentials.profiles === undefined ? {} : { profiles: credentials.profiles }),
-    ...(credentials.monitoring === undefined ? {} : { monitoring: credentials.monitoring }),
-    ...(credentials.diagnostics === undefined ? {} : { diagnostics: credentials.diagnostics }),
+    ...omitUndefined({
+      environment: config.environment,
+      permissionSets: config.permissionSets,
+      profiles: credentials.profiles,
+      monitoring: credentials.monitoring,
+      diagnostics: credentials.diagnostics,
+    }),
   });
 }

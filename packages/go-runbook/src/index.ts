@@ -2,8 +2,8 @@
  * Runbook engine: entrypoint `@pagopa/go-runbook`.
  *
  * The language and the execution of a workflow: types, context, conditions,
- * control/check/transform steps, actions, traces, reporters, builder, graph
- * validation and errors. No AWS, product, alarm or Watchtower knowledge: the
+ * the set-variable step, actions, traces, reporters, builder, validation and
+ * errors. No AWS, product, alarm or Watchtower knowledge: the
  * operational toolkits are in `./toolkits/*`, the Watchtower contract in
  * `./output`, the runbooks in `./inventory` and the composition in `./runtime`.
  *

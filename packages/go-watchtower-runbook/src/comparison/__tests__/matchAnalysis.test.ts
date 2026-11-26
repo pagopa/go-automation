@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 
 import type { AlarmAnalysisDto, IgnoreReasonDto } from '@go-automation/go-watchtower-client';
 
-import { matchAnalysis } from '../matchAnalysis.js';
+import { bestDetectedCase, matchAnalysis } from '../matchAnalysis.js';
 import type { MatchAnalysisOptions } from '../matchAnalysis.js';
 import type { RunbookCheck } from '../../types/RtaCheckReport.js';
+import type { ErrorChainGroup } from '@pagopa/go-runbook/output';
 import { alarmAnalysisFixture as analysis, HIT, NOW, runbookOutputFixture } from './comparisonFixtures.js';
 
 const OPTIONS: MatchAnalysisOptions = { includeIgnorable: false, includeIncomplete: false };
@@ -20,11 +21,79 @@ describe('matchAnalysis', () => {
     assert.strictEqual(matchAnalysis(OUTPUT, HIT, undefined, NOW, OPTIONS).status, 'NOT_LINKED');
   });
 
-  it('MATCH_EXACT when a traceId overlaps the runbook requestId', () => {
+  it('MATCH_STRONG, never MATCH_EXACT, when a traceId overlaps the runbook requestId', () => {
     const linked = analysis({ trackingIds: [{ traceId: 'r1', timestamp: NOW }] });
     const result = matchAnalysis(OUTPUT, HIT, linked, NOW, OPTIONS);
-    assert.strictEqual(result.status, 'MATCH_EXACT');
+    assert.strictEqual(result.status, 'MATCH_STRONG');
     assert.deepStrictEqual(result.signals.traceIdOverlap, ['r1']);
+  });
+
+  it('compares human tracking within the evidence window of the runbook, not ten minutes around the alarm', () => {
+    const windowed = {
+      ...OUTPUT,
+      input: { startTime: '2025-12-31T23:30:00.000Z', endTime: '2026-01-01T00:01:00.000Z' },
+    };
+    const before = analysis({ trackingIds: [{ traceId: 'r1', timestamp: '2025-12-31T23:40:00Z' }] });
+    assert.deepStrictEqual(matchAnalysis(windowed, HIT, before, NOW, OPTIONS).signals.traceIdOverlap, ['r1']);
+    const after = analysis({ trackingIds: [{ traceId: 'r1', timestamp: '2026-01-01T00:05:00Z' }] });
+    assert.deepStrictEqual(matchAnalysis(windowed, HIT, after, NOW, OPTIONS).signals.traceIdOverlap, []);
+  });
+
+  it('matches an identifier only with the detected case that observed it', () => {
+    const base = runbookOutputFixture('unrelated');
+    if (base.outcome.kind !== 'known-case-matched') throw new Error('fixture');
+    const output = {
+      ...base,
+      outcome: {
+        ...base.outcome,
+        detections: [
+          {
+            caseId: 'a',
+            description: 'Primo caso',
+            evidenceRows: 1,
+            errors: 1,
+            observations: [{ kind: 'cid' as const, value: 'cid-a' }],
+          },
+          {
+            caseId: 'b',
+            description: 'Secondo caso',
+            evidenceRows: 1,
+            errors: 1,
+            observations: [{ kind: 'cid' as const, value: 'cid-b' }],
+          },
+        ],
+      },
+      chains: [chain('a', 'cid-a'), chain('b', 'cid-b')],
+    };
+    const linked = analysis({ trackingIds: [{ traceId: 'cid-b', timestamp: NOW }] });
+    const result = matchAnalysis(output, { status: 'HIT', matchedCaseIds: ['a', 'b'] }, linked, NOW, OPTIONS);
+    assert.deepStrictEqual(result.signals.traceIdOverlap, ['cid-b']);
+    assert.ok(result.reasons.some((reason) => reason.includes('confronto sul caso "b"')));
+  });
+
+  it('does not lend the context identifiers to a case without observations when another case has its own', () => {
+    const base = runbookOutputFixture('r1');
+    if (base.outcome.kind !== 'known-case-matched') throw new Error('fixture');
+    const output = {
+      ...base,
+      outcome: {
+        ...base.outcome,
+        detections: [
+          {
+            caseId: 'a',
+            description: 'Primo caso',
+            evidenceRows: 1,
+            errors: 1,
+            observations: [{ kind: 'cid' as const, value: 'cid-a' }],
+          },
+          { caseId: 'b', description: 'Secondo caso', evidenceRows: 1, errors: 1, observations: [] },
+        ],
+      },
+      chains: [chain('a', 'cid-a')],
+    };
+    const linked = analysis({ trackingIds: [{ traceId: 'r1', timestamp: NOW }] });
+    const result = matchAnalysis(output, { status: 'HIT', matchedCaseIds: ['a', 'b'] }, linked, NOW, OPTIONS);
+    assert.deepStrictEqual(result.signals.traceIdOverlap, []);
   });
 
   it('treats a timezone-less tracking timestamp as UTC occurrence evidence', () => {
@@ -41,7 +110,7 @@ describe('matchAnalysis', () => {
     });
     const result = matchAnalysis(OUTPUT, HIT, linked, NOW, OPTIONS);
 
-    assert.strictEqual(result.status, 'MATCH_EXACT');
+    assert.strictEqual(result.status, 'MATCH_STRONG');
     assert.strictEqual(result.analysisExcerpt, '500 — Timeout vicino all’occorrenza');
   });
 
@@ -61,7 +130,7 @@ describe('matchAnalysis', () => {
     });
     const result = matchAnalysis(OUTPUT, HIT, linked, NOW, OPTIONS);
 
-    assert.notStrictEqual(result.status, 'MATCH_EXACT');
+    assert.notStrictEqual(result.status, 'MATCH_STRONG');
     assert.deepStrictEqual(result.signals.traceIdOverlap, []);
     assert.strictEqual(result.analysisExcerpt, 'Timeout runtime della Lambda');
   });
@@ -112,7 +181,7 @@ describe('matchAnalysis', () => {
     });
     const result = matchAnalysis(OUTPUT, HIT, ignorable, NOW, { ...OPTIONS, includeIgnorable: true });
 
-    assert.strictEqual(result.status, 'MATCH_EXACT');
+    assert.strictEqual(result.status, 'MATCH_STRONG');
   });
 
   it('NOT_ANALYZED stays reserved for analyses that are not COMPLETED', () => {
@@ -128,4 +197,43 @@ describe('matchAnalysis', () => {
     const result = matchAnalysis(OUTPUT, miss, analysis({ errorDetails: 'qualcosa' }), NOW, OPTIONS);
     assert.strictEqual(result.status, 'NO_EVIDENCE');
   });
+  it('compares every distinct message of an occurrence, so a signal of a later message still counts', () => {
+    const base = runbookOutputFixture('unrelated');
+    if (base.outcome.kind !== 'known-case-matched') throw new Error('fixture');
+    const output = {
+      ...base,
+      outcome: {
+        ...base.outcome,
+        detections: [
+          {
+            caseId: 'selfcare',
+            description: 'Errore di pn-external-registries',
+            evidenceRows: 1,
+            errors: 2,
+            resolvedMessage: 'errore generico',
+            resolvedMessages: ['errore generico', 'read timeout verso SelfcarePG'],
+            observations: [{ kind: 'cid' as const, value: 'cid-a' }],
+          },
+        ],
+      },
+    };
+    const linked = analysis({ conclusionNotes: 'Timeout del downstream' });
+
+    assert.strictEqual(bestDetectedCase(output, linked, NOW)?.message, 'read timeout verso SelfcarePG');
+  });
 });
+
+function chain(caseId: string, cid: string): ErrorChainGroup {
+  return {
+    nodes: [{ level: 0, target: 'window', label: caseId, caseIds: [caseId], status: 'recognized' }],
+    end: 'leaf',
+    interruptions: [],
+    incompleteEvidence: false,
+    count: 1,
+    errors: 1,
+    routes: [],
+    samples: [{ key: caseId, correlation: {} }],
+    members: [{ key: caseId, correlation: {} }],
+    observations: [{ kind: 'cid', value: cid }],
+  };
+}

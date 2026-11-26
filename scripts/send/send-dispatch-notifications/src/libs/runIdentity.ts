@@ -27,6 +27,8 @@ const IDENTITY_SCOPES: ReadonlyMap<RunIdentityKey, IdentityScope> = new Map<RunI
   ['mappingProfileSha256', 'always'],
   ['rowKeyColumn', 'always'],
   ['directRequestIdTemplate', 'always'],
+  ['requestIdCategories', 'always'],
+  ['requestIdSuffix', 'always'],
   ['env', 'b2b'],
   ['endpoint', 'b2b'],
   ['cliValues', 'send'],
@@ -35,6 +37,9 @@ const IDENTITY_SCOPES: ReadonlyMap<RunIdentityKey, IdentityScope> = new Map<RunI
   ['documentsDir', 'send'],
   ['attachmentsFile', 'send'],
 ]);
+
+/** Categories searched before they became part of the identity (`e2e` runs). */
+const LEGACY_REQUEST_ID_CATEGORIES = 'PREPARE_ANALOG_DOMICILE,PREPARE_DIGITAL_DOMICILE';
 
 /**
  * Renders field values as `field=value` pairs sorted by field, `; `-separated.
@@ -78,11 +83,40 @@ function savedRunIdentity(parameters: Readonly<Record<string, unknown>>): RunIde
   const entries = new Map<string, unknown>(Object.entries(saved));
   const identity: Partial<Record<RunIdentityKey, string>> = {};
   for (const key of IDENTITY_SCOPES.keys()) {
-    const value = entries.get(key);
+    const value = entries.get(key) ?? legacyValue(key, entries.get('mode'));
     if (typeof value !== 'string') return undefined;
     identity[key] = value;
   }
   return identity as RunIdentity; // Safe: every key was checked above
+}
+
+/**
+ * Value of an identity key missing from a `run.json` written before the key
+ * existed: categories and suffix of the requestId phase as they were then.
+ *
+ * @param key - Identity key
+ * @param mode - Saved mode
+ * @returns The value of then, `undefined` for any other key
+ */
+function legacyValue(key: RunIdentityKey, mode: unknown): string | undefined {
+  if (key === 'requestIdSuffix') return '';
+  if (key === 'requestIdCategories') return mode === 'e2e' ? LEGACY_REQUEST_ID_CATEGORIES : '';
+  return undefined;
+}
+
+/**
+ * Option that repeats a saved requestId setting, shown next to the difference.
+ *
+ * @param key - Identity key that differs
+ * @param saved - Saved value
+ * @returns The option, `''` for the other keys
+ */
+function repeatHint(key: RunIdentityKey, saved: string): string {
+  if (key === 'requestIdCategories') return ` (--request-id-categories ${saved})`;
+  if (key === 'requestIdSuffix') {
+    return saved === '' ? ' (--request-id-append-suffix=false)' : ` (--request-id-suffix ${saved})`;
+  }
+  return '';
 }
 
 /**
@@ -117,12 +151,13 @@ export function assertSameRunIdentity(
   for (const [key, scope] of IDENTITY_SCOPES) {
     const relevant = scope === 'always' || (scope === 'send' ? sends : callsB2B);
     if (relevant && saved[key] !== current[key]) {
-      differences.push(`  - ${key}: "${saved[key]}" → "${current[key]}"`);
+      differences.push(`  - ${key}: "${saved[key]}" → "${current[key]}"${repeatHint(key, saved[key])}`);
     }
   }
   if (differences.length === 0) return;
   const rule =
-    'Repeat the original parameters: only --phases, retries, throughput, timeouts and output options may change.';
+    'Repeat the original parameters (requestId categories and suffix included): only --phases, retries, ' +
+    'throughput, timeouts and output options may change.';
   throw new DispatchUsageError(
     `--resume: settings differ from the run being resumed (${previousPath}). ${rule}\n${differences.join('\n')}`,
   );

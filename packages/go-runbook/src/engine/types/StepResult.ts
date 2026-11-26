@@ -1,6 +1,8 @@
 import type { FlowDirective } from './FlowDirective.js';
-import type { ErrorRecoveryInfo } from './ErrorRecoveryInfo.js';
 import type { StepDiagnostics } from '../tracing/StepDiagnostics.js';
+import type { StepCoverage } from './StepCoverage.js';
+import type { ObservedErrors } from './ObservedErrors.js';
+import type { DescendRequest } from './DescendRequest.js';
 
 /**
  * Result of a step execution.
@@ -21,6 +23,10 @@ export interface StepResult<TOutput = unknown> {
   readonly diagnostics?: StepDiagnostics;
   /** Flow directive: which step to execute next */
   readonly next?: FlowDirective;
-  /** Recovery information if the step failed but execution continued thanks to continueOnFailure. */
-  readonly errorRecovery?: ErrorRecoveryInfo;
+  /** Partial evidence declared by the step, one entry per source; absent means complete. */
+  readonly coverage?: ReadonlyArray<StepCoverage>;
+  /** Errors observed and examined, declared by a step that enumerates the errors of the window. */
+  readonly observedErrors?: ObservedErrors;
+  /** Descents requested by a step of an error-tree node: where to look for the errors of the same operation below. */
+  readonly descend?: ReadonlyArray<DescendRequest>;
 }

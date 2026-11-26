@@ -1,13 +1,15 @@
 import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { omitUndefined } from '@pagopa/go-common/utils';
-import type { Step } from '../../../../../engine/types/Step.js';
-import type { StepKind } from '../../../../../engine/types/StepKind.js';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
-import type { StepResult } from '../../../../../engine/types/StepResult.js';
-import { readStepOutput } from '../../../../../engine/context/readStepOutput.js';
+import type { RunbookContext, Step, StepKind, StepResult } from '../../../../../engine/index.js';
+import { readStepOutput } from '../../../../../engine/index.js';
 
 import { extractTraceId } from '../accessLog/extractTraceId.js';
-import { pickHighestStatusCode, pickPrimaryStatusCode, rowMeetsThreshold } from '../accessLog/accessLogRow.js';
+import {
+  pickHighestStatusCode,
+  pickPrimaryStatusCode,
+  readAccessLogField,
+  rowMeetsThreshold,
+} from '../accessLog/accessLogRow.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
 import type { ApiGwErrorInfo } from '../accessLog/ApiGwErrorInfo.js';
 import type { AccessLogSchema } from '../accessLog/AccessLogSchema.js';
@@ -34,6 +36,10 @@ export interface ParseApiGwErrorsConfig {
   readonly queryProfileId: string;
 }
 
+/**
+ * Reads the error of the request from the API Gateway access-log rows: status codes, path, method, error message and
+ * trace id, published as variables.
+ */
 export class ParseApiGwErrorsStep implements Step<ApiGwErrorInfo> {
   readonly id: string;
   readonly label: string;
@@ -81,7 +87,8 @@ export class ParseApiGwErrorsStep implements Step<ApiGwErrorInfo> {
       }
     }
 
-    if (errorRows.length === 0) {
+    const firstRow = this.mostSevereErrorRow(errorRows);
+    if (firstRow === undefined) {
       new ApiGwReporter(context.services.reporter).apiGwResult({
         errorCount: 0,
         statusCode: '',
@@ -96,12 +103,6 @@ export class ParseApiGwErrorsStep implements Step<ApiGwErrorInfo> {
       };
     }
 
-    const sortedErrorRows = this.sortErrorRowsBySeverity(errorRows);
-    if (sortedErrorRows[0] === undefined) {
-      return { success: false, error: 'Unexpected empty row in results' };
-    }
-
-    const firstRow = sortedErrorRows[0];
     const traceId = extractTraceId(firstRow, this.schema);
     // La canonica query AccessLog OR-filtra su 3 status field, quindi
     // `status` da solo può essere il letterale `-` anche quando la riga è
@@ -127,11 +128,12 @@ export class ParseApiGwErrorsStep implements Step<ApiGwErrorInfo> {
       // fields. Persist it as a var (so case conditions can compare on
       // `-`) but skip propagating it as a meaningful info value.
       vars[contextVar] = raw;
-      if (!this.isNotApplicable(raw) && raw !== '') {
+      const value = readAccessLogField(firstRow, field, this.schema);
+      if (value !== undefined) {
         // Map the well-known semantic fields onto the typed output.
         const semanticKey = this.semanticKeyForField(field);
         if (semanticKey !== undefined) {
-          (additional as Record<string, string>)[semanticKey] = raw;
+          (additional as Record<string, string>)[semanticKey] = value;
         }
       }
     }
@@ -160,22 +162,20 @@ export class ParseApiGwErrorsStep implements Step<ApiGwErrorInfo> {
     };
   }
 
-  private isNotApplicable(value: string): boolean {
-    return this.schema.notApplicableSentinels.includes(value);
-  }
-
-  private sortErrorRowsBySeverity(
+  /** The error row with the highest status code, the first one on ties; nothing when there is no row. */
+  private mostSevereErrorRow(
     rows: ReadonlyArray<GOLogsInsightsResultField[]>,
-  ): ReadonlyArray<GOLogsInsightsResultField[]> {
-    return rows
-      .map((row, index) => ({ row, index, statusCode: pickHighestStatusCode(row, this.schema) ?? -1 }))
-      .sort((a, b) => {
-        if (a.statusCode !== b.statusCode) {
-          return b.statusCode - a.statusCode;
-        }
-        return a.index - b.index;
-      })
-      .map((entry) => entry.row);
+  ): GOLogsInsightsResultField[] | undefined {
+    let mostSevere: GOLogsInsightsResultField[] | undefined;
+    let highest = -1;
+    for (const row of rows) {
+      const statusCode = pickHighestStatusCode(row, this.schema) ?? -1;
+      if (mostSevere === undefined || statusCode > highest) {
+        mostSevere = row;
+        highest = statusCode;
+      }
+    }
+    return mostSevere;
   }
 
   /**

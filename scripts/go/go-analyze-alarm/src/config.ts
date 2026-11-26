@@ -113,6 +113,23 @@ export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
     aliases: ['aaps'],
   },
   {
+    name: 'output.trace',
+    type: GOConfigParameterType.BOOL,
+    description:
+      'Save the full execution trace as trace-{alarmName}.json in the output directory (it can be gigabytes)',
+    required: false,
+    defaultValue: false,
+    aliases: ['otr'],
+  },
+  {
+    name: 'output.result',
+    type: GOConfigParameterType.BOOL,
+    description: 'Save the essential result as result-{runbookId}.json in the output directory',
+    required: false,
+    defaultValue: true,
+    aliases: ['ors'],
+  },
+  {
     name: 'stats.detail',
     type: GOConfigParameterType.BOOL,
     description: 'In stats mode, print the per-runbook detail table',

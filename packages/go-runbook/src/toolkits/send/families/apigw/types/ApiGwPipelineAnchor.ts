@@ -7,7 +7,9 @@
  * stale the moment one of them is added.
  */
 export type ApiGwPipelineAnchor =
-  /** After the AccessLog parse, the authorizer gate and the execution-log branch, before the first service is queried. */
+  /** On each request: after the AccessLog parse, the authorizer gate and the execution log, before its descent. */
   | 'before-service-traversal'
-  /** After the entry service has been queried and analysed, before its traversal decision. */
-  | 'after-entry-analysis';
+  /** On each error of the entry service: before it descends to the service it calls. */
+  | 'after-entry-analysis'
+  /** On each request, once the entry service has been read for it: `<prefix>LookupState` and `<prefix>LogCount` known. */
+  | 'after-entry-read';

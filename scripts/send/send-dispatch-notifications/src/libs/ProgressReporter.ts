@@ -58,7 +58,10 @@ export class ProgressReporter {
       ? `invio ${outcomes.sent - this.alreadySent}/${this.work.rows} · ${progress.ratePerSecond.toFixed(1)}/s · `
       : `righe da elaborare ${this.work.rows} · `;
     const verify = `verifica ${outcomes.accepted} ok / ${outcomes.refused} refused / ${progress.verifyPending} in attesa`;
-    const requestId = `requestId ${count('REQUEST_ID_FOUND')} trovati / ${progress.requestIdPending} in attesa`;
+    const notFound = count('REQUEST_ID_NOT_FOUND') - progress.requestIdNotExpected;
+    const requestId =
+      `requestId ${count('REQUEST_ID_FOUND')} trovati / ${notFound} non trovati / ` +
+      `${progress.requestIdNotExpected} senza cartaceo / ${progress.requestIdPending} in attesa`;
     const throttled = progress.throttled > 0 ? ` · 429: ${progress.throttled}` : '';
     return `${head}${verify} · ${requestId} · errori ${outcomes.errors}${throttled}`;
   }

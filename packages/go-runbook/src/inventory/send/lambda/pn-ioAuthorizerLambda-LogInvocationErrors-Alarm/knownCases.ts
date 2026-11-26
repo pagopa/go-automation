@@ -12,7 +12,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'iam-policy-socket-hang-up',
     description: 'Errore generazione IAM policy verso pn-data-vault (socket hang up)',
-    priority: 90,
     condition: lambdaLogEvidenceMatches('socket hang up'),
     title: 'Error generating IAM policy: socket hang up verso pn-data-vault',
     resolution: 'Occorrenza singola per la quale non si \u00E8 deciso di procedere con qualche azione in particolare.',
@@ -27,7 +26,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'invalid-source-details-qrcode',
     description: 'Header source details QRCODE non valido',
-    priority: 89,
     condition: lambdaLogEvidenceMatches('Invalid source details header QRCODE'),
     title: 'Invalid source details header QRCODE',
     resolution: 'Errore per il quale non \u00E8 necessario procedere con qualche azione in particolare.',

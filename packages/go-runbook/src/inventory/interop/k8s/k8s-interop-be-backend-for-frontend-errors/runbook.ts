@@ -6,9 +6,14 @@ import { KNOWN_CASES } from './knownCases.js';
 import { BFF_QUERY_PROFILE } from './queryProfile.js';
 import { AnalyzeBffEvidenceStep } from './AnalyzeBffEvidenceStep.js';
 
+/**
+ * Builds the k8s-interop-be-backend-for-frontend-errors runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: BFF_ALARM.runbookKey,
+    alarm: BFF_ALARM,
     metadata: {
       name: BFF_ALARM.runbookKey,
       description:
@@ -18,12 +23,6 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'service', 'backend-for-frontend'],
     },
-    service: {
-      name: BFF_ALARM.podApp,
-      logGroup: BFF_ALARM.logGroup,
-      varPrefix: BFF_ALARM.varPrefix,
-    },
-    resolveAlarmContext: BFF_ALARM.resolveContext,
     queryProfile: BFF_QUERY_PROFILE,
     hooks: [{ at: 'before-cid-analysis', step: new AnalyzeBffEvidenceStep() }],
     knownCases: KNOWN_CASES,

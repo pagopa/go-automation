@@ -14,7 +14,7 @@ export const SPIDHUB_ACCOUNTS: AwsAccountSelection = {
 };
 export const RUNBOOK_URL = 'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3377573008/spidhub-prod-ExternalELBAlarm';
 
-export const ROW_LIMIT = 1000;
+const ROW_LIMIT = 1000;
 export const ERROR_QUERY: string = `fields @timestamp, @logStream, @message
 | filter @message like /(?i)\\b(error|fatal)\\b/
 | sort @timestamp asc

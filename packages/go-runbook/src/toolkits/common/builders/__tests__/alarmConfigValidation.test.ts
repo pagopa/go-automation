@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   assertKnownCaseStepRefs,
-  assertPreStepIds,
+  assertStepDescriptorIds,
   failAlarmConfig,
   type AlarmConfigValidationContext,
 } from '../alarmConfigValidation.js';
@@ -28,7 +28,6 @@ function knownCase(id: string, ref: string): KnownCase {
   return {
     id,
     description: id,
-    priority: 100,
     condition: { type: 'exists', ref },
     action: { type: 'log', level: 'info', title: id },
   };
@@ -43,20 +42,23 @@ describe('failAlarmConfig', () => {
   });
 });
 
-describe('assertPreStepIds', () => {
+describe('assertStepDescriptorIds', () => {
   it('returns the declared ids when there is no collision, none for an absent list', () => {
-    const ids = assertPreStepIds(CTX, [step('a'), step('b')], new Set(['reserved']));
+    const ids = assertStepDescriptorIds(CTX, [step('a'), step('b')], new Set(['reserved']), 'hook');
     assert.deepStrictEqual([...ids], ['a', 'b']);
-    assert.strictEqual(assertPreStepIds(CTX, undefined, new Set()).size, 0);
+    assert.strictEqual(assertStepDescriptorIds(CTX, undefined, new Set(), 'hook').size, 0);
   });
 
-  it('rejects a duplicate preStep id', () => {
-    assert.throws(() => assertPreStepIds(CTX, [step('a'), step('a')], new Set()), /declared more than once/);
-  });
-
-  it('rejects a preStep id that shadows the canonical pipeline', () => {
+  it('rejects a duplicate hook id', () => {
     assert.throws(
-      () => assertPreStepIds(CTX, [step('parse-errors')], new Set(['parse-errors'])),
+      () => assertStepDescriptorIds(CTX, [step('a'), step('a')], new Set(), 'hook'),
+      /hook id "a" is declared more than once/,
+    );
+  });
+
+  it('rejects a hook id that shadows the canonical pipeline', () => {
+    assert.throws(
+      () => assertStepDescriptorIds(CTX, [step('parse-errors')], new Set(['parse-errors']), 'hook'),
       /collides with a reserved pipeline step id/,
     );
   });

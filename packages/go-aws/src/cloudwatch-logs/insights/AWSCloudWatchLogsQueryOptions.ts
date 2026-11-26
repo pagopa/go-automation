@@ -26,6 +26,17 @@ export interface AWSCloudWatchLogsQueryOptions {
    *   the log group can be queried, caching successful resolutions.
    */
   readonly logGroupResolutionMode?: AWSCloudWatchLogsLogGroupResolutionMode;
+  /**
+   * When true, a failed or truncated read no longer discards what was already read:
+   *
+   * - the rows of the physical queries and of the pages that succeeded are returned;
+   * - pages left unread are reported on their execution (`unreadPages`);
+   * - a read that fails after every candidate profile or account was tried is reported in `failedReads`.
+   *
+   * Aborting and configuration errors of the target still throw. Disabled by default: callers that only read rows
+   * keep the exceptions.
+   */
+  readonly partialResults?: boolean;
   /** Receives bounded cleanup warnings without changing the runbook outcome. */
   readonly onCleanupWarning?: AWSRemoteCleanupWarningHandler;
 }

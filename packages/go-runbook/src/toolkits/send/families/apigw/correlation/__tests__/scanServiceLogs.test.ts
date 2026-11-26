@@ -5,7 +5,6 @@ import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/i
 
 import { scanServiceLogs } from '../scanServiceLogs.js';
 import { KnownUrlsRegistry } from '../../../../../common/parsing/knownUrls/KnownUrlsRegistry.js';
-import { transformRawTraceId } from '../../../../../common/parsing/traceIds/transformRawTraceId.js';
 import { SEND_API_GW_PROFILE } from '../../profiles/SEND_API_GW_PROFILE.js';
 import { logRow } from '../../../../../../__tests__/helpers/logRow.js';
 
@@ -251,20 +250,6 @@ describe('scanServiceLogs traceIdCandidate', () => {
     ];
     for (const [name, rows, expected] of cases) {
       assert.deepStrictEqual(scanServiceLogs(rows, SCHEMA).traceIdCandidate, expected, name);
-    }
-  });
-
-  it('transforms a raw trace id into the X-Ray format and rejects malformed ones', () => {
-    assert.strictEqual(transformRawTraceId(RAW_TRACE), CANONICAL_TRACE);
-    assert.strictEqual(transformRawTraceId(CANONICAL_TRACE), CANONICAL_TRACE);
-    for (const malformed of [
-      'not-a-trace-id',
-      '1-3d472be7-2977635208a92722b97b5e2',
-      '2-3d472be7-2977635208a92722b97b5e24',
-      '3d472be72977635208a92722b97b5e2',
-      '',
-    ]) {
-      assert.strictEqual(transformRawTraceId(malformed), undefined, malformed);
     }
   });
 });

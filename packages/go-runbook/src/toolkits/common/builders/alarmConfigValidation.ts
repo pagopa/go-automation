@@ -1,6 +1,5 @@
-import type { KnownCase } from '../../../engine/types/KnownCase.js';
-import type { StepDescriptor } from '../../../engine/types/StepDescriptor.js';
-import { findUnwiredKnownCaseStepRef } from '../../../engine/validation/findUnwiredKnownCaseStepRef.js';
+import type { KnownCase, StepDescriptor } from '../../../engine/index.js';
+import { findUnwiredKnownCaseStepRef } from '../../../engine/internal.js';
 
 /**
  * Identifies the builder reporting a configuration problem, so every family
@@ -24,29 +23,8 @@ export function failAlarmConfig(ctx: AlarmConfigValidationContext, message: stri
 }
 
 /**
- * Fail-fast on preStep ids that are duplicated or collide with the pipeline's
- * own ids, before the builder wires a runbook whose steps shadow each other.
- *
- * @param ctx - Builder and runbook under validation
- * @param preSteps - Custom steps declared by the runbook author
- * @param reservedStepIds - Ids the family's canonical pipeline occupies
- * @returns The declared preStep ids, for further family-specific checks
- */
-export function assertPreStepIds(
-  ctx: AlarmConfigValidationContext,
-  preSteps: ReadonlyArray<StepDescriptor> | undefined,
-  reservedStepIds: ReadonlySet<string>,
-): ReadonlySet<string> {
-  return assertStepDescriptorIds(ctx, preSteps, reservedStepIds, 'preStep');
-}
-
-/**
  * Fail-fast on custom step descriptor ids that are duplicated or collide
  * with the canonical pipeline.
- *
- * Families with more than one extension point use this generic form so the
- * diagnostic names the actual hook rather than labelling every custom step a
- * `preStep`.
  *
  * @param ctx - Builder and runbook under validation
  * @param descriptors - Custom steps declared by the runbook author

@@ -33,7 +33,7 @@ describe('M2M event dispatcher known cases', () => {
     }
   });
 
-  it('recognizes the actual incident signatures and prioritizes the crash over connection failures', () => {
+  it('recognizes every signature of the actual incident: crash, connection failures and coordinator errors', () => {
     assert.deepStrictEqual(
       matches([
         REFUSED,

@@ -57,6 +57,18 @@ describe('validateConfig', () => {
     assert.throws(() => validateConfig({ ...RAW_CONFIG, defaults: ['sender.taxid=1'] }), DispatchUsageError);
   });
 
+  it('resolves the requestId suffix: the default, a custom one, or none when disabled', () => {
+    assert.equal(validateConfig(RAW_CONFIG).requestIdSuffix, '.PCRETRY_0');
+    assert.equal(validateConfig({ ...RAW_CONFIG, requestIdSuffix: '.PCRETRY_1' }).requestIdSuffix, '.PCRETRY_1');
+    assert.equal(
+      validateConfig({ ...RAW_CONFIG, requestIdAppendSuffix: false, requestIdSuffix: '' }).requestIdSuffix,
+      '',
+    );
+    for (const suffix of ['', '.PCRETRY 0', '.PCRETRY_0|X']) {
+      assert.throws(() => validateConfig({ ...RAW_CONFIG, requestIdSuffix: suffix }), /--request-id-suffix/, suffix);
+    }
+  });
+
   it('rejects throughput and concurrency values the session cannot use, before any file is read', () => {
     const invalid: ReadonlyArray<[Partial<typeof RAW_CONFIG>, RegExp]> = [
       [{ rate: 0 }, /--rate 0: must be a positive number/],

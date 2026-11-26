@@ -1,9 +1,9 @@
 import { omitUndefined } from '@pagopa/go-common/utils';
-import type { StepKind } from '../types/StepKind.js';
 import type { StepTrace } from './StepTrace.js';
+import type { StepTraceEntry } from './StepTraceEntry.js';
 import type { CaseEvaluationTrace } from './CaseEvaluationTrace.js';
-import type { EarlyResolutionTrace } from './EarlyResolutionTrace.js';
-import type { ActionTrace, ActionType } from './ActionTrace.js';
+import type { ActionTrace } from './ActionTrace.js';
+import type { ActionType } from './ActionType.js';
 import type { ExecutionSummary } from './ExecutionSummary.js';
 import type { ExecutionEnvironment } from './ExecutionEnvironment.js';
 import type { RunbookExecutionTrace } from './RunbookExecutionTrace.js';
@@ -11,9 +11,9 @@ import type { RunbookContext } from '../types/RunbookContext.js';
 import type { Runbook } from '../types/Runbook.js';
 import type { KnownCase } from '../types/KnownCase.js';
 import type { CaseAction } from '../types/CaseAction.js';
-import type { FlowDirectiveString } from '../types/FlowDirective.js';
 import type { RunbookExecutionStatus } from '../types/RunbookExecutionStatus.js';
-import type { StepDiagnostics } from './StepDiagnostics.js';
+import type { CoverageEntry } from '../types/CoverageEntry.js';
+import type { TraceStatus } from './TraceStatus.js';
 
 /**
  * Builder for the {@link RunbookExecutionTrace}.
@@ -21,14 +21,26 @@ import type { StepDiagnostics } from './StepDiagnostics.js';
  * The builder is **mutable and single-owner**: the engine drives it
  * sequentially and is the only thing holding it. Every `trace*` method records
  * into the builder and returns nothing, so a caller cannot mistake it for a
- * persistent structure — {@link traceEarlyResolution} in particular *replaces*
- * the recorded case evaluations, which would be a trap on an object that looked
- * shareable.
+ * persistent structure.
  *
  * @example
  * ```typescript
  * const builder = new TraceBuilder('exec-123', runbook, params);
- * builder.traceStep('query-logs', 'Search errors', 'data', 'sequential', t0, t1, 1833, 'success', false, input, output, {}, 'continue');
+ * builder.traceStep({
+ *   stepId: 'query-logs',
+ *   label: 'Search errors',
+ *   kind: 'data',
+ *   reachedVia: 'sequential',
+ *   startedAt: t0,
+ *   completedAt: t1,
+ *   durationMs: 1833,
+ *   status: 'success',
+ *   recovered: false,
+ *   input,
+ *   output,
+ *   varsWritten: {},
+ *   flowDirective: 'continue',
+ * });
  * builder.traceCaseEvaluation(knownCase, true, { 'vars.statusCode': '504' });
  * builder.traceAction(action, 'notify', 'success', 120);
  *
@@ -47,6 +59,8 @@ export class TraceBuilder {
   private readonly stepTraces: StepTrace[] = [];
   private readonly caseEvaluations: CaseEvaluationTrace[] = [];
   private readonly actionTraces: ActionTrace[] = [];
+  private detectionIds: ReadonlyArray<string> = [];
+  private coverage: ReadonlyArray<CoverageEntry> = [];
   private readonly startedAt: string;
   private readonly startedAtMs: number;
 
@@ -61,90 +75,50 @@ export class TraceBuilder {
   }
 
   /**
-   * Records the trace of an executed step.
+   * Records the trace of an executed step; its execution order is the position in the trace.
    *
+   * @param entry - The step trace, without its execution order
    */
-  traceStep(
-    stepId: string,
-    label: string,
-    kind: StepKind,
-    reachedVia: 'sequential' | 'goTo' | 'subPipeline',
-    startedAt: string,
-    completedAt: string,
-    durationMs: number,
-    status: 'success' | 'failed' | 'skipped',
-    recovered: boolean,
-    input: unknown,
-    output: unknown,
-    varsWritten: Readonly<Record<string, string>>,
-    flowDirective: FlowDirectiveString,
-    diagnostics?: StepDiagnostics,
-    error?: string,
-    parentStepId?: string,
-  ): void {
-    const stepTrace: StepTrace = {
-      executionOrder: this.stepTraces.length + 1,
-      stepId,
-      label,
-      kind,
-      reachedVia,
-      startedAt,
-      completedAt,
-      durationMs,
-      status,
-      recovered,
-      input,
-      output,
-      varsWritten,
-      flowDirective,
-      ...omitUndefined({ diagnostics, error, parentStepId }),
-    };
-
-    this.stepTraces.push(stepTrace);
-  }
-
-  /**
-   * Attaches an early resolution result to the most recent step trace.
-   *
-   * When the early resolution **actually matched** at least one case,
-   * the evaluations from that resolution are also promoted into the
-   * top-level `caseEvaluations` so {@link build} derives `matchedCaseIds`
-   * and `summary.outcomeCase` correctly. Failed early resolutions
-   * (no match found at that point) stay confined to the step's
-   * `earlyResolution` detail.
-   *
-   */
-  traceEarlyResolution(earlyResolution: EarlyResolutionTrace): void {
-    const lastIndex = this.stepTraces.length - 1;
-    if (lastIndex < 0) return;
-
-    const lastStep = this.stepTraces[lastIndex];
-    if (lastStep === undefined) return;
-
-    this.stepTraces[lastIndex] = { ...lastStep, earlyResolution };
-
-    if (earlyResolution.resolved && earlyResolution.evaluations.length > 0) {
-      // The early resolution carries the full evaluation list (in priority
-      // order) for the cases that matched at that point. Replace the
-      // current builder snapshot so `build()` reports the resolution.
-      this.caseEvaluations.length = 0;
-      this.caseEvaluations.push(...earlyResolution.evaluations);
-    }
+  traceStep(entry: StepTraceEntry): void {
+    this.stepTraces.push({ executionOrder: this.stepTraces.length + 1, ...entry });
   }
 
   /**
    * Records the evaluation of a known case.
    *
    */
-  traceCaseEvaluation(knownCase: KnownCase, matched: boolean, resolvedValues: Readonly<Record<string, unknown>>): void {
+  traceCaseEvaluation(
+    knownCase: KnownCase,
+    matched: boolean,
+    resolvedValues: Readonly<Record<string, unknown>>,
+    match: Pick<CaseEvaluationTrace, 'firstSeenAt' | 'lastSeenAt' | 'evidenceRows' | 'supersededBy' | 'nodeId'> = {},
+  ): void {
     this.caseEvaluations.push({
       caseId: knownCase.id,
       description: knownCase.description,
-      priority: knownCase.priority,
       condition: knownCase.condition,
       matched,
       resolvedValues,
+      ...match,
     });
+  }
+
+  /**
+   * Records the order of the detections, which the trace reports as `matchedCaseIds`.
+   *
+   * @param caseIds - Ids of the detections, in their order
+   */
+  traceDetections(caseIds: ReadonlyArray<string>): void {
+    this.detectionIds = caseIds;
+  }
+
+  /**
+   * Records the partial evidence of the execution.
+   *
+   * @param coverage - Coverage entries, in the order they were declared
+   */
+  traceCoverage(coverage: ReadonlyArray<CoverageEntry>): void {
+    this.coverage = coverage;
   }
 
   /**
@@ -154,7 +128,7 @@ export class TraceBuilder {
   traceAction(
     action: CaseAction,
     actionType: ActionType,
-    status: 'success' | 'failed',
+    status: TraceStatus,
     durationMs: number,
     resolvedMessage?: string,
     error?: string,
@@ -165,8 +139,7 @@ export class TraceBuilder {
       actionDetail: action,
       status,
       durationMs,
-      ...(resolvedMessage !== undefined ? { resolvedMessage } : {}),
-      ...(error !== undefined ? { error } : {}),
+      ...omitUndefined({ resolvedMessage, error }),
     });
   }
 
@@ -183,52 +156,48 @@ export class TraceBuilder {
     const completedAt = completedAtDate.toISOString();
     const durationMs = completedAtDate.getTime() - this.startedAtMs;
 
-    const matchedCaseIds = this.caseEvaluations.filter((e) => e.matched).map((e) => e.caseId);
-    const matchedEval = this.caseEvaluations.find((e) => e.matched) ?? null;
+    const matchedCaseIds = this.detectionIds;
 
     const variables: Record<string, string> = Object.fromEntries(finalContext.vars);
     const input: Record<string, string> = Object.fromEntries(this.params);
 
-    // Single-pass computation of summary metrics + early resolution detection
+    // Single-pass computation of summary metrics
     const totalSteps = this.runbook.steps.length;
-    let stepsExecuted = 0;
+    const stepsExecuted = this.stepTraces.length;
     let stepsFailed = 0;
     let stepsRecovered = 0;
-    let earlyResolvedStep: StepTrace | null = null;
 
     for (const step of this.stepTraces) {
-      if (step.status !== 'skipped') {
-        stepsExecuted += 1;
-      }
       if (step.status === 'failed' && !step.recovered) {
         stepsFailed += 1;
       }
       if (step.recovered) {
         stepsRecovered += 1;
       }
-      if (step.earlyResolution?.resolved === true && earlyResolvedStep === null) {
-        earlyResolvedStep = step;
-      }
     }
 
-    const stepsSkipped = totalSteps - stepsExecuted;
+    // The steps of the window not executed: a step run for several nodes or batches counts once.
+    const windowIds = new Set(this.runbook.steps.map((descriptor) => descriptor.step.id));
+    const executedWindow = new Set(
+      this.stepTraces.filter((step) => windowIds.has(step.stepId)).map((step) => step.stepId),
+    );
+    const stepsSkipped = totalSteps - executedWindow.size;
     const outcomeCase = matchedCaseIds.length === 0 ? 'no-match' : matchedCaseIds.join(',');
     const primaryActionTrace = this.actionTraces[0];
     const outcomeAction = primaryActionTrace?.actionType ?? 'none';
 
     const summary: ExecutionSummary = {
-      description: this.buildSummaryDescription(status, matchedEval, earlyResolvedStep?.stepId),
+      description: this.buildSummaryDescription(status, matchedCaseIds),
       totalSteps,
       stepsExecuted,
       stepsFailed,
       stepsRecovered,
       stepsSkipped,
       outcome: `${outcomeCase} -> ${outcomeAction}`,
-      ...(earlyResolvedStep !== null ? { earlyResolution: true, resolvedAtStep: earlyResolvedStep.stepId } : {}),
     };
 
     return {
-      schemaVersion: '1.0.0',
+      schemaVersion: '3.0.0',
       execution: {
         executionId: this.executionId,
         runbookId: this.runbook.metadata.id,
@@ -251,6 +220,11 @@ export class TraceBuilder {
         matchedCaseIds,
       },
       actionsExecuted: this.actionTraces.length > 0 ? this.actionTraces : [TraceBuilder.defaultActionTrace],
+      coverage: this.coverage,
+      // The reads that failed, by kind of source: a failed read has no statistics to count it by.
+      ...((finalContext.readFailures?.size ?? 0) > 0
+        ? { readFailures: Object.fromEntries(finalContext.readFailures ?? []) }
+        : {}),
       summary,
     };
   }
@@ -258,11 +232,7 @@ export class TraceBuilder {
   /**
    * Builds a human-readable description for the execution summary.
    */
-  private buildSummaryDescription(
-    status: RunbookExecutionStatus,
-    matchedEval: CaseEvaluationTrace | null,
-    resolvedAtStepId?: string,
-  ): string {
+  private buildSummaryDescription(status: RunbookExecutionStatus, matchedCaseIds: ReadonlyArray<string>): string {
     const runbookName = this.runbook.metadata.name;
 
     if (status === 'failed') {
@@ -273,10 +243,13 @@ export class TraceBuilder {
       return `Runbook "${runbookName}" was aborted`;
     }
 
-    if (matchedEval !== null) {
-      const caseDesc = matchedEval.description;
-      const earlyTag = resolvedAtStepId !== undefined ? ` (early resolution at "${resolvedAtStepId}")` : '';
-      return `Runbook "${runbookName}" completed: identified case "${caseDesc}"${earlyTag}`;
+    if (matchedCaseIds.length > 0) {
+      const descriptions = new Map(
+        this.caseEvaluations.map((evaluation) => [evaluation.caseId, evaluation.description]),
+      );
+      const cases = matchedCaseIds.map((caseId) => `"${descriptions.get(caseId) ?? caseId}"`).join(', ');
+      const noun = matchedCaseIds.length === 1 ? 'case' : `${String(matchedCaseIds.length)} cases`;
+      return `Runbook "${runbookName}" completed: identified ${noun} ${cases}`;
     }
 
     return `Runbook "${runbookName}" completed: no known case matched`;

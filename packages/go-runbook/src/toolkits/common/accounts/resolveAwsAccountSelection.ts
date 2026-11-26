@@ -1,4 +1,4 @@
-import { RunbookMissingServicesError } from '../../../engine/errors/RunbookMissingServicesError.js';
+import { RunbookMissingServicesError } from '../../../engine/index.js';
 import type { OperationalContext } from '../services/OperationalContext.js';
 import type { AwsAccountSelection } from './AwsAccountSelection.js';
 import type { ResolvedAwsAccount } from './ResolvedAwsAccount.js';

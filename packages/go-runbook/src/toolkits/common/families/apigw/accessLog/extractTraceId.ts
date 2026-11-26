@@ -1,5 +1,9 @@
-import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { compileRegex } from '@pagopa/go-common/utils';
+
+import type { TraceIdReaderFn } from '../types/TraceIdReaderFn.js';
 import type { AccessLogSchema } from './AccessLogSchema.js';
+import type { CloudWatchLogsRow } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsRow.js';
 
 /**
  * Estrae il trace id da una riga di AccessLog, generico per prodotto.
@@ -21,33 +25,30 @@ import type { AccessLogSchema } from './AccessLogSchema.js';
  *                 `traceIdExtractPattern`)
  * @returns il trace id estratto, oppure `undefined` se il campo è assente
  */
-export function extractTraceId(
-  row: ReadonlyArray<GOLogsInsightsResultField>,
-  schema: AccessLogSchema,
-): string | undefined {
-  const raw = readRowField(row, schema.traceIdField);
-  if (raw === undefined) return undefined;
-
-  if (schema.traceIdExtractPattern === undefined) {
-    return raw;
-  }
-
-  const pattern = getCompiledPattern(schema.traceIdExtractPattern);
-  const match = pattern.exec(raw);
-  return match?.[1] ?? raw;
+export function extractTraceId(row: CloudWatchLogsRow, schema: AccessLogSchema): string | undefined {
+  return traceIdReader(schema)(row);
 }
 
 /**
- * Cache pattern→RegExp per evitare la ricompilazione ad ogni riga.
- * In esecuzioni con migliaia di righe (query AccessLog su finestre lunghe)
- * eliminare la ricompilazione riduce il costo aggregato in modo apprezzabile.
+ * Lettore del trace id delle righe di AccessLog di uno schema, con il pattern
+ * di estrazione compilato una volta: da usare quando si leggono molte righe.
+ *
+ * @param schema - schema dei campi AccessLog (per `traceIdField` e
+ *                 `traceIdExtractPattern`)
+ * @returns il lettore, con lo stesso risultato di {@link extractTraceId}
+ * @throws Error quando `traceIdExtractPattern` non è un'espressione regolare valida
+ *
+ * @example
+ * ```typescript
+ * const readTraceId = traceIdReader(schema);
+ * const traceIds = rows.map((row) => readTraceId(row));
+ * ```
  */
-const COMPILED_PATTERNS = new Map<string, RegExp>();
-
-function getCompiledPattern(pattern: string): RegExp {
-  const cached = COMPILED_PATTERNS.get(pattern);
-  if (cached !== undefined) return cached;
-  const compiled = new RegExp(pattern);
-  COMPILED_PATTERNS.set(pattern, compiled);
-  return compiled;
+export function traceIdReader(schema: AccessLogSchema): TraceIdReaderFn {
+  const pattern = schema.traceIdExtractPattern === undefined ? undefined : compileRegex(schema.traceIdExtractPattern);
+  return (row) => {
+    const raw = readRowField(row, schema.traceIdField);
+    if (raw === undefined || pattern === undefined) return raw;
+    return pattern.exec(raw)?.[1] ?? raw;
+  };
 }

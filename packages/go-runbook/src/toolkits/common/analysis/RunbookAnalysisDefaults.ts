@@ -5,7 +5,8 @@ import type { AnalysisResourceRef } from './AnalysisResourceRef.js';
  * References shared by every known case of a runbook.
  *
  * They are merged with the per-case declarations when the draft is composed:
- * lists are unioned with de-duplication, scalars come from the primary case.
+ * lists are unioned with de-duplication; the proposed status and the analysis
+ * type are derived from every detected case.
  */
 export interface RunbookAnalysisDefaults {
   /** Documental runbook name; Watchtower uses it only when the alarm has none. */

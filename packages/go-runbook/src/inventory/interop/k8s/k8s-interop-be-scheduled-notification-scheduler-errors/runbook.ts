@@ -8,9 +8,14 @@ import { POD_CONTEXT } from './podContext.js';
 const RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3363635346/k8s-interop-be-scheduled-notification-scheduler-errors';
 
+/**
+ * Builds the k8s-interop-be-scheduled-notification-scheduler-errors runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: NOTIFICATION_SCHEDULER_ALARM.runbookKey,
+    alarm: NOTIFICATION_SCHEDULER_ALARM,
     metadata: {
       name: NOTIFICATION_SCHEDULER_ALARM.runbookKey,
       description:
@@ -20,31 +25,14 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'service', 'notification', 'scheduler', 'kafka'],
     },
-    service: {
-      name: NOTIFICATION_SCHEDULER_ALARM.podApp,
-      logGroup: NOTIFICATION_SCHEDULER_ALARM.logGroup,
-      varPrefix: NOTIFICATION_SCHEDULER_ALARM.varPrefix,
-    },
-    resolveAlarmContext: NOTIFICATION_SCHEDULER_ALARM.resolveContext,
     queryProfile: NOTIFICATION_SCHEDULER_QUERY_PROFILE,
     knownCases: KNOWN_CASES,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 5 },
-    hooks: [
-      {
-        at: 'before-cid-analysis',
-        step: new interop.k8s.QueryInteropPodContextStep(POD_CONTEXT),
-        evidence: [
-          {
-            id: 'notification-scheduler-context',
-            label: 'Contesto Kafka del notification scheduler',
-            type: 'log-sample',
-            messageFields: ['log', '@message'],
-            // The query rejects capped results: keep the whole episode, including its start.
-            retention: { mode: 'all' },
-          },
-        ],
-      },
-    ],
+    podContext: {
+      step: POD_CONTEXT,
+      evidenceId: 'notification-scheduler-context',
+      evidenceLabel: 'Contesto Kafka del notification scheduler',
+    },
     analysisDefaults: {
       runbookName: NOTIFICATION_SCHEDULER_ALARM.runbookKey,
       links: [{ url: RUNBOOK_URL, name: NOTIFICATION_SCHEDULER_ALARM.runbookKey, type: 'CONFLUENCE' }],

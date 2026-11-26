@@ -36,6 +36,18 @@ describe('RunbookBuilder', () => {
     assert.deepStrictEqual(runbook.steps[0], { step, continueOnFailure: true, silent: true });
   });
 
+  it('builds the read policy the runbook declares, after the fallback', () => {
+    const runbook = RunbookBuilder.create('test-runbook')
+      .metadata(METADATA)
+      .readPolicy('partial')
+      .step(step)
+      .fallback(logAction({ level: 'info', title: 'done' }))
+      .build();
+
+    assert.deepStrictEqual(Object.keys(runbook), ['metadata', 'steps', 'knownCases', 'fallbackAction', 'readPolicy']);
+    assert.strictEqual(runbook.readPolicy, 'partial');
+  });
+
   it('reports missing metadata and fallback with engine codes', () => {
     const builder = RunbookBuilder.create('test-runbook').step(step);
 
@@ -52,7 +64,6 @@ describe('RunbookBuilder', () => {
       .knownCase({
         id: 'case',
         description: 'case',
-        priority: 1,
         condition: { type: 'exists', ref: 'steps.missing-step' },
         action: logAction({ level: 'info', title: 'case' }),
       })

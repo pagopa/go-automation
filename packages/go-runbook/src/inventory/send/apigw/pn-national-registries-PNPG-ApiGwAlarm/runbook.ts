@@ -2,7 +2,7 @@
  * Runbook: pn-national-registries-PNPG-ApiGwAlarm
  */
 
-import { apigw } from '../../../../toolkits/send/index.js';
+import { ALARM_TIME_RANGE, apigw } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
 import { API_GW_LOG_GROUP, ENTRY_SERVICE, REACHABLE_SERVICES } from './knownServices.js';
@@ -45,16 +45,14 @@ export function buildRunbook(): Runbook {
         step: new apigw.QueryServiceLogsStep({
           id: 'query-national-registries-completion',
           label: 'Verifica completamento applicativo legal-institutions per trace',
-          serviceName: ENTRY_SERVICE.name,
-          entryService: true,
           logGroups: [ENTRY_SERVICE.logGroup],
-          timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+          timeRangeFromParams: ALARM_TIME_RANGE,
           queryTemplateOverride:
             '{{FILTER_CLAUSE}}\n' +
             '| filter message = "Starting process _infoCamereLegalInstitutions" ' +
             'or message = "Ending process _infoCamereLegalInstitutions" ' +
             'or message = "Checking [INFO CAMERE] legal institutions passed"\n' +
-            '| sort @timestamp asc\n| limit 1000\n| display @timestamp, level, message, trace_id',
+            '| sort @timestamp asc\n| limit 10000\n| display @timestamp, level, message, trace_id',
         }),
       },
     ],

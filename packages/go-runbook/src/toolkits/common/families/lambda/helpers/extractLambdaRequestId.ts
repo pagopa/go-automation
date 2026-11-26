@@ -5,16 +5,17 @@
  * (`<timestamp>\t<uuid>\t<LEVEL>\t<message>`).
  */
 const REQUEST_ID_PATTERNS: ReadonlyArray<RegExp> = [
-  /(?:START|END|REPORT)\s+RequestId:\s*([0-9a-fA-F-]{36})/,
-  /RequestId:\s*([0-9a-fA-F-]{36})/,
-  // Standard Lambda application line: timestamp, then the request id, then level.
+  // The line's own invocation first: a runtime line, or the prefix of the standard application line. A request id
+  // quoted in the message body belongs to another invocation when either is present.
+  /^\s*(?:START|END|REPORT)\s+RequestId:\s*([0-9a-fA-F-]{36})/,
   /^[^\t]+\t([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\t/,
+  /RequestId:\s*([0-9a-fA-F-]{36})/,
 ];
 
 /**
  * Extracts the Lambda `requestId` from a log message, trying the
- * `START`/`END`/`REPORT` lines first, then a generic inline `RequestId:`,
- * then the standard tab-separated application line prefix.
+ * `START`/`END`/`REPORT` lines first, then the standard tab-separated
+ * application line prefix, then a generic inline `RequestId:`.
  *
  * Prefer the CloudWatch Logs Insights `@requestId` field when available
  * (see {@link scanLambdaLogs}); this message parser is the fallback.

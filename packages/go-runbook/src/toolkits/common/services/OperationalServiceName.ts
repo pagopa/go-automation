@@ -1,4 +1,4 @@
-import type { WorkflowServices } from '../../../engine/types/WorkflowServices.js';
+import type { WorkflowServices } from '../../../engine/index.js';
 import type { ServiceRegistry } from './ServiceRegistry.js';
 
 /** Operational services a step can require: the registry minus what every workflow already has. */

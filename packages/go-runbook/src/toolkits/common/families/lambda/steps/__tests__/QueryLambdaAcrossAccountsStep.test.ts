@@ -171,12 +171,34 @@ describe('QueryLambdaAcrossAccountsStep', () => {
     assert.match(result.error ?? '', /account port is required/u);
   });
 
-  it('fails an error scan at the row limit, because correlation needs every request id', async () => {
+  it('declares a failed account unavailable and fails on a configuration error of the target', async () => {
+    const step = new QueryLambdaAcrossAccountsStep({ ...BASE, queryKind: 'errors', sources: ACCOUNTS });
+    const failing =
+      (error: Error): RowsForFn =>
+      (source) => {
+        if (source === EXTRA) throw error;
+        return [row('2026-10-06T18:00:02Z', 'r-core')];
+      };
+    const throttled = failing(new Error('ThrottlingException'));
+    const partial = await step.execute(context([], throttled, undefined, await accountsPort([], throttled)));
+    assert.equal(partial.success, true);
+    assert.equal(partial.output?.length, 1);
+    assert.deepEqual(
+      partial.coverage?.map(({ source, reason, detail }) => [source, reason, detail]),
+      [['extra', 'unavailable', 'ThrottlingException']],
+    );
+    const misconfigured = failing(Object.assign(new Error('region mismatch'), { code: 'OAM_REGION_MISMATCH' }));
+    const failed = await step.execute(context([], misconfigured, undefined, await accountsPort([], misconfigured)));
+    assert.equal(failed.success, false);
+    assert.match(failed.error ?? '', /region mismatch/u);
+  });
+
+  it('keeps an error scan at the row limit, declaring its account saturated', async () => {
     const rowsFor: RowsForFn = () => Array.from({ length: 1000 }, () => row('t', 'r'));
     const step = new QueryLambdaAcrossAccountsStep({ ...BASE, queryKind: 'errors', sources: ACCOUNTS });
     const result = await step.execute(context([], rowsFor, undefined, await accountsPort([], rowsFor)));
-    assert.equal(result.success, false);
-    assert.match(result.error ?? '', /core \(000000000101\) reached the 1000-row limit/u);
+    assert.equal(result.success, true);
+    assert.match(result.coverage?.[0]?.detail ?? '', /core \(000000000101\) reached the 1000-row limit/u);
   });
 
   it('reconstructs only the request ids of each logical account', async () => {

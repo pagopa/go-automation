@@ -5,17 +5,18 @@
 import type { apigw } from '../../../../toolkits/send/index.js';
 
 import { DELIVERY_API_GW_EXECUTION_LOG_GROUP } from '../../shared/DELIVERY_API_GW_EXECUTION_LOG_GROUP.js';
+import { EXTERNAL_REGISTRIES_EXCLUSIONS } from './externalRegistriesDiagnoses.js';
 
 const EXTERNAL_REGISTRIES_QUERY = `{{FILTER_CLAUSE}}
 | filter level == 'ERROR' or @message like 'Invoking external service Selfcare'
-| limit 1000
+| limit 10000
 | display @timestamp, level, ms, @message, trace_id`;
 
 const DATA_VAULT_QUERY = `{{FILTER_CLAUSE}}
 | filter level == 'ERROR'
     or @message like 'Successful API operation: RecipientsApi._getRecipientDenominationByInternalId'
     or @message like 'Ending process _getRecipientDenominationByInternalId'
-| limit 1000
+| limit 10000
 | display @timestamp, level, ms, @message, trace_id`;
 
 /** API Gateway AccessLog log group for the pn-delivery B2B public API */
@@ -34,6 +35,8 @@ export const ENTRY_SERVICE: apigw.ApiGwService = {
   varPrefix: 'delivery',
   logGroup: '/aws/ecs/pn-delivery',
   executionLogGroup: DELIVERY_API_GW_EXECUTION_LOG_GROUP,
+  // One request logs the same error more than once: one node, which descends once.
+  mergeIdenticalErrors: true,
 };
 
 /**
@@ -47,6 +50,7 @@ export const REACHABLE_SERVICES: ReadonlyArray<apigw.ApiGwService> = [
     logGroup: '/aws/ecs/pn-external-registries',
     varPrefix: 'externalRegistries',
     queryOverride: EXTERNAL_REGISTRIES_QUERY,
+    exclusions: EXTERNAL_REGISTRIES_EXCLUSIONS,
   },
   {
     name: 'pn-data-vault',

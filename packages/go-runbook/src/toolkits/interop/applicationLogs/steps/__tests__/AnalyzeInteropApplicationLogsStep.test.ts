@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { AnalyzeInteropApplicationLogsStep } from '../AnalyzeInteropApplicationLogsStep.js';
-import type { InteropK8sApplicationLogAnalysis } from '../AnalyzeInteropApplicationLogsStep.js';
+import type { InteropK8sApplicationLogAnalysis } from '../InteropK8sApplicationLogAnalysis.js';
 import type { StepResult } from '../../../../../engine/types/StepResult.js';
 import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
 import { logRow } from '../../../../../__tests__/helpers/logRow.js';

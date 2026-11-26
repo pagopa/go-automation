@@ -358,6 +358,7 @@ export class DispatchSession {
       throttled: this.rateAdapter.throttledCount,
       verifyPending: this.verifyStage?.pendingCount ?? 0,
       requestIdPending: this.requestIdStage?.pendingCount ?? 0,
+      requestIdNotExpected: this.ledger.countPaperNotExpected(),
       queuedCalls: this.limiter.stats.queued,
     };
   }

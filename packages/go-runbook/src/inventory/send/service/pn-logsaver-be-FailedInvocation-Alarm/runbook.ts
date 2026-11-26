@@ -11,6 +11,11 @@ const DIAGNOSTIC_DETAILS = [
   ['Log di errore non spiegati', '{{vars.logsaverUnaccountedErrorLogCount}}'],
 ] as const;
 
+/**
+ * Builds the pn-logsaver-be-FailedInvocation-Alarm runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return AlarmRunbookBuilder.create(LOGSAVER_ALARM)
     .metadata({
@@ -93,11 +98,11 @@ export function buildRunbook(): Runbook {
       knownCase({
         id: 'logsaver-batch-verification-required',
         description: 'Soli errori di interruzione del task Fargate Spot',
-        priority: 100,
         condition: all(
           varEquals('logsaverDiagnostics', 'COLLECTED'),
           { type: 'compare', ref: 'vars.logsaverSpotInterruptionLogCount', operator: '>', value: 0 },
           varEquals('logsaverUnaccountedErrorLogCount', '0'),
+          varEquals('logsaverUnaccountedErrorLogCountState', 'complete'),
         ),
         level: 'warn',
         resolution: 'Nessuna azione necessaria',
@@ -109,7 +114,6 @@ export function buildRunbook(): Runbook {
       knownCase({
         id: 'logsaver-spot-with-unaccounted-errors',
         description: 'Firma Spot presente con errori ancora da verificare',
-        priority: 90,
         condition: all(
           varEquals('logsaverDiagnostics', 'COLLECTED'),
           { type: 'compare', ref: 'vars.logsaverSpotInterruptionLogCount', operator: '>', value: 0 },

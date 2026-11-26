@@ -23,6 +23,7 @@ function contextWithDetail(
   }`;
 
   return createTestContext({
+    vars: { mandateErrorMsg: auditMessage },
     stepResults: {
       'query-pn-mandate': [
         logRow({

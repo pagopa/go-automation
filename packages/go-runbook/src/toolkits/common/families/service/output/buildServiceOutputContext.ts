@@ -1,42 +1,46 @@
 import { readResultFieldRows } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { parseInteger } from '@pagopa/go-common/utils';
-import type { Runbook } from '../../../../../engine/types/Runbook.js';
-import type { RunbookExecutionResult } from '../../../../../engine/types/RunbookExecutionResult.js';
+import type { Runbook, RunbookExecutionResult } from '../../../../../engine/index.js';
 import type { LogLine } from '../../../parsing/aws/cloudwatch-logs/LogLine.js';
-import {
-  toRunbookOutputDetails,
-  type RunbookEvidence,
-  type RunbookOutputContext,
-  type RunbookResultField,
-} from '../../../output/RunbookOutputContext.js';
+import { toRunbookOutputDetails, type RunbookOutputContext } from '../../../output/RunbookOutputContext.js';
+import type { RunbookEvidence } from '../../../output/RunbookEvidence.js';
+import type { RunbookResultField } from '../../../output/RunbookResultField.js';
 import { buildAlarmOutput } from '../../../output/buildAlarmOutput.js';
 import { addResultField, optionalNumber, optionalString } from '../../../output/outputValues.js';
-import { extractRecentLogLines, logLineToRecord } from '../../../parsing/aws/cloudwatch-logs/resultRows.js';
+import { extractRecentLogLines } from '../../../parsing/aws/cloudwatch-logs/resultRows.js';
+import { DEFAULT_MAX_RECENT_LOGS } from '../../../output/DEFAULT_MAX_RECENT_LOGS.js';
+import type { LogSampleOptions } from '../../../output/LogSampleOptions.js';
+import { logSampleEvidence } from '../../../output/logSampleEvidence.js';
 import type { ServiceOutputContext } from './ServiceOutputContext.js';
 import { isServiceRunbookContext } from './ServiceRunbookContext.js';
+import { representativeContext } from '../../../output/resultContexts.js';
+import { ErrorTreeView } from '../../../output/tree/ErrorTreeView.js';
 
-const DEFAULT_MAX_RECENT_LOGS = 5;
-
-export interface BuildServiceOutputContextOptions {
-  readonly maxRecentLogs?: number;
-}
-
+/**
+ * Builds the output context of a service runbook: the service, its errors and its trace.
+ *
+ * @param runbook - The executed runbook
+ * @param result - Result of the execution
+ * @param options - Bounds of the log samples
+ * @returns The output context, or `undefined` when the runbook is not a service runbook
+ */
 export function buildServiceOutputContext(
   runbook: Runbook,
   result: RunbookExecutionResult,
-  options: BuildServiceOutputContextOptions = {},
+  options: LogSampleOptions = {},
 ): RunbookOutputContext | undefined {
   if (!isServiceRunbookContext(runbook.runbookContext)) {
     return undefined;
   }
+  const context = representativeContext(result, new ErrorTreeView(result));
 
   const maxRecentLogs = options.maxRecentLogs ?? DEFAULT_MAX_RECENT_LOGS;
   const { service } = runbook.runbookContext;
-  const vars = result.finalContext.vars;
-  const params = result.finalContext.params;
+  const vars = context.vars;
+  const params = context.params;
 
-  const errorRows = readResultFieldRows(result.finalContext.stepResults.get(`query-${service.name}`));
-  const traceRows = readResultFieldRows(result.finalContext.stepResults.get(`query-${service.name}-trace`));
+  const errorRows = readResultFieldRows(context.stepResults.get(`query-${service.name}`));
+  const traceRows = readResultFieldRows(context.stepResults.get(`query-${service.name}-trace`));
   const recentLogs = extractRecentLogLines(errorRows, maxRecentLogs);
   const traceLogs = extractRecentLogLines(traceRows, maxRecentLogs);
   const evidence = buildEvidence(
@@ -96,26 +100,26 @@ function buildEvidence(
   totalTraceRows: number,
   maxRecentLogs: number,
 ): ReadonlyArray<RunbookEvidence> {
-  const evidence: RunbookEvidence[] = [];
-  if (recentLogs.length > 0) {
-    evidence.push({
-      id: `${serviceName}-recent-errors`,
-      label: `Ultimi log errore ${serviceName}`,
-      type: 'log-sample',
-      sourceStep: `query-${serviceName}`,
-      items: recentLogs.map(logLineToRecord),
-      truncated: totalErrorRows > maxRecentLogs,
-    });
-  }
-  if (traceLogs.length > 0) {
-    evidence.push({
-      id: `${serviceName}-trace-logs`,
-      label: `Log correlati al trace ${serviceName}`,
-      type: 'log-sample',
-      sourceStep: `query-${serviceName}-trace`,
-      items: traceLogs.map(logLineToRecord),
-      truncated: totalTraceRows > maxRecentLogs,
-    });
-  }
-  return evidence;
+  return [
+    ...logSampleEvidence(
+      {
+        id: `${serviceName}-recent-errors`,
+        label: `Ultimi log errore ${serviceName}`,
+        sourceStep: `query-${serviceName}`,
+        logs: recentLogs,
+        totalRows: totalErrorRows,
+      },
+      maxRecentLogs,
+    ),
+    ...logSampleEvidence(
+      {
+        id: `${serviceName}-trace-logs`,
+        label: `Log correlati al trace ${serviceName}`,
+        sourceStep: `query-${serviceName}-trace`,
+        logs: traceLogs,
+        totalRows: totalTraceRows,
+      },
+      maxRecentLogs,
+    ),
+  ];
 }

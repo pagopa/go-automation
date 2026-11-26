@@ -4,9 +4,14 @@ import { AUTH_SERVER_5XX_ALARM as alarm } from './alarmDefinition.js';
 import { KNOWN_CASES } from './knownCases.js';
 import { AnalyzeAuditFallbackStep, AUDIT_FALLBACK_PATTERN } from './AnalyzeAuditFallbackStep.js';
 
+/**
+ * Builds the interop-auth-server-apigw-5xx runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return interop.apigw.createInteropApiGwAlarmRunbook({
-    id: alarm.runbookKey,
+    alarm,
     metadata: {
       name: alarm.runbookKey,
       description:
@@ -18,19 +23,11 @@ export function buildRunbook(): Runbook {
     },
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
     resolverId: 'interop-auth-server-5xx-api-gateway-context',
-    resolveAlarmContext: alarm.resolveContext,
     queryProfile: {
       ...interop.apigw.INTEROP_API_GW_5XX_SERVICE_ERRORS_PROFILE,
       applicationLogsQueryProfileId: 'interop-k8s-auth-server-5xx',
       buildApplicationLogsQuery: (podApp) =>
         interop.apigw.buildInteropApiGwServiceErrorsQuery(podApp, [AUDIT_FALLBACK_PATTERN]),
-    },
-    apiGw: { logGroupTemplate: alarm.apiGwLogGroupTemplate, profileId: alarm.apiGwProfileId },
-    application: {
-      serviceName: alarm.serviceName,
-      logGroupTemplate: alarm.applicationLogGroupTemplate,
-      varPrefix: alarm.varPrefix,
-      podAppFilter: 'interop-be-authorization-server',
     },
     knownCases: KNOWN_CASES,
     hooks: [{ at: 'before-cid-analysis', step: new AnalyzeAuditFallbackStep() }],

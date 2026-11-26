@@ -9,8 +9,14 @@ import type {
   RunbookCheck,
   V2Status,
 } from '../types/RtaCheckReport.js';
-import { extractAnalysisEvidence, pickOccurrenceExcerpt } from '../evidence/extractAnalysisEvidence.js';
-import { matchAnalysis, type MatchAnalysisOptions } from './matchAnalysis.js';
+import {
+  extractAnalysisEvidence,
+  pickOccurrenceExcerpt,
+  pickTrackingExcerpt,
+} from '../evidence/extractAnalysisEvidence.js';
+import type { DetectedCase } from './DetectedCase.js';
+import { bestDetectedCase, matchAnalysis, type MatchAnalysisOptions } from './matchAnalysis.js';
+import { resolveOccurrenceEvidenceWindow } from '../evidence/resolveOccurrenceEvidenceWindow.js';
 
 export interface MatchAnalysisAiOptions extends MatchAnalysisOptions {
   readonly semanticMatcher: Pick<GOAISemanticMatcher, 'match'>;
@@ -31,23 +37,36 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function runbookSemanticText(output: RunbookOutput, check: RunbookCheck): string {
-  const parts = new Set<string>();
-  if (check.primaryCaseDescription !== undefined && check.primaryCaseDescription.trim() !== '') {
-    parts.add(check.primaryCaseDescription.trim());
-  }
-  if (output.outcome.kind === 'known-case-matched') {
-    if (output.outcome.message.trim() !== '') parts.add(output.outcome.message.trim());
-    const resolvedMessage = output.outcome.matchedCases[0]?.resolvedMessage;
-    if (resolvedMessage !== undefined && resolvedMessage.trim() !== '') parts.add(resolvedMessage.trim());
-  }
-  return [...parts].join('\n');
+/** The description and message of the detected case, without repetitions. */
+function caseSemanticText(detected: DetectedCase | undefined): string {
+  if (detected === undefined) return '';
+  return [...new Set([detected.description, detected.message].map((text) => text.trim()))]
+    .filter((text) => text !== '')
+    .join('\n');
 }
 
-function analysisSemanticText(analysis: AlarmAnalysisDto, firedAt: string): string {
-  const excerpt = pickOccurrenceExcerpt(analysis, firedAt).trim();
+/**
+ * The human text compared with the case: the tracking entry about the case's own identifiers when there is one,
+ * otherwise the excerpt of the occurrence.
+ */
+function analysisSemanticText(
+  output: RunbookOutput,
+  analysis: AlarmAnalysisDto,
+  firedAt: string,
+  detected: DetectedCase | undefined,
+): string {
+  const window = resolveOccurrenceEvidenceWindow(output);
+  const tracked = pickTrackingExcerpt(
+    analysis,
+    detected?.identifiers ?? [],
+    firedAt,
+    window,
+    detected?.traceIds ?? [],
+  )?.trim();
+  if (tracked !== undefined && tracked !== '') return tracked;
+  const excerpt = pickOccurrenceExcerpt(analysis, firedAt, window).trim();
   if (excerpt !== '') return excerpt;
-  return extractAnalysisEvidence(analysis, firedAt).text.trim();
+  return extractAnalysisEvidence(analysis, firedAt, window).text.trim();
 }
 
 function aiStatus(result: GOSemanticMatchResult, threshold: number): V2Status {
@@ -76,8 +95,9 @@ function withAiNotApplicable(match: AnalysisMatch): AnalysisMatch {
   return { ...match, aiAttempted: false };
 }
 
+/** A traceId or case id in common: the strongest agreement an untyped human tracking allows. */
 function hasDeterministicExactMatch(match: AnalysisMatch): boolean {
-  return match.status === 'MATCH_EXACT' && (match.signals.traceIdOverlap.length > 0 || match.signals.caseIdMentioned);
+  return match.status === 'MATCH_STRONG' && (match.signals.traceIdOverlap.length > 0 || match.signals.caseIdMentioned);
 }
 
 function withDeterministicExactMatch(match: AnalysisMatch): AnalysisMatch {
@@ -88,15 +108,15 @@ function withDeterministicExactMatch(match: AnalysisMatch): AnalysisMatch {
     ...match,
     matcher: MATCH_SOURCE.deterministic,
     aiAttempted: false,
-    reasons: [...match.reasons, `GO-AI non invocato: match deterministico ${signals.join('/')} già esatto.`],
+    reasons: [...match.reasons, `GO-AI non invocato: match deterministico ${signals.join('/')} già forte.`],
   };
 }
 
 function deterministicAuditReason(result: GOSemanticMatchResult, threshold: number): string {
   if (result.score < threshold || result.verdict === 'conflicting') {
-    return 'MATCH_EXACT mantenuto per evidenza deterministica; GO-AI segnala una possibile divergenza nel testo operatore.';
+    return 'MATCH_STRONG mantenuto per evidenza deterministica; GO-AI segnala una possibile divergenza nel testo operatore.';
   }
-  return 'MATCH_EXACT mantenuto per evidenza deterministica; GO-AI conferma il testo operatore come audit semantico.';
+  return 'MATCH_STRONG mantenuto per evidenza deterministica; GO-AI conferma il testo operatore come audit semantico.';
 }
 
 function withSemanticSignals(match: AnalysisMatch, result: GOSemanticMatchResult): AnalysisMatchSignals {
@@ -134,13 +154,14 @@ export async function matchAnalysisAi(
   ) {
     return withAiNotApplicable(lexical);
   }
-  if (check.status !== 'HIT' || check.primaryCaseId === undefined) {
+  if (check.status !== 'HIT' || check.matchedCaseIds.length === 0) {
     return withAiNotApplicable(lexical);
   }
   const deterministicExact = hasDeterministicExactMatch(lexical);
 
-  const runbookText = runbookSemanticText(output, check);
-  const analysisText = analysisSemanticText(analysis, firedAt);
+  const detected = bestDetectedCase(output, analysis, firedAt);
+  const runbookText = caseSemanticText(detected);
+  const analysisText = analysisSemanticText(output, analysis, firedAt, detected);
   if (runbookText === '' || analysisText === '') {
     const base = deterministicExact ? withDeterministicExactMatch(lexical) : withAiNotApplicable(lexical);
     return {
@@ -159,14 +180,15 @@ export async function matchAnalysisAi(
       ...lexical.reasons,
     ];
     return {
-      status: deterministicExact ? 'MATCH_EXACT' : aiStatus(result, options.semanticThreshold),
+      status: deterministicExact ? 'MATCH_STRONG' : aiStatus(result, options.semanticThreshold),
       confidence: deterministicExact ? lexical.confidence : confidence,
       reasons,
       signals: withSemanticSignals(lexical, result),
       matcher: deterministicExact ? MATCH_SOURCE.deterministicAi : MATCH_SOURCE.ai,
       aiAttempted: true,
       ...(result.explanation.trim() !== '' ? { semanticExplanation: result.explanation.trim() } : {}),
-      ...(lexical.analysisExcerpt !== undefined ? { analysisExcerpt: lexical.analysisExcerpt } : {}),
+      // The excerpt shown is the human text the AI compared.
+      analysisExcerpt: analysisText,
     };
   } catch (error) {
     const message = errorMessage(error);
@@ -178,7 +200,7 @@ export async function matchAnalysisAi(
         aiError: message,
         reasons: [
           ...lexical.reasons,
-          `GO-AI semantic-match non disponibile (${message}); MATCH_EXACT mantenuto per evidenza deterministica.`,
+          `GO-AI semantic-match non disponibile (${message}); MATCH_STRONG mantenuto per evidenza deterministica.`,
         ],
       };
     }
@@ -202,7 +224,7 @@ export async function matchAnalysisAi(
       matcher: MATCH_SOURCE.ai,
       aiAttempted: true,
       aiError: message,
-      ...(lexical.analysisExcerpt !== undefined ? { analysisExcerpt: lexical.analysisExcerpt } : {}),
+      analysisExcerpt: analysisText,
     };
   }
 }

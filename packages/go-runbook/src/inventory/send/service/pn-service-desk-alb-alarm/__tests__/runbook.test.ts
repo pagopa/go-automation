@@ -5,6 +5,7 @@ import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine, type RunbookExecutionResult } from '../../../../../engine/index.js';
 import { createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
 import { buildRunbook } from '../runbook.js';
+import { treeNodeVars } from '../../../../../__tests__/helpers/treeNodeVars.js';
 
 const TRACE_ID = '1-6ac782cf-29dda2b21b4f9db14013b7a0';
 const HOST = 'http://internal-lb.example:8080';
@@ -70,11 +71,11 @@ describe('service desk runbook with injected AWS services', () => {
     const { result } = await execute([row(NOT_FOUND)]);
     assert.strictEqual(result.status, 'completed');
     assert.deepStrictEqual(
-      result.matchedCases.map(({ id }) => id),
+      result.detections.map(({ knownCase }) => knownCase.id),
       ['service-desk-view-notification-not-found'],
     );
-    assert.strictEqual(result.matchedCases[0]?.analysis?.proposedStatus, 'IN_PROGRESS');
-    assert.strictEqual(result.finalContext.vars.get('serviceDeskTraceId'), TRACE_ID);
+    assert.strictEqual(result.detections[0]?.knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
+    assert.strictEqual(treeNodeVars(result).get('serviceDeskTraceId'), TRACE_ID);
   });
   it('recognizes the 410 signature and reuses the same reader and trace for correlation', async () => {
     const { result, queries } = await execute(
@@ -85,10 +86,10 @@ describe('service desk runbook with injected AWS services', () => {
     assert.strictEqual(queries.length, 2);
     assert.ok(queries[1]?.includes(TRACE_ID));
     assert.deepStrictEqual(
-      result.matchedCases.map(({ id }) => id),
+      result.detections.map(({ knownCase }) => knownCase.id),
       ['service-desk-notification-document-gone'],
     );
-    assert.strictEqual(result.matchedCases[0]?.analysis?.resolution, 'Risoluzione non documentata.');
+    assert.strictEqual(result.detections[0]?.knownCase.analysis?.resolution, 'Risoluzione non documentata.');
   });
   it('does not classify generic audit errors, other 404s or other document statuses', async () => {
     for (const message of [
@@ -97,12 +98,12 @@ describe('service desk runbook with injected AWS services', () => {
       GONE.replace('410 Gone', '500 Internal Server Error'),
     ]) {
       const { result } = await execute([row(message)]);
-      assert.deepStrictEqual(result.matchedCases, []);
+      assert.deepStrictEqual(result.detections, []);
     }
   });
   it('surfaces an inaccessible configured source without falling back to a hardcoded account', async () => {
     const { result } = await execute([row(NOT_FOUND)], [], true);
     assert.strictEqual(result.status, 'failed');
-    assert.deepStrictEqual(result.matchedCases, []);
+    assert.deepStrictEqual(result.detections, []);
   });
 });

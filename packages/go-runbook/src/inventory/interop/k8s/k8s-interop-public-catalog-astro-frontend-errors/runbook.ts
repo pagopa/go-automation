@@ -4,9 +4,14 @@ import type { Runbook } from '../../../../engine/index.js';
 
 import { KNOWN_CASES } from './knownCases.js';
 
+/**
+ * Builds the k8s-interop-public-catalog-astro-frontend-errors runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: PUBLIC_CATALOG_ALARM.runbookKey,
+    alarm: PUBLIC_CATALOG_ALARM,
     metadata: {
       name: PUBLIC_CATALOG_ALARM.runbookKey,
       description:
@@ -16,12 +21,6 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'service', 'public-catalog'],
     },
-    service: {
-      name: PUBLIC_CATALOG_ALARM.podApp,
-      logGroup: PUBLIC_CATALOG_ALARM.logGroup,
-      varPrefix: PUBLIC_CATALOG_ALARM.varPrefix,
-    },
-    resolveAlarmContext: PUBLIC_CATALOG_ALARM.resolveContext,
     knownCases: KNOWN_CASES,
   });
 }

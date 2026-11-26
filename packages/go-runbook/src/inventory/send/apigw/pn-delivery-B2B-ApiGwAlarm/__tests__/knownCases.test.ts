@@ -124,13 +124,19 @@ const DOCUMENTED_CASES: ReadonlyArray<CaseEvidence> = [
   },
   {
     id: 'apigw-endpoint-timeout-no-delivery-logs',
-    vars: { apiGwStatusCode: '504', apiGwErrorMessage: 'Endpoint request timed out', deliveryLogCount: '0' },
+    vars: {
+      apiGwStatusCode: '504',
+      apiGwErrorMessage: 'Endpoint request timed out',
+      deliveryLookupState: 'queried',
+      deliveryLogCount: '0',
+    },
   },
   {
     id: 'apigw-500-no-application-logs',
     vars: {
       apiGwStatusCode: '500',
       apiGwErrorMessage: '-',
+      deliveryLookupState: 'queried',
       deliveryLogCount: '0',
       versioningLambdaProbeState: 'queried',
       versioningLambdaErrorCount: '0',
@@ -208,7 +214,7 @@ const DOCUMENTED_CASES: ReadonlyArray<CaseEvidence> = [
   },
   {
     id: 'delivery-external-registries-read-timeout',
-    vars: { externalRegistriesLogCount: '0' },
+    vars: { 'externalRegistriesExclusion.specificDiagnosis': 'absent' },
     steps: [
       [
         'query-pn-delivery',
@@ -236,6 +242,22 @@ const DOCUMENTED_CASES: ReadonlyArray<CaseEvidence> = [
 
 describe('pn-delivery-B2B-ApiGwAlarm known cases', () => {
   const evaluator = new ConditionEvaluator();
+
+  it('never reads a skipped or partial pn-delivery read as the absence of errors', () => {
+    for (const deliveryLookupState of ['skipped', 'saturated', 'unavailable']) {
+      const context = createTestContext({
+        vars: {
+          apiGwStatusCode: '504',
+          apiGwErrorMessage: 'Endpoint request timed out',
+          deliveryLookupState,
+          deliveryLogCount: '0',
+        },
+      });
+      const knownCase = KNOWN_CASES.find((candidate) => candidate.id === 'apigw-endpoint-timeout-no-delivery-logs');
+      assert.ok(knownCase !== undefined);
+      assert.strictEqual(evaluator.evaluate(knownCase.condition, context), false, deliveryLookupState);
+    }
+  });
 
   it('covers every documented and production-observed case', () => {
     assert.strictEqual(KNOWN_CASES.length, DOCUMENTED_CASES.length);
@@ -306,21 +328,13 @@ describe('pn-delivery-B2B-ApiGwAlarm known cases', () => {
     );
   });
 
-  it('keeps every actionable case above every automatically completed case', () => {
-    const actionable = KNOWN_CASES.filter((knownCase) => knownCase.analysis?.proposedStatus === 'IN_PROGRESS');
-    const completed = KNOWN_CASES.filter((knownCase) => knownCase.analysis?.proposedStatus === 'COMPLETED');
-    const minimumActionable = Math.min(...actionable.map((knownCase) => knownCase.priority));
-    const maximumCompleted = Math.max(...completed.map((knownCase) => knownCase.priority));
-
-    assert.ok(minimumActionable > maximumCompleted);
-  });
-
   it('resolves a generic API Gateway 500 only after both application probes return zero errors', () => {
     const knownCase = KNOWN_CASES.find((candidate) => candidate.id === 'apigw-500-no-application-logs');
     assert.ok(knownCase !== undefined);
     const probed = {
       apiGwStatusCode: '500',
       apiGwErrorMessage: 'Internal server error',
+      deliveryLookupState: 'queried',
       deliveryLogCount: '0',
       versioningLambdaProbeState: 'queried',
       versioningLambdaErrorCount: '0',
@@ -329,7 +343,15 @@ describe('pn-delivery-B2B-ApiGwAlarm known cases', () => {
     for (const [vars, expected] of [
       [probed, true],
       // Before the Lambda probe runs.
-      [{ apiGwStatusCode: '500', apiGwErrorMessage: 'Internal server error', deliveryLogCount: '0' }, false],
+      [
+        {
+          apiGwStatusCode: '500',
+          apiGwErrorMessage: 'Internal server error',
+          deliveryLookupState: 'queried',
+          deliveryLogCount: '0',
+        },
+        false,
+      ],
       // An unavailable probe proves nothing about Lambda errors.
       [{ ...probed, versioningLambdaProbeState: 'unavailable', versioningLambdaErrorCount: '' }, false],
       // Lambda, WAF and network errors must not hide behind the no-log case.
@@ -387,7 +409,7 @@ describe('pn-delivery-B2B-ApiGwAlarm known cases', () => {
     for (const [expected, downstreamEvidence] of scenarios) {
       const evidence = context({
         id: expected,
-        vars: { externalRegistriesLogCount: '1' },
+        vars: { 'externalRegistriesExclusion.specificDiagnosis': 'present' },
         steps: [
           ['query-pn-delivery', [deliveryEvidence]],
           ['query-pn-external-registries', [downstreamEvidence]],

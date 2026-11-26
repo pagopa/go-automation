@@ -4,11 +4,13 @@ import { describe, it } from 'node:test';
 import type { RunbookContext, StepResult } from '../../../engine/index.js';
 import { apigw, createTestServiceRegistry, INTEROP_ENVIRONMENTS, service } from '../../../toolkits/interop/index.js';
 import { INTEROP_MANIFEST } from '../manifest.js';
+import { EMPTY_RUNBOOK_READS } from '../../../engine/reads/EMPTY_RUNBOOK_READS.js';
 
 /** API Gateway of each environment, for the runbooks of the API Gateway family. */
 const API_GW_IDS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   'interop-selfcare-1.0-apigw-5xx': { prod: 'tf9isbi4pi', att: '5sfghk09qb', test: 'an24tfmqw3' },
   'interop-api-v2-apigw-5xx': { prod: 'rudgz28tel', att: 'c786nyh6f4', test: 'jrafz6h9c9' },
+  'interop-api-v3-apigw-5xx': { prod: 'zafza38l7f', att: '7bms2hjt39', test: '9g5qf4liy0' },
   'interop-auth-server-apigw-4xx': { prod: 'ffmbmcmreh', att: '70ar087an0', test: 'q9ocrukty2' },
   'interop-auth-server-apigw-5xx': { prod: 'ffmbmcmreh', att: '70ar087an0', test: 'q9ocrukty2' },
 };
@@ -49,9 +51,9 @@ async function resolve(registration: Registration, alarmName: string): Promise<S
     stepResults: new Map(),
     vars: new Map(),
     params: new Map([['alarmName', alarmName]]),
-    logs: [],
     services: createTestServiceRegistry(),
     recoveredErrors: [],
+    reads: EMPTY_RUNBOOK_READS,
   };
   return step.execute(context);
 }
@@ -96,18 +98,10 @@ describe('INTEROP inventory', () => {
     });
   }
 
-  it('declares unique case ids and priorities, ranking open cases above completed ones', () => {
+  it('declares unique case ids', () => {
     for (const registration of INTEROP_MANIFEST) {
       const { knownCases } = registration.build();
       assert.strictEqual(new Set(knownCases.map(({ id }) => id)).size, knownCases.length, registration.key);
-      assert.strictEqual(new Set(knownCases.map(({ priority }) => priority)).size, knownCases.length, registration.key);
-      const open = knownCases.filter(({ analysis }) => analysis?.proposedStatus === 'IN_PROGRESS');
-      const completed = knownCases.filter(({ analysis }) => analysis?.proposedStatus === 'COMPLETED');
-      for (const openCase of open) {
-        for (const completedCase of completed) {
-          assert.ok(openCase.priority > completedCase.priority, `${registration.key}: ${openCase.id}`);
-        }
-      }
     }
   });
 });

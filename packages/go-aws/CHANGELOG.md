@@ -1,5 +1,19 @@
 # @pagopa/go-aws
 
+## 1.0.0-next.2
+
+### Minor Changes
+
+- [#298](https://github.com/pagopa/go-automation/pull/298) [`811f211`](https://github.com/pagopa/go-automation/commit/811f211d37f8c9b7e9d79ac856b6ec1bca2789fc) - Logs Insights: risultati parziali e completezza per query.
+
+  - Ogni `AWSCloudWatchLogsQueryExecution` riporta le righe restituite (`rowsReturned`) e le pagine non lette (`unreadPages`: `budget` o `failed`).
+  - Con la nuova opzione `partialResults` una lettura fallita o troncata non butta più quanto già letto: si restituiscono le righe delle query e delle pagine riuscite, le pagine non lette restano sull'esecuzione e le letture fallite dopo aver provato tutti i candidati finiscono in `failedReads`. L'annullamento e gli errori di configurazione del target continuano a lanciare un'eccezione. Senza l'opzione il comportamento non cambia.
+
+### Patch Changes
+
+- Updated dependencies [[`57bfaf8`](https://github.com/pagopa/go-automation/commit/57bfaf84f77fc80b05f4e2ef533dcf804a37ef74), [`57bfaf8`](https://github.com/pagopa/go-automation/commit/57bfaf84f77fc80b05f4e2ef533dcf804a37ef74)]:
+  - @pagopa/go-common@1.0.0-next.2
+
 ## 1.0.0-next.1
 
 ### Patch Changes

@@ -1,6 +1,5 @@
-import type { LogAction } from '../../../../engine/types/CaseAction.js';
-import { interpolatePlaceholders } from '../../../../engine/context/templatePlaceholders.js';
-import type { LogActionValues } from '../../../../engine/actions/LogActionValues.js';
+import type { LogAction, LogActionValues } from '../../../../engine/index.js';
+import { interpolatePlaceholders } from '../../../../engine/internal.js';
 
 /** Marker a matched known case is rendered under. */
 const KNOWN_CASE_PREFIX = '[CASO NOTO]';

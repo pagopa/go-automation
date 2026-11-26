@@ -2,7 +2,10 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { INTEROP_K8S_QUERY_PROFILE } from '../../../interop/families/k8s/profiles/INTEROP_K8S_QUERY_PROFILE.js';
-import { createInteropK8sAlarmRunbook } from '../../../interop/families/k8s/builders/createInteropK8sAlarmRunbook.js';
+import {
+  createInteropK8sAlarmRunbook,
+  defaultInteropK8sRunbookStepIds,
+} from '../../../interop/families/k8s/builders/createInteropK8sAlarmRunbook.js';
 import { createServiceAlarmRunbook } from '../../families/service/builders/createServiceAlarmRunbook.js';
 import { knownCase } from '../../analysis/knownCase.js';
 import type { KnownCase } from '../../../../engine/types/KnownCase.js';
@@ -14,7 +17,6 @@ function caseOn(stepId: string): KnownCase {
   return knownCase({
     id: `case-on-${stepId}`,
     description: 'probe',
-    priority: 100,
     condition: { type: 'contains', ref: `steps.${stepId}`, regex: 'boom' },
     resolution: 'n/a',
     analysis: { proposedStatus: 'COMPLETED', analysisType: 'ANALYZABLE' },
@@ -23,17 +25,23 @@ function caseOn(stepId: string): KnownCase {
 
 function interopK8sRunbook(knownCases: ReadonlyArray<KnownCase>): Runbook {
   return createInteropK8sAlarmRunbook({
-    id: 'probe-k8s',
-    metadata: TEST_RUNBOOK_METADATA,
-    service: { name: 'interop-bff', logGroup: '/aws/eks/probe', varPrefix: 'interopBff' },
-    queryProfile: INTEROP_K8S_QUERY_PROFILE,
-    resolveAlarmContext: (alarmName: string) => ({
-      alarmName,
+    alarm: {
       runbookKey: 'probe-k8s',
-      environment: 'prod',
       podApp: 'interop-bff',
+      varPrefix: 'interopBff',
       logGroup: '/aws/eks/probe',
-    }),
+      alarmNames: ['probe-k8s-prod'],
+      stepIds: defaultInteropK8sRunbookStepIds('interop-bff'),
+      resolveContext: (alarmName: string) => ({
+        alarmName,
+        runbookKey: 'probe-k8s',
+        environment: 'prod',
+        podApp: 'interop-bff',
+        logGroup: '/aws/eks/probe',
+      }),
+    },
+    metadata: TEST_RUNBOOK_METADATA,
+    queryProfile: INTEROP_K8S_QUERY_PROFILE,
     // Renaming a step is exactly what orphans a case written for the old id.
     stepIds: { queryApplicationLogs: 'query-renamed' },
     knownCases,

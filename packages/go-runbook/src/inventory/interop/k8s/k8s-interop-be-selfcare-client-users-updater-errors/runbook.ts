@@ -8,9 +8,14 @@ import { SELFCARE_USERS_UPDATER_QUERY_PROFILE } from './queryProfile.js';
 const CONFLUENCE_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/2129330177/k8s-interop-be-selfcare-client-users-updater-errors';
 
+/**
+ * Builds the k8s-interop-be-selfcare-client-users-updater-errors runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: SELFCARE_USERS_UPDATER_ALARM.runbookKey,
+    alarm: SELFCARE_USERS_UPDATER_ALARM,
     metadata: {
       name: SELFCARE_USERS_UPDATER_ALARM.runbookKey,
       description:
@@ -20,12 +25,6 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'service', 'selfcare', 'kafka'],
     },
-    service: {
-      name: SELFCARE_USERS_UPDATER_ALARM.podApp,
-      logGroup: SELFCARE_USERS_UPDATER_ALARM.logGroup,
-      varPrefix: SELFCARE_USERS_UPDATER_ALARM.varPrefix,
-    },
-    resolveAlarmContext: SELFCARE_USERS_UPDATER_ALARM.resolveContext,
     queryProfile: SELFCARE_USERS_UPDATER_QUERY_PROFILE,
     knownCases: KNOWN_CASES,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },

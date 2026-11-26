@@ -136,7 +136,13 @@ async function checkBoundOccurrence(
     } catch (error) {
       return failedRow(event, error, context.awsProfiles);
     }
-    if (cache !== undefined && meta !== undefined && fingerprint !== undefined && !isCredentialFailure(output)) {
+    if (
+      cache !== undefined &&
+      meta !== undefined &&
+      fingerprint !== undefined &&
+      !isCredentialFailure(output) &&
+      !hasUnavailableEvidence(output)
+    ) {
       await persistRunbookOutput(cache, key, {
         fingerprint,
         savedAt: new Date().toISOString(),
@@ -284,4 +290,14 @@ function failedComparison(hasAnalysis: boolean, status: 'CONFIG-ERROR' | 'EXECUT
       errorKeywordOverlap: [],
     },
   };
+}
+
+/**
+ * An output with a read that failed is not reused: running again may read what was unavailable.
+ *
+ * @param output - The runbook output
+ * @returns `true` when some evidence source was unavailable
+ */
+function hasUnavailableEvidence(output: RunbookOutput): boolean {
+  return output.coverage.sources.some(({ reason }) => reason === undefined || reason === 'unavailable');
 }

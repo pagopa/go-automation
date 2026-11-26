@@ -1,14 +1,10 @@
 import { RunbookProducts } from '../../../../common/registration/RunbookProduct.js';
-import { AlarmRunbookBuilder } from '../../../../common/builders/AlarmRunbookBuilder.js';
 import { finishAlarmRunbook } from '../../../../common/builders/finishAlarmRunbook.js';
-import { applyPipelineHooks } from '../../../../../engine/builders/applyPipelineHooks.js';
-import type { Runbook } from '../../../../../engine/types/Runbook.js';
-import type { TimeRangeFromParams } from '../../../../common/time/TimeRangeFromParams.js';
+import { startAlarmRunbook } from '../../../../common/builders/startAlarmRunbook.js';
+import { ALARM_TIME_RANGE } from '../../../../common/time/ALARM_TIME_RANGE.js';
+import type { Runbook } from '../../../../../engine/index.js';
 
-import { AnalyzeInteropApplicationLogsStep } from '../../../applicationLogs/steps/AnalyzeInteropApplicationLogsStep.js';
-import { AnalyzeInteropCidTrackerStep } from '../../../applicationLogs/steps/AnalyzeInteropCidTrackerStep.js';
-import { QueryInteropApplicationLogsStep } from '../../../applicationLogs/steps/QueryInteropApplicationLogsStep.js';
-import { QueryInteropCidTrackerStep } from '../../../applicationLogs/steps/QueryInteropCidTrackerStep.js';
+import { appendInteropCidPipeline } from '../../../applicationLogs/builders/appendInteropCidPipeline.js';
 import { buildInteropK8sCidTrackerQuery } from '../../../applicationLogs/queries/interopK8sQueries.js';
 import { INTEROP_CID_TRACKER_QUERY_PROFILE_ID } from '../../../applicationLogs/queries/interopApplicationLogsQueryProfileIds.js';
 
@@ -19,8 +15,6 @@ import type { InteropApiGwAlarmConfig } from '../types/InteropApiGwAlarmConfig.j
 import type { InteropApiGwRunbookStepIds } from '../types/InteropApiGwRunbookStepIds.js';
 import type { InteropApiGwPipelineAnchor } from '../types/InteropApiGwPipelineAnchor.js';
 import { defaultInteropApiGwUnknownCaseFallback } from './defaultInteropApiGwUnknownCaseFallback.js';
-
-const DEFAULT_TIME_RANGE: TimeRangeFromParams = { start: 'startTime', end: 'endTime' };
 
 /**
  * Canonical step ids of an INTEROP API Gateway alarm runbook.
@@ -49,39 +43,34 @@ export function defaultInteropApiGwRunbookStepIds(serviceName: string): InteropA
  * The pipeline is fixed — resolve the context, aggregate the access log,
  * read the service's application logs, then follow the CIDs into the
  * tracker — so a runbook declares only the queries and the identifiers
- * that make it different from its siblings. Mirrors
- * `interop.k8s.createInteropK8sAlarmRunbook`.
+ * that make it different from its siblings; the alarm declared with
+ * `defineInteropApiGwAlarm` gives runbook key, service, log groups and
+ * context resolution. Mirrors `interop.k8s.createInteropK8sAlarmRunbook`.
  *
  * @param config - The alarm configuration
  * @returns A validated {@link Runbook} ready for the engine
  */
 export function createInteropApiGwAlarmRunbook(config: InteropApiGwAlarmConfig): Runbook {
-  const { apiGw, application, queryProfile } = config;
-  const stepIds = { ...defaultInteropApiGwRunbookStepIds(application.serviceName), ...config.stepIds };
+  const { alarm, queryProfile } = config;
+  const application = config.application ?? {};
+  const runbook = { ...config, id: alarm.runbookKey };
+  const stepIds = { ...defaultInteropApiGwRunbookStepIds(alarm.serviceName), ...config.stepIds };
   const reachedAnchors = new Set<InteropApiGwPipelineAnchor>();
-  const timeRange = config.timeRangeFromParams ?? DEFAULT_TIME_RANGE;
-  const applicationTimeRange = application.timeRangeFromParams ?? timeRange;
-  const applicationLabel = application.label ?? `log applicativi ${application.serviceName}`;
-  const podAppFilter = application.podAppFilter;
+  const timeRange = config.timeRangeFromParams ?? ALARM_TIME_RANGE;
+  const podAppFilter = alarm.podAppFilter;
   const buildApplicationLogsQuery =
     podAppFilter === undefined
       ? queryProfile.buildApplicationLogsQuery
       : (): string => queryProfile.buildApplicationLogsQuery(podAppFilter);
 
-  const builder = AlarmRunbookBuilder.create(config.id)
-    .metadata(config.metadata)
-    .cloudExecutionPolicy({ sideEffects: 'NONE' });
-
-  if (config.occurrenceTimeWindow !== undefined) {
-    builder.occurrenceTimeWindow(config.occurrenceTimeWindow);
-  }
+  const builder = startAlarmRunbook(runbook);
 
   builder.step(
     new ResolveInteropApiGwAlarmContextStep({
       id: stepIds.resolveContext,
       label: 'Risoluzione contesto API Gateway INTEROP',
       resolverId: config.resolverId,
-      resolveAlarmContext: config.resolveAlarmContext,
+      resolveAlarmContext: alarm.resolveContext,
     }),
   );
 
@@ -106,65 +95,39 @@ export function createInteropApiGwAlarmRunbook(config: InteropApiGwAlarmConfig):
     }),
   );
 
-  builder.step(
-    new QueryInteropApplicationLogsStep({
-      id: stepIds.queryApplicationLogs,
-      label: `Query ${applicationLabel}`,
-      timeRangeFromParams: applicationTimeRange,
-      queryProfileId: queryProfile.applicationLogsQueryProfileId,
-      buildQuery: buildApplicationLogsQuery,
-    }),
-  );
+  appendInteropCidPipeline(builder, {
+    stepIds,
+    applicationLabel: application.label ?? `log applicativi ${alarm.serviceName}`,
+    applicationTimeRange: application.timeRangeFromParams ?? timeRange,
+    applicationLogsQueryProfileId: queryProfile.applicationLogsQueryProfileId,
+    buildApplicationLogsQuery,
+    varPrefix: alarm.varPrefix,
+    ...(application.countField !== undefined ? { countField: application.countField } : {}),
+    cidTrackerTimeRange: timeRange,
+    cidTrackerQueryProfileId: INTEROP_CID_TRACKER_QUERY_PROFILE_ID,
+    buildCidTrackerQuery: buildInteropK8sCidTrackerQuery,
+    hooks: config.hooks ?? [],
+    reachedAnchors,
+  });
 
-  builder.step(
-    new AnalyzeInteropApplicationLogsStep({
-      id: stepIds.analyzeApplicationLogs,
-      label: `Analisi ${applicationLabel}`,
-      fromStep: stepIds.queryApplicationLogs,
-      varPrefix: application.varPrefix,
-      ...(application.countField !== undefined ? { countField: application.countField } : {}),
-    }),
-  );
-
-  builder.step(
-    new QueryInteropCidTrackerStep({
-      id: stepIds.queryCidTracker,
-      label: 'Query CID tracker INTEROP',
-      fromStep: stepIds.analyzeApplicationLogs,
-      timeRangeFromParams: timeRange,
-      queryProfileId: INTEROP_CID_TRACKER_QUERY_PROFILE_ID,
-      buildQuery: buildInteropK8sCidTrackerQuery,
-    }),
-  );
-
-  applyPipelineHooks(builder, config.hooks ?? [], 'before-cid-analysis', reachedAnchors);
-
-  builder.step(
-    new AnalyzeInteropCidTrackerStep({
-      id: stepIds.analyzeCidTracker,
-      label: 'Analisi CID tracker INTEROP',
-      fromStep: stepIds.queryCidTracker,
-    }),
-  );
-
-  return finishAlarmRunbook(builder, config, {
+  return finishAlarmRunbook(builder, runbook, {
     builderName: 'createInteropApiGwAlarmRunbook',
     defaultFallback: () => defaultInteropApiGwUnknownCaseFallback(config),
     runbookContext: {
       kind: 'apigw',
       product: RunbookProducts.INTEROP,
-      apiGwLogGroup: apiGw.logGroupTemplate,
-      queryProfileId: apiGw.profileId,
+      apiGwLogGroup: alarm.apiGwLogGroupTemplate,
+      queryProfileId: alarm.apiGwProfileId,
       services: [
         {
-          name: application.serviceName,
-          logGroup: application.logGroupTemplate,
-          varPrefix: application.varPrefix,
+          name: alarm.serviceName,
+          logGroup: alarm.applicationLogGroupTemplate,
+          varPrefix: alarm.varPrefix,
         },
       ],
     },
-    primaryResource: application.serviceName,
-    defaultRunbookName: config.id,
+    primaryResource: alarm.serviceName,
+    defaultRunbookName: alarm.runbookKey,
     anchors: { hooks: config.hooks ?? [], reached: reachedAnchors, pipelineName: 'INTEROP API Gateway' },
   });
 }

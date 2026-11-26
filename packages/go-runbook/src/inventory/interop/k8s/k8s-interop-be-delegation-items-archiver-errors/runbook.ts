@@ -8,9 +8,14 @@ import { POD_CONTEXT } from './podContext.js';
 const CONFLUENCE_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3344762934/k8s-interop-be-delegation-items-archiver-errors';
 
+/**
+ * Builds the k8s-interop-be-delegation-items-archiver-errors runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
-  const runbook = interop.k8s.createInteropK8sAlarmRunbook({
-    id: alarm.runbookKey,
+  return interop.k8s.createInteropK8sAlarmRunbook({
+    alarm,
     metadata: {
       name: alarm.runbookKey,
       description: 'Analizza gli errori Kafka del delegation items archiver e raccoglie il contesto anche senza CID.',
@@ -19,39 +24,20 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'service', 'delegation', 'archiver', 'kafka'],
     },
-    service: { name: alarm.podApp, logGroup: alarm.logGroup, varPrefix: alarm.varPrefix },
-    resolveAlarmContext: alarm.resolveContext,
     knownCases: KNOWN_CASES,
     queryProfile: ARCHIVER_QUERY_PROFILE,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 5 },
 
-    hooks: [
-      {
-        at: 'before-cid-analysis',
-        step: new interop.k8s.QueryInteropPodContextStep(POD_CONTEXT),
-        evidence: [
-          {
-            id: 'delegation-items-archiver-context',
-            label: 'Contesto di riavvio e recupero archiviazione',
-            type: 'log-sample',
-            messageFields: ['log', '@message'],
-            // The query rejects capped results: keep the whole episode, including its start.
-            retention: { mode: 'all' },
-          },
-        ],
-      },
-    ],
+    podContext: {
+      step: POD_CONTEXT,
+      evidenceId: 'delegation-items-archiver-context',
+      evidenceLabel: 'Contesto di riavvio e recupero archiviazione',
+    },
     analysisDefaults: {
       runbookName: alarm.runbookKey,
       links: [{ url: CONFLUENCE_RUNBOOK_URL, name: alarm.runbookKey, type: 'CONFLUENCE' }],
     },
+    // Replace the builder's pod-name resource with the actual census entry.
+    primaryResource: { name: alarm.runbookKey, type: 'Service' },
   });
-  return {
-    ...runbook,
-    analysisDefaults: {
-      ...runbook.analysisDefaults,
-      // Replace the builder's pod-name resource with the actual census entry.
-      resources: [{ name: alarm.runbookKey, type: 'Service', role: 'PRIMARY' }],
-    },
-  };
 }

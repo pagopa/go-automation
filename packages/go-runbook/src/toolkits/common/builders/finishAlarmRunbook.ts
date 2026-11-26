@@ -1,70 +1,10 @@
-import type { CaseAction } from '../../../engine/types/CaseAction.js';
-import type { KnownCase } from '../../../engine/types/KnownCase.js';
-import type { PipelineHook } from '../../../engine/types/PipelineHook.js';
-import type { Runbook } from '../../../engine/types/Runbook.js';
-import type { RunbookAnalysisDefaults } from '../analysis/RunbookAnalysisDefaults.js';
+import type { Runbook } from '../../../engine/index.js';
+import { orphanHookAnchors } from '../../../engine/internal.js';
 import type { AlarmRunbookBuilder } from './AlarmRunbookBuilder.js';
-import type { AlarmRunbookContext } from '../output/AlarmRunbookContext.js';
 import { omitUndefined } from '@pagopa/go-common/utils';
-
 import { assertKnownCaseStepRefs } from './alarmConfigValidation.js';
-import { orphanHookAnchors } from '../../../engine/builders/applyPipelineHooks.js';
-
-/**
- * The part of an alarm config every toolkit builder ends by consuming.
- * Declared structurally so each family can pass its own config object.
- */
-export interface AlarmRunbookTailConfig {
-  readonly id: string;
-  readonly knownCases: ReadonlyArray<KnownCase>;
-  readonly fallbackAction?: CaseAction;
-  readonly analysisDefaults?: RunbookAnalysisDefaults;
-  readonly maxIterations?: number;
-}
-
-/** Builds the fallback used when the config declares none. */
-type DefaultFallbackFn = () => CaseAction;
-
-/**
- * Hook wiring, for the pipelines that declare anchors. The three travel
- * together: without hooks there is nothing to check and no name to report.
- */
-interface AlarmRunbookAnchors<TAnchor extends string> {
-  /** Hooks the toolkit accepted from its config. */
-  readonly hooks: ReadonlyArray<PipelineHook<TAnchor>>;
-  /** Anchors the pipeline actually reached while wiring its steps. */
-  readonly reached: ReadonlySet<TAnchor>;
-  /** Pipeline name used in the orphan-anchor error (e.g. `Lambda`). */
-  readonly pipelineName: string;
-}
-
-/** What a toolkit must supply on top of its config to close a runbook. */
-export interface FinishAlarmRunbookOptions<TAnchor extends string> {
-  /**
-   * Builds the fallback used when the config declares none. A function, not a
-   * value, so a config that brings its own `fallbackAction` never pays for
-   * building the default — and never inherits a failure from it.
-   */
-  readonly defaultFallback: DefaultFallbackFn;
-  /** Structured context describing the analysed component. */
-  readonly runbookContext: AlarmRunbookContext;
-  /**
-   * Name of the component under analysis, recorded as the draft's PRIMARY
-   * resource. `type` stays undeclared until the Fase 0 coverage check confirms
-   * the censused ResourceType name — a wrong type would block the apply, while
-   * omitting it never does.
-   */
-  readonly primaryResource: string;
-  /**
-   * Default documental runbook name, overridden by the one in
-   * `config.analysisDefaults` when the runbook declares its own.
-   */
-  readonly defaultRunbookName?: string;
-  /** Hook wiring; omit for a pipeline that declares no anchors. */
-  readonly anchors?: AlarmRunbookAnchors<TAnchor>;
-  /** Factory name reported when a known case points at a step nobody wired. */
-  readonly builderName: string;
-}
+import type { AlarmRunbookTailConfig } from './AlarmRunbookTailConfig.js';
+import type { FinishAlarmRunbookOptions } from './FinishAlarmRunbookOptions.js';
 
 /**
  * Closes an alarm runbook: known cases, fallback, structured context,
@@ -116,7 +56,10 @@ export function finishAlarmRunbook<TAnchor extends string = never>(
   builder.analysisDefaults({
     ...omitUndefined({ runbookName: options.defaultRunbookName }),
     ...config.analysisDefaults,
-    resources: [{ name: options.primaryResource, role: 'PRIMARY' }, ...(config.analysisDefaults?.resources ?? [])],
+    resources: [
+      { name: options.primaryResource, ...omitUndefined({ type: options.primaryResourceType }), role: 'PRIMARY' },
+      ...(config.analysisDefaults?.resources ?? []),
+    ],
   });
 
   if (config.maxIterations !== undefined) {

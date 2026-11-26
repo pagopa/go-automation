@@ -21,20 +21,20 @@ const SEND_ACCESS_LOG_QUERY = `filter status >= {{minStatusCode}} or authorizerS
  */
 const SEND_SERVICE_LOG_QUERY_TEMPLATE = `{{FILTER_CLAUSE}}
 | filter level == 'ERROR'
-| limit 1000
+| limit 10000
 | display @timestamp, level, ms, @message, trace_id`;
 
 /**
  * Template della query sugli execution log API Gateway SEND.
  *
- * V04: il `{{REQUEST_ID_FILTER_CLAUSE}}` viene popolato con una clausola
+ * Il `{{REQUEST_ID_FILTER_CLAUSE}}` viene popolato con una clausola
  * OR-combinata su tutti i requestId estratti dall'AccessLog, in modo da
  * fare UNA sola chiamata AWS invece di N (una per requestId) come nella
  * versione pre-refactor.
  */
 const SEND_EXECUTION_LOG_QUERY_TEMPLATE = `{{REQUEST_ID_FILTER_CLAUSE}}
 | sort @timestamp asc
-| limit 1000
+| limit 10000
 | display @timestamp, @message`;
 
 /**
@@ -60,7 +60,7 @@ export const SEND_API_GW_PROFILE: ApiGwQueryProfile = {
       traceIdField: 'xrayTraceId',
       traceIdLabel: 'X-Ray Trace ID',
       traceIdContextVar: 'xRayTraceId',
-      traceIdExtractPattern: 'Root=([^\\s]+)',
+      traceIdExtractPattern: 'Root=([^;\\s]+)',
       errorMessageField: 'errorMessage',
       pathField: 'path',
       httpMethodField: 'httpMethod',
@@ -87,6 +87,8 @@ export const SEND_API_GW_PROFILE: ApiGwQueryProfile = {
   serviceLog: {
     queryTemplate: SEND_SERVICE_LOG_QUERY_TEMPLATE,
     tracePredicateTemplate: `@message like '{{VALUE}}'`,
+    // One regex for every trace of a batch: the same rows as one `like` per form, in a much shorter query.
+    tracePatternTemplate: `@message like /{{PATTERN}}/`,
     fallbackPredicateTemplate: `@message like '{{VALUE}}'`,
     schema: {
       messageFieldCandidates: ['message', '@message'],
@@ -97,6 +99,5 @@ export const SEND_API_GW_PROFILE: ApiGwQueryProfile = {
   executionLog: {
     queryTemplate: SEND_EXECUTION_LOG_QUERY_TEMPLATE,
     requestIdPredicateTemplate: `@message like '{{VALUE}}'`,
-    maxRequestIds: 50,
   },
 };

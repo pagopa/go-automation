@@ -2,7 +2,6 @@ import { lambda } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
 import { DOWNSTREAM_MONITORING_LAMBDA_ALARM } from './alarmDefinition.js';
-import { DOWNSTREAM_ERROR_PATTERNS } from './knownErrors.js';
 import { KNOWN_CASES } from './knownCases.js';
 import { DOWNSTREAMS, LAMBDA_FUNCTION } from './knownServices.js';
 import { LAMBDA_LOG_READER } from './lambdaLogReader.js';
@@ -11,6 +10,11 @@ const RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3317137556/pn-downstream-monitoring-lambda-LogInvocationErrors-Alarm';
 const INCIDENT_THREAD_URL = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1788881608482419';
 
+/**
+ * Builds the pn-downstream-monitoring-lambda-LogInvocationErrors-Alarm runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return lambda.createSendLambdaAlarmRunbook({
     id: DOWNSTREAM_MONITORING_LAMBDA_ALARM,
@@ -27,7 +31,6 @@ export function buildRunbook(): Runbook {
     errorQueryStep: new lambda.QueryLambdaAcrossAccountsStep({ ...LAMBDA_LOG_READER, queryKind: 'errors' }),
     invocationQueryStep: new lambda.QueryLambdaAcrossAccountsStep({ ...LAMBDA_LOG_READER, queryKind: 'invocation' }),
     downstreams: DOWNSTREAMS,
-    downstreamErrorPatterns: DOWNSTREAM_ERROR_PATTERNS,
     knownCases: KNOWN_CASES,
     analysisDefaults: {
       runbookName: DOWNSTREAM_MONITORING_LAMBDA_ALARM,

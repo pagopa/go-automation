@@ -455,14 +455,14 @@ readonly execute: (context: OperationalContext) => Promise<StepResult<Rows>>;
 
 **Perché.**
 
-- `Step.execute` riceve il contesto neutro dell'engine (`RunbookContext`). Gli step AWS e HTTP lo dichiarano invece con il contesto operativo (`OperationalContext`, cioè `RunbookContext<ServiceRegistry>`), che ha più servizi.
-- TypeScript controlla i parametri dei **metodi** in modo bivariante: uno step con `execute(context: OperationalContext)` implementa comunque `Step`. Così l'engine resta senza servizi AWS e non servono generici su `Step`, `StepDescriptor`, `PipelineHook`, `IfBranchConfig`, `SwitchBranchConfig`, `Runbook`, `RunbookBuilder` e `RunbookBuilderFn`.
+- `Step.execute` riceve il contesto neutro dell'engine (`RunbookContext`). Gli step AWS lo dichiarano invece con il contesto operativo (`OperationalContext`, cioè `RunbookContext<ServiceRegistry>`), che ha più servizi.
+- TypeScript controlla i parametri dei **metodi** in modo bivariante: uno step con `execute(context: OperationalContext)` implementa comunque `Step`. Così l'engine resta senza servizi AWS e non servono generici su `Step`, `StepDescriptor`, `PipelineHook`, `Runbook`, `RunbookBuilder` e `RunbookBuilderFn`.
 - Con una firma di **proprietà** il parametro diventa controvariante: quegli step non implementerebbero più `Step`, e bisognerebbe propagare un generico in circa 170 file.
 
 **Il prezzo e come si paga.** Con la bivarianza il typecheck non garantisce che il runbook riceva i servizi di cui gli step hanno bisogno: un runbook operativo eseguito con soli `{ reporter }` compila. Il controllo si fa quindi **a runtime, prima del primo step**:
 
-- ogni step dichiara sul prototipo i servizi che usa con `requiredServices()`, e gli step che contengono sotto-pipeline dichiarano i loro step con `nestedSteps()`;
-- `RunbookEngine.execute` visita tutti gli step con `collectRunbookSteps` (pipeline, step annidati, azioni dei casi noti e del fallback) e, se manca un servizio, lancia `RunbookMissingServicesError` prima di eseguire qualsiasi step.
+- ogni step dichiara sul prototipo i servizi che usa con `requiredServices()`;
+- `RunbookEngine.execute` visita tutti gli step con `collectRunbookSteps` (pipeline, livelli dell'albero degli errori, azioni dei casi noti e del fallback) e, se manca un servizio, lancia `RunbookMissingServicesError` prima di eseguire qualsiasi step.
 
 **Per chi scrive uno step.** Se lo step usa `context.services.<servizio>`, quel servizio deve comparire in `requiredServices()`. Il modo più semplice è estendere `OperationalStep` (`@pagopa/go-runbook/toolkits/common`), che rende `requiredServices()` obbligatorio.
 

@@ -7,6 +7,7 @@ import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine, type RunbookExecutionResult } from '../../../../../engine/index.js';
 import { createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
 import { buildRunbook } from '../runbook.js';
+import { treeNodeVars } from '../../../../../__tests__/helpers/treeNodeVars.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 const REQUEST_ID = 'fa3cf895-a2ae-46e6-9d44-d75bb2230d33';
@@ -63,9 +64,9 @@ describe('DailyExport DynamoDB runbook', () => {
   it('finds a timeout REPORT in the configured source', async () => {
     const { result, calls } = await execute([row(REPORT)], [row(REPORT)]);
     assert.strictEqual(result.status, 'completed');
-    assert.strictEqual(result.finalContext.vars.get('lambdaErrorCategory'), 'timeout');
+    assert.strictEqual(treeNodeVars(result).get('lambdaErrorCategory'), 'timeout');
     assert.deepStrictEqual(
-      result.matchedCases.map(({ id }) => id),
+      result.detections.map(({ knownCase }) => knownCase.id),
       ['daily-export-timeout'],
     );
     assert.deepStrictEqual(
@@ -87,8 +88,8 @@ describe('DailyExport DynamoDB runbook', () => {
       ],
     );
     assert.strictEqual(result.status, 'completed');
-    assert.strictEqual(result.matchedCases[0]?.analysis?.proposedStatus, 'IN_PROGRESS');
-    assert.doesNotMatch(result.matchedCases[0]?.analysis?.resolution ?? '', /recuper|retry|chius/i);
+    assert.strictEqual(result.detections[0]?.knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
+    assert.doesNotMatch(result.detections[0]?.knownCase.analysis?.resolution ?? '', /recuper|retry|chius/i);
   });
 
   it('does not invent cases for generic application errors or missing logs', async () => {
@@ -99,7 +100,7 @@ describe('DailyExport DynamoDB runbook', () => {
     ]) {
       const { result } = await execute(errors, []);
       assert.strictEqual(result.status, 'completed');
-      assert.deepStrictEqual(result.matchedCases, []);
+      assert.deepStrictEqual(result.detections, []);
     }
   });
 });

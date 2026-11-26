@@ -4,8 +4,8 @@ Confronta l'esecuzione dei **runbook** di `go-analyze-alarm` con le **analisi Wa
 
 Per ogni occorrenza esegue **due verifiche**:
 
-- **V1 — copertura runbook** (deterministica): `HIT` / `MISS` / `NO-DATA` / `CONFIG-ERROR` / `EXECUTION-ERROR`.
-- **V2 — coerenza con l'analisi** (assistita): `MATCH_EXACT` / `MATCH_STRONG` / `MATCH_WEAK` / `NO_EVIDENCE` / `CONFLICT` / `NOT_LINKED` / `IGNORED` / `NOT_ANALYZED`, con segnali e motivazioni (incl. overlap `traceId`/`requestId`). Di default usa GO-AI `semantic-match`; `--analysis-matcher lexical` forza il matcher lessicale storico.
+- **V1 — copertura runbook** (deterministica): `HIT` / `MISS` / `INCONCLUSIVE` / `NO-DATA` / `CONFIG-ERROR` / `EXECUTION-ERROR`.
+- **V2 — coerenza con l'analisi** (assistita): `MATCH_STRONG` / `MATCH_WEAK` / `NO_EVIDENCE` / `CONFLICT` / `NOT_LINKED` / `IGNORED` / `NOT_ANALYZED`, con segnali e motivazioni (incl. overlap `traceId`/`requestId`). Di default usa GO-AI `semantic-match`; `--analysis-matcher lexical` forza il matcher lessicale storico.
 
 ### Significato degli stati
 
@@ -13,20 +13,22 @@ Per ogni occorrenza esegue **due verifiche**:
 
 | Esito             | Significato                                                                                                                                       |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `HIT`             | Un caso noto del runbook ha matchato l'errore.                                                                                                    |
+| `HIT`             | Almeno un caso noto del runbook ha matchato. La riga elenca **tutti** i casi trovati, in ordine di tempo della prima evidenza.                    |
 | `MISS`            | Log/errori presenti e analizzati, ma **nessun caso noto** li ha riconosciuti → caso azionabile: **runbook da arricchire**.                        |
+| `INCONCLUSIVE`    | Nessun caso noto, ma l'evidenza è **incompleta** (lettura fallita, saltata o satura): non si può dire che il runbook manchi un caso.              |
 | `NO-DATA`         | Query valida ma **0 record** (retention scaduta o finestra senza log): nessun errore da analizzare. Atteso, non penalizzante.                     |
 | `CONFIG-ERROR`    | La query non parte per **configurazione**: log group inesistente, account/profilo AWS errato, permessi mancanti (spesso runbook mal configurato). |
 | `EXECUTION-ERROR` | Crash o errore **non recuperabile** durante l'esecuzione del runbook.                                                                             |
 
 > `MISS` vs `NO-DATA`: `MISS` = "c'erano errori e il runbook non li ha riconosciuti"; `NO-DATA` = "non c'erano errori/log". Solo `MISS` indica un buco da colmare.
+>
+> `MISS` vs `INCONCLUSIVE`: con `INCONCLUSIVE` il runbook non ha visto tutto (la riga lo segnala con `evidenza incompleta`, il report con `incompleteSources`). La copertura automation conta `HIT/(HIT+MISS+INCONCLUSIVE)`.
 
 **V2 — Verifica (coerenza con l'analisi Watchtower, assistita)**
 
 | Verifica       | Significato                                                                                                                                                                                                      |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MATCH_EXACT`  | `traceId`/`requestId` in comune, oppure id/descrizione del caso citati nell'analisi.                                                                                                                             |
-| `MATCH_STRONG` | Segnali forti concordi (downstream / keyword / descrizione), score alto.                                                                                                                                         |
+| `MATCH_STRONG` | `traceId`/`requestId` in comune, id del caso citato nell'analisi, oppure segnali forti concordi (downstream / keyword / descrizione) con score alto.                                                             |
 | `MATCH_WEAK`   | Solo segnali deboli concordi.                                                                                                                                                                                    |
 | `NO_EVIDENCE`  | Analisi collegata ma testo insufficiente/non correlabile, **oppure** il runbook non ha rilevato un caso da confrontare.                                                                                          |
 | `CONFLICT`     | Categoria d'errore divergente, oppure GO-AI segnala una divergenza semantica forte con score molto basso.                                                                                                        |
@@ -40,6 +42,10 @@ Per ogni occorrenza esegue **due verifiche**:
 > parentesi è `ignoreReasonCode` di Watchtower; se assente si ricade sulla label
 > leggibile del motivo. Per queste righe il suffisso del matcher viene omesso:
 > nessun confronto è stato eseguito.
+
+> `MATCH_EXACT` resta nei conteggi del report ma non viene più emesso: il tracking umano di Watchtower non è
+> tipizzato, quindi un `traceId` o un id di caso citati nel testo dell'analisi portano al massimo a `MATCH_STRONG`.
+> Quando il runbook trova più casi, ciascuno viene confrontato con l'analisi e decide quello che concorda meglio.
 
 appunto di design locale, non versionato per convenzione (vedi
 [`../../../docs/GUIDE_LINES.md`](../../../docs/GUIDE_LINES.md#documentazione-jsdoc)).
@@ -107,7 +113,7 @@ Il matcher AI usa `@go-automation/go-ai`, `GOBedrockClient` e il cappello `seman
 
 La chiamata GO-AI avviene solo quando serve davvero: analisi collegata e valida, runbook in `HIT`, nessun `traceId`/`requestId` o case id già deterministico. I segnali deterministici restano guardrail, mentre lo score AI sostituisce il confronto testuale lessicale.
 
-Se la chiamata AI fallisce, lo script usa automaticamente il matcher lessicale, salvo `--go-ai-fallback-to-lexical false`. La colonna live `Verifica` indica il motore effettivo: `deterministic+ai` quando traceId/requestId o case id rendono il match esatto e GO-AI ha comunque verificato il testo operatore, `deterministic` quando il match esatto resta deterministico ma l'audit AI non ha prodotto risultato, `ai` quando il modello ha deciso il confronto, `lexical fallback` quando GO-AI ha fallito e il confronto lessicale ha sostituito l'AI, `n/a` quando la riga non è confrontabile dall'AI (per esempio `MISS`, `CONFIG-ERROR`, analisi assente/non usabile). Il riepilogo finale mostra una sezione `Errori GO-AI` e il report JSON/HTML include `aiAttempted`, `aiFallback` e `aiError`.
+Se la chiamata AI fallisce, lo script usa automaticamente il matcher lessicale, salvo `--go-ai-fallback-to-lexical false`. La colonna live `Verifica` indica il motore effettivo: `deterministic+ai` quando traceId/requestId o case id rendono il match forte e GO-AI ha comunque verificato il testo operatore, `deterministic` quando il match forte resta deterministico ma l'audit AI non ha prodotto risultato, `ai` quando il modello ha deciso il confronto, `lexical fallback` quando GO-AI ha fallito e il confronto lessicale ha sostituito l'AI, `n/a` quando la riga non è confrontabile dall'AI (per esempio `MISS`, `CONFIG-ERROR`, analisi assente/non usabile). Il riepilogo finale mostra una sezione `Errori GO-AI` e il report JSON/HTML include `aiAttempted`, `aiFallback` e `aiError`.
 
 Esempio:
 
@@ -308,10 +314,10 @@ Per non ripagare ogni volta le query CloudWatch, l'esito del **runbook (V1)** di
 
 ### Trabocchetti e considerazioni
 
-- ✅ **Invalidazione automatica al cambio del runbook.** Il fingerprint include l'hash strutturale della definizione + la versione del runbook: se modifichi/aggiungi un _known case_, cambi step/query, profili/region o finestra, le entry esistenti risultano **stale** e vengono **rieseguite** (anche le vecchie entry senza fingerprint sono trattate come stale). ⚠️ **Residuo:** una modifica che vive **solo nel corpo di una funzione** (es. la logica di una `condition`/azione) senza alterare la struttura serializzabile né la `version` del runbook **non** viene rilevata: in quel caso **bumpa la `version` del runbook** (o, per invalidare tutto, `CACHE_FINGERPRINT_VERSION` in `src/runner/runbookFingerprint.ts`). `--force` resta la via rapida.
+- ✅ **Invalidazione automatica al cambio del runbook.** Il fingerprint include l'hash strutturale della definizione + la versione del runbook: se modifichi/aggiungi un _known case_, cambi step/query, profili/region o finestra, le entry esistenti risultano **stale** e vengono **rieseguite** (anche le vecchie entry senza fingerprint sono trattate come stale). ⚠️ **Residuo:** una modifica che vive **solo nel corpo di una funzione** (es. la logica di una `condition`/azione) senza alterare la struttura serializzabile né la `version` del runbook **non** viene rilevata: in quel caso **bumpa la `version` del runbook** (o, per invalidare tutto, `CACHE_FINGERPRINT_VERSION` in `packages/go-watchtower-runbook/src/cache/runbookFingerprint.ts`). `--force` resta la via rapida.
 - **V1 dalla cache, V2 sempre fresca.** Anche su un hit, il confronto V2 è ricalcolato a ogni run sull'analisi Watchtower aggiornata.
 - **Gli esiti completati sono cachati, i crash no.** `HIT` / `MISS` / `NO-DATA` / `CONFIG-ERROR` e anche un `EXECUTION-ERROR` derivato da un runbook con outcome `failed`/`aborted` vengono **salvati**. Solo un'**eccezione non gestita** che interrompe l'esecuzione (`EXECUTION-ERROR` _senza_ output) **non** viene cachata: quelle occorrenze sono **ritentate a ogni run** (utile per errori transitori, es. credenziali AWS scadute).
-- **Versione schema.** La `schemaVersion` di `RunbookOutput` fa parte del fingerprint: un suo cambio invalida le entry. Aggiorna `EXPECTED_OUTPUT_SCHEMA_VERSION` in `src/runner/runbookFingerprint.ts` quando `go-runbook` la incrementa.
+- **Versione schema.** La `schemaVersion` di `RunbookOutput` (`RUNBOOK_OUTPUT_SCHEMA_VERSION`, oggi `3.0.0`) fa parte del fingerprint: un suo cambio invalida le entry, senza interventi a mano.
 - **È locale, non si committa.** La cache vive sotto `data/` (ignorato da git, riga `data/*` del `.gitignore`): non va condivisa via repository.
 
 ## Note
@@ -321,7 +327,7 @@ Per non ripagare ogni volta le query CloudWatch, l'esito del **runbook (V1)** di
 - **Ambiente**: opzionale. Con `--environment-id` (o selezione interattiva) filtri le occorrenze di quell'ambiente; **se omesso** vengono analizzati tutti gli ambienti del prodotto — o, se `targets` restringe il prodotto, tutti quelli in scope. In [modalità non interattiva](#modalità-non-interattiva-ci) l'omissione = tutti, senza prompt.
 - **Scope e selezione**: `targets` è il confine operativo, e vale anche per i flag: `--product-id` / `--environment-id` vengono risolti al suo interno e falliscono se ne escono; `--alarm-name` deve esistere nel prodotto e avere un runbook locale. Ogni valore fissato salta il passo corrispondente del wizard. Dettagli in [Scope dei target](#scope-dei-target-targets) e [Selezione interattiva](#selezione-interattiva-prodotto--ambiente--runbook).
 - **Resume / cache**: i risultati per occorrenza sono cache-ati; `--force` riesegue e sovrascrive. Dettagli, motivazioni e trabocchetti nella sezione [Cache (resume)](#cache-resume).
-- **Output**: `data/go-rta-check/outputs/<run>/<NN-nome-allarme>/` con `results.json`, `summary.json`, `report.html`. La sottocartella numerata tiene separati gli artifact dei runbook analizzati nella stessa sessione, che altrimenti si sovrascriverebbero.
+- **Output**: `data/go-rta-check/outputs/<run>/<NN-nome-allarme>/` con `results.json`, `summary.json`, `report.html`. Il report è alla `schemaVersion` `2.0.0` e i file esportati non contengono i nomi dei profili AWS configurati. La sottocartella numerata tiene separati gli artifact dei runbook analizzati nella stessa sessione, che altrimenti si sovrascriverebbero.
 - La V2 è **assistita** (mai un verdetto secco): mostra sempre i segnali e va validata a mano.
 
 ## Account AWS logici

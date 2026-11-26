@@ -122,6 +122,7 @@ export type { TimelineSource } from './requestId/TimelineSource.js';
 export type { CredentialErrorPredicate } from './requestId/CredentialErrorPredicate.js';
 export { DEFAULT_REQUEST_ID_OPTIONS } from './requestId/defaultRequestIdOptions.js';
 export { DynamoTimelineSource } from './requestId/DynamoTimelineSource.js';
+export { DIGITAL_SUCCESS_REASON } from './model/requestIdReasons.js';
 
 // Run
 export type { DispatchRequestIdOptions } from './run/DispatchRequestIdOptions.js';

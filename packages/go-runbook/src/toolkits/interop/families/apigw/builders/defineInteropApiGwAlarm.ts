@@ -1,5 +1,6 @@
 import type { InteropEnvironment } from '../../../environment/InteropEnvironment.js';
 import { INTEROP_ENVIRONMENTS } from '../../../environment/INTEROP_ENVIRONMENTS.js';
+import { interopAlarmEnvironment } from '../../../alarms/interopAlarmEnvironment.js';
 import {
   buildInteropK8sApplicationLogGroup,
   INTEROP_K8S_APPLICATION_LOG_GROUP_TEMPLATE,
@@ -43,7 +44,7 @@ export function defineInteropApiGwAlarm(spec: InteropApiGwAlarmSpec): InteropApi
     ...INTEROP_ENVIRONMENTS.map((environment) => [spec.alarmName(environment), environment] as const),
     ...(spec.additionalAlarms ?? []).map(({ name, environment }) => [name, environment] as const),
   ];
-  const environmentByAlarmName = new Map(alarms);
+  const environmentOf = interopAlarmEnvironment(alarms);
   const alarmNames = alarms.map(([name]) => name) as [string, ...string[]]; // Safe: INTEROP_ENVIRONMENTS is non-empty.
 
   return {
@@ -57,12 +58,7 @@ export function defineInteropApiGwAlarm(spec: InteropApiGwAlarmSpec): InteropApi
     alarmNames,
     stepIds: defaultInteropApiGwRunbookStepIds(spec.serviceName),
     resolveContext(alarmName: string): InteropApiGwAlarmContext {
-      const environment = environmentByAlarmName.get(alarmName);
-      if (environment === undefined) {
-        // Sorted like the registry and catalog descriptors expose alarmNames.
-        const expected = [...alarmNames].sort().join(', ');
-        throw new Error(`Unsupported INTEROP alarm name "${alarmName}". Expected one of: ${expected}`);
-      }
+      const environment = environmentOf(alarmName);
       return {
         alarmName,
         runbookKey: spec.runbookKey,

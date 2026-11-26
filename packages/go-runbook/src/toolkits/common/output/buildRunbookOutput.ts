@@ -1,47 +1,52 @@
-import {
-  type AWSCloudWatchLogsQueryStatistics,
-  sumCloudWatchLogsQueryStatistics,
-} from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { omitUndefined } from '@pagopa/go-common/utils';
-import type { CaseAction } from '../../../engine/types/CaseAction.js';
-import type { KnownCase } from '../../../engine/types/KnownCase.js';
-import type { Runbook } from '../../../engine/types/Runbook.js';
-import type { RunbookExecutionResult } from '../../../engine/types/RunbookExecutionResult.js';
+import type {
+  CaseAction,
+  IdentifierObservation,
+  KnownCaseDetection,
+  Runbook,
+  RunbookContext,
+  RunbookExecutionResult,
+} from '../../../engine/index.js';
+import { resolveActionMessage } from '../../../engine/index.js';
 import type { RunbookOutput } from './RunbookOutput.js';
 import type { RunbookOutcome } from './RunbookOutcome.js';
-import type { RunbookOutputContext } from './RunbookOutputContext.js';
-import type { StepTrace } from '../../../engine/tracing/StepTrace.js';
-import type {
-  RunbookTelemetry,
-  CloudWatchLogsTelemetry,
-  CloudWatchLogsTelemetryQueryExecution,
-} from '../telemetry/RunbookTelemetry.js';
+import { buildRunbookTelemetry } from '../telemetry/buildRunbookTelemetry.js';
 import { emptyRunbookOutputContext } from './RunbookOutputContext.js';
-import { buildAnalysisDraft } from '../analysis/draft/buildAnalysisDraft.js';
+import { analysisDraftOf } from '../analysis/draft/buildAnalysisDraft.js';
 import { ANALYSIS_LOG_ACTION_RENDERER } from '../analysis/reporting/ANALYSIS_LOG_ACTION_RENDERER.js';
-import { resolveActionMessage } from '../../../engine/actions/resolveActionMessage.js';
 import { buildDeclaredOutputContext } from './buildDeclaredOutputContext.js';
+import { buildFamilyOutputContext } from './buildFamilyOutputContext.js';
+import { errorChainsOf } from './buildErrorChains.js';
+import { coverageLinesOf } from './buildCoverageLines.js';
+import { ErrorTreeView } from './tree/ErrorTreeView.js';
+import { detectionOccurrences, errorsByCase } from './detectionOccurrences.js';
+import { RUNBOOK_OUTPUT_SCHEMA_VERSION } from './RUNBOOK_OUTPUT_SCHEMA_VERSION.js';
+import { detectionContext, detectionObservations, representativeContext } from './resultContexts.js';
+import type { RunbookCoverageOutput } from './RunbookCoverageOutput.js';
+import type { BuildRunbookOutputOptions } from './BuildRunbookOutputOptions.js';
+import type { KnownCaseDetectionOutput } from './KnownCaseDetectionOutput.js';
 
-export interface BuildRunbookOutputOptions {
-  readonly traceFile?: string;
-  readonly contextBuilder?: RunbookOutputContextBuilderFn;
-}
-
-export type RunbookOutputContextBuilderFn = (
-  runbook: Runbook,
-  result: RunbookExecutionResult,
-) => RunbookOutputContext | undefined;
-
+/**
+ * Builds the output of a runbook execution: metadata, execution, outcome, error chains, coverage, analysis draft,
+ * telemetry and the declared output context.
+ *
+ * @param runbook - The executed runbook
+ * @param result - Result of the execution
+ * @param options - Trace file and builder of the family output context (default: the context of the runbook family)
+ * @returns The runbook output
+ */
 export function buildRunbookOutput(
   runbook: Runbook,
   result: RunbookExecutionResult,
   options: BuildRunbookOutputOptions = {},
 ): RunbookOutput {
   const trace = result.trace;
-  const telemetry = buildRunbookTelemetry(trace.pipeline);
-  const analysis = buildAnalysisDraft(runbook, result);
+  const telemetry = buildRunbookTelemetry(trace);
+  const view = new ErrorTreeView(result);
+  const chains = errorChainsOf(result, view);
+  const analysis = analysisDraftOf(runbook, result, { view, chains, coverageLines: coverageLinesOf(result, view) });
   return {
-    schemaVersion: '1.0.0',
+    schemaVersion: RUNBOOK_OUTPUT_SCHEMA_VERSION,
     generatedAt: new Date().toISOString(),
     runbook: {
       id: runbook.metadata.id,
@@ -57,8 +62,6 @@ export function buildRunbookOutput(
       durationMs: result.durationMs,
       status: result.status,
       stepsExecuted: result.stepsExecuted,
-      earlyResolution: result.earlyResolution === true,
-      ...(result.resolvedAtStep !== undefined ? { resolvedAtStep: result.resolvedAtStep } : {}),
       ...(options.traceFile !== undefined ? { traceFile: options.traceFile } : {}),
       recoveredErrors: result.recoveredErrors.map((err) => ({
         stepId: err.stepId,
@@ -66,59 +69,26 @@ export function buildRunbookOutput(
       })),
     },
     input: trace.input,
-    outcome: buildOutcome(runbook, result),
-    ...(analysis !== undefined ? { analysis } : {}),
-    ...(telemetry !== undefined ? { telemetry } : {}),
+    outcome: buildOutcome(runbook, result, view),
+    // The list of every path stays in the trace: the output keeps the counts, routes and samples of each group.
+    chains: chains.map(({ members: _members, ...summary }) => summary),
+    coverage: {
+      complete: evidenceComplete(result, view),
+      sources: result.coverage,
+      ...(result.observedErrors !== undefined ? { errors: result.observedErrors } : {}),
+      ...treeCoverage(result, view),
+    },
+    ...omitUndefined({ analysis, telemetry }),
     context: buildDeclaredOutputContext(
       runbook,
       result,
-      options.contextBuilder?.(runbook, result) ?? emptyRunbookOutputContext(),
+      (options.contextBuilder ?? buildFamilyOutputContext)(runbook, result) ?? emptyRunbookOutputContext(),
+      view,
     ),
   };
 }
 
-function buildRunbookTelemetry(steps: ReadonlyArray<StepTrace>): RunbookTelemetry | undefined {
-  const cloudWatchLogs = buildCloudWatchLogsTelemetry(steps);
-  if (cloudWatchLogs === undefined) {
-    return undefined;
-  }
-  return { cloudWatchLogs };
-}
-
-function buildCloudWatchLogsTelemetry(steps: ReadonlyArray<StepTrace>): CloudWatchLogsTelemetry | undefined {
-  const queryExecutions: CloudWatchLogsTelemetryQueryExecution[] = [];
-  const statistics: AWSCloudWatchLogsQueryStatistics[] = [];
-
-  for (const step of steps) {
-    const diagnostics = step.diagnostics?.cloudWatchLogs;
-    if (diagnostics === undefined) continue;
-
-    statistics.push(diagnostics.statistics);
-    for (const execution of diagnostics.queryExecutions) {
-      queryExecutions.push({
-        stepId: step.stepId,
-        stepLabel: step.label,
-        executionOrder: step.executionOrder,
-        queryId: execution.queryId,
-        profile: execution.profile,
-        logGroups: execution.logGroups,
-        statistics: execution.statistics,
-      });
-    }
-  }
-
-  if (statistics.length === 0) {
-    return undefined;
-  }
-
-  return {
-    queryCount: queryExecutions.length,
-    statistics: sumCloudWatchLogsQueryStatistics(statistics),
-    queryExecutions,
-  };
-}
-
-function buildOutcome(runbook: Runbook, result: RunbookExecutionResult): RunbookOutcome {
+function buildOutcome(runbook: Runbook, result: RunbookExecutionResult, view: ErrorTreeView): RunbookOutcome {
   if (result.status === 'aborted') {
     return {
       kind: 'aborted',
@@ -140,16 +110,17 @@ function buildOutcome(runbook: Runbook, result: RunbookExecutionResult): Runbook
     };
   }
 
-  if (result.matchedCases.length > 0) {
-    return buildKnownCaseMatchedOutcome(result);
+  if (result.detections.length > 0) {
+    return buildKnownCaseMatchedOutcome(result, view);
   }
 
   if (runbook.metadata.type === 'alarm-resolution') {
+    const complete = evidenceComplete(result, view);
     return {
-      kind: 'unknown-case',
+      kind: complete ? 'unknown-case' : 'inconclusive',
       casesEvaluated: result.trace.caseMatching.casesEvaluated,
-      ...resolvedActionMessage(runbook.fallbackAction, result),
-      message: 'Nessun caso noto individuato',
+      ...resolvedActionMessage(runbook.fallbackAction, result, view),
+      message: complete ? 'Nessun caso noto individuato' : 'Nessun caso noto individuato, con evidenza incompleta',
     };
   }
 
@@ -160,40 +131,47 @@ function buildOutcome(runbook: Runbook, result: RunbookExecutionResult): Runbook
   return buildProcedureSuccessOutcome(result);
 }
 
-function buildKnownCaseMatchedOutcome(result: RunbookExecutionResult): RunbookOutcome {
-  const primary = result.matchedCases[0];
-  if (primary === undefined) {
-    throw new Error('Cannot build known-case outcome without a primary matched case.');
-  }
-
-  return {
-    kind: 'known-case-matched',
-    primaryCaseId: primary.id,
-    primaryCaseDescription: primary.description,
-    matchedCases: result.matchedCases.map((knownCase) => knownCaseOutput(knownCase, result)),
-    message: `Individuato caso noto: ${primary.description}`,
-  };
+function buildKnownCaseMatchedOutcome(result: RunbookExecutionResult, view: ErrorTreeView): RunbookOutcome {
+  const executed = result.trace.actionsExecuted.filter((action) => action.executed);
+  const detected = result.detections.map((detection, index) => {
+    const node = view.nodeOf(detection);
+    return {
+      output: detectionOutput(
+        detection,
+        detectionObservations(view, detection),
+        (result.tree === undefined ? executed[index]?.resolvedMessage : undefined) ??
+          resolveOutcomeMessage(detection.knownCase.action, detectionContext(result, view, detection)),
+      ),
+      // Without a tree every detection is an error of its own.
+      errorKey: node?.errorKey ?? `detection:${String(index)}`,
+      inTree: node !== undefined,
+    };
+  });
+  // One entry per case and request, and one line per case: never one per node.
+  const cases = errorsByCase(detected);
+  const named = cases.map(({ description, errors }) =>
+    errors > 1 ? `${description} (${String(errors)} errori)` : description,
+  );
+  const message =
+    cases.length === 1
+      ? `Individuato caso noto: ${named[0] ?? ''}`
+      : `Individuati ${String(cases.length)} casi noti: ${named.join(' | ')}`;
+  return { kind: 'known-case-matched', detections: detectionOccurrences(detected), message };
 }
 
-function knownCaseOutput(
-  knownCase: KnownCase,
-  result: RunbookExecutionResult,
-): {
-  readonly id: string;
-  readonly description: string;
-  readonly priority: number;
-  readonly resolvedMessage?: string;
-} {
-  const resolvedMessage =
-    result.matchedCases[0]?.id === knownCase.id
-      ? result.trace.actionsExecuted.find((action) => action.executed)?.resolvedMessage
-      : resolveOutcomeMessage(knownCase.action, result);
-
+function detectionOutput(
+  detection: KnownCaseDetection,
+  observations: ReadonlyArray<IdentifierObservation>,
+  resolvedMessage: string | undefined,
+): KnownCaseDetectionOutput {
   return {
-    id: knownCase.id,
-    description: knownCase.description,
-    priority: knownCase.priority,
+    caseId: detection.knownCase.id,
+    description: detection.knownCase.description,
+    ...omitUndefined({ firstSeenAt: detection.firstSeenAt, lastSeenAt: detection.lastSeenAt }),
+    evidenceRows: detection.evidenceRows,
+    errors: 1,
     ...(resolvedMessage !== undefined ? { resolvedMessage } : {}),
+    observations,
   };
 }
 
@@ -213,8 +191,7 @@ function buildProcedureFailureOutcome(result: RunbookExecutionResult): RunbookOu
   return {
     kind: 'procedure-failure',
     summary: result.finalContext.vars.get('procedureMessage') ?? result.trace.summary.outcome,
-    ...(failedStepId !== undefined ? { failedStepId } : {}),
-    ...(error !== undefined ? { error } : {}),
+    ...omitUndefined({ failedStepId, error }),
     ...(Object.keys(metrics).length > 0 ? { metrics } : {}),
   };
 }
@@ -234,15 +211,34 @@ function collectProcedureMetrics(result: RunbookExecutionResult): Readonly<Recor
 function resolvedActionMessage(
   action: CaseAction,
   result: RunbookExecutionResult,
+  view: ErrorTreeView,
 ): { readonly fallbackMessage?: string } {
-  const resolved = resolveOutcomeMessage(action, result);
+  const resolved = resolveOutcomeMessage(action, representativeContext(result, view));
   return resolved === undefined ? {} : { fallbackMessage: resolved };
 }
 
-function resolveOutcomeMessage(action: CaseAction, result: RunbookExecutionResult): string | undefined {
-  return resolveActionMessage(
-    action,
-    { vars: result.finalContext.vars, params: result.finalContext.params },
-    ANALYSIS_LOG_ACTION_RENDERER,
-  );
+function resolveOutcomeMessage(action: CaseAction, context: RunbookContext): string | undefined {
+  return resolveActionMessage(action, { vars: context.vars, params: context.params }, ANALYSIS_LOG_ACTION_RENDERER);
+}
+
+/**
+ * Whether the evidence of an execution is complete: no partial read and, in an error tree, no interrupted chain.
+ *
+ * @param result - Result of the execution
+ * @returns `true` when nothing is missing
+ */
+function evidenceComplete(result: RunbookExecutionResult, view: ErrorTreeView): boolean {
+  return result.coverage.length === 0 && !view.hasInterruptedChains();
+}
+
+/** The nodes of each level and the interrupted chains of an error tree; nothing for a window-level runbook. */
+function treeCoverage(
+  result: RunbookExecutionResult,
+  view: ErrorTreeView,
+): Pick<RunbookCoverageOutput, 'levels' | 'interruptions'> {
+  if (!view.hasTree) return {};
+  return {
+    levels: view.levels(result.observedErrors),
+    interruptions: [...view.interruptions()].map(([reason, count]) => ({ reason, count })),
+  };
 }

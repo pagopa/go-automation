@@ -1,11 +1,10 @@
-import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { readCloudWatchResultRows } from '../../../../common/parsing/aws/cloudwatch-logs/readCloudWatchResultRows.js';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
-import type { Step } from '../../../../../engine/types/Step.js';
-import type { StepKind } from '../../../../../engine/types/StepKind.js';
-import type { StepResult } from '../../../../../engine/types/StepResult.js';
+import type { RunbookContext, Step, StepKind, StepResult } from '../../../../../engine/index.js';
 import { normalizeInteropApiGwAggregateValue } from '../helpers/normalizeInteropApiGwAggregateValue.js';
 import type { InteropApiGwAggregateAnalysis } from '../types/InteropApiGwAggregateAnalysis.js';
+import type { CloudWatchLogsRow } from '../../../../common/steps/aws/cloudwatch-logs/CloudWatchLogsRow.js';
+import type { CloudWatchLogsRows } from '../../../../common/steps/aws/cloudwatch-logs/CloudWatchLogsRows.js';
 
 export interface AnalyzeInteropApiGwAggregatesStepConfig {
   readonly id: string;
@@ -14,6 +13,10 @@ export interface AnalyzeInteropApiGwAggregatesStepConfig {
   readonly errorFamilyLabel: string;
 }
 
+/**
+ * Summarizes the aggregated INTEROP API Gateway rows: error count, statuses, integration errors, methods, paths and
+ * source IPs, with the values of the most frequent row as variables.
+ */
 export class AnalyzeInteropApiGwAggregatesStep implements Step<InteropApiGwAggregateAnalysis> {
   readonly id: string;
   readonly label: string;
@@ -86,10 +89,8 @@ export class AnalyzeInteropApiGwAggregatesStep implements Step<InteropApiGwAggre
   }
 }
 
-function selectPrimaryAggregateRow(
-  rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
-): ReadonlyArray<GOLogsInsightsResultField> | undefined {
-  let primary: ReadonlyArray<GOLogsInsightsResultField> | undefined;
+function selectPrimaryAggregateRow(rows: CloudWatchLogsRows): CloudWatchLogsRow | undefined {
+  let primary: CloudWatchLogsRow | undefined;
   let primaryCount = -1;
 
   for (const row of rows) {
@@ -116,10 +117,7 @@ const REPRESENTATIVE_FIELDS = [
   'sourceIp',
 ] as const;
 
-function compareRepresentativeFields(
-  left: ReadonlyArray<GOLogsInsightsResultField>,
-  right: ReadonlyArray<GOLogsInsightsResultField>,
-): number {
+function compareRepresentativeFields(left: CloudWatchLogsRow, right: CloudWatchLogsRow): number {
   for (const field of REPRESENTATIVE_FIELDS) {
     const leftValue = readNormalizedField(left, field);
     const rightValue = readNormalizedField(right, field);
@@ -141,9 +139,6 @@ function addNormalized(target: Set<string>, value: string | undefined): void {
   if (normalized !== undefined) target.add(normalized);
 }
 
-function readNormalizedField(
-  row: ReadonlyArray<GOLogsInsightsResultField> | undefined,
-  name: string,
-): string | undefined {
+function readNormalizedField(row: CloudWatchLogsRow | undefined, name: string): string | undefined {
   return row === undefined ? undefined : normalizeInteropApiGwAggregateValue(readRowField(row, name));
 }

@@ -6,7 +6,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'daily-export-timeout',
     description: 'Timeout di esecuzione della Lambda DailyExport DynamoDB',
-    priority: 100,
     condition: lambdaLogEvidenceMatches('Status: *timeout'),
     title: 'Timeout Lambda {{vars.lambdaFunctionName}}',
     resolution: 'Risoluzione non documentata.',

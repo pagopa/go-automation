@@ -27,6 +27,7 @@ class FakePrompt {
 function snapshot(
   entries: ReadonlyArray<[Dispatch.RowStatus, number]>,
   acceptance: ReadonlyArray<[Dispatch.RowAcceptance, number]> = [],
+  requestIdNotExpected = 0,
 ): Dispatch.DispatchProgress {
   return {
     byStatus: new Map<Dispatch.RowStatus, number>(entries),
@@ -35,6 +36,7 @@ function snapshot(
     throttled: 2,
     verifyPending: 2,
     requestIdPending: 3,
+    requestIdNotExpected,
     queuedCalls: 0,
   };
 }
@@ -56,6 +58,7 @@ const DURING = snapshot(
     ['ACCEPTED', 3],
     ['REFUSED', 1],
     ['REQUEST_ID_FOUND', 4],
+    ['REQUEST_ID_NOT_FOUND', 5],
     ['SEND_FAILED', 1],
   ],
   [
@@ -63,6 +66,7 @@ const DURING = snapshot(
     ['REFUSED', 1],
     ['UNKNOWN', 3],
   ],
+  3,
 );
 
 describe('ProgressReporter', () => {
@@ -76,13 +80,13 @@ describe('ProgressReporter', () => {
       name: 'shows sent/to send, rate, verification and requestId counters on one line',
       before: snapshot([]),
       plan: { rows: 20, sending: true },
-      line: /^invio 10\/20 · 19\.6\/s · verifica 7 ok \/ 1 refused \/ 2 in attesa · requestId 4 trovati \/ 3 in attesa · errori 1 · 429: 2$/,
+      line: /^invio 15\/20 · 19\.6\/s · verifica 7 ok \/ 1 refused \/ 2 in attesa · requestId 4 trovati \/ 2 non trovati \/ 3 senza cartaceo \/ 3 in attesa · errori 1 · 429: 2$/,
     },
     {
       name: 'does not count the rows a previous session already sent (resume)',
       before: snapshot([['ACCEPTED', 3]]),
-      plan: { rows: 7, sending: true },
-      line: /^invio 7\/7 · /,
+      plan: { rows: 12, sending: true },
+      line: /^invio 12\/12 · /,
     },
     {
       name: 'shows the rows to process when the session sends nothing',

@@ -24,6 +24,6 @@ describe('AnalyzeInteropCidTrackerStep', () => {
     assert.strictEqual(result.output?.logCount, 2);
     assert.deepStrictEqual(result.output?.podApps, ['interop-be-backend-for-frontend', 'purpose-process']);
     assert.strictEqual(result.vars?.['interopCidTrackerAnalysisCompleted'], 'true');
-    assert.strictEqual(result.next, 'resolve');
+    assert.strictEqual(result.next, undefined);
   });
 });

@@ -32,7 +32,7 @@ describe('INTEROP Selfcare API Gateway 5xx runbook', () => {
     assert.match(JSON.stringify(output?.evidence), /Execution failed due to a timeout error/u);
   });
 
-  it('keeps an actionable IAM failure primary when a benign SelfcareID suppression also matches', async () => {
+  it('reports both an actionable IAM failure and a benign SelfcareID suppression', async () => {
     const { matchedIds } = await execute(
       [row({ count: '1', status: '500', httpMethod: 'GET', requestPath: '/1.0/backend-for-frontend/catalog' })],
       [
@@ -50,6 +50,6 @@ describe('INTEROP Selfcare API Gateway 5xx runbook', () => {
         }),
       ],
     );
-    assert.deepStrictEqual(matchedIds, ['bff-s3-list-bucket-not-authorized', 'tenant-not-found-known-selfcare-id']);
+    assert.deepStrictEqual(matchedIds, ['tenant-not-found-known-selfcare-id', 'bff-s3-list-bucket-not-authorized']);
   });
 });

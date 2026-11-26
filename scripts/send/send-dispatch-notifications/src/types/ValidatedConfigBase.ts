@@ -19,6 +19,8 @@ export interface ValidatedConfigBase extends Omit<
   | 'ecBaseUrl'
   | 'phases'
   | 'requestIdSelect'
+  | 'requestIdAppendSuffix'
+  | 'requestIdSuffix'
   | 'requestIdWait'
   | 'httpTimeout'
   | 'sendTimeout'
@@ -36,5 +38,6 @@ export interface ValidatedConfigBase extends Omit<
   readonly phases: ReadonlyArray<DispatchPhaseName>;
   readonly requestIdSelect: Dispatch.RequestIdSelect;
   readonly requestIdWait: Dispatch.RequestIdWait;
+  readonly requestIdSuffix: string;
   readonly durations: DispatchDurations;
 }

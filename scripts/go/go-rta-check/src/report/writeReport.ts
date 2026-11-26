@@ -5,6 +5,7 @@ import * as fs from 'node:fs/promises';
 import * as nodePath from 'node:path';
 
 import type { AnalysisMatchSource, RtaCheckReport, RtaCheckRow } from '@go-automation/go-watchtower-runbook';
+import { scrubAwsProfileNamesDeep } from '@pagopa/go-runbook/runtime';
 
 /** Report artifact formats. */
 export type OutputFormat = 'json' | 'html';
@@ -31,22 +32,28 @@ interface ReportHtmlRow extends Record<string, unknown> {
  * Writes the report artifacts (`results.json`, `summary.json`, `report.html`)
  * into the run's output directory, using go-common exporters.
  *
+ * The artifacts leave the host: the local AWS profile names of the run, `input.awsProfiles` included, are replaced by
+ * `<profile>` everywhere.
+ *
  * The output directory is per-process, while a session may analyse several
  * runbooks: `subdirectory` is what keeps each run's artifacts from overwriting
  * the previous ones.
  *
  * @param script - The GOScript (for path resolution + exporters)
- * @param report - The report to persist
+ * @param localReport - The report to persist, as built on the host
  * @param formats - Which artifacts to write
  * @param subdirectory - Folder to write into, relative to the execution output directory
  * @returns The list of written file paths
  */
 export async function writeReport(
   script: GOScript,
-  report: RtaCheckReport,
+  localReport: RtaCheckReport,
   formats: ReadonlyArray<OutputFormat>,
   subdirectory?: string,
 ): Promise<ReadonlyArray<string>> {
+  // Both the configured entries (`reader:fallback`) and the effective names the AWS clients use (`reader`).
+  const profileNames = [...localReport.input.awsProfiles, ...script.aws.services.profileNames];
+  const report = scrubAwsProfileNamesDeep(localReport, profileNames);
   const written: string[] = [];
   const resultsInfo = script.paths.resolvePathWithInfo('results.json', GOPathType.OUTPUT);
   const baseDir = nodePath.dirname(resultsInfo.path);
@@ -114,7 +121,7 @@ export function toHtmlRow(row: RtaCheckRow): ReportHtmlRow {
   return {
     firedAt: row.event.firedAt,
     v1: runbook.status,
-    caso: runbook.primaryCaseId ?? '',
+    caso: runbook.matchedCaseIds.join(', '),
     v2: row.comparison.status,
     confidence: row.comparison.confidence.toFixed(2),
     matcher: formatMatchSource(row.comparison.matcher, row.comparison.aiAttempted),

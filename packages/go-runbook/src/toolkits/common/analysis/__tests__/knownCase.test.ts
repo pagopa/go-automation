@@ -7,7 +7,6 @@ import { knownCase, type KnownCaseSpec } from '../knownCase.js';
 const BASE = {
   id: 'foo-500',
   description: '[DOWNSTREAM FOO] HTTP 500 durante la chiamata',
-  priority: 130,
   condition: { type: 'exists', ref: 'steps.query-foo' },
   resolution: 'Monitorare il downstream FOO e attenderne il ripristino.',
   analysis: { proposedStatus: 'COMPLETED', analysisType: 'ANALYZABLE' },

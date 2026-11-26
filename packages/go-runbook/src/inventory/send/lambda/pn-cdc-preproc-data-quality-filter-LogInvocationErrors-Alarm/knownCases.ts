@@ -24,7 +24,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'cdc-preproc-processing-failed',
     description: 'Errore tecnico PROCESSING_FAILED durante il preprocessing CDC',
-    priority: 140,
     condition: withoutRuntimeFailure(
       lambdaLogEvidenceMatches('PROCESSING_FAILED[\\s\\S]*Technical error during record processing'),
     ),
@@ -46,7 +45,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'cdc-preproc-invalid-consents-quarantine',
     description: 'Record pn-UserAttributes in quarantena per DQ_INVALID_CONSENTS',
-    priority: 120,
+    supersedes: ['cdc-preproc-other-dq-quarantine'],
     condition: withoutRuntimeFailure(
       lambdaLogEvidenceMatches(`${QUARANTINE_SIGNATURE}[\\s\\S]*DQ_INVALID_CONSENTS[\\s\\S]*check_invalid_consents`),
     ),
@@ -68,7 +67,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'cdc-preproc-other-dq-quarantine',
     description: 'Record pn-UserAttributes in quarantena per un altro controllo di qualità',
-    priority: 110,
     condition: withoutRuntimeFailure(lambdaLogEvidenceMatches(QUARANTINE_SIGNATURE)),
     title: 'CDC data quality: record in quarantena',
     resolution: 'Risoluzione non documentata.',

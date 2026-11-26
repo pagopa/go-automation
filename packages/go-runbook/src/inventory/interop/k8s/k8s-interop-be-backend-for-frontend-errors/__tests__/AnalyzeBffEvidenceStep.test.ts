@@ -57,4 +57,40 @@ describe('AnalyzeBffEvidenceStep', () => {
     assert.deepStrictEqual(result.output.expiredNotificationRequests, []);
     assert.deepStrictEqual(result.output.selfcareUsersTimeouts, []);
   });
+
+  it('counts once a BFF row that the CID tracker reads again', async () => {
+    const own = [
+      { field: '@timestamp', value: '2026-11-20 10:00:00.000' },
+      { field: '@message', value: JSON.stringify({ pod_app: BFF_ALARM.podApp, log: '[CID=a] Unknown failure' }) },
+    ];
+    const result = await new AnalyzeBffEvidenceStep().execute(
+      conditionContext([
+        [BFF_ALARM.stepIds.queryApplicationLogs, [own]],
+        [
+          BFF_ALARM.stepIds.queryCidTracker,
+          [
+            {
+              cid: 'a',
+              rows: [
+                [
+                  { field: '@timestamp', value: '2026-11-20 10:00:00.000' },
+                  { field: 'pod_app', value: BFF_ALARM.podApp },
+                  { field: 'log', value: '[CID=a] Unknown failure' },
+                ],
+                [
+                  { field: '@timestamp', value: '2026-11-20 10:00:01.000' },
+                  { field: 'pod_app', value: BFF_ALARM.podApp },
+                  { field: 'log', value: '[CID=a] Retry failed' },
+                ],
+              ],
+            },
+          ],
+        ],
+      ]),
+    );
+    assert.deepStrictEqual(
+      result.output?.bffRows.map(({ message }) => message),
+      ['[CID=a] Unknown failure', '[CID=a] Retry failed'],
+    );
+  });
 });

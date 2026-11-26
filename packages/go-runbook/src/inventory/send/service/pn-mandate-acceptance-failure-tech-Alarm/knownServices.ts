@@ -18,7 +18,7 @@ const MANDATE_ACCEPTANCE_FAILURE_TECH_QUERY = `filter level = 'ERROR' and aud_ty
 /** Retrieves every pn-mandate log carrying the trace selected by the first query. */
 const MANDATE_TRACE_QUERY = `filter @message like '{{TRACE_ID}}'
 | sort @timestamp asc
-| limit 1000
+| limit 10000
 | display @timestamp, level, message, @message, trace_id`;
 
 /** Application service whose logs contain CIE mandate-acceptance failures. */

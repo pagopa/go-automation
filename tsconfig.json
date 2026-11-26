@@ -34,13 +34,7 @@
       "path": "./functions/go-BotQESlackHandler"
     },
     {
-      "path": "./functions/go-ExecuteRunbookLambda"
-    },
-    {
       "path": "./functions/go-SendMonitorAthenaQueryLambda"
-    },
-    {
-      "path": "./infra/watchtower-alarm-analysis"
     },
     {
       "path": "./packages/go-ai"
@@ -56,9 +50,6 @@
     },
     {
       "path": "./packages/go-documents"
-    },
-    {
-      "path": "./packages/go-execute-runbook-contracts"
     },
     {
       "path": "./packages/go-runbook"
@@ -107,9 +98,6 @@
     },
     {
       "path": "./scripts/go/go-analyze-alarm"
-    },
-    {
-      "path": "./scripts/go/go-execute-runbook"
     },
     {
       "path": "./scripts/go/go-parse-json"

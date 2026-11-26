@@ -5,9 +5,14 @@ import type { Runbook } from '../../../../engine/index.js';
 import { KNOWN_CASES } from './knownCases.js';
 import { NOTIFICATION_USER_LIFECYCLE_QUERY_PROFILE } from './queryProfile.js';
 
+/**
+ * Builds the k8s-interop-be-notification-user-lifecycle-consumer-errors runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: NOTIFICATION_USER_LIFECYCLE_ALARM.runbookKey,
+    alarm: NOTIFICATION_USER_LIFECYCLE_ALARM,
     metadata: {
       name: NOTIFICATION_USER_LIFECYCLE_ALARM.runbookKey,
       description:
@@ -17,12 +22,6 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'service', 'notification', 'kafka'],
     },
-    service: {
-      name: NOTIFICATION_USER_LIFECYCLE_ALARM.podApp,
-      logGroup: NOTIFICATION_USER_LIFECYCLE_ALARM.logGroup,
-      varPrefix: NOTIFICATION_USER_LIFECYCLE_ALARM.varPrefix,
-    },
-    resolveAlarmContext: NOTIFICATION_USER_LIFECYCLE_ALARM.resolveContext,
     queryProfile: NOTIFICATION_USER_LIFECYCLE_QUERY_PROFILE,
     knownCases: KNOWN_CASES,
     analysisDefaults: {

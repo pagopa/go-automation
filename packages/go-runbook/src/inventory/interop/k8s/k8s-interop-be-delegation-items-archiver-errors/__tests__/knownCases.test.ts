@@ -42,11 +42,12 @@ describe('delegation items archiver known cases', () => {
     });
   }
 
-  it('prioritizes the crash when connection failures and coordinator errors coexist', async () => {
+  it('reports every error when connection failures, crash and coordinator errors coexist', async () => {
+    // Rows without a time keep the declaration order of the cases.
     assert.deepStrictEqual(await matchedIds([REFUSED, CRASH, COORDINATOR]), [
-      'delegation-items-archiver-kafka-retries-exhausted',
       'delegation-items-archiver-kafka-connection-refused',
       'delegation-items-archiver-kafka-wrong-coordinator',
+      'delegation-items-archiver-kafka-retries-exhausted',
     ]);
   });
 

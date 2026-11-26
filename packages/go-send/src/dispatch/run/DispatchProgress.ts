@@ -17,5 +17,6 @@ export interface DispatchProgress {
   readonly throttled: number;
   readonly verifyPending: number;
   readonly requestIdPending: number;
+  readonly requestIdNotExpected: number;
   readonly queuedCalls: number;
 }

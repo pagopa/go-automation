@@ -1,10 +1,14 @@
+import { getErrorMessage } from '@pagopa/go-common/errors';
 import type { KnownCaseAnalysis } from '../KnownCaseAnalysis.js';
 import type { AnalysisLinkRef } from '../AnalysisLinkRef.js';
 import type { AnalysisResourceRef } from '../AnalysisResourceRef.js';
-import type { Runbook } from '../../../../engine/types/Runbook.js';
+import type { Runbook } from '../../../../engine/index.js';
 import type { RunbookProduct } from '../../registration/RunbookProduct.js';
 import { buildPotentialAnalysisDrafts } from '../draft/buildAnalysisDraft.js';
 import { ANALYSIS_DRAFT_BOUNDS } from '../draft/analysisDraftBounds.js';
+import type { AnalysisReferences } from './AnalysisReferences.js';
+import type { ReferenceDeclaration } from './ReferenceDeclaration.js';
+import type { ReferenceEqualityFn } from './ReferenceEqualityFn.js';
 
 const MAX_NAME_LENGTH = ANALYSIS_DRAFT_BOUNDS.NAME_LENGTH;
 const MAX_TEXT_LENGTH = ANALYSIS_DRAFT_BOUNDS.TEXT_LENGTH;
@@ -12,15 +16,7 @@ const MAX_URL_LENGTH = ANALYSIS_DRAFT_BOUNDS.URL_LENGTH;
 const MAX_LINK_TYPE_LENGTH = ANALYSIS_DRAFT_BOUNDS.LINK_TYPE_LENGTH;
 const MAX_IGNORE_REASON_CODE_LENGTH = ANALYSIS_DRAFT_BOUNDS.IGNORE_REASON_CODE_LENGTH;
 const MAX_DRAFT_BYTES = ANALYSIS_DRAFT_BOUNDS.DRAFT_BYTES;
-
-type AnalysisReferences = Pick<KnownCaseAnalysis, 'resources' | 'downstreams' | 'finalActions' | 'links'>;
-
-interface ReferenceDeclaration<T> {
-  readonly value: T;
-  readonly location: string;
-}
-
-type ReferenceEqualityFn<T> = (left: T, right: T) => boolean;
+const MAX_ARRAY_ITEMS = ANALYSIS_DRAFT_BOUNDS.ARRAY_ITEMS;
 
 /**
  * Rejects a runbook whose analysis annotations would produce an invalid or
@@ -128,7 +124,7 @@ function assertResources(
   }
 }
 
-/** Fails on a value outside the catalog of the declared product (§5.1.2). */
+/** Fails on a value outside the catalog of the declared product. */
 function assertInCatalog(
   runbookId: string,
   caseId: string | undefined,
@@ -236,9 +232,29 @@ function sameLink(left: AnalysisLinkRef, right: AnalysisLinkRef): boolean {
   return left.name === right.name && left.type === right.type;
 }
 
-/** Bounds the largest real draft envelope statically representable by the runbook. */
+/**
+ * Bounds the largest real draft envelope statically representable by the runbook: its bytes, and the items of the
+ * lists the draft never shortens (`resources`, `downstreams`) in the union of every annotated case.
+ */
 function assertDraftBudget(runbookId: string, runbook: Runbook): void {
-  const largestBytes = buildPotentialAnalysisDrafts(runbook).reduce(
+  let drafts: ReturnType<typeof buildPotentialAnalysisDrafts>;
+  try {
+    drafts = buildPotentialAnalysisDrafts(runbook);
+  } catch (error: unknown) {
+    throw new Error(`Runbook "${runbookId}": ${getErrorMessage(error)}`, {
+      cause: error,
+    });
+  }
+  for (const draft of drafts) {
+    for (const list of ['resources', 'downstreams'] as const) {
+      if (draft[list].length > MAX_ARRAY_ITEMS) {
+        throw new Error(
+          `Runbook "${runbookId}": potential analysis draft has ${String(draft[list].length)} ${list}, over the ${String(MAX_ARRAY_ITEMS)} items of the contract`,
+        );
+      }
+    }
+  }
+  const largestBytes = drafts.reduce(
     (largest, draft) => Math.max(largest, Buffer.byteLength(JSON.stringify(draft), 'utf8')),
     0,
   );

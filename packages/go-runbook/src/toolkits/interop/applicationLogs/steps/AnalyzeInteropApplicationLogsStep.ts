@@ -1,31 +1,19 @@
-import { type GOLogsInsightsResultField, readRowFields } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import type { RunbookContext } from '../../../../engine/types/RunbookContext.js';
-import type { Step } from '../../../../engine/types/Step.js';
-import type { StepKind } from '../../../../engine/types/StepKind.js';
-import type { StepResult } from '../../../../engine/types/StepResult.js';
+import { trimToUndefined } from '@pagopa/go-common/utils';
+import { readRowFields } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import type { RunbookContext, Step, StepKind, StepResult } from '../../../../engine/index.js';
 import { readCloudWatchResultRows } from '../../../common/parsing/aws/cloudwatch-logs/readCloudWatchResultRows.js';
+import { INTEROP_CID_PATTERN } from '../helpers/INTEROP_CID_PATTERN.js';
+import type { CloudWatchLogsRow } from '../../../common/steps/aws/cloudwatch-logs/CloudWatchLogsRow.js';
+import type { AnalyzeInteropApplicationLogsStepConfig } from './AnalyzeInteropApplicationLogsStepConfig.js';
+import type { InteropK8sApplicationLogAnalysis } from './InteropK8sApplicationLogAnalysis.js';
 
-export interface InteropK8sApplicationLogAnalysis {
-  readonly logCount: number;
-  readonly cidCount: number;
-  readonly cids: ReadonlyArray<string>;
-  readonly logsWithoutCidCount: number;
-  readonly representativeMessages: ReadonlyArray<string>;
-}
-
-export interface AnalyzeInteropApplicationLogsStepConfig {
-  readonly id: string;
-  readonly label: string;
-  readonly fromStep: string;
-  readonly varPrefix: string;
-  /** Optional aggregate field whose numeric values represent the original log count. */
-  readonly countField?: string;
-}
-
-const CID_PATTERN = /\bCID=([^\]\s,"']+)/u;
 const MAX_REPRESENTATIVE_MESSAGES = 5;
 const REPRESENTATIVE_MESSAGE_FIELDS = ['@message', 'message', 'log', 'errorMessage'] as const;
 
+/**
+ * Counts the INTEROP application-log rows of a query, collects their distinct CIDs and some representative messages,
+ * and publishes them as variables with a prefix.
+ */
 export class AnalyzeInteropApplicationLogsStep implements Step<InteropK8sApplicationLogAnalysis> {
   readonly id: string;
   readonly label: string;
@@ -100,36 +88,31 @@ export class AnalyzeInteropApplicationLogsStep implements Step<InteropK8sApplica
   }
 }
 
-function extractCid(row: ReadonlyArray<GOLogsInsightsResultField>): string | undefined {
-  const explicit = normalize(readRowFields(row, ['cid', 'CID'])[0]);
+function extractCid(row: CloudWatchLogsRow): string | undefined {
+  const explicit = trimToUndefined(readRowFields(row, ['cid', 'CID'])[0]);
   if (explicit !== undefined) return explicit;
 
   for (const candidate of readRowFields(row, ['@message', 'message', 'log'])) {
-    const match = CID_PATTERN.exec(candidate);
-    const cid = normalize(match?.[1]);
+    const match = INTEROP_CID_PATTERN.exec(candidate);
+    const cid = trimToUndefined(match?.[1]);
     if (cid !== undefined) return cid;
   }
 
   return undefined;
 }
 
-function extractRepresentativeMessage(row: ReadonlyArray<GOLogsInsightsResultField>): string | undefined {
+function extractRepresentativeMessage(row: CloudWatchLogsRow): string | undefined {
   for (const fieldName of REPRESENTATIVE_MESSAGE_FIELDS) {
-    const message = normalize(readRowFields(row, [fieldName])[0]);
+    const message = trimToUndefined(readRowFields(row, [fieldName])[0]);
     if (message !== undefined) return message;
   }
   return undefined;
 }
 
-function readRowCount(row: ReadonlyArray<GOLogsInsightsResultField>, countField: string | undefined): number {
+function readRowCount(row: CloudWatchLogsRow, countField: string | undefined): number {
   if (countField === undefined) return 1;
   const parsed = Number(readRowFields(row, [countField])[0]);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 1;
-}
-
-function normalize(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed === undefined || trimmed === '' ? undefined : trimmed;
 }
 
 function varName(prefix: string, suffix: string): string {

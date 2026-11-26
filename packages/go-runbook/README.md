@@ -1,8 +1,9 @@
 # go-runbook
 
 Motore runbook dichiarativo: definisce ed esegue procedure operative
-strutturate come sequenze di step tipizzati, con branching condizionale,
-matching su casi noti e azioni associate. Contiene anche i toolkit per le
+strutturate come sequenze di step tipizzati, con
+rilevazione di tutti i casi noti presenti nell'evidenza (in ordine di tempo),
+copertura dell'evidenza e azioni associate. Contiene anche i toolkit per le
 famiglie di allarmi e i runbook concreti di SEND e INTEROP.
 
 ## Installazione
@@ -32,15 +33,15 @@ Solo `./runtime` carica gli SDK: gli altri sei entrypoint funzionano senza nessu
 
 ## Entrypoint
 
-| Import                                | Contenuto                                                                                                                                                                   |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@pagopa/go-runbook`                  | **Engine**: tipi, contesto, condizioni, step di controllo, azioni, trace, `RunbookBuilder`, `RunbookEngine`. Non conosce AWS, prodotti, allarmi né Watchtower.              |
-| `@pagopa/go-runbook/output`           | Contratto dell'output dei runbook verso Watchtower (`RunbookOutput`, `classifyRunbookOutcome`, …).                                                                          |
-| `@pagopa/go-runbook/toolkits/common`  | Toolkit operativo comune: `OperationalRunbookEngine`, step AWS e HTTP, famiglie `apigw`, `lambda`, `service` senza dati di prodotto, account logici, helper di test.        |
-| `@pagopa/go-runbook/toolkits/send`    | Toolkit SEND: pipeline e profili SEND delle famiglie (`apigw`, `lambda`, `service`, `downstream`), `SEND_DOWNSTREAMS`, `SEND_ACCOUNTS`.                                     |
-| `@pagopa/go-runbook/toolkits/interop` | Toolkit INTEROP: famiglie `interop.apigw` e `interop.k8s`, ambienti e downstream INTEROP.                                                                                   |
-| `@pagopa/go-runbook/inventory`        | Runbook concreti e catalogo (`RUNBOOK_CATALOG`, `RUNBOOK_REGISTRY`, `RunbookDescriptor`, …).                                                                                |
-| `@pagopa/go-runbook/runtime`          | Composizione per l'esecuzione: `executeRunbookForOccurrence`, `createServiceRegistry`, `bindServicesToOccurrence`, porta degli account (`createAwsAccountsPort`), reporter. |
+| Import                                | Contenuto                                                                                                                                                                                               |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@pagopa/go-runbook`                  | **Engine**: tipi, contesto, condizioni, step di controllo, azioni, trace, `RunbookBuilder`, `RunbookEngine`. Non conosce AWS, prodotti, allarmi né Watchtower.                                          |
+| `@pagopa/go-runbook/output`           | Contratto dell'output dei runbook verso Watchtower (`RunbookOutput` schema `3.0.0`, `classifyRunbookOutcome`, `buildErrorChains`, `renderErrorChainLines`, `buildCoverageLines`, bozza d'analisi, …).   |
+| `@pagopa/go-runbook/toolkits/common`  | Toolkit operativo comune: `OperationalRunbookEngine`, step CloudWatch Logs, famiglie `apigw`, `lambda`, `service` senza dati di prodotto, account logici, helper di test.                               |
+| `@pagopa/go-runbook/toolkits/send`    | Toolkit SEND: pipeline e profili SEND delle famiglie (`apigw`, `lambda`, `service`, `downstream`), `SEND_DOWNSTREAMS`, `SEND_ACCOUNTS`.                                                                 |
+| `@pagopa/go-runbook/toolkits/interop` | Toolkit INTEROP: famiglie `interop.apigw` e `interop.k8s`, ambienti e downstream INTEROP.                                                                                                               |
+| `@pagopa/go-runbook/inventory`        | Runbook concreti e catalogo (`RUNBOOK_CATALOG`, `RUNBOOK_REGISTRY`, `RunbookDescriptor`, …).                                                                                                            |
+| `@pagopa/go-runbook/runtime`          | Composizione per l'esecuzione: `executeRunbookForOccurrence`, `createServiceRegistry`, `bindServicesToOccurrence`, porta degli account (`createAwsAccountsPort`), reporter, `scrubAwsProfileNamesDeep`. |
 
 Solo `./runtime` usa gli SDK AWS. Gli altri entrypoint usano i contratti senza
 SDK di `@pagopa/go-aws` (`./cloudwatch-logs/insights`, `./profiles`) e le porte
@@ -95,9 +96,8 @@ configurati.
 ## Consumatori
 
 `go-watchtower-runbook` e gli script che eseguono o analizzano runbook:
-`go-analyze-alarm`, `go-execute-runbook`, `go-rta-check`,
-`interop-analyze-alarms`. La Lambda `go-ExecuteRunbookLambda` lo usa tramite
-`go-execute-runbook`.
+`go-analyze-alarm`, `go-rta-check`, `interop-analyze-alarms`. Fuori dal monorepo lo
+importa la Lambda `wt-analyze-alarm` di go-watchtower-pro, dal package pubblicato.
 
 ## Test e build
 

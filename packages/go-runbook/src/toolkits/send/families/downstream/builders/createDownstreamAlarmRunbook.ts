@@ -1,4 +1,5 @@
-import type { Runbook } from '../../../../../engine/types/Runbook.js';
+import { omitUndefined } from '@pagopa/go-common/utils';
+import type { Runbook } from '../../../../../engine/index.js';
 import { createSendServiceAlarmRunbook } from '../../service/builders/createSendServiceAlarmRunbook.js';
 import { buildDownstreamDetectionQuery } from '../queries/buildDownstreamDetectionQuery.js';
 import type { DownstreamAlarmConfig } from '../types/DownstreamAlarmConfig.js';
@@ -62,8 +63,7 @@ function scanShape(downstream: DownstreamSelector): DownstreamScanShape {
     );
   }
   return {
-    ...(downstream.resultLimit === undefined ? {} : { resultLimit: downstream.resultLimit }),
-    ...(downstream.projection === undefined ? {} : { projection: downstream.projection }),
+    ...omitUndefined({ resultLimit: downstream.resultLimit, projection: downstream.projection }),
   };
 }
 

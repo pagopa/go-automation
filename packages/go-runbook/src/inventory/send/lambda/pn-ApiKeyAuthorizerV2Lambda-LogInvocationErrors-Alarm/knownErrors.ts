@@ -7,9 +7,12 @@
  */
 import type { lambda } from '../../../../toolkits/send/index.js';
 
+/** Connection reset while the key is read from pn-stream. */
+export const GET_KEY_ECONNRESET_PATTERN = 'Error in get key[\\s\\S]*AxiosError:\\s*read ECONNRESET';
+
 export const DOWNSTREAM_ERROR_PATTERNS: ReadonlyArray<lambda.DownstreamErrorPattern> = [
   {
-    pattern: 'Error in get key[\\s\\S]*AxiosError:\\s*read ECONNRESET',
+    pattern: GET_KEY_ECONNRESET_PATTERN,
     target: 'pn-stream',
     description: 'Errore di connessione durante il recupero della key da pn-stream.',
   },

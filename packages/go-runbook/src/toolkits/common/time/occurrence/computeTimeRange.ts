@@ -15,10 +15,10 @@ import type { OccurrenceTimeWindow } from './OccurrenceTimeWindow.js';
  *   `[first - beforeMinutes, last + afterMinutes]`.
  *
  * @param reference - Reference point(s) for the window
- * @param timeWindow - Independent padding, or a number for the legacy symmetric form
+ * @param timeWindow - Independent padding before and after the reference
  * @returns Start and end timestamps as ISO 8601 strings
- * @throws Error when `timeWindow` is invalid: a legacy numeric value or
- *         either `beforeMinutes`/`afterMinutes` must be finite and
+ * @throws Error when `timeWindow` is invalid: either
+ *         `beforeMinutes`/`afterMinutes` must be finite and
  *         non-negative; when an input timestamp cannot be parsed; or when
  *         a `multi` range is inverted (`last` strictly before `first`).
  *         A degenerate range where `first === last` is accepted and produces
@@ -26,9 +26,11 @@ import type { OccurrenceTimeWindow } from './OccurrenceTimeWindow.js';
  */
 export function computeTimeRange(
   reference: TimeRangeReference,
-  timeWindow: number | OccurrenceTimeWindow,
+  timeWindow: OccurrenceTimeWindow,
 ): { startTime: string; endTime: string } {
-  const { beforeMinutes, afterMinutes } = normalizeTimeWindow(timeWindow);
+  assertValidMinutes(timeWindow.beforeMinutes, 'timeWindow.beforeMinutes');
+  assertValidMinutes(timeWindow.afterMinutes, 'timeWindow.afterMinutes');
+  const { beforeMinutes, afterMinutes } = timeWindow;
   const beforeOffsetMs = beforeMinutes * 60 * 1000;
   const afterOffsetMs = afterMinutes * 60 * 1000;
 
@@ -51,17 +53,6 @@ export function computeTimeRange(
     startTime: new Date(first.getTime() - beforeOffsetMs).toISOString(),
     endTime: new Date(last.getTime() + afterOffsetMs).toISOString(),
   };
-}
-
-function normalizeTimeWindow(timeWindow: number | OccurrenceTimeWindow): OccurrenceTimeWindow {
-  if (typeof timeWindow === 'number') {
-    assertValidMinutes(timeWindow, 'timeWindowMinutes');
-    return { beforeMinutes: timeWindow, afterMinutes: timeWindow };
-  }
-
-  assertValidMinutes(timeWindow.beforeMinutes, 'timeWindow.beforeMinutes');
-  assertValidMinutes(timeWindow.afterMinutes, 'timeWindow.afterMinutes');
-  return timeWindow;
 }
 
 function assertValidMinutes(value: number, label: string): void {

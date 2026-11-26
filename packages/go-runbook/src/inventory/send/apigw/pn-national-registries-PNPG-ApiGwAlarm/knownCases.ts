@@ -1,17 +1,19 @@
 import { all, type KnownCase, stepEvidenceMatches, varEquals, varMatches } from '../../../../engine/index.js';
-import { apiGwPathMatches, apiGwStatusIs, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import {
+  downstreamMarkerPattern,
+  apiGwPathMatches,
+  apiGwStatusIs,
+  knownCase,
+  SEND_DOWNSTREAMS,
+} from '../../../../toolkits/send/index.js';
 /**
- * Known cases for the pn-national-registries-PNPG-ApiGwAlarm runbook.
- */
-/**
- * Known cases evaluated against the resulting context, highest priority
- * first.
+ * Known cases for the pn-national-registries-PNPG-ApiGwAlarm runbook,
+ * evaluated against the resulting context in declaration order.
  */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'apigw-504-legal-institutions-completion-observed',
     description: 'API Gateway 504 con completamento applicativo legal-institutions nello stesso trace',
-    priority: 130,
     condition: all(
       apiGwStatusIs('504'),
       varMatches('apiGwErrorMessage', 'Endpoint request timed out'),
@@ -33,10 +35,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'downstream-inad-connect-timeout',
     description: 'Timeout di connessione verso INAD',
-    priority: 120,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service INAD returned errors=connection timed out after [0-9]+ ms: api\\.inad\\.gov\\.it',
+      `${downstreamMarkerPattern('INAD')}connection timed out after [0-9]+ ms: api\\.inad\\.gov\\.it`,
     ),
     resolution:
       'Da segnalare se si presenta pi\u00F9 volte in un intervallo di tempo ristretto. Vedi Thread Slack 05/03/2026',
@@ -51,10 +52,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'downstream-ade-connect-timeout',
     description: 'Timeout di connessione verso Agenzia Entrate',
-    priority: 119,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service AdE returned errors=connection timed out after [0-9]+ ms: gatewaywebservices\\.agenziaentrate\\.it',
+      `${downstreamMarkerPattern('AdE')}connection timed out after [0-9]+ ms: gatewaywebservices\\.agenziaentrate\\.it`,
     ),
     resolution: 'Thread Slack 21/09/2026',
     analysis: {
@@ -68,10 +68,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'downstream-ade-500-verifica-legale-rappresentante',
     description: 'Agenzia Entrate non disponibile durante verifica legale rappresentante',
-    priority: 110,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service AdE returned errors=500 Internal Server Error from POST https://gatewaywebservices\\.agenziaentrate\\.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService',
+      downstreamMarkerPattern('AdE', {
+        status: '500 Internal Server Error',
+        method: 'POST',
+        endpoint: 'https://gatewaywebservices.agenziaentrate.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService',
+      }),
     ),
     title: '[DOWNSTREAM] Service AdE returned errors=500 Internal Server Error',
     resolution: 'Thread Slack 23/04/2026',
@@ -87,7 +90,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'downstream-ade-read-timeout-verifica-legale-rappresentante',
     description: 'Timeout Agenzia Entrate durante verifica legale rappresentante',
-    priority: 109,
     condition: all(
       apiGwStatusIs('504'),
       varMatches('apiGwErrorMessage', 'Endpoint request timed out'),
@@ -95,7 +97,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       varEquals('nationalRegistriesNextUrlTarget', 'AdE'),
       stepEvidenceMatches(
         'query-pn-national-registries',
-        '\\[DOWNSTREAM\\] Service AdE returned errors=<not specified>.*Request to POST https://gatewaywebservices\\.agenziaentrate\\.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService.*ReadTimeoutException',
+        `${downstreamMarkerPattern('AdE')}<not specified>.*Request to POST ` +
+          'https://gatewaywebservices\\.agenziaentrate\\.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService.*ReadTimeoutException',
       ),
     ),
     title: 'Timeout downstream AdE - VerificaRappresentanteEnteService',
@@ -117,9 +120,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'apigw-504-ade-legal-timeout-no-service-logs',
     description: 'Timeout API Gateway su verifica legale rappresentante AdE senza log applicativi correlati',
-    priority: 108,
     condition: all(
       apiGwStatusIs('504'),
+      varEquals('nationalRegistriesLookupState', 'queried'),
       varEquals('nationalRegistriesLogCount', '0'),
       varMatches('apiGwErrorMessage', 'Endpoint request timed out'),
       varEquals('apiGwHttpMethod', 'POST'),
@@ -143,10 +146,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'downstream-infocamere-read-timeout-authentication',
     description: 'Timeout InfoCamere durante authentication',
-    priority: 107,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service InfoCamere returned errors=<not specified>' +
+      `${downstreamMarkerPattern('InfoCamere')}<not specified>` +
         '[\\s\\S]*Request to POST ' +
         'https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/authentication' +
         '[\\s\\S]*io\\.netty\\.handler\\.timeout\\.ReadTimeoutException',
@@ -170,11 +172,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'downstream-infocamere-connection-reset-authentication',
     description: 'Connessione InfoCamere chiusa durante authentication',
-    priority: 106,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service InfoCamere returned errors=recvAddress\\(\\.\\.\\) failed: ' +
-        'Connection reset by peer[\\s\\S]*Request to POST ' +
+      `${downstreamMarkerPattern('InfoCamere')}recvAddress\\(\\.\\.\\) failed: Connection reset by peer` +
+        '[\\s\\S]*Request to POST ' +
         'https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/authentication',
     ),
     title: 'Connessione downstream InfoCamere chiusa durante autenticazione',
@@ -196,10 +197,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'downstream-infocamere-500-elenco-legale-rappresentante',
     description: 'InfoCamere non disponibile durante elenco legale rappresentante',
-    priority: 105,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service InfoCamere returned errors=500 Internal Server Error from GET https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/listaLegaleRappresentante/',
+      downstreamMarkerPattern('InfoCamere', {
+        status: '500 Internal Server Error',
+        method: 'GET',
+        endpoint: 'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/listaLegaleRappresentante/',
+      }),
     ),
     title: '[DOWNSTREAM] Service InfoCamere returned errors=500 Internal Server Error',
     resolution:
@@ -216,10 +220,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'downstream-infocamere-500-authentication',
     description: 'InfoCamere non disponibile durante authentication',
-    priority: 104,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-      '\\[DOWNSTREAM\\] Service InfoCamere returned errors=500 Internal Server Error from POST https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/authentication(?:\\?client_id=[^\\s"]*)?',
+      `${downstreamMarkerPattern('InfoCamere', {
+        status: '500 Internal Server Error',
+        method: 'POST',
+        endpoint: 'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/authentication',
+      })}(?:\\?client_id=[^\\s"]*)?`,
     ),
     title: '[DOWNSTREAM] Service InfoCamere returned errors=500 Internal Server Error',
     resolution: 'Risoluzione non documentata.',
@@ -235,9 +242,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'apigw-504-infocamere-inad-timeout',
     description: 'Timeout API Gateway su legal-institutions per tempi risposta INAD/InfoCamere',
-    priority: 103,
     condition: all(
       apiGwStatusIs('504'),
+      varEquals('nationalRegistriesLookupState', 'queried'),
       varEquals('nationalRegistriesLogCount', '0'),
       varMatches('apiGwErrorMessage', 'Endpoint request timed out'),
       apiGwPathMatches('^/national-registries-private/infocamere/legal-institutions$'),
@@ -260,7 +267,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'apigw-504-timeout',
     description: 'API Gateway 504 per timeout di risposta dal backend',
-    priority: 100,
     condition: all(apiGwStatusIs('504'), varMatches('apiGwErrorMessage', 'Execution failed due to a timeout error')),
     title: 'API Gateway 504 - Execution failed due to a timeout error',
     resolution: 'Nessuna azione necessaria',

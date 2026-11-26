@@ -32,32 +32,17 @@ describe('LambdaReporter', () => {
     assert.match(out, /requestId: d848f0c5-1089-5c2b-9a3b-91a94511ee52/);
   });
 
-  it('renders the invocation and downstream sections', () => {
+  it('renders the invocation section and the lines of a downstream read', () => {
     const { lines, reporter: logger } = captureNarrative();
     const reporter = new LambdaReporter(logger);
     reporter.invocation('req-1', 3);
-    reporter.downstream('pn-emd-integration', '/aws/ecs/pn-emd-integration', 2);
+    reporter.downstream('/aws/ecs/pn-emd-integration', 2);
     logger.flush();
     const out = lines.join('\n');
     assert.match(out, /Flusso invocazione/);
     assert.match(out, /filter: req-1/);
-    assert.match(out, /Downstream: pn-emd-integration/);
-  });
-
-  it('renders the closing summary for a known case', () => {
-    const { lines, reporter: logger } = captureNarrative();
-    new LambdaReporter(logger).stopSummary({ reason: 'known-case', matchedCaseIds: ['lambda-timeout'] });
-    logger.flush();
-    const out = lines.join('\n');
-    assert.match(out, /Esecuzione terminata/);
-    assert.match(out, /caso noto \(lambda-timeout\)/);
-  });
-
-  it('renders the no-errors outcome', () => {
-    const { lines, reporter: logger } = captureNarrative();
-    new LambdaReporter(logger).stopSummary({ reason: 'no-errors', matchedCaseIds: [] });
-    logger.flush();
-    assert.match(lines.join('\n'), /nessun errore individuato/);
+    assert.match(out, /Log group: \/aws\/ecs\/pn-emd-integration/);
+    assert.match(out, /Log trovati: 2/);
   });
 
   it('closes a flat level with the elbow', () => {
@@ -82,36 +67,6 @@ describe('LambdaReporter', () => {
       '  \u2514\u2500 \u26a0 Query fallita',
       '     \u251c\u2500 Log groups: /a, /b',
       '     \u2514\u2500 Causa: AccessDenied',
-    ]);
-  });
-
-  it('nests every matched case under the count, marking the primary one', () => {
-    const { lines, reporter: logger } = captureNarrative();
-    new LambdaReporter(logger).stopSummary({ reason: 'known-case', matchedCaseIds: ['a', 'b', 'c'] });
-
-    logger.flush();
-    assert.deepStrictEqual(lines.slice(2), [
-      '  \u2514\u2500 Casi noti rilevati: 3',
-      '     \u251c\u2500 a \u2190 primario',
-      '     \u251c\u2500 b',
-      '     \u2514\u2500 c',
-    ]);
-  });
-
-  it('keeps the vertical running while more rows follow', () => {
-    const { lines, reporter: logger } = captureNarrative();
-    new LambdaReporter(logger).stopSummary({
-      reason: 'known-case',
-      matchedCaseIds: ['a', 'b'],
-      category: 'timeout',
-    });
-
-    logger.flush();
-    assert.deepStrictEqual(lines.slice(2), [
-      '  \u251c\u2500 Categoria errore: timeout',
-      '  \u2514\u2500 Casi noti rilevati: 2',
-      '     \u251c\u2500 a \u2190 primario',
-      '     \u2514\u2500 b',
     ]);
   });
 });

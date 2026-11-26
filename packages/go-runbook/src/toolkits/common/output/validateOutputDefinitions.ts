@@ -1,6 +1,5 @@
-import type { StepDescriptor } from '../../../engine/types/StepDescriptor.js';
+import type { StepDescriptor, ValidationErrorEntry } from '../../../engine/index.js';
 import type { RunbookOutputDefinition } from './RunbookOutputDefinition.js';
-import type { ValidationErrorEntry } from '../../../engine/validation/ValidationErrorEntry.js';
 
 /** Catch invalid output declarations while assembling the pipeline, before running queries. */
 export function validateOutputDefinitions(

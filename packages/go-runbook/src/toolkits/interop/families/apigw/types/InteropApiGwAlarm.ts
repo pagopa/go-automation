@@ -1,8 +1,6 @@
 import type { InteropApiGwRunbookStepIds } from './InteropApiGwRunbookStepIds.js';
 import type { InteropApiGwAlarmContext } from './InteropApiGwAlarmContext.js';
-
-/** Resolves the runtime context of one INTEROP API Gateway alarm. */
-type ResolveContextFn<TContext extends InteropApiGwAlarmContext> = (alarmName: string) => TContext;
+import type { ResolveInteropAlarmContextFn } from '../../../alarms/ResolveInteropAlarmContextFn.js';
 
 /**
  * Everything a runbook, its known cases and the registry need about one
@@ -34,5 +32,5 @@ export interface InteropApiGwAlarm<TContext extends InteropApiGwAlarmContext = I
    * The type parameter keeps the runbook's own narrowing — the supported
    * environments, for instance — instead of widening it away at the boundary.
    */
-  readonly resolveContext: ResolveContextFn<TContext>;
+  readonly resolveContext: ResolveInteropAlarmContextFn<TContext>;
 }

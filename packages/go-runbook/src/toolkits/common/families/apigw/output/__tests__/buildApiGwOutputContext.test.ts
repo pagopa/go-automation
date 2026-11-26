@@ -15,6 +15,8 @@ const RUNBOOK = createTestRunbook({
     apiGwLogGroup: 'access-log-group',
     queryProfileId: 'send',
     services: [{ name: 'pn-delivery', varPrefix: 'delivery', logGroup: '/aws/ecs/pn-delivery' }],
+    traceIdVar: 'xRayTraceId',
+    traceIdLabel: 'X-Ray Trace ID',
   },
 });
 
@@ -43,7 +45,6 @@ const VARS: Readonly<Record<string, string>> = {
   deliveryNextUrl: 'http://internal/service',
   deliveryNextUrlTarget: 'pn-next',
   lastErrorMsg: 'service failed',
-  apiGwServicesVisited: 'pn-delivery|3',
 };
 
 /** A finished API Gateway execution, with `vars` replacing the default variables. */

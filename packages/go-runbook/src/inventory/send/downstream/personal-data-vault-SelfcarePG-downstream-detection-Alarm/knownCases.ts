@@ -1,5 +1,5 @@
 import { all, type KnownCase, stepEvidenceMatches, varEquals } from '../../../../engine/index.js';
-import { knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import { downstreamMarkerPattern, knownCase, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
 /**
  * Known cases for the personal-data-vault-SelfcarePG-downstream-detection-Alarm runbook.
  */
@@ -10,11 +10,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'selfcarepg-institutions-add-http-500',
     description: '[DOWNSTREAM SelfcarePG] HTTP 500 durante l’aggiunta di un’istituzione',
-    priority: 120,
     condition: stepEvidenceMatches(
       'query-pn-data-vault',
-      '\\[DOWNSTREAM\\] Service SelfcarePG returned errors=500 Internal Server Error from POST ' +
-        'https://api\\.selfcare\\.pagopa\\.it/external/data-vault/v1/pn-pg/institutions/add(?=[;\\s"\\\\]|$)',
+      `${downstreamMarkerPattern('SelfcarePG', {
+        status: '500 Internal Server Error',
+        method: 'POST',
+        endpoint: 'https://api.selfcare.pagopa.it/external/data-vault/v1/pn-pg/institutions/add',
+      })}(?=[;\\s"\\\\]|$)`,
     ),
     resolution: 'Risoluzione non documentata.',
     details: [
@@ -34,7 +36,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'selfcarepg-read-timeout-with-empty-error',
     description: '[DOWNSTREAM SelfcarePG] Timeout di lettura con dettaglio errore vuoto',
-    priority: 110,
     condition: all(
       varEquals('dataVaultErrorMsg', '[DOWNSTREAM] Service SelfcarePG returned errors='),
       stepEvidenceMatches('query-pn-data-vault-trace', 'io\\.netty\\.handler\\.timeout\\.ReadTimeoutException'),
@@ -60,11 +61,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'selfcarepg-subject-alternative-name-mismatch',
     description: '[DOWNSTREAM SelfcarePG] Certificato non valido per api.selfcare.pagopa.it',
-    priority: 100,
     condition: stepEvidenceMatches(
       'query-pn-data-vault',
-      '\\[DOWNSTREAM\\] Service SelfcarePG returned errors=No subject alternative DNS name matching ' +
-        'api\\.selfcare\\.pagopa\\.it found',
+      `${downstreamMarkerPattern(
+        'SelfcarePG',
+      )}No subject alternative DNS name matching api\\.selfcare\\.pagopa\\.it found`,
     ),
     title: '[DOWNSTREAM SelfcarePG] Errore certificato su api.selfcare.pagopa.it',
     resolution: 'Riferimento: thread Slack sul disservizio Selfcare del 25/03/2026.',

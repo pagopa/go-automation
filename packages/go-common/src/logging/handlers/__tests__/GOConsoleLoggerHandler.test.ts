@@ -17,29 +17,55 @@ function createPlainConsoleStyle(infoFormat: string = 'I:{message}'): GOConsoleL
   return style;
 }
 
+/** Colors off, whatever the terminal running the tests. */
+const PLAIN = { NO_COLOR: '1', FORCE_COLOR: undefined };
+
 /** Non-empty output lines. */
 function lines(text: string): string[] {
   return text.split('\n').filter(Boolean);
 }
 
 describe('GOConsoleLoggerHandler', () => {
-  it('writes non-error events to stdout with hierarchical indentation and ignores fatal events', async () => {
-    const handler = new GOConsoleLoggerHandler(createPlainConsoleStyle());
-
-    const nested = captureOutput(() => {
+  it('draws headers as cards and sections as blocks behind the gutter, and ignores fatal events', async () => {
+    let handler: GOConsoleLoggerHandler | undefined;
+    const blocks = captureOutput(() => {
+      handler = new GOConsoleLoggerHandler(createPlainConsoleStyle());
+      handler.handle(GOLogEvent.step('Intro'));
       handler.handle(GOLogEvent.header('Root'));
-      handler.handle(GOLogEvent.step('First'));
-      handler.handle(GOLogEvent.section('Nested'));
-      handler.handle(GOLogEvent.step('Second'));
-      handler.handle(GOLogEvent.header('Next'));
+      handler.handle(GOLogEvent.info('Inside card'));
+      handler.handle(GOLogEvent.section('First'));
+      handler.handle(GOLogEvent.step('a'));
+      handler.handle(GOLogEvent.newline());
+      handler.handle(GOLogEvent.section('Second'));
+      handler.handle(GOLogEvent.info('two\nlines'));
       handler.handle(GOLogEvent.error('Problem'));
       handler.handle(GOLogEvent.fatal('Ignored'));
-    });
-    await handler.reset();
-    const afterReset = captureOutput(() => handler.handle(GOLogEvent.info('Flat')));
+      handler.handle(GOLogEvent.section('Third'));
+      handler.handle(GOLogEvent.header('Next'));
+    }, PLAIN);
+    await handler?.reset();
+    const afterReset = captureOutput(() => handler?.handle(GOLogEvent.info('Flat')), PLAIN);
 
-    assert.deepStrictEqual(lines(nested.stdout), ['H:Root', '  T:First', '  S:Nested', '    T:Second', 'H:Next']);
-    assert.deepStrictEqual(lines(nested.stderr), ['  E:Problem']);
+    assert.deepStrictEqual(blocks.stdout.split('\n'), [
+      'T:Intro',
+      '',
+      'H:Root',
+      '│  I:Inside card',
+      '╰─',
+      '',
+      'S:First',
+      '│  T:a',
+      '│',
+      'S:Second',
+      '│  I:two',
+      '│  lines',
+      '│',
+      'S:Third',
+      '',
+      'H:Next',
+      '',
+    ]);
+    assert.deepStrictEqual(lines(blocks.stderr), ['│  E:Problem']);
     assert.deepStrictEqual(lines(afterReset.stdout), ['I:Flat']);
   });
 
@@ -68,7 +94,7 @@ describe('GOConsoleLoggerHandler', () => {
 
   it('strips ANSI escape codes unless colors are enabled (NO_COLOR / FORCE_COLOR)', () => {
     // colorsEnabled is computed at construction → construct inside the env scope.
-    const logHello = (): void => new GOConsoleLoggerHandler().handle(GOLogEvent.info('hello world'));
+    const logHello = (): void => new GOConsoleLoggerHandler().handle(GOLogEvent.success('hello world'));
 
     const plain = captureOutput(logHello, { NO_COLOR: '1', FORCE_COLOR: undefined }).stdout;
     assert.ok(plain.includes('hello world'), 'message text should be present');

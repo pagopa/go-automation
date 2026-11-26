@@ -4,9 +4,14 @@ import type { Runbook } from '../../../../engine/index.js';
 
 import { KNOWN_CASES } from './knownCases.js';
 
+/**
+ * Builds the interop-selfcare-1.0-apigw-5xx runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return interop.apigw.createInteropApiGwAlarmRunbook({
-    id: SELFCARE_ALARM.runbookKey,
+    alarm: SELFCARE_ALARM,
     metadata: {
       name: SELFCARE_ALARM.runbookKey,
       description:
@@ -18,17 +23,7 @@ export function buildRunbook(): Runbook {
     },
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
     resolverId: 'interop-selfcare-api-gateway-context',
-    resolveAlarmContext: SELFCARE_ALARM.resolveContext,
     queryProfile: interop.apigw.INTEROP_API_GW_5XX_SERVICE_ERRORS_PROFILE,
-    apiGw: {
-      logGroupTemplate: SELFCARE_ALARM.apiGwLogGroupTemplate,
-      profileId: SELFCARE_ALARM.apiGwProfileId,
-    },
-    application: {
-      serviceName: SELFCARE_ALARM.serviceName,
-      logGroupTemplate: SELFCARE_ALARM.applicationLogGroupTemplate,
-      varPrefix: SELFCARE_ALARM.varPrefix,
-    },
     knownCases: KNOWN_CASES,
     fallbackAction: unknownCaseFallback(UNKNOWN_CASE_TITLE, [
       ['Ambiente', '{{vars.interopEnvironment}}'],

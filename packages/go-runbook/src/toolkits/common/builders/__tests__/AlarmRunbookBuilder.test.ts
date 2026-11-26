@@ -56,6 +56,7 @@ describe('AlarmRunbookBuilder', () => {
       .fallback(logAction({ level: 'info', title: 'done' }))
       .build();
 
+    assert.strictEqual(runbook.readPolicy, 'partial');
     assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
     assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 10, afterMinutes: 5 });
     assert.deepStrictEqual(Object.keys(runbook.steps[0] ?? {}), ['step', 'silent', 'evidence']);
@@ -64,6 +65,7 @@ describe('AlarmRunbookBuilder', () => {
       'steps',
       'knownCases',
       'fallbackAction',
+      'readPolicy',
       'occurrenceTimeWindow',
       'runbookContext',
       'cloudExecutionPolicy',

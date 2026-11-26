@@ -25,19 +25,15 @@ export {
 export { ResolveInteropApiGwAlarmContextStep } from './steps/ResolveInteropApiGwAlarmContextStep.js';
 export type { ResolveInteropApiGwAlarmContextStepConfig } from './steps/ResolveInteropApiGwAlarmContextStep.js';
 export { QueryInteropApiGwAggregatesStep } from './steps/QueryInteropApiGwAggregatesStep.js';
-export type {
-  BuildInteropApiGwAggregateQueryFn,
-  QueryInteropApiGwAggregatesStepConfig,
-} from './steps/QueryInteropApiGwAggregatesStep.js';
+export type { BuildInteropApiGwAggregateQueryFn } from './steps/BuildInteropApiGwAggregateQueryFn.js';
+export type { QueryInteropApiGwAggregatesStepConfig } from './steps/QueryInteropApiGwAggregatesStepConfig.js';
 export { AnalyzeInteropApiGwAggregatesStep } from './steps/AnalyzeInteropApiGwAggregatesStep.js';
 export type { AnalyzeInteropApiGwAggregatesStepConfig } from './steps/AnalyzeInteropApiGwAggregatesStep.js';
 export type { InteropApiGwAlarmContext } from './types/InteropApiGwAlarmContext.js';
-export type { ResolveInteropApiGwAlarmContextFn } from './types/ResolveInteropApiGwAlarmContextFn.js';
 export type { InteropApiGwAggregateAnalysis } from './types/InteropApiGwAggregateAnalysis.js';
 export type { InteropApiGwAlarmConfig } from './types/InteropApiGwAlarmConfig.js';
 export type { InteropApiGwRunbookStepIds } from './types/InteropApiGwRunbookStepIds.js';
 export type { InteropApiGwPipelineAnchor } from './types/InteropApiGwPipelineAnchor.js';
-export type { InteropApiGwAccessLogConfig } from './types/InteropApiGwAccessLogConfig.js';
 export type { InteropApiGwApplicationLogConfig } from './types/InteropApiGwApplicationLogConfig.js';
 export { isInteropApiGwRunbookContext } from './output/InteropApiGwRunbookContext.js';
 export type { InteropApiGwRunbookContext } from './output/InteropApiGwRunbookContext.js';

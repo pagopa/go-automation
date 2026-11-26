@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { RunbookResultField } from '../RunbookOutputContext.js';
+import type { RunbookResultField } from '../RunbookResultField.js';
 import { addResultField, normalizeOutputValue, optionalNumber, optionalString } from '../outputValues.js';
 
 describe('normalizeOutputValue', () => {

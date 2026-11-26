@@ -92,12 +92,14 @@ export interface RtaCheckSummary {
   readonly linkedAnalyses: number;
   readonly hit: number;
   readonly miss: number;
+  /** Nothing recognized on incomplete evidence. */
+  readonly inconclusive: number;
   readonly noData: number;
   readonly configError: number;
   readonly executionError: number;
-  /** HIT / (HIT + MISS). */
+  /** HIT / (HIT + MISS + INCONCLUSIVE). */
   readonly automationCoveragePct: number;
-  /** (HIT + MISS) / total. */
+  /** (HIT + MISS + INCONCLUSIVE) / total. */
   readonly executableRatePct: number;
   /** CONFIG-ERROR / total. */
   readonly configErrorRatePct: number;
@@ -126,7 +128,7 @@ export interface RtaCheckInput {
 
 /** Full machine-readable report. */
 export interface RtaCheckReport {
-  readonly schemaVersion: '1.1.0';
+  readonly schemaVersion: '2.0.0';
   readonly generatedAt: string;
   readonly input: RtaCheckInput;
   readonly summary: RtaCheckSummary;

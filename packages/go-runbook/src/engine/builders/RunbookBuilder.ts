@@ -4,35 +4,15 @@ import type { RunbookMetadata } from '../types/RunbookMetadata.js';
 import type { Step } from '../types/Step.js';
 import type { StepDescriptor } from '../types/StepDescriptor.js';
 import type { KnownCase } from '../types/KnownCase.js';
-import type { IfBranchConfig } from '../types/IfBranchConfig.js';
-import type { SwitchBranchConfig } from '../types/SwitchBranchConfig.js';
 import type { CaseAction } from '../types/CaseAction.js';
 import type { ValidationErrorEntry } from '../validation/ValidationErrorEntry.js';
-import type { GoToReference } from '../validation/GoToGraphAnalyzer.js';
 import { RunbookValidationError } from '../validation/RunbookValidationError.js';
 import { findUnwiredKnownCaseStepRef } from '../validation/findUnwiredKnownCaseStepRef.js';
-import { GoToGraphAnalyzer } from '../validation/GoToGraphAnalyzer.js';
-import { IfBranchStep } from '../steps/control/IfBranchStep.js';
-import { SwitchBranchStep } from '../steps/control/SwitchBranchStep.js';
-
-/**
- * Type guard for IfStep with goTo references.
- */
-function isIfStepWithGoTo(step: Step): step is Step & {
-  readonly thenGoTo?: string;
-  readonly elseGoTo?: string;
-} {
-  return step.kind === 'control' && ('thenGoTo' in step || 'elseGoTo' in step);
-}
-
-/**
- * Type guard for SwitchStep with goTo cases.
- */
-function isSwitchStepWithGoTo(step: Step): step is Step & {
-  readonly goToCases: ReadonlyMap<string, string>;
-} {
-  return step.kind === 'control' && 'goToCases' in step;
-}
+import { validateErrorTree } from '../validation/validateErrorTree.js';
+import { findUnanchoredRowPredicates } from '../validation/findUnanchoredRowPredicates.js';
+import { levelStepIds } from '../tree/levelStepIds.js';
+import type { ErrorTreeDefinition } from '../types/ErrorTreeDefinition.js';
+import type { ReadPolicy } from '../types/ReadPolicy.js';
 
 /**
  * Fluent builder for creating validated runbook definitions.
@@ -50,7 +30,7 @@ function isSwitchStepWithGoTo(step: Step): step is Step & {
  *     tags: ['api-gateway', '5xx'],
  *   })
  *   .step(new CloudWatchLogsQueryStep({ ... }))
- *   .step(new ExtractFieldStep({ ... }), { continueOnFailure: true })
+ *   .step(new SetVarStep({ ... }), { continueOnFailure: true })
  *   .knownCase({ ... })
  *   .fallback(logAction({ ... }))
  *   .build();
@@ -62,8 +42,10 @@ export class RunbookBuilder {
   /** Steps wired so far, in order; subclasses read them to validate their extensions. */
   protected readonly stepDescriptors: StepDescriptor[] = [];
   private readonly cases: KnownCase[] = [];
+  private treeDefinition: ErrorTreeDefinition | undefined;
   private fallbackAction?: CaseAction;
   private iterationsLimit?: number;
+  private policy?: ReadPolicy;
 
   /**
    * @param id - Unique runbook identifier
@@ -90,6 +72,17 @@ export class RunbookBuilder {
    */
   metadata(meta: Omit<RunbookMetadata, 'id'>): this {
     this.meta = meta;
+    return this;
+  }
+
+  /**
+   * Declares how the runbook reads its evidence; without it the runbook reads strictly.
+   *
+   * @param policy - `partial` for an analysis that keeps partial evidence, `strict` for a procedure
+   * @returns This builder for chaining
+   */
+  readPolicy(policy: ReadPolicy): this {
+    this.policy = policy;
     return this;
   }
 
@@ -149,33 +142,24 @@ export class RunbookBuilder {
    * @returns The wired step ids, in insertion order
    */
   wiredStepIds(): ReadonlySet<string> {
-    return new Set(this.stepDescriptors.map((descriptor) => descriptor.step.id));
+    return new Set([...this.stepDescriptors.map((descriptor) => descriptor.step.id), ...this.treeStepIds()]);
   }
 
   /**
-   * Adds an IfStep with inline sub-pipelines.
-   * Alternative to ifCondition with goTo: the then/else pipelines
-   * are executed inline in a child context.
+   * Declares the levels the runbook investigates after the steps of the window, one node per error.
    *
-   * @param config - If branch configuration with sub-pipelines
+   * @param tree - Root level and the levels it may descend to
    * @returns This builder for chaining
    */
-  ifBranch(config: IfBranchConfig): this {
-    const branchStep = new IfBranchStep(config);
-    this.stepDescriptors.push({ step: branchStep });
+  errorTree(tree: ErrorTreeDefinition): this {
+    this.treeDefinition = tree;
     return this;
   }
 
-  /**
-   * Adds a SwitchStep with inline sub-pipelines.
-   *
-   * @param config - Switch branch configuration with sub-pipelines
-   * @returns This builder for chaining
-   */
-  switchBranch(config: SwitchBranchConfig): this {
-    const branchStep = new SwitchBranchStep(config);
-    this.stepDescriptors.push({ step: branchStep });
-    return this;
+  /** The step ids of the levels of the error tree. */
+  private treeStepIds(): ReadonlyArray<string> {
+    const tree = this.treeDefinition;
+    return tree === undefined ? [] : [tree.root, ...tree.levels].flatMap((level) => levelStepIds(level));
   }
 
   /**
@@ -213,8 +197,8 @@ export class RunbookBuilder {
 
   /**
    * Validates the runbook configuration.
-   * Checks: duplicate step IDs, invalid goTo references,
-   * cycles in the goTo graph, duplicate KnownCase IDs/priorities.
+   * Checks: duplicate step IDs, duplicate KnownCase IDs, unknown or cyclic `supersedes`,
+   * the levels of the error tree and the step references of the known cases.
    *
    * @returns Array of validation errors (empty if valid)
    */
@@ -245,7 +229,6 @@ export class RunbookBuilder {
 
     // 2. Check duplicate step IDs
     const stepIds = new Set<string>();
-    const orderedStepIds: string[] = [];
     for (const descriptor of this.stepDescriptors) {
       if (stepIds.has(descriptor.step.id)) {
         errors.push({
@@ -255,33 +238,9 @@ export class RunbookBuilder {
         });
       }
       stepIds.add(descriptor.step.id);
-      orderedStepIds.push(descriptor.step.id);
     }
 
-    // 3. Check goTo references
-    const goToRefs = this.collectGoToReferences();
-    for (const ref of goToRefs) {
-      if (!stepIds.has(ref.targetId)) {
-        errors.push({
-          code: 'INVALID_GOTO_REF',
-          message: `Step "${ref.sourceId}" references goTo "${ref.targetId}" which does not exist.`,
-          stepId: ref.sourceId,
-        });
-      }
-    }
-
-    // 4. Detect cycles in goTo graph
-    const cycles = GoToGraphAnalyzer.detectCycles(orderedStepIds, goToRefs);
-    for (const cycle of cycles) {
-      const firstStepId = cycle[0];
-      errors.push({
-        code: 'LOOP_DETECTED',
-        message: `Cycle detected in goTo graph: ${cycle.join(' -> ')}.`,
-        ...(firstStepId !== undefined ? { stepId: firstStepId } : {}),
-      });
-    }
-
-    // 5. Check duplicate KnownCase IDs
+    // 3. Check duplicate KnownCase IDs
     const caseIds = new Set<string>();
     for (const knownCase of this.cases) {
       if (caseIds.has(knownCase.id)) {
@@ -294,22 +253,29 @@ export class RunbookBuilder {
       caseIds.add(knownCase.id);
     }
 
-    // 6. Check duplicate KnownCase priorities
-    const casePriorities = new Map<number, string>();
-    for (const knownCase of this.cases) {
-      const existingCaseId = casePriorities.get(knownCase.priority);
-      if (existingCaseId !== undefined) {
+    // 4. Check the cases each case supersedes
+    errors.push(...validateSupersedes(this.cases));
+
+    // 5. The levels of the error tree, and the cases that would need one row to satisfy a signature split over two
+    if (this.treeDefinition !== undefined) {
+      errors.push(...validateErrorTree(this.treeDefinition, stepIds));
+      const levelReads = new Set(
+        this.treeDefinition.levels.flatMap((level) => (level.read === undefined ? [] : [level.read.id])),
+      );
+      const unanchored = findUnanchoredRowPredicates(this.cases, levelReads);
+      if (unanchored !== undefined) {
         errors.push({
-          code: 'DUPLICATE_CASE_PRIORITY',
-          message: `KnownCase "${knownCase.id}" has the same priority (${knownCase.priority}) as "${existingCaseId}". Priorities must be unique.`,
-          caseId: knownCase.id,
+          code: 'UNANCHORED_ROW_PREDICATES',
+          message:
+            `KnownCase "${unanchored.caseId}" reads the rows of "${unanchored.stepId}" twice in one all(...): ` +
+            'anchor one predicate on the node and read the other from its siblings or its context.',
+          caseId: unanchored.caseId,
         });
       }
-      casePriorities.set(knownCase.priority, knownCase.id);
     }
 
-    // 7. Known cases must reference only steps the runbook wires (P10)
-    const unwired = findUnwiredKnownCaseStepRef(this.cases, stepIds);
+    // 6. Known cases must reference only steps the runbook wires, the levels of the error tree included
+    const unwired = findUnwiredKnownCaseStepRef(this.cases, this.wiredStepIds());
     if (unwired !== undefined) {
       errors.push({
         code: 'UNWIRED_CASE_STEP_REF',
@@ -348,42 +314,68 @@ export class RunbookBuilder {
       steps: [...this.stepDescriptors],
       knownCases: [...this.cases],
       fallbackAction: this.fallbackAction, // Safe: validated in validate()
+      ...(this.policy !== undefined ? { readPolicy: this.policy } : {}),
       // After the engine fields, in the toolkit's order: the RTA fingerprint depends on key order.
       ...this.buildExtensions(),
     };
 
-    if (this.iterationsLimit !== undefined) {
-      return { ...result, maxIterations: this.iterationsLimit };
-    }
+    const withTree = this.treeDefinition !== undefined ? { ...result, tree: this.treeDefinition } : result;
+    return this.iterationsLimit !== undefined ? { ...withTree, maxIterations: this.iterationsLimit } : withTree;
+  }
+}
 
-    return result;
+/**
+ * Validates the `supersedes` of the known cases: every replaced case exists, no case replaces itself, and the
+ * replacements form no cycle.
+ *
+ * Complexity: O(C + S) over cases and supersedes entries.
+ *
+ * @param cases - Known cases of the runbook
+ * @returns The validation errors, empty when the replacements are sound
+ */
+function validateSupersedes(cases: ReadonlyArray<KnownCase>): ReadonlyArray<ValidationErrorEntry> {
+  const errors: ValidationErrorEntry[] = [];
+  const ids = new Set(cases.map((knownCase) => knownCase.id));
+  const edges = new Map<string, ReadonlyArray<string>>();
+  for (const knownCase of cases) {
+    const replaced = knownCase.supersedes ?? [];
+    edges.set(knownCase.id, replaced);
+    for (const target of replaced) {
+      if (target === knownCase.id) {
+        errors.push({
+          code: 'SUPERSEDES_CYCLE',
+          message: `KnownCase "${knownCase.id}" supersedes itself.`,
+          caseId: knownCase.id,
+        });
+      } else if (!ids.has(target)) {
+        errors.push({
+          code: 'UNKNOWN_SUPERSEDED_CASE',
+          message: `KnownCase "${knownCase.id}" supersedes "${target}", which is not a case of this runbook.`,
+          caseId: knownCase.id,
+        });
+      }
+    }
   }
 
-  /**
-   * Collects all goTo references from registered steps for static analysis.
-   */
-  private collectGoToReferences(): ReadonlyArray<GoToReference> {
-    const refs: GoToReference[] = [];
-
-    for (const descriptor of this.stepDescriptors) {
-      const { step } = descriptor;
-
-      if (isIfStepWithGoTo(step)) {
-        if (step.thenGoTo !== undefined) {
-          refs.push({ sourceId: step.id, targetId: step.thenGoTo });
-        }
-        if (step.elseGoTo !== undefined) {
-          refs.push({ sourceId: step.id, targetId: step.elseGoTo });
-        }
-      }
-
-      if (isSwitchStepWithGoTo(step)) {
-        for (const [, targetId] of step.goToCases) {
-          refs.push({ sourceId: step.id, targetId });
-        }
-      }
+  const done = new Set<string>();
+  const onPath = new Set<string>();
+  const visit = (id: string): boolean => {
+    if (onPath.has(id)) return true;
+    if (done.has(id)) return false;
+    onPath.add(id);
+    const cyclic = (edges.get(id) ?? []).some((target) => target !== id && ids.has(target) && visit(target));
+    onPath.delete(id);
+    done.add(id);
+    return cyclic;
+  };
+  for (const knownCase of cases) {
+    if (!done.has(knownCase.id) && visit(knownCase.id)) {
+      errors.push({
+        code: 'SUPERSEDES_CYCLE',
+        message: `The supersedes of KnownCase "${knownCase.id}" form a cycle.`,
+        caseId: knownCase.id,
+      });
     }
-
-    return refs;
   }
+  return errors;
 }

@@ -1,38 +1,29 @@
 import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { resolveTimeRange } from '../../../../common/time/resolveTimeRange.js';
 import type { TimeRangeFromParams } from '../../../../common/time/TimeRangeFromParams.js';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
-import type { Step } from '../../../../../engine/types/Step.js';
-import type { StepKind } from '../../../../../engine/types/StepKind.js';
-import type { StepResult } from '../../../../../engine/types/StepResult.js';
+import type { RunbookContext, Step, StepKind, StepResult } from '../../../../../engine/index.js';
 import { normalizeInteropApiGwAggregateValue } from '../helpers/normalizeInteropApiGwAggregateValue.js';
 import { OperationalStep } from '../../../../common/steps/OperationalStep.js';
 import { executeCloudWatchLogsQuery } from '../../../../common/steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
-import { interopLogsQueryOptions } from '../../../helpers/interopLogsQueryOptions.js';
+import { SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS } from '../../../../common/steps/aws/cloudwatch-logs/SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS.js';
 import { readNonBlankVar } from '../../../helpers/readNonBlankVar.js';
 import type { OperationalContext } from '../../../../common/services/OperationalContext.js';
 import type { OperationalServiceName } from '../../../../common/services/OperationalServiceName.js';
-
-export type BuildInteropApiGwAggregateQueryFn = (apiGwId: string) => string;
-
-export interface QueryInteropApiGwAggregatesStepConfig {
-  readonly id: string;
-  readonly label: string;
-  readonly timeRangeFromParams: TimeRangeFromParams;
-  readonly queryProfileId: string;
-  readonly queryKind: string;
-  readonly errorFamilyLabel: string;
-  readonly buildQuery: BuildInteropApiGwAggregateQueryFn;
-  readonly apiGwIdVar?: string;
-  readonly logGroupVar?: string;
-}
+import type { CloudWatchLogsRow } from '../../../../common/steps/aws/cloudwatch-logs/CloudWatchLogsRow.js';
+import type { CloudWatchLogsRows } from '../../../../common/steps/aws/cloudwatch-logs/CloudWatchLogsRows.js';
+import type { BuildInteropApiGwAggregateQueryFn } from './BuildInteropApiGwAggregateQueryFn.js';
+import type { QueryInteropApiGwAggregatesStepConfig } from './QueryInteropApiGwAggregatesStepConfig.js';
 
 const DEFAULT_API_GW_ID_VAR = 'interopApiGwId';
 const DEFAULT_LOG_GROUP_VAR = 'interopApiGwLogGroup';
 
+/**
+ * Reads the aggregated errors of an INTEROP API Gateway from its access log; gateway id and log group come from
+ * runbook variables.
+ */
 export class QueryInteropApiGwAggregatesStep
-  extends OperationalStep<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
-  implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
+  extends OperationalStep<CloudWatchLogsRows>
+  implements Step<CloudWatchLogsRows>
 {
   readonly id: string;
   readonly label: string;
@@ -85,9 +76,7 @@ export class QueryInteropApiGwAggregatesStep
     return ['cloudWatchLogs'];
   }
 
-  override async execute(
-    context: OperationalContext,
-  ): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
+  override async execute(context: OperationalContext): Promise<StepResult<CloudWatchLogsRows>> {
     const apiGwId = readNonBlankVar(context, this.apiGwIdVar);
     if (apiGwId === undefined) return missingVarFailure(this.apiGwIdVar);
     const logGroup = readNonBlankVar(context, this.logGroupVar);
@@ -101,7 +90,7 @@ export class QueryInteropApiGwAggregatesStep
       [logGroup],
       query,
       timeRange,
-      interopLogsQueryOptions(context),
+      SEARCH_CONFIGURED_PROFILES_QUERY_OPTIONS,
     );
     context.services.reporter.add({ label: `Aggregati ${this.errorFamilyLabel} trovati: ${result.rows.length}` });
 
@@ -109,13 +98,12 @@ export class QueryInteropApiGwAggregatesStep
       success: true,
       output: enrichAggregateRows(result.rows),
       ...(result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics }),
+      ...(result.coverage.length > 0 ? { coverage: result.coverage } : {}),
     };
   }
 }
 
-function enrichAggregateRows(
-  rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
-): ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> {
+function enrichAggregateRows(rows: CloudWatchLogsRows): CloudWatchLogsRows {
   return rows.map((row) => {
     const additions: GOLogsInsightsResultField[] = [];
     if (readRowField(row, '@timestamp') === undefined) {
@@ -130,7 +118,7 @@ function enrichAggregateRows(
   });
 }
 
-function buildAggregateMessage(row: ReadonlyArray<GOLogsInsightsResultField>): string | undefined {
+function buildAggregateMessage(row: CloudWatchLogsRow): string | undefined {
   const readNormalized = (field: string): string | undefined =>
     normalizeInteropApiGwAggregateValue(readRowField(row, field));
   const sourceIp = readNormalized('sourceIp');

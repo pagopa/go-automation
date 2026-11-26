@@ -3,7 +3,7 @@ import type { SensitiveDataConfig } from './types/SensitiveDataConfig.js';
 import type { SensitiveDataRule } from './types/SensitiveDataRule.js';
 import type { SensitiveFinding } from './types/SensitiveFinding.js';
 
-const ACCOUNT_ID = /(?<![0-9])[0-9]{12}(?![0-9])/gu;
+const ACCOUNT_ID = /(?<![0-9A-Fa-f])[0-9]{12}(?![0-9A-Fa-f])/gu;
 const ACCOUNT_ARN = /arn:aws[a-z-]*:[a-z0-9-]+:[a-z0-9-]*:([0-9]{12}):/gu;
 const NAME_CHARACTER = '[A-Za-z0-9_.-]';
 

@@ -11,6 +11,8 @@ const BASE: GoAnalyzeAlarmConfig = {
   awsProfiles: ['profile'],
   statsDetail: true,
   statsSave: false,
+  outputTrace: true,
+  outputResult: true,
 };
 
 describe('toAnalyzableConfig', () => {

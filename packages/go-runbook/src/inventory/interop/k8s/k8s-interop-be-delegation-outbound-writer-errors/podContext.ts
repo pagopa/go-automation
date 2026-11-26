@@ -4,7 +4,7 @@ import type { interop } from '../../../../toolkits/interop/index.js';
 export const POD_CONTEXT: interop.k8s.QueryInteropPodContextConfig = {
   id: 'query-delegation-outbound-writer-context',
   label: 'Contesto completo del delegation outbound writer',
-  contextName: 'Delegation items writer context',
+  contextName: 'Delegation outbound writer context',
   countVar: 'delegationOutboundWriterContextLogCount',
   namespaceSuffix: '',
   completeness: 'row-limit-or-unreturned-matches',

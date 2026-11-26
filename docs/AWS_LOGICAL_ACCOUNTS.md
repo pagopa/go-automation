@@ -173,7 +173,7 @@ Un runbook che **non** usa account logici non richiede nessuno di questi paramet
 ### 6.2 `aws.account.environment`: l'ambiente, quando l'allarme non lo dice
 
 - **Chi lo usa:** solo **go-analyze-alarm**. Questo script analizza un allarme partendo dal nome e dall'orario, e non conosce l'account in cui è scattato. Senza questo parametro non saprebbe se leggere prod o uat.
-- **Chi non lo usa:** go-execute-runbook (compresa la Lambda) e go-rta-check partono sempre da un'occorrenza che contiene il suo account, quindi ricavano l'ambiente dalla rubrica. Per loro questo parametro non esiste.
+- **Chi non lo usa:** go-rta-check e chi esegue un runbook a partire da un'occorrenza (per esempio una Lambda che importa il package pubblicato) partono sempre da un'occorrenza che contiene il suo account, quindi ricavano l'ambiente dalla rubrica. Per loro questo parametro non esiste.
 - **Perché non lo si indica sempre:** se l'ambiente venisse sempre dalla configurazione, la stessa Lambda non potrebbe gestire allarmi di ambienti diversi, e una configurazione sbagliata farebbe leggere l'ambiente sbagliato. Ricavarlo dall'allarme è più sicuro.
 
 ### 6.3 `aws.account.binding`: il modo di accedere
@@ -182,14 +182,14 @@ Un runbook che **non** usa account logici non richiede nessuno di questi paramet
 - **`oam`:** si legge dall'account di monitoraggio, attraverso il collegamento OAM, indicando l'account preciso (§8.2).
 - **Valore predefinito**, se il parametro manca:
 
-  | Dove                            | Valore predefinito                                          |
-  | ------------------------------- | ----------------------------------------------------------- |
-  | go-analyze-alarm                | `profiles`                                                  |
-  | go-rta-check                    | `profiles`                                                  |
-  | go-execute-runbook in locale    | `profiles` se ci sono profili configurati, altrimenti `oam` |
-  | go-execute-runbook nella Lambda | sempre `oam`, anche se si configura un altro valore         |
+  | Dove             | Valore predefinito |
+  | ---------------- | ------------------ |
+  | go-analyze-alarm | `profiles`         |
+  | go-rta-check     | `profiles`         |
 
-- **Perché è un parametro esplicito:** prima go-execute-runbook sceglieva il modo di accesso solo in base alla presenza di profili. Ora la regola è scritta ed è uguale per tutti gli script. Nella Lambda non si può cambiare.
+  Un'esecuzione nel cloud non ha profili locali: chi la ospita configura `oam`.
+
+- **Perché è un parametro esplicito:** il modo di accesso non si ricava dalla presenza di profili. La regola è scritta ed è uguale per tutti gli script.
 
 ### 6.4 `aws.account.permission.sets`: il permesso preferito
 
@@ -254,7 +254,7 @@ Se nessun profilo raggiunge l'account, l'esecuzione si ferma con `AWS_ACCOUNT_UN
 - Non interroga STS. Legge dall'**account di monitoraggio** l'account preciso (account id e regione), attraverso il collegamento OAM, senza tentativi su altri account.
 - **Le credenziali:** in locale, un profilo qualsiasi dell'account di monitoraggio; nel cloud, quelle della Lambda.
 - I permission set non contano.
-- **Condizione:** ogni account della rubrica usata nel cloud deve essere collegato all'account di monitoraggio. Lo controlla il deploy (§10.2).
+- **Condizione:** ogni account della rubrica usata nel cloud deve essere collegato all'account di monitoraggio (§10.2).
 
 ## 9. Gli errori
 
@@ -270,48 +270,37 @@ Sono tutti `AwsAccountError` con un `code` fisso. Il messaggio dice quale accoun
 | `AWS_OCCURRENCE_ACCOUNT_MISMATCH`        | l'account dell'allarme non è nella rubrica o non è tra quelli dello step, oppure la regione è diversa | controllare la rubrica o l'allarme                         |
 | `AWS_ACCOUNT_SELECTION_AMBIGUOUS`        | due nomi logici della stessa selezione indicano lo stesso account                                     | correggere la rubrica                                      |
 | `AWS_ACCOUNT_UNREACHABLE`                | nessuna credenziale raggiunge l'account nella regione dell'esecuzione                                 | aggiungere un profilo di quell'account, oppure usare `oam` |
-| `AWS_ACCOUNT_DIRECTORY_INVALID`          | solo nella Lambda: rubrica o modo di accesso non validi (§9.2)                                        | correggere la configurazione della Lambda                  |
+| `AWS_ACCOUNT_DIRECTORY_INVALID`          | solo in un host di lunga durata: rubrica o modo di accesso non validi (§9.2)                          | correggere la configurazione dell'host                     |
 
-Gli errori temporanei (STS non risponde, problemi di rete, troppe richieste) **non** sono errori di configurazione: nella Lambda l'analisi viene ritentata.
+Gli errori temporanei (STS non risponde, problemi di rete, troppe richieste) **non** sono errori di configurazione: non diventano un `AwsAccountError`, e chi ospita l'esecuzione può ritentarla.
 
 ### 9.2 Rubrica scritta male
 
 Una riga nella forma sbagliata, una riga ripetuta, un account in due ambienti o un modo di accesso sconosciuto vengono scoperti mentre si preparano i servizi, prima di eseguire il runbook:
 
 - **go-analyze-alarm e go-rta-check** si fermano subito, all'avvio, con un errore.
-- **go-execute-runbook e la Lambda non si fermano.** I runbook che non usano account logici continuano a funzionare. Solo quelli che li usano falliscono, prima del primo step, con `AWS_ACCOUNT_DIRECTORY_INVALID`. Così un errore di configurazione non blocca tutte le analisi.
+- **Un host di lunga durata non si ferma.** Con `UnavailableAwsAccountsPort` (da `@pagopa/go-runbook/runtime`) i runbook che non usano account logici continuano a funzionare. Solo quelli che li usano falliscono, prima del primo step, con `AWS_ACCOUNT_DIRECTORY_INVALID`. Così un errore di configurazione non blocca tutte le analisi.
 
-### 9.3 Come la Lambda chiude l'analisi in Watchtower
-
-Un `AwsAccountError` chiude il tentativo in corso con un esito definitivo, senza riprovare. Si usano le categorie che il contratto con Watchtower già prevede:
-
-- **allarme estraneo o ambiente non ammesso:** `CAPABILITY` / `RUNBOOK_CAPABILITY_MISMATCH`, cioè il runbook non è adatto a quell'allarme;
-- **tutti gli altri casi:** `WORKER_CONFIGURATION` / `WORKER_CONFIGURATION_ERROR`, cioè va corretta la configurazione.
-
-Il messaggio comincia con il codice, per esempio `[AWS_ACCOUNT_NOT_CONFIGURED] …`. Il contratto con Watchtower non cambia.
+Un `AwsAccountError` è un errore di configurazione, non temporaneo: il suo `code` dice a chi ospita l'esecuzione che ritentare non serve. Il messaggio comincia con il codice, per esempio `[AWS_ACCOUNT_NOT_CONFIGURED] …`.
 
 ## 10. Dove si configura
 
 ### 10.1 In locale, negli script
 
-| Script             | Parametri                                                | Ambiente                             |
-| ------------------ | -------------------------------------------------------- | ------------------------------------ |
-| go-analyze-alarm   | `directory`, `binding`, `environment`, `permission.sets` | da `aws.account.environment`         |
-| go-execute-runbook | `directory`, `binding`, `permission.sets`                | dall'occorrenza                      |
-| go-rta-check       | `directory`, `binding`, `permission.sets`                | dall'occorrenza, per ogni occorrenza |
+| Script           | Parametri                                                | Ambiente                             |
+| ---------------- | -------------------------------------------------------- | ------------------------------------ |
+| go-analyze-alarm | `directory`, `binding`, `environment`, `permission.sets` | da `aws.account.environment`         |
+| go-rta-check     | `directory`, `binding`, `permission.sets`                | dall'occorrenza, per ogni occorrenza |
 
 I valori vanno nel file di configurazione dello script o nelle variabili d'ambiente di chi esegue, **mai** nel codice. Il file d'esempio, con identificativi finti, mostra il formato: va copiato fuori dal repository e completato con quelli veri.
 
-### 10.2 Nel cloud, nella Lambda go-ExecuteRunbookLambda
+### 10.2 Nel cloud
 
-- La rubrica arriva dalla variabile di deploy `EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY`, che è facoltativa.
-- `DeploymentConfig` la controlla **durante il deploy**:
-  - con le stesse regole della rubrica: forma delle righe, righe ripetute, un account in un solo ambiente;
-  - rifiutando ogni account non collegato all'account di monitoraggio (`OAM_SOURCE_ACCOUNT_IDS`).
+In questo repository non c'è un worker cloud dei runbook: un'esecuzione nel cloud vive nel repository che importa il package pubblicato, ed è lì che si configura. Valgono le stesse regole:
 
-  Così un errore si scopre al deploy, non alla prima analisi.
-
-- `sst.config.ts` passa alla Lambda `AWS_ACCOUNT_DIRECTORY` e `AWS_ACCOUNT_BINDING=oam`.
+- la rubrica arriva dalla configurazione dell'ambiente (`AWS_ACCOUNT_DIRECTORY`), mai dal codice, con `AWS_ACCOUNT_BINDING=oam`;
+- ogni account della rubrica deve essere collegato all'account di monitoraggio: conviene controllarlo al deploy, non alla prima analisi;
+- una rubrica non valida non deve fermare l'host: `UnavailableAwsAccountsPort` fa fallire solo i runbook che usano account logici (§9.2).
 
 ## 11. Riservatezza, risultati e cache
 

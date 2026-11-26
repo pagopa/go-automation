@@ -1,21 +1,16 @@
 import type { AWSCloudWatchLogsLogGroupResolutionMode } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import {
-  type GOLogsInsightsResultField,
-  sumCloudWatchLogsQueryStatistics,
-} from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { omitUndefined } from '@pagopa/go-common/utils';
-import type { Step } from '../../../../../engine/types/Step.js';
-import type { StepKind } from '../../../../../engine/types/StepKind.js';
-import type { StepResult } from '../../../../../engine/types/StepResult.js';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
+import type { RunbookContext, Step, StepKind, StepResult } from '../../../../../engine/index.js';
+import { interpolatePlaceholders } from '../../../../../engine/internal.js';
+import { executeStep } from '../../../../../engine/index.js';
 import type { TimeRangeFromParams } from '../../../time/TimeRangeFromParams.js';
-import { interpolatePlaceholders } from '../../../../../engine/context/templatePlaceholders.js';
 import { resolveTimeRange } from '../../../time/resolveTimeRange.js';
-import { executeStep } from '../../../../../engine/steps/execution/executeStep.js';
 import { executeCloudWatchLogsQuery } from './executeCloudWatchLogsQuery.js';
+import { mergeCloudWatchLogsDiagnostics } from './mergeCloudWatchLogsDiagnostics.js';
 import { OperationalStep } from '../../OperationalStep.js';
 import type { OperationalContext } from '../../../services/OperationalContext.js';
 import type { OperationalServiceName } from '../../../services/OperationalServiceName.js';
+import type { CloudWatchLogsRows } from './CloudWatchLogsRows.js';
 
 export type { TimeRangeFromParams } from '../../../time/TimeRangeFromParams.js';
 
@@ -74,10 +69,7 @@ export interface CloudWatchLogsQueryConfig {
  * });
  * ```
  */
-export class CloudWatchLogsQueryStep
-  extends OperationalStep<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
-  implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
-{
+export class CloudWatchLogsQueryStep extends OperationalStep<CloudWatchLogsRows> implements Step<CloudWatchLogsRows> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -143,15 +135,12 @@ export class CloudWatchLogsQueryStep
    * @param context - The runbook execution context
    * @returns Step result containing an array of result rows
    */
-  override async execute(
-    context: OperationalContext,
-  ): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
-    return executeStep('CloudWatch Logs query', async () => {
+  override async execute(context: OperationalContext): Promise<StepResult<CloudWatchLogsRows>> {
+    return executeStep(context, 'CloudWatch Logs query', async () => {
       const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
       const interpolatedQuery = interpolatePlaceholders(this.query, context);
 
       const options = omitUndefined({
-        signal: context.signal,
         logGroupResolutionMode: this.logGroupResolutionMode,
         paginateResults: this.paginateResults,
       });
@@ -166,23 +155,18 @@ export class CloudWatchLogsQueryStep
               options,
             )
           : initial;
-      const first = initial.diagnostics?.cloudWatchLogs;
-      const second = result.diagnostics?.cloudWatchLogs;
+      // The fallback runs only on an empty result: the merged rows are those of the fallback.
       const diagnostics =
-        result !== initial && first !== undefined && second !== undefined
-          ? {
-              cloudWatchLogs: {
-                rowsReturned: result.rows.length,
-                statistics: sumCloudWatchLogsQueryStatistics([first.statistics, second.statistics]),
-                queryExecutions: [...first.queryExecutions, ...second.queryExecutions],
-              },
-            }
-          : result.diagnostics;
+        result === initial
+          ? result.diagnostics
+          : mergeCloudWatchLogsDiagnostics([initial.diagnostics, result.diagnostics]);
 
+      const coverage = result === initial ? initial.coverage : [...initial.coverage, ...result.coverage];
       return {
         success: true,
         output: result.rows,
         ...(diagnostics !== undefined ? { diagnostics } : {}),
+        ...(coverage.length > 0 ? { coverage } : {}),
       };
     });
   }

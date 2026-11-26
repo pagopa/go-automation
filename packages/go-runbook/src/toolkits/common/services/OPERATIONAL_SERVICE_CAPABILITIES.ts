@@ -1,5 +1,4 @@
-import type { ServiceCapabilityCheck } from '../../../engine/types/ServiceCapabilityCheck.js';
-import type { ServiceCapabilityPredicate } from '../../../engine/types/ServiceCapabilityPredicate.js';
+import type { ServiceCapabilityCheck, ServiceCapabilityPredicate } from '../../../engine/index.js';
 import type { OperationalServiceName } from './OperationalServiceName.js';
 
 /**

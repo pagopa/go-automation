@@ -15,6 +15,9 @@ export interface KnownCase extends KnownCaseExtensions {
   readonly condition: Condition;
   /** Action to execute when the case is recognized */
   readonly action: CaseAction;
-  /** Priority: if multiple cases match, the one with higher priority wins */
-  readonly priority: number;
+  /**
+   * Cases this one replaces when both match: a more precise explanation of the same error. The replaced cases leave
+   * the detections and stay in the trace with `supersededBy`.
+   */
+  readonly supersedes?: ReadonlyArray<string>;
 }

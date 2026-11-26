@@ -19,6 +19,8 @@ const API_VERSIONS: ReadonlySet<string> = new Set<SENDApiVersion>(['v2.4', 'v2.5
 const PHASES: ReadonlySet<string> = new Set<DispatchPhaseName>(['send', 'verify', 'request-id']);
 const FORMATS: ReadonlySet<string> = new Set<Dispatch.InputFormat>(['csv', 'json', 'jsonl']);
 const HTTP_URL = /^https?:\/\//i;
+/** Whitespace, or the `|` that separates the ids in the requestId column and in the report. */
+const SUFFIX_FORBIDDEN = /[\s|]/;
 /** Timers must be at least 1 ms (0 would disable them). */
 const TIMER = { minMs: 1 } as const;
 
@@ -90,6 +92,7 @@ function validateBase(config: SendDispatchNotificationsConfig): ValidatedConfigB
   if (requestIdWait !== 'any' && requestIdWait !== 'all') {
     throw new DispatchUsageError(`--request-id-wait ${requestIdWait}: use any or all`);
   }
+  const requestIdSuffix = effectiveSuffix(config.requestIdAppendSuffix, config.requestIdSuffix);
   if (config.inputFile === undefined && config.resume === undefined) {
     throw new DispatchUsageError('--input-file is required (or --resume)');
   }
@@ -105,6 +108,8 @@ function validateBase(config: SendDispatchNotificationsConfig): ValidatedConfigB
     phases: _phases,
     requestIdSelect: _requestIdSelect,
     requestIdWait: _requestIdWait,
+    requestIdAppendSuffix: _requestIdAppendSuffix,
+    requestIdSuffix: _requestIdSuffix,
     httpTimeout: _httpTimeout,
     sendTimeout: _sendTimeout,
     verifyInitialDelay: _verifyInitialDelay,
@@ -123,8 +128,27 @@ function validateBase(config: SendDispatchNotificationsConfig): ValidatedConfigB
     phases,
     requestIdSelect,
     requestIdWait,
+    requestIdSuffix,
     durations: parseDurations(config),
   };
+}
+
+/**
+ * Suffix appended to the requestIds found: `''` when disabled.
+ *
+ * @param append - `--request-id-append-suffix`
+ * @param suffix - `--request-id-suffix`
+ * @returns The effective suffix
+ * @throws DispatchUsageError when enabled with an empty suffix, or one with spaces or `|`
+ */
+function effectiveSuffix(append: boolean, suffix: string): string {
+  if (!append) return '';
+  if (suffix.length === 0 || SUFFIX_FORBIDDEN.test(suffix)) {
+    throw new DispatchUsageError(
+      `--request-id-suffix "${suffix}": use a non-empty suffix without spaces or |, or --request-id-append-suffix=false`,
+    );
+  }
+  return suffix;
 }
 
 /**

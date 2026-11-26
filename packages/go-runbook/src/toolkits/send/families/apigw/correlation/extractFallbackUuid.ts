@@ -4,7 +4,7 @@
  * trace id.
  */
 const FALLBACK_UUID_PATTERN: RegExp =
-  /FALLBACK-UUID:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/;
+  /FALLBACK-UUID:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(?![0-9a-fA-F-])/;
 
 /** Every `FALLBACK-UUID` token of a message, for `matchAll` (compiled once). */
 export const FALLBACK_UUID_GLOBAL_PATTERN: RegExp = new RegExp(FALLBACK_UUID_PATTERN.source, 'g');

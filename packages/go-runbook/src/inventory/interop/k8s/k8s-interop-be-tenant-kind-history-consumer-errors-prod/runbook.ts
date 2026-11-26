@@ -16,7 +16,7 @@ import { TENANT_KIND_HISTORY_QUERY_PROFILE } from './queryProfile.js';
  */
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: ALARM.runbookKey,
+    alarm: ALARM,
     metadata: {
       name: 'k8s-interop-be-tenant-kind-history-consumer-errors-prod',
       description: 'Analizza gli errori Kafka del tenant kind history consumer INTEROP e i log correlati per CID.',
@@ -25,8 +25,6 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'kafka', 'tenant-kind-history', 'consumer'],
     },
-    service: { name: ALARM.podApp, logGroup: ALARM.logGroup, varPrefix: ALARM.varPrefix },
-    resolveAlarmContext: ALARM.resolveContext,
     queryProfile: TENANT_KIND_HISTORY_QUERY_PROFILE,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
     knownCases: KNOWN_CASES,

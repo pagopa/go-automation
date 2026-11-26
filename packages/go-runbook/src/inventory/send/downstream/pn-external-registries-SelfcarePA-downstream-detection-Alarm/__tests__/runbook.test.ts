@@ -5,6 +5,7 @@ import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine, type RunbookExecutionResult } from '../../../../../engine/index.js';
 import { buildAnalysisDraft, createTestServiceRegistry, SEND_DOWNSTREAMS } from '../../../../../toolkits/send/index.js';
 import { buildRunbook } from '../runbook.js';
+import { treeNodeVars } from '../../../../../__tests__/helpers/treeNodeVars.js';
 
 const ROOT = '1-6ad40439-4ab60ee8773327196205da73';
 const TRACE_HEADER = `Self=1-6ad40439-05b2025543d2e23f042ddf60;Root=${ROOT};Parent=f23cf74b4e3a3bc6;Sampled=0`;
@@ -94,10 +95,11 @@ describe('external-registries SelfcarePA downstream runbook', () => {
       const { result, draft, queries } = await execute([message], ['INFO - Downstream request completed']);
       assert.strictEqual(result.stepsExecuted, 4);
       assert.strictEqual(queries.length, 2);
-      assert.ok(queries[1]?.includes(`filter @message like '${ROOT}'`));
+      assert.match(queries[1] ?? '', /@message like \//u);
+      assert.ok(queries[1]?.includes(ROOT));
       assert.ok(!queries[1]?.includes('Self='));
       assert.deepStrictEqual(
-        result.matchedCases.map(({ id: caseId }) => caseId),
+        result.detections.map(({ knownCase }) => knownCase.id),
         [id],
       );
       assert.strictEqual(draft?.kind, 'KNOWN_CASE');
@@ -109,7 +111,7 @@ describe('external-registries SelfcarePA downstream runbook', () => {
 
   it('handles the observed September volume without dropping the log count', async () => {
     const { result, draft } = await execute(Array.from({ length: 3967 }, () => INVALID_TENANT));
-    assert.strictEqual(result.finalContext.vars.get('externalRegistriesLogCount'), '3967');
+    assert.strictEqual(treeNodeVars(result).get('externalRegistriesLogCount'), '3967');
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
   });
@@ -117,7 +119,8 @@ describe('external-registries SelfcarePA downstream runbook', () => {
   it('can identify a documented signature without a trace, recording that q2 has no logs', async () => {
     const { result, queries, draft } = await execute([TIMEOUT], [], '');
     assert.strictEqual(queries.length, 1);
-    assert.strictEqual(result.finalContext.vars.get('externalRegistriesTraceLogCount'), '0');
+    // Without a trace id the error is a leaf: its trace is not read.
+    assert.strictEqual(treeNodeVars(result).get('externalRegistriesTraceLogCount'), undefined);
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
   });
@@ -138,7 +141,7 @@ describe('external-registries SelfcarePA downstream runbook', () => {
       ],
     ]) {
       const { result, draft } = await execute(messages, [TIMEOUT, INVALID_TENANT, RATE_TOO_LARGE]);
-      assert.deepStrictEqual(result.matchedCases, []);
+      assert.deepStrictEqual(result.detections, []);
       assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
     }
   });
@@ -180,7 +183,7 @@ describe('external-registries SelfcarePA downstream runbook', () => {
       services,
     );
 
-    assert.strictEqual(result.finalContext.vars.get('externalRegistriesLogCount'), '1');
+    assert.strictEqual(treeNodeVars(result).get('externalRegistriesLogCount'), '1');
     const scan = (await execute([])).queries[0] ?? '';
     const rows = runLogsInsights(scan, [quotedInStack, realMarker]);
     assert.strictEqual(rows.length, 1);

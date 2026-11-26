@@ -17,7 +17,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'istat-certifier-tenant-not-found',
     description: 'Tenant certificatore ISTAT non trovato',
-    priority: 100,
     regex: 'Certifier tenant ISTAT not found',
     resolution: 'PIN-10543',
     proposedStatus: 'IN_PROGRESS',
@@ -31,7 +30,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'istat-discrete-certified-attribute-already-assigned',
     description: 'Attributo certificato discreto già assegnato al tenant (409)',
-    priority: 90,
     regex:
       `Certified Discrete Attribute\\s+${UUID_PATTERN}\\s+already assigned to tenant\\s+${UUID_PATTERN}\\b|` +
       'Error on internalAssignDiscreteCertifiedAttribute\\. Reason: Request failed with status code 409\\b',

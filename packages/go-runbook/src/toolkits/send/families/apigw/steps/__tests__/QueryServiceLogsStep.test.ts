@@ -20,8 +20,6 @@ function step(overrides: Partial<QueryServiceLogsConfig> = {}): QueryServiceLogs
   return new QueryServiceLogsStep({
     id: 'q',
     label: 'Q',
-    serviceName: 'pn-foo',
-    entryService: true,
     logGroups: ['/aws/ecs/foo'],
     timeRangeFromParams: { start: 'startTime', end: 'endTime' },
     ...overrides,
@@ -51,6 +49,10 @@ describe('QueryServiceLogsStep', () => {
     assert.strictEqual(result.success, true);
     assert.deepStrictEqual(result.output, []);
     assert.deepStrictEqual(queries, []);
+    assert.deepStrictEqual(
+      result.coverage?.map((entry) => entry.reason),
+      ['skipped'],
+    );
   });
 
   it('queries a single identifier, escaped, and returns the rows', async () => {
@@ -58,50 +60,67 @@ describe('QueryServiceLogsStep', () => {
 
     const result = await step().execute(context);
 
-    assert.strictEqual(result.output, ROWS);
+    assert.deepStrictEqual(result.output, ROWS);
     assert.strictEqual(queries.length, 1);
-    assert.match(queries[0] ?? '', /filter @message like 'trace''1'/);
+    assert.match(queries[0] ?? '', /filter \(@message like \/trace'1\/\)/);
     assert.doesNotMatch(queries[0] ?? '', /\bor\b/);
   });
 
-  it('prefers the fallback UUID over the trace id, read from the profile var', async () => {
-    const cases: ReadonlyArray<readonly [Readonly<Record<string, string>>, string | undefined]> = [
-      [{ xRayTraceId: '1-abc', fallbackUuid: 'uuid-1' }, undefined],
-      [{ xRayTraceId: '   ', fallbackUuid: 'uuid-1' }, undefined],
-      [{ customTrace: '1-abc', fallbackUuid: 'uuid-1' }, 'customTrace'],
-    ];
-    for (const [vars, traceVar] of cases) {
-      const { context, queries } = recording(vars);
-      await step(traceVar === undefined ? {} : { accessLogSchemaTraceIdContextVar: traceVar }).execute(context);
-      assert.match(queries[0] ?? '', /filter @message like 'uuid-1'/);
-      assert.doesNotMatch(queries[0] ?? '', /1-abc|\bor\b/);
-    }
+  it('looks up a trace id in the given, X-Ray and compact forms, and keeps only the rows of that trace', async () => {
+    const trace = '1-6789ABCD-0123456789abcdef01234567';
+    const own = logRow({ '@message': 'Ending process', trace_id: '6789abcd0123456789abcdef01234567' });
+    const other = logRow({
+      '@message': 'Ending process 6789abcd0123456789abcdef01234567',
+      trace_id: '1-00000000-111111111111111111111111',
+    });
+    const unfielded = logRow({ '@message': 'Checking passed' });
+    const queries: string[] = [];
+    const query = async (
+      _groups: ReadonlyArray<string>,
+      text: string,
+    ): Promise<ReadonlyArray<GOLogsInsightsResultField[]>> => {
+      await Promise.resolve();
+      queries.push(text);
+      return [own, other, unfielded];
+    };
+    const context = createTestContext({
+      vars: { xRayTraceId: trace },
+      params: TEST_TIME_RANGE_PARAMS,
+      services: { cloudWatchLogs: { query } },
+    });
+
+    const result = await step().execute(context);
+
+    assert.deepStrictEqual(result.output, [own, unfielded]);
+    assert.match(
+      queries[0] ?? '',
+      new RegExp(
+        `filter \\(@message like /${trace}\\|1-6789abcd-0123456789abcdef01234567\\|` +
+          `6789abcd0123456789abcdef01234567/\\)`,
+      ),
+    );
   });
 
-  it('counts a visit only when entering a new service, and every query', async () => {
-    const first = await step().execute(recording({ xRayTraceId: '1-abc' }).context);
-    assert.deepStrictEqual(
-      ['apiGwVisitCount', 'apiGwLastService', 'apiGwQueryCount', 'apiGwServicesVisited'].map(
-        (key) => first.vars?.[key],
-      ),
-      ['1', 'pn-foo', '1', 'pn-foo|2'],
-    );
+  it('reads a fallback UUID with a single predicate', async () => {
+    const { context, queries } = recording({
+      xRayTraceId: '1-6789abcd-0123456789abcdef01234567',
+      fallbackUuid: 'uuid-1',
+    });
 
-    const visited = { xRayTraceId: '1-abc', apiGwVisitCount: '1', apiGwLastService: 'pn-foo', apiGwQueryCount: '1' };
-    // Re-query of the same service (fallback-uuid retry / trace_id swap): the chain entry is rewritten.
-    const again = await step().execute(recording({ ...visited, apiGwServicesVisited: 'pn-foo|1' }).context);
-    assert.deepStrictEqual(
-      ['apiGwVisitCount', 'apiGwQueryCount', 'apiGwServicesVisited'].map((key) => again.vars?.[key]),
-      ['1', '2', 'pn-foo|2'],
-    );
+    const result = await step().execute(context);
 
-    const next = await step({ serviceName: 'pn-bar', entryService: false }).execute(
-      recording({ ...visited, apiGwServicesVisited: 'pn-foo|42' }).context,
-    );
-    assert.deepStrictEqual(
-      ['apiGwVisitCount', 'apiGwLastService', 'apiGwQueryCount', 'apiGwServicesVisited'].map((key) => next.vars?.[key]),
-      ['2', 'pn-bar', '2', 'pn-foo|42,pn-bar|2'],
-    );
+    assert.deepStrictEqual(result.output, ROWS);
+    assert.match(queries[0] ?? '', /filter \(@message like 'uuid-1'\)/);
+    assert.doesNotMatch(queries[0] ?? '', /\bor\b/);
+  });
+
+  it('prefers the fallback UUID over a blank or present trace id', async () => {
+    for (const xRayTraceId of ['1-abc', '   ']) {
+      const { context, queries } = recording({ xRayTraceId, fallbackUuid: 'uuid-1' });
+      await step().execute(context);
+      assert.match(queries[0] ?? '', /filter \(@message like 'uuid-1'\)/);
+      assert.doesNotMatch(queries[0] ?? '', /1-abc|\bor\b/);
+    }
   });
 
   it('reports the failed query before failing the step', async () => {

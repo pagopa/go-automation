@@ -16,15 +16,14 @@ node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'
 
 Questo comando (o una sua variante) è lo script `test` di ogni workspace che ne
 ha uno: `packages/*` (incluso `go-cli`), `scripts/go/*`, `scripts/send/*`,
-`scripts/aws/*`, `functions/go-ExecuteRunbookLambda`,
-`infra/watchtower-alarm-analysis`. I test vivono accanto al codice, sotto
+`scripts/aws/*`. I test vivono accanto al codice, sotto
 `src/**/__tests__/`, con suffisso `.test.ts`. Non c'è un secondo runner: niente
 `vitest`, nessun file `.spec.ts` in tutto il repo — `node --test` è l'unico.
 
 **Eccezioni allo script base:**
 
-- `packages/go-watchtower-runbook`, `scripts/go/go-execute-runbook` e
-  `scripts/go/go-rta-check` anteponono un build step:
+- `packages/go-watchtower-runbook` e `scripts/go/go-rta-check` antepongono un
+  build step:
   `pnpm --filter=@pagopa/go-runbook build && node --import tsx/esm --test ...`.
   Dipendono da `go-runbook` compilato, non dai suoi sorgenti TypeScript.
 - `bins/` non sono package pnpm del workspace (non hanno `package.json` nel
@@ -70,8 +69,8 @@ da `test:coverage`), e non ha equivalente per `test:runbooks` o
 `scripts/` senza quello script viene **saltato in silenzio**, non fallisce.
 Delle 24 package `scripts/{go,send,aws,interop}` (esclusa `scripts/aws/cfn`,
 che non ha un proprio `package.json` e non è un workspace pnpm), 17 non hanno
-nemmeno uno script `test`: zero test file. Delle 5 Lambda in `functions/`,
-solo `go-ExecuteRunbookLambda` ha `test`; nessuna ha `test:coverage`.
+nemmeno uno script `test`: zero test file. Nessuna delle Lambda in
+`functions/` ha `test` o `test:coverage`.
 
 In pratica: la cifra "90/80/90" è vera dove si applica, ma si applica solo ai
 tre workspace sopra. Un nuovo package che vuole il gate di coverage deve
@@ -126,6 +125,6 @@ La porta opzionale degli account AWS logici (`awsAccounts`) c'è solo se il test
 la passa, di solito come `InMemoryAwsAccountsPort` con id finti.
 
 È il pattern usato da oltre cento file di test dentro `packages/go-runbook` e
-dai package che ne dipendono (`go-watchtower-runbook`, `scripts/go/go-rta-check`,
-`scripts/go/go-execute-runbook`): invece di mockare il client reale, si passa
+dai package che ne dipendono (`go-watchtower-runbook`, `scripts/go/go-rta-check`):
+invece di mockare il client reale, si passa
 un registry con solo i servizi che il test esercita.

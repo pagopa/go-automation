@@ -1,4 +1,4 @@
-import type { StepResult } from '../../../engine/types/StepResult.js';
+import type { StepResult } from '../../../engine/index.js';
 import type { AwsAccountSelection } from '../accounts/AwsAccountSelection.js';
 import type { OperationalContext } from '../services/OperationalContext.js';
 import type { OperationalServiceName } from '../services/OperationalServiceName.js';

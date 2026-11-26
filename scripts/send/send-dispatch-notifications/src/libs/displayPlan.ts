@@ -122,7 +122,13 @@ function phasesLine(options: Dispatch.DispatchSessionOptions, timelinesProfile: 
   const phases = [
     ...(options.send ? ['send'] : ['(IUN dall input)']),
     ...(options.verify ? ['verify'] : []),
-    ...(options.requestId === undefined ? [] : [`request-id (AWS: ${timelinesProfile ?? '?'})`]),
+    ...(options.requestId === undefined ? [] : [requestIdPhase(options.requestId, timelinesProfile)]),
   ];
   return phases.join(' → ');
+}
+
+function requestIdPhase(requestId: Dispatch.DispatchRequestIdOptions, timelinesProfile: string | undefined): string {
+  const { categories, suffix } = requestId.selection;
+  const suffixText = suffix === '' ? 'nessun suffisso' : `suffisso ${suffix}`;
+  return `request-id (AWS: ${timelinesProfile ?? '?'}; ${categories.join(', ')}; ${suffixText})`;
 }

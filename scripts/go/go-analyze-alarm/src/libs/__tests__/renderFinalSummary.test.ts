@@ -24,10 +24,10 @@ function recordingLogger(): { readonly logger: GOLogger; readonly lines: string[
   return { logger, lines };
 }
 
-// Safe: the renderers read only status, matched cases, vars and the failure reason.
+// Safe: the renderers read only status, detections, vars and the failure reason.
 const RESULT = {
   status: 'completed',
-  matchedCases: [],
+  detections: [],
   finalContext: { vars: new Map<string, string>() },
   trace: { execution: {} },
 } as unknown as RunbookExecutionResult;
@@ -53,8 +53,7 @@ describe('renderFinalSummary', () => {
 
     assert.deepStrictEqual(interop.lines, [
       'section: INTEROP API Gateway Runbook Summary',
-      'info: API Gateway log group: API-Gateway-Execution-Logs',
-      'info: Service: interop-be-api',
+      'fields: {"API Gateway log group":"API-Gateway-Execution-Logs","Service":"interop-be-api"}',
     ]);
     assert.ok(!send.lines.includes('section: INTEROP API Gateway Runbook Summary'));
   });
@@ -70,7 +69,7 @@ describe('renderFinalSummary', () => {
     const send = recordingLogger();
     renderFinalSummary(send.logger, runbookWith({ ...service, product: 'SEND' }), RESULT);
 
-    assert.deepStrictEqual(k8s.lines, ['section: INTEROP K8S Runbook Summary', 'info: Service: interop-be-x']);
-    assert.deepStrictEqual(send.lines, ['section: Service Runbook Summary', 'info: Service: interop-be-x']);
+    assert.deepStrictEqual(k8s.lines, ['section: INTEROP K8S Runbook Summary', 'fields: {"Service":"interop-be-x"}']);
+    assert.deepStrictEqual(send.lines, ['section: Service Runbook Summary', 'fields: {"Service":"interop-be-x"}']);
   });
 });

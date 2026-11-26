@@ -10,6 +10,7 @@ import { createTestServiceRegistry, type ServiceRegistry } from '../../../../../
 import { DELIVERY_API_GW_EXECUTION_LOG_GROUP } from '../../../shared/DELIVERY_API_GW_EXECUTION_LOG_GROUP.js';
 import { buildRunbook } from '../runbook.js';
 import { API_GW_LOG_GROUP, VERSIONING_LAMBDA_LOG_GROUP } from '../knownServices.js';
+import { treeNodeVars } from '../../../../../__tests__/helpers/treeNodeVars.js';
 
 type EvidenceKind =
   | 'no-application-logs'
@@ -269,7 +270,8 @@ function createServices(kind: EvidenceKind, calls: string[]): ServiceRegistry {
               level: 'ERROR',
               '@message':
                 '[DOWNSTREAM] Service SelfcarePG returned errors=500 Internal Server Error from POST ' +
-                'https://api.selfcare.pagopa.it/external/data-vault/v1/pn-pg/institutions/add',
+                'https://api.selfcare.pagopa.it/external/data-vault/v1/pn-pg/institutions/add ' +
+                'FALLBACK-UUID:ebf9ee53-54bb-4ef2-89a3-850773eb8214',
               trace_id: '6a7593ba7496b2865ca36ac86dcb98e3',
             }),
           ];
@@ -295,14 +297,13 @@ describe('pn-delivery-B2B real occurrence regressions', () => {
       );
 
       assert.strictEqual(result.status, 'completed');
-      assert.strictEqual(result.matchedCases[0]?.id, occurrence.expectedCaseId);
+      assert.strictEqual(result.detections[0]?.knownCase.id, occurrence.expectedCaseId);
       assert.ok(calls.includes('/aws/ecs/pn-delivery'));
 
       if (occurrence.kind === 'no-application-logs' || occurrence.kind === 'no-application-logs-internal-error') {
         assert.ok(calls.includes(VERSIONING_LAMBDA_LOG_GROUP));
-        assert.strictEqual(result.resolvedAtStep, 'query-versioning-lambda-errors');
-        assert.strictEqual(result.finalContext.vars.get('versioningLambdaProbeState'), 'queried');
-        assert.strictEqual(result.finalContext.vars.get('versioningLambdaErrorCount'), '0');
+        assert.strictEqual(treeNodeVars(result).get('versioningLambdaProbeState'), 'queried');
+        assert.strictEqual(treeNodeVars(result).get('versioningLambdaErrorCount'), '0');
       }
 
       if (
@@ -311,8 +312,8 @@ describe('pn-delivery-B2B real occurrence regressions', () => {
         occurrence.kind === 'external-registries-selfcare-timeout' ||
         occurrence.kind === 'external-registries-connection-aborted'
       ) {
-        assert.strictEqual(result.finalContext.vars.get('apiGwExecutionLogMode'), 'unavailable');
-        assert.match(result.finalContext.vars.get('apiGwExecutionLogUnavailableReason') ?? '', /retention settings/);
+        assert.strictEqual(treeNodeVars(result).get('apiGwExecutionLogMode'), 'unavailable');
+        assert.match(treeNodeVars(result).get('apiGwExecutionLogUnavailableReason') ?? '', /retention settings/);
       }
     });
   }

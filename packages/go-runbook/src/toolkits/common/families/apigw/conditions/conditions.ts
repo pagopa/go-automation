@@ -1,4 +1,4 @@
-import type { Condition } from '../../../../../engine/types/Condition.js';
+import type { Condition } from '../../../../../engine/index.js';
 
 /** Matches the canonical status-code variable populated by API Gateway runbooks. */
 export function apiGwStatusIs(status: string): Condition {

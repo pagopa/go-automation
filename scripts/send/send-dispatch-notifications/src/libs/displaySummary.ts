@@ -43,7 +43,8 @@ export function displaySummary(logger: GOLogger, context: SummaryContext): void 
     Rifiutate: refused,
     'Verifica in timeout': count('VERIFY_TIMEOUT'),
     'requestId trovati': count('REQUEST_ID_FOUND'),
-    'requestId non trovati': count('REQUEST_ID_NOT_FOUND'),
+    'requestId non trovati': count('REQUEST_ID_NOT_FOUND') - progress.requestIdNotExpected,
+    'Senza spedizione cartacea (workflow digitale riuscito)': progress.requestIdNotExpected,
     'requestId in attesa': progress.requestIdPending,
     'Fallite all invio': count('SEND_FAILED'),
     'INCERTE (SEND_UNCERTAIN)': count('SEND_UNCERTAIN'),
@@ -116,6 +117,9 @@ export function unprocessedRows(progress: Dispatch.DispatchProgress, totalRows: 
  * @returns Exit code
  */
 export function exitCodeFor(progress: Dispatch.DispatchProgress, totalRows: number): number {
-  const problems = PROBLEM_STATUSES.some((status) => (progress.byStatus.get(status) ?? 0) > 0);
+  // A digital workflow that succeeded expects no paper requestId: not a problem.
+  const problemRows = (status: Dispatch.RowStatus): number =>
+    (progress.byStatus.get(status) ?? 0) - (status === 'REQUEST_ID_NOT_FOUND' ? progress.requestIdNotExpected : 0);
+  const problems = PROBLEM_STATUSES.some((status) => problemRows(status) > 0);
   return problems || unprocessedRows(progress, totalRows) > 0 ? 2 : 0;
 }

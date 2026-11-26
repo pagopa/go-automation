@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 
 import type { KnownCase } from '../../../../../engine/types/KnownCase.js';
 import type { KnownCaseAnalysis } from '../../KnownCaseAnalysis.js';
+import type { AnalysisResourceRef } from '../../AnalysisResourceRef.js';
 import type { Runbook } from '../../../../../engine/types/Runbook.js';
 import type { RunbookAnalysisDefaults } from '../../RunbookAnalysisDefaults.js';
 import { INTEROP_DOWNSTREAMS } from '../../../../interop/analysis/INTEROP_DOWNSTREAMS.js';
@@ -143,6 +144,20 @@ describe('assertAnalysisAnnotations', () => {
     assert.doesNotThrow(() => assertAnalysisAnnotations(runbook, 'SEND', SEND_CATALOG));
   });
 
+  it('rejects co-detected cases whose resources together exceed the items of the contract', () => {
+    const resources = (prefix: string): ReadonlyArray<AnalysisResourceRef> =>
+      Array.from({ length: 33 }, (_unused, index) => ({ name: `${prefix}-${String(index)}` }));
+    const runbook: Runbook = {
+      ...buildRunbook({ defaults: {}, analysis: VALID_ANALYSIS }),
+      knownCases: [
+        knownCase('a', { ...VALID_ANALYSIS, resources: resources('a') }),
+        knownCase('b', { ...VALID_ANALYSIS, resources: resources('b') }),
+      ],
+    };
+
+    assert.throws(() => assertAnalysisAnnotations(runbook, 'SEND', SEND_CATALOG), /66 resources, over the 64 items/u);
+  });
+
   it('rejects a real potential draft that exceeds the raw budget', () => {
     const runbook = buildRunbook({
       defaults: {},
@@ -174,7 +189,6 @@ function knownCase(id: string, analysis: KnownCaseAnalysis | undefined): KnownCa
   return {
     id,
     description: id,
-    priority: 100,
     condition: { type: 'contains', ref: 'steps.query', regex: 'boom' },
     action: { type: 'log', level: 'info', title: `[CASO NOTO] ${id}` },
     ...(analysis === undefined ? {} : { analysis }),

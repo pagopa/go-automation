@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { DownstreamDetectionQueryOptions } from '../buildDownstreamDetectionQuery.js';
+import type { DownstreamDetectionQueryOptions } from '../DownstreamDetectionQueryOptions.js';
 import { buildDownstreamDetectionQuery } from '../buildDownstreamDetectionQuery.js';
 
 /** Options assembled at runtime, outside the type: the guards must still reject them. */

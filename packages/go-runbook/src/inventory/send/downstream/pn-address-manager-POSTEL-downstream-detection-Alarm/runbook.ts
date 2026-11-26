@@ -31,7 +31,7 @@ export function buildRunbook(): Runbook {
     },
     hooks: [
       {
-        at: 'after-service-analysis',
+        at: 'after-service-scan',
         step: new VerifyPostelBatchesStep({
           id: 'verify-postel-batches',
           label: 'Verifica recupero batch POSTEL',

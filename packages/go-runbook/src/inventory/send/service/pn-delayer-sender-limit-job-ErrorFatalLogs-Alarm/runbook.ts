@@ -9,6 +9,11 @@ import { SERVICE } from './knownServices.js';
 const RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3351480214/pn-delayer-sender-limit-job-ErrorFatalLogs-Alarm';
 
+/**
+ * Builds the pn-delayer-sender-limit-job-ErrorFatalLogs-Alarm runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   return service.createSendServiceAlarmRunbook({
     id: DELAYER_SENDER_LIMIT_JOB_ALARM,

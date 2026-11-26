@@ -7,6 +7,7 @@ import { ConditionEvaluator, type RunbookContext } from '../../../../../engine/i
 import { createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
 import { ClassifyDelayerAlarmDayStep } from '../ClassifyDelayerAlarmDayStep.js';
 import { KNOWN_CASES } from '../knownCases.js';
+import { EMPTY_RUNBOOK_READS } from '../../../../../engine/reads/EMPTY_RUNBOOK_READS.js';
 
 const FIRST_DOCUMENTED_ERROR =
   'Invalid sender limit percentage [4.221290863369656] for productType: 890, paId: 9a7c1b23-46a3-489b-8ed4-398ffb32b45a, province: RM with totalEstimate: 3579, weeklyEstimate: 15108 Error processing sender limit job for province: RM, tenderId: 20260921, deliveryWeek: 2026-11-02';
@@ -24,9 +25,9 @@ function context(message: string, alarmDatetime: string, alarmDatetimeEnd?: stri
       ['alarmDatetime', alarmDatetime],
       ...(alarmDatetimeEnd === undefined ? [] : ([['alarmDatetimeEnd', alarmDatetimeEnd]] as [string, string][])),
     ]),
-    logs: [],
     services: createTestServiceRegistry(),
     recoveredErrors: [],
+    reads: EMPTY_RUNBOOK_READS,
   };
 }
 

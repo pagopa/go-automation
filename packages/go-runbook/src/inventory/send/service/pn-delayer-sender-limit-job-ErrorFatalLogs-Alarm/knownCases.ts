@@ -23,7 +23,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'invalid-sender-limit-monday',
     description: 'Percentuale sender limit non valida nel job pn-delayer, occorrenza di lunedì',
-    priority: 110,
     condition: all(INVALID_SENDER_LIMIT, varEquals('delayerAlarmIncludesMonday', 'true')),
     title: 'Sender limit non valido: verifica del lunedì',
     resolution:
@@ -55,7 +54,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'invalid-sender-limit-other-day',
     description: 'Percentuale sender limit non valida nel job pn-delayer, occorrenza non di lunedì',
-    priority: 100,
     condition: all(INVALID_SENDER_LIMIT, varEquals('delayerAlarmIncludesMonday', 'false')),
     title: 'Sender limit non valido: caso noto',
     resolution: 'Se l\u2019allarme non scatta di luned\u00EC, non \u00E8 prevista alcuna azione.',
@@ -82,7 +80,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'no-drivers-monday',
     description: 'Driver assenti per la provincia nel job pn-delayer, occorrenza di lunedì',
-    priority: 130,
     condition: all(NO_DRIVERS, varEquals('delayerAlarmIncludesMonday', 'true')),
     title: 'Driver assenti per la provincia: verifica del lunedì',
     resolution:
@@ -114,7 +111,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'no-drivers-other-day',
     description: 'Driver assenti per la provincia nel job pn-delayer, occorrenza non di lunedì',
-    priority: 120,
     condition: all(NO_DRIVERS, varEquals('delayerAlarmIncludesMonday', 'false')),
     title: 'Driver assenti per la provincia: caso noto',
     resolution: 'Se l\u2019allarme non scatta di luned\u00EC, non \u00E8 prevista alcuna azione.',

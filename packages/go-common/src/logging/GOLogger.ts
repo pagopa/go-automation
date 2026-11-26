@@ -8,6 +8,10 @@ import { GOLogEventCategory } from './GOLogEventCategory.js';
 import type { GOLoggerHandler } from './GOLoggerHandler.js';
 import { GOTableFormatter } from '../render/GOTableFormatter.js';
 import type { GOTableOptions, GOTableColumn } from '../render/GOTableFormatter.js';
+import { displayWidth } from '../render/tableRenderer/displayWidth.js';
+import { renderTree } from '../render/treeRenderer/renderTree.js';
+import type { RenderTreeOptions } from '../render/treeRenderer/renderTree.js';
+import type { TreeNode } from '../render/treeRenderer/TreeNode.js';
 import { valueToString } from '../utils/GOValueToString.js';
 
 /**
@@ -241,6 +245,48 @@ export class GOLogger {
       ],
       data: tableData,
     });
+  }
+
+  /**
+   * Log key/value pairs one per line, with the keys padded to the widest one so the values form a column.
+   * Complexity: O(N) in the number of pairs.
+   *
+   * @param entries - The pairs, in display order
+   *
+   * @example
+   * ```typescript
+   * logger.fields({ Status: 'completed', 'Steps executed': 7 });
+   * // Status          completed
+   * // Steps executed  7
+   * ```
+   */
+  public fields(entries: Readonly<Record<string, unknown>>): void {
+    const pairs = Object.entries(entries);
+    const width = pairs.reduce((max, [key]) => Math.max(max, displayWidth(key)), 0);
+    for (const [key, value] of pairs) {
+      this.info(`${key}${' '.repeat(width - displayWidth(key))}  ${valueToString(value)}`);
+    }
+  }
+
+  /**
+   * Log a tree one line per event, the branch characters chosen from the position of each node.
+   * Complexity: O(N) in the number of nodes.
+   *
+   * @param nodes - Top-level nodes, in display order
+   * @param options - Indent (none by default) and characters overrides
+   *
+   * @example
+   * ```typescript
+   * logger.tree([{ label: 'first' }, { label: 'last', children: [{ label: 'detail' }] }]);
+   * // ├─ first
+   * // └─ last
+   * //    └─ detail
+   * ```
+   */
+  public tree(nodes: ReadonlyArray<TreeNode>, options: RenderTreeOptions = {}): void {
+    for (const line of renderTree(nodes, { indent: '', ...options })) {
+      this.text(line);
+    }
   }
 
   /**

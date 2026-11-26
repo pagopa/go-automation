@@ -85,7 +85,7 @@ describe('matchAnalysisAi', () => {
     }
   });
 
-  it('keeps MATCH_EXACT and still audits operator text with GO-AI on deterministic trace overlap', async () => {
+  it('keeps MATCH_STRONG and still audits operator text with GO-AI on deterministic trace overlap', async () => {
     const linked = analysis({
       trackingIds: [{ traceId: 'r1', timestamp: NOW, errorDetail: 'Timeout Lambda confermato' }],
     });
@@ -93,7 +93,7 @@ describe('matchAnalysisAi', () => {
 
     const result = await matchAnalysisAi(OUTPUT, HIT, linked, NOW, aiOptions(matcher));
 
-    assert.strictEqual(result.status, 'MATCH_EXACT');
+    assert.strictEqual(result.status, 'MATCH_STRONG');
     assert.strictEqual(result.matcher, 'deterministic+ai');
     assert.strictEqual(result.aiAttempted, true);
     assert.strictEqual(matcher.calls, 1);
@@ -102,13 +102,13 @@ describe('matchAnalysisAi', () => {
     assert.strictEqual(result.semanticExplanation, 'Stessa diagnosi.');
   });
 
-  it('keeps MATCH_EXACT and records a conflicting AI audit when the analysis mentions the matched case id', async () => {
+  it('keeps MATCH_STRONG and records a conflicting AI audit when the analysis mentions the matched case id', async () => {
     const linked = analysis({ errorDetails: 'Caso lambda-timeout confermato da Watchtower.' });
     const matcher = semanticMatcher(20, 'conflicting');
 
     const result = await matchAnalysisAi(OUTPUT, HIT, linked, NOW, aiOptions(matcher));
 
-    assert.strictEqual(result.status, 'MATCH_EXACT');
+    assert.strictEqual(result.status, 'MATCH_STRONG');
     assert.strictEqual(result.matcher, 'deterministic+ai');
     assert.strictEqual(result.aiAttempted, true);
     assert.strictEqual(matcher.calls, 1);
@@ -118,19 +118,19 @@ describe('matchAnalysisAi', () => {
     assert.match(result.reasons.join('\n'), /possibile divergenza/);
   });
 
-  it('keeps MATCH_EXACT visible when the AI audit fails on a deterministic match', async () => {
+  it('keeps MATCH_STRONG visible when the AI audit fails on a deterministic match', async () => {
     const linked = analysis({
       trackingIds: [{ traceId: 'r1', timestamp: NOW, errorDetail: 'Timeout Lambda confermato' }],
     });
 
     const result = await matchAnalysisAi(OUTPUT, HIT, linked, NOW, aiOptions(failingMatcher()));
 
-    assert.strictEqual(result.status, 'MATCH_EXACT');
+    assert.strictEqual(result.status, 'MATCH_STRONG');
     assert.strictEqual(result.matcher, 'deterministic');
     assert.strictEqual(result.aiAttempted, true);
     assert.strictEqual(result.aiFallback, undefined);
     assert.strictEqual(result.aiError, 'Bedrock unavailable');
-    assert.match(result.reasons.join('\n'), /MATCH_EXACT mantenuto/);
+    assert.match(result.reasons.join('\n'), /MATCH_STRONG mantenuto/);
   });
 
   it('falls back to lexical comparison when GO-AI fails and fallback is enabled', async () => {

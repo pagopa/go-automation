@@ -4,6 +4,11 @@ import { SPIDHUB_ALARM, RUNBOOK_URL, SPIDHUB_LOG_GROUP } from './alarmDefinition
 import { KNOWN_CASES } from './knownCases.js';
 import { QuerySpidHubDiagnosticsStep } from './QuerySpidHubDiagnosticsStep.js';
 
+/**
+ * Builds the spidhub-prod-ExternalELBAlarm runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
 export function buildRunbook(): Runbook {
   const builder = AlarmRunbookBuilder.create(SPIDHUB_ALARM)
     .metadata({
