@@ -31,7 +31,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'notification-kafka-metadata-timeout',
     description: 'Timeout della richiesta Metadata al cluster Kafka',
-    environments: ['prod'],
+    environments: ['prod', 'att'],
     regex: 'Crash: KafkaJSNumberOfRetriesExceeded: Request Metadata\\(key: \\d+, version: \\d+\\) timed out\\b',
     evidence: 'APPLICATION_LOGS',
     resolution: 'Risoluzione non documentata.',
@@ -63,7 +63,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         {
           type: 'and',
           conditions: [
-            { type: 'contains', ref: 'vars.interopEnvironment', value: ['prod', 'test'] },
+            { type: 'contains', ref: 'vars.interopEnvironment', value: ['prod', 'test', 'att'] },
             stepEvidenceMatches(ALARM.stepIds.queryApplicationLogs, 'Connection error: read ECONNRESET\\b'),
           ],
         },
@@ -71,10 +71,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
           type: 'and',
           conditions: [
             { type: 'compare', ref: 'vars.interopEnvironment', operator: '==', value: 'prod' },
-            stepEvidenceMatches(
-              ALARM.stepIds.queryApplicationLogs,
-              `${INTEROP_KAFKA_SIGNATURES.tlsDisconnected}|The group coordinator is not available`,
-            ),
+            stepEvidenceMatches(ALARM.stepIds.queryApplicationLogs, INTEROP_KAFKA_SIGNATURES.tlsDisconnected),
+          ],
+        },
+        {
+          type: 'and',
+          conditions: [
+            { type: 'contains', ref: 'vars.interopEnvironment', value: ['prod', 'att', 'test'] },
+            stepEvidenceMatches(ALARM.stepIds.queryApplicationLogs, 'The group coordinator is not available'),
           ],
         },
       ],
@@ -136,11 +140,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopK8sKnownCase(REFS, {
     id: 'notification-remove-api-role-conflict',
     description: 'HTTP 409 durante la rimozione del ruolo api dalla configurazione delle notifiche',
-    environments: ['prod'],
+    environments: ['prod', 'att'],
     regex:
       'Error removing role api from notification config for user[^\\r\\n]*in tenant[^\\r\\n]*AxiosError: Request failed with status code 409\\b',
     evidence: 'APPLICATION_LOGS',
-    resolution: 'Risoluzione non documentata.',
+    resolution:
+      'Risoluzione non documentata. Nei log circostanti è possibile verificare il conflitto (risorsa già eliminata) cercando la DELETE di internal/userNotificationConfigs con ruolo API conclusa con 204:No Content.',
     proposedStatus: 'IN_PROGRESS',
     analysisType: 'ANALYZABLE',
     finalActions: [],
@@ -165,10 +170,28 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     finalActions: [],
     links: [
       {
+        url: 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1795696658251719',
+        name: 'Thread Slack 26/11/2026',
+        type: 'SLACK',
+      },
+      {
         url: 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1791284530634809',
         name: 'Thread Slack 06/10/2026',
         type: 'SLACK',
       },
     ],
+  }),
+  interopK8sKnownCase(REFS, {
+    id: 'notification-ensure-config-conflict-409',
+    description: 'HTTP 409 nella verifica dell’esistenza della configurazione delle notifiche',
+    environments: ['prod', 'att', 'test'],
+    regex:
+      'Error in request to ensure a notification config exists for user \\S+ in tenant \\S+ with role \\S+\\. Reason: AxiosError: Request failed with status code 409\\b',
+    evidence: 'APPLICATION_LOGS',
+    resolution: 'Risoluzione non documentata.',
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    finalActions: [],
+    links: [],
   }),
 ];
