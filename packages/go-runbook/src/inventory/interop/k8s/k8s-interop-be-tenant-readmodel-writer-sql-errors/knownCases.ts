@@ -26,4 +26,20 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     finalActions: [],
     links: [],
   }),
+  interopK8sKnownCase(REFS, {
+    id: 'tenant-readmodel-writer-sql-kafka-coordinator-unknown-member',
+    description: 'Il coordinator Kafka non riconosce il consumer, che rientra nel consumer group',
+    regex: interopErrorLine(
+      INTEROP_KAFKA_SIGNATURES.unknownMemberHeartbeat,
+      INTEROP_KAFKA_SIGNATURES.unknownMemberRejoinWithReason,
+    ),
+    resolution: 'Risoluzione non documentata. Riferimento: PIN-7325.',
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    errorDetails:
+      'Il coordinator Kafka non riconosce il consumer del tenant readmodel writer SQL, che tenta il rejoin del gruppo.',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    finalActions: [],
+    links: [{ url: 'https://pagopa.atlassian.net/browse/PIN-7325', name: 'PIN-7325', type: 'JIRA' }],
+  }),
 ];

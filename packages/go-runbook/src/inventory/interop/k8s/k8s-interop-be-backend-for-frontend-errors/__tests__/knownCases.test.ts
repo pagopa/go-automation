@@ -200,4 +200,17 @@ describe('INTEROP BFF known cases', () => {
       assert.deepStrictEqual(matches(await context([row(EXPIRED)], [], environment)), []);
     }
   });
+
+  it('recognizes the Selfcare users 500 in prod and the missing e-service document in test', async () => {
+    const users500 =
+      'ERROR -  [CID=72981aaf-9e1b-40f0-baa5-3ace6919c576][SelfcareV2ClientApi Institution Client][Error] GET https://api.selfcare.pagopa.it/external/v2/institutions/bcf7f5a8-8bcf-425e-8d59-cc7c2db678e5/users 500:Internal Server Error';
+    const keyNotFound =
+      'ERROR - Error getting file eservices/docs/0b3c1c2e-7d1a-4d2e-9a3f-1f2e3d4c5b6a/IT-Wallet-RC040-Tesserino-Venatorio.json in bucket interop-application-documents-test-es1: The specified key does not exist.';
+    assert.deepStrictEqual(matches(await context([row(users500)])), ['bff-selfcare-users-500']);
+    assert.deepStrictEqual(matches(await context([row(keyNotFound)], [], 'test')), [
+      'bff-eservice-document-key-not-found',
+    ]);
+    assert.deepStrictEqual(matches(await context([row(users500.replace(' 500:', ' 504:'))])), []);
+    assert.deepStrictEqual(matches(await context([row(keyNotFound)])), []);
+  });
 });

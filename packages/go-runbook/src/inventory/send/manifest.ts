@@ -30,6 +30,7 @@ import { SENDER_DASHBOARD_DATA_INDEXER_REGISTRATION } from './lambda/pn-bff-Send
 import { DOWNSTREAM_MONITORING_LAMBDA_REGISTRATION } from './lambda/pn-downstream-monitoring-lambda-LogInvocationErrors-Alarm/registration.js';
 import { CDC_PREPROC_DATA_QUALITY_FILTER_REGISTRATION } from './lambda/pn-cdc-preproc-data-quality-filter-LogInvocationErrors-Alarm/registration.js';
 import { LAMBDA_DAILY_EXPORT_DYNAMO_DB_TABLE_LOG_INVOCATION_ERRORS_ALARM_REGISTRATION } from './lambda/Lambda-DailyExport-DynamoDbTable-LogInvocationErrors-Alarm/registration.js';
+import { METADATA_STATUS_UPDATER_ESM_REGISTRATION } from './lambda/pn-MetadataStatusUpdaterLambda-ESM-Alarm/registration.js';
 import { JWT_AUTHORIZER_LAMBDA_LOG_INVOCATION_ERRORS_ALARM_REGISTRATION } from './lambda/pn-jwtAuthorizerLambda-LogInvocationErrors-Alarm/registration.js';
 // downstream
 import { EMD_DOWNSTREAM_DETECTION_REGISTRATION } from './downstream/emd-downstream-detection-Alarm/registration.js';
@@ -44,8 +45,10 @@ import { ADDRESS_MANAGER_POSTEL_REGISTRATION } from './downstream/pn-address-man
 import { PERSONAL_DATA_VAULT_SELFCARE_PG_REGISTRATION } from './downstream/personal-data-vault-SelfcarePG-downstream-detection-Alarm/registration.js';
 import { EXTERNAL_REGISTRIES_SELFCARE_PA_DOWNSTREAM_DETECTION_ALARM_REGISTRATION } from './downstream/pn-external-registries-SelfcarePA-downstream-detection-Alarm/registration.js';
 // log applicativi
+import { EXTERNAL_CHANNEL_FATAL_REGISTRATION } from './service/oncall-pn-external-channel-ErrorFatalLogs-Alarm/registration.js';
 import { WORKDAY_EXTERNAL_CHANNEL_ALB_REGISTRATION } from './service/workday-pn-external-channel-alb-alarm/registration.js';
 import { MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION } from './service/pn-mandate-acceptance-failure-tech-Alarm/registration.js';
+import { DELAYER_RESIDUAL_CAPACITY_REGISTRATION } from './service/pn-delayer-residual-capacity-ErrorFatalLogs-Alarm/registration.js';
 import { DELAYER_SENDER_LIMIT_JOB_REGISTRATION } from './service/pn-delayer-sender-limit-job-ErrorFatalLogs-Alarm/registration.js';
 import { LOGSAVER_REGISTRATION } from './service/pn-logsaver-be-FailedInvocation-Alarm/registration.js';
 import { SPIDHUB_EXTERNAL_ELB_REGISTRATION } from './service/spidhub-prod-ExternalELBAlarm/registration.js';
@@ -75,6 +78,7 @@ export const SEND_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   CDC_PREPROC_DATA_QUALITY_FILTER_REGISTRATION,
   LAMBDA_DAILY_EXPORT_DYNAMO_DB_TABLE_LOG_INVOCATION_ERRORS_ALARM_REGISTRATION,
   JWT_AUTHORIZER_LAMBDA_LOG_INVOCATION_ERRORS_ALARM_REGISTRATION,
+  METADATA_STATUS_UPDATER_ESM_REGISTRATION,
   // downstream
   EMD_DOWNSTREAM_DETECTION_REGISTRATION,
   EXTERNAL_REGISTRIES_ONE_TRUST_REGISTRATION,
@@ -89,7 +93,9 @@ export const SEND_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   EXTERNAL_REGISTRIES_SELFCARE_PA_DOWNSTREAM_DETECTION_ALARM_REGISTRATION,
   // log applicativi
   WORKDAY_EXTERNAL_CHANNEL_ALB_REGISTRATION,
+  EXTERNAL_CHANNEL_FATAL_REGISTRATION,
   MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION,
+  DELAYER_RESIDUAL_CAPACITY_REGISTRATION,
   DELAYER_SENDER_LIMIT_JOB_REGISTRATION,
   LOGSAVER_REGISTRATION, // bespoke: nessun builder di famiglia
   SPIDHUB_EXTERNAL_ELB_REGISTRATION, // bespoke: nessun builder di famiglia

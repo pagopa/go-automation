@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { DELAYER_ERROR_QUERY } from '../knownServices.js';
+import { DELAYER_ERROR_QUERY } from '../../../shared/DELAYER_ERROR_QUERY.js';
 
 describe('pn-delayer sender limit job runbook', () => {
   it('limits the distinct rows the operator reads, not the input of the de-duplication', () => {

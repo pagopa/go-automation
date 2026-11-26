@@ -2,7 +2,7 @@
 
 Verifica del 17 settembre 2026 sulla [pagina Confluence, versione 7 del 10 settembre 2026](https://pagopa.atlassian.net/wiki/spaces/GO/pages/3197961176/k8s-interop-be-istat-certified-attributes-importer-errors) e sulle card collegate, inclusi tutti i commenti restituiti da Jira.
 
-Il catalogo non conteneva questo allarme. L’implementazione registra prod, att e test e riconosce i due casi documentati sia nei log applicativi sia nei risultati del CID tracker. Le query selezionano il log group dell’ambiente risolto, ERROR o stderr, il pod importer ed escludono adot-collector. In assenza di CID, la pipeline usa comunque i log applicativi. Gli errori diversi restano non classificati.
+Il catalogo non conteneva questo allarme. L’implementazione registra prod, att e test e riconosce i casi documentati sia nei log applicativi sia nei risultati del CID tracker. Le query selezionano il log group dell’ambiente risolto, ERROR o stderr, il pod importer ed escludono adot-collector. In assenza di CID, la pipeline usa comunque i log applicativi. Gli errori diversi restano non classificati.
 
 ## Chiarimenti ottenuti dalle card
 
@@ -16,7 +16,6 @@ Il catalogo non conteneva questo allarme. L’implementazione registra prod, att
 - Collegare PIN-10823 direttamente al caso 409 e precisare che dopo la correzione non è atteso l’allarme, non che scompaia il conflitto HTTP.
 - Confermare versione/data di deploy per ambiente e criterio di escalation per ricorrenze dopo la correzione. Verificare anche lo stream: la query include stderr indipendentemente dalla severity, quindi il solo passaggio a WARN non dimostra che l’allarme non scatterà.
 - Completare causa finale e azioni per `Certifier tenant ISTAT not found`, distinguendo importer, dispatcher e servizi correlati. La pagina non documenta una procedura risolutiva né un criterio di chiusura.
-- Correggere il link «Casi noti»: punta a `pages/edit-v2/2783346689`, non alla pagina 3197961176.
 - Specificare la finestra temporale: manca nella pagina; l’implementazione usa il default di catalogo, 5 minuti prima e 5 dopo l’occorrenza. Gli esempi di log group sono solo prod, mentre gli allarmi elencati coprono tutti e tre gli ambienti.
 - Il runbook esistente `k8s-interop-be-notification-user-lifecycle-consumer-errors` classifica lo stesso messaggio ISTAT come COMPLETED senza azione. Questa politica non è trasferita all’importer: il documento qui verificato e le card non dimostrano che una nuova ricorrenza sia innocua. Il runbook del consumer non è stato modificato.
 
