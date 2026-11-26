@@ -89,4 +89,36 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       links: [],
     },
   }),
+  knownCase({
+    id: 'delivery-push-endpoint-request-timeout-504',
+    description: 'Timeout dell’API Gateway in attesa della risposta del backend',
+    condition: all(apiGwStatusIs('504'), varMatches('apiGwErrorMessage', 'Endpoint request timed out')),
+    title: 'API Gateway 504 - Endpoint request timed out',
+    resolution: 'Risoluzione non documentata.',
+    analysis: { proposedStatus: 'IN_PROGRESS', analysisType: 'ANALYZABLE', finalActions: [], links: [] },
+  }),
+  knownCase({
+    id: 'safestorage-document-key-not-present-in-db',
+    description: 'File key presente su SafeStorage ma non trovata in fase di recupero',
+    condition: anyStepEvidenceMatches(
+      ['query-pn-safestorage', 'query-pn-delivery-push'],
+      "Document key not present in DB '[^']+'",
+    ),
+    title: "Document key not present in DB '<filename>'",
+    resolution: 'Thread Slack 23/10/2026.',
+    details: [['Downstream', 'SafeStorage']],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      resources: [{ name: 'pn-ss' }],
+      finalActions: [],
+      links: [
+        {
+          url: 'https://pagopaspa.slack.com/archives/C064KJYNLPL/p1792760901223939',
+          name: 'Thread Slack 23/10/2026',
+          type: 'SLACK',
+        },
+      ],
+    },
+  }),
 ];
