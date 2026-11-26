@@ -46,6 +46,7 @@ import { EXTERNAL_REGISTRIES_SELFCARE_PA_DOWNSTREAM_DETECTION_ALARM_REGISTRATION
 // log applicativi
 import { WORKDAY_EXTERNAL_CHANNEL_ALB_REGISTRATION } from './service/workday-pn-external-channel-alb-alarm/registration.js';
 import { MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION } from './service/pn-mandate-acceptance-failure-tech-Alarm/registration.js';
+import { DELAYER_RESIDUAL_CAPACITY_REGISTRATION } from './service/pn-delayer-residual-capacity-ErrorFatalLogs-Alarm/registration.js';
 import { DELAYER_SENDER_LIMIT_JOB_REGISTRATION } from './service/pn-delayer-sender-limit-job-ErrorFatalLogs-Alarm/registration.js';
 import { LOGSAVER_REGISTRATION } from './service/pn-logsaver-be-FailedInvocation-Alarm/registration.js';
 import { SPIDHUB_EXTERNAL_ELB_REGISTRATION } from './service/spidhub-prod-ExternalELBAlarm/registration.js';
@@ -90,6 +91,7 @@ export const SEND_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   // log applicativi
   WORKDAY_EXTERNAL_CHANNEL_ALB_REGISTRATION,
   MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION,
+  DELAYER_RESIDUAL_CAPACITY_REGISTRATION,
   DELAYER_SENDER_LIMIT_JOB_REGISTRATION,
   LOGSAVER_REGISTRATION, // bespoke: nessun builder di famiglia
   SPIDHUB_EXTERNAL_ELB_REGISTRATION, // bespoke: nessun builder di famiglia
