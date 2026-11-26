@@ -362,10 +362,158 @@ export async function queryPatternsForOccurrence(
 }
 
 /**
+ * Splits a CloudWatch Logs Insights query string into individual pipeline commands by `|`.
+ * Correctly preserves pipes inside double quotes, single quotes, and regular expressions.
+ */
+export function splitCloudWatchCommands(query: string): string[] {
+  if (!query || query.trim().length === 0) {
+    return [];
+  }
+
+  const commands: string[] = [];
+  let current = '';
+  let inDoubleQuote = false;
+  let inSingleQuote = false;
+  let inRegex = false;
+  let escapeCount = 0;
+
+  const isRegexStart = (str: string, slashIndex: number): boolean => {
+    let i = slashIndex - 1;
+    while (i >= 0 && /\s/.test(str[i]!)) {
+      i--;
+    }
+    if (i < 0) return true;
+    const prevChar = str[i]!;
+    if (['(', ',', '[', '=', '~', '!', '+', '-', '*', '%', ':'].includes(prevChar)) {
+      return true;
+    }
+    const end = i + 1;
+    while (i >= 0 && /[@\w.-]/.test(str[i]!)) {
+      i--;
+    }
+    const word = str.slice(i + 1, end).toLowerCase();
+    if (['like', 'match', 'return'].includes(word)) {
+      return true;
+    }
+    while (i >= 0 && /\s/.test(str[i]!)) {
+      i--;
+    }
+    const end2 = i + 1;
+    while (i >= 0 && /\w/.test(str[i]!)) {
+      i--;
+    }
+    const prevWord = str.slice(i + 1, end2).toLowerCase();
+    if (prevWord === 'parse') {
+      return true;
+    }
+    return false;
+  };
+
+  for (let i = 0; i < query.length; i++) {
+    const char = query[i]!;
+
+    if (char === '\\') {
+      escapeCount++;
+      current += char;
+      continue;
+    }
+
+    const isEscaped = escapeCount % 2 === 1;
+    escapeCount = 0;
+
+    if (inDoubleQuote) {
+      if (char === '"' && !isEscaped) {
+        inDoubleQuote = false;
+      }
+      current += char;
+    } else if (inSingleQuote) {
+      if (char === '\'' && !isEscaped) {
+        inSingleQuote = false;
+      }
+      current += char;
+    } else if (inRegex) {
+      if (char === '/' && !isEscaped) {
+        inRegex = false;
+      }
+      current += char;
+    } else {
+      if (char === '"') {
+        inDoubleQuote = true;
+        current += char;
+      } else if (char === '\'') {
+        inSingleQuote = true;
+        current += char;
+      } else if (char === '/' && isRegexStart(query, i)) {
+        inRegex = true;
+        current += char;
+      } else if (char === '|') {
+        const trimmed = current.trim();
+        if (trimmed.length > 0) {
+          commands.push(trimmed);
+        }
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+  }
+
+  const lastTrimmed = current.trim();
+  if (lastTrimmed.length > 0) {
+    commands.push(lastTrimmed);
+  }
+
+  return commands;
+}
+
+export interface PatternQueryInfo {
+  readonly targetField: string;
+  readonly baseQuery: string;
+}
+
+/**
+ * Extracts the target field to parse and the sanitized upstream base query from a CloudWatch query.
+ * Excludes display, sort, and limit commands that would conflict with stats aggregation.
+ */
+export function extractPatternQueryInfo(queryAwsCloudWatch?: string): PatternQueryInfo {
+  if (!queryAwsCloudWatch || queryAwsCloudWatch.trim().length === 0) {
+    return { targetField: '@message', baseQuery: '' };
+  }
+
+  const commands = splitCloudWatchCommands(queryAwsCloudWatch);
+  let targetField = '@message';
+  let patternCommandIndex = -1;
+
+  for (let i = 0; i < commands.length; i++) {
+    const cmd = commands[i]!;
+    const match = cmd.match(/^\s*pattern(?:\s+([@\w.-]+|`[^`]+`|"[^"]+"|'[^']+'))?\s*$/i);
+    if (match) {
+      patternCommandIndex = i;
+      if (match[1]) {
+        targetField = match[1].replace(/^[`"']|[`"']$/g, '');
+      }
+      break;
+    }
+  }
+
+  const upstreamCommands = patternCommandIndex !== -1 ? commands.slice(0, patternCommandIndex) : commands;
+  const filteredCommands = upstreamCommands.filter((cmd) => !/^\s*(display|sort|limit)\b/i.test(cmd));
+
+  return {
+    targetField,
+    baseQuery: filteredCommands.join(' | '),
+  };
+}
+
+/**
  * Builds a CloudWatch Logs Insights resolution query using parse, filter ispresent and stats.
+ * Inherits upstream pipeline filters and target field from queryAwsCloudWatch if provided.
  * Returns null if the pattern does not contain any <*> tokens.
  */
-export function buildPatternResolutionQuery(pattern: string): { query: string; tokenCount: number } | null {
+export function buildPatternResolutionQuery(
+  pattern: string,
+  queryAwsCloudWatch?: string,
+): { query: string; tokenCount: number } | null {
   const parts = pattern.split('<*>');
   const tokenCount = parts.length - 1;
 
@@ -382,7 +530,9 @@ export function buildPatternResolutionQuery(pattern: string): { query: string; t
     (_, i) => `count_distinct(t${i}) as cd${i}, earliest(t${i}) as v${i}`,
   ).join(', ');
 
-  const query = `parse @message ${quotedGlob} as ${varNames} | filter ispresent(t0) | stats ${statsClauses}`;
+  const { targetField, baseQuery } = extractPatternQueryInfo(queryAwsCloudWatch);
+  const resolutionTail = `parse ${targetField} ${quotedGlob} as ${varNames} | filter ispresent(t0) | stats ${statsClauses}`;
+  const query = baseQuery.length > 0 ? `${baseQuery} | ${resolutionTail}` : resolutionTail;
 
   return {
     query,
@@ -399,8 +549,9 @@ export async function resolvePatternTokens(
   logGroup: string,
   pattern: string,
   occurrenceWindows: ReadonlyArray<{ start: Date; end: Date }>,
+  queryAwsCloudWatch?: string,
 ): Promise<string> {
-  const resolutionQuery = buildPatternResolutionQuery(pattern);
+  const resolutionQuery = buildPatternResolutionQuery(pattern, queryAwsCloudWatch);
   if (resolutionQuery === null || occurrenceWindows.length === 0) {
     return pattern;
   }

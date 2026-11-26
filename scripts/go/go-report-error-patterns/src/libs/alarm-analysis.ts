@@ -113,7 +113,7 @@ async function analyzeAlarmOnProfile(
   const queried = await queryOccurrences(script, logsService, item, occurrences);
   const occurrenceResults =
     item.resolveStaticTokens === true
-      ? await resolveStaticTokens(script, logsService, item.logGroup, queried)
+      ? await resolveStaticTokens(script, logsService, item.logGroup, queried, item.queryAwsCloudWatch)
       : queried;
 
   const generatedReports = buildAllReports(profile, alarmName, occurrenceResults);
@@ -150,6 +150,7 @@ async function resolveStaticTokens(
   logsService: AWSCloudWatchLogsService,
   logGroup: string,
   occurrenceResults: OccurrenceQueryResult[],
+  queryAwsCloudWatch: string,
 ): Promise<OccurrenceQueryResult[]> {
   script.logger.info('Risoluzione token statici nei pattern...');
 
@@ -164,7 +165,7 @@ async function resolveStaticTokens(
 
   const resolutionMap = new Map<string, string>();
   for (const [pattern, windows] of patternWindowsMap) {
-    const resolved = await resolvePatternTokens(logsService, logGroup, pattern, windows);
+    const resolved = await resolvePatternTokens(logsService, logGroup, pattern, windows, queryAwsCloudWatch);
     if (resolved !== pattern) {
       resolutionMap.set(pattern, resolved);
       script.logger.text(`  Pattern risolto: "${pattern}" → "${resolved}"`);

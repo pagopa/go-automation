@@ -11,6 +11,8 @@ import {
   aggregateDominantPatterns,
   aggregatePatternCoverage,
   aggregateTiedCombinations,
+  splitCloudWatchCommands,
+  extractPatternQueryInfo,
   buildPatternResolutionQuery,
   resolvePatternTokens,
   applyPatternResolutions,
@@ -274,6 +276,99 @@ test('aggregateTiedCombinations groups tied combinations and handles no-ties cas
   assert.deepStrictEqual(aggNoTies.tiedCombinations, []);
 });
 
+test('splitCloudWatchCommands splits commands preserving pipes in quotes and regexes', () => {
+  // Empty or whitespace queries
+  assert.deepStrictEqual(splitCloudWatchCommands(''), []);
+  assert.deepStrictEqual(splitCloudWatchCommands('   '), []);
+
+  // Simple commands
+  const simple = splitCloudWatchCommands('fields @timestamp, @message | filter @message like /ERROR/ | limit 20');
+  assert.deepStrictEqual(simple, [
+    'fields @timestamp, @message',
+    'filter @message like /ERROR/',
+    'limit 20',
+  ]);
+
+  // Pipes inside double quotes (e.g. string concatenation or literals)
+  const quotes = splitCloudWatchCommands('fields concat(a, " | ", b) as c | filter c != "foo|bar"');
+  assert.deepStrictEqual(quotes, [
+    'fields concat(a, " | ", b) as c',
+    'filter c != "foo|bar"',
+  ]);
+
+  // Pipes inside single quotes
+  const singleQuotes = splitCloudWatchCommands("fields concat(a, ' | ', b) as c | filter c != 'foo|bar'");
+  assert.deepStrictEqual(singleQuotes, [
+    "fields concat(a, ' | ', b) as c",
+    "filter c != 'foo|bar'",
+  ]);
+
+  // Pipes inside regular expressions (e.g. alternation /(ERROR|WARN)/)
+  const regexAlternation = splitCloudWatchCommands(
+    'filter @message like /(ERROR|WARN|FATAL)/ | filter status like /(500|502|504)/ | pattern @message',
+  );
+  assert.deepStrictEqual(regexAlternation, [
+    'filter @message like /(ERROR|WARN|FATAL)/',
+    'filter status like /(500|502|504)/',
+    'pattern @message',
+  ]);
+
+  // Escaped quotes and slashes inside regex/strings
+  const escaped = splitCloudWatchCommands('filter @message like /\\/api\\/v1\\/(a|b)/ | filter msg = "hello \\"world\\""');
+  assert.deepStrictEqual(escaped, [
+    'filter @message like /\\/api\\/v1\\/(a|b)/',
+    'filter msg = "hello \\"world\\""',
+  ]);
+
+  // Real API Gateway query from configs/api.json
+  const apiGw = splitCloudWatchCommands(
+    'filter apigwId = "id"\n| filter status like /5./\n | fields concat(sourceIp, " - ", status, " - ", requestPath) as msg | display log | pattern msg',
+  );
+  assert.deepStrictEqual(apiGw, [
+    'filter apigwId = "id"',
+    'filter status like /5./',
+    'fields concat(sourceIp, " - ", status, " - ", requestPath) as msg',
+    'display log',
+    'pattern msg',
+  ]);
+});
+
+test('extractPatternQueryInfo extracts target field and filters display, sort, limit commands', () => {
+  // Undefined or empty query
+  assert.deepStrictEqual(extractPatternQueryInfo(undefined), { targetField: '@message', baseQuery: '' });
+  assert.deepStrictEqual(extractPatternQueryInfo(''), { targetField: '@message', baseQuery: '' });
+
+  // Query with pattern @message
+  const qSimple = extractPatternQueryInfo('fields @timestamp, @message | filter @message like /ERROR/ | pattern @message');
+  assert.strictEqual(qSimple.targetField, '@message');
+  assert.strictEqual(qSimple.baseQuery, 'fields @timestamp, @message | filter @message like /ERROR/');
+
+  // Query with pattern without explicit field
+  const qDefault = extractPatternQueryInfo('filter @message like /ERROR/ | pattern');
+  assert.strictEqual(qDefault.targetField, '@message');
+  assert.strictEqual(qDefault.baseQuery, 'filter @message like /ERROR/');
+
+  // Query with API Gateway synthetic field and display command
+  const qApi = extractPatternQueryInfo(
+    'filter apigwId = "id" | filter status like /5./ | fields concat(sourceIp, " - ", status, " - ", requestPath) as msg | display log | pattern msg',
+  );
+  assert.strictEqual(qApi.targetField, 'msg');
+  assert.strictEqual(
+    qApi.baseQuery,
+    'filter apigwId = "id" | filter status like /5./ | fields concat(sourceIp, " - ", status, " - ", requestPath) as msg',
+  );
+
+  // Query with Kubernetes logs, sort and limit
+  const qK8s = extractPatternQueryInfo(
+    'filter pod_app like "something" | parse log "* * *" as timestamp, level, tmpMsg | sort timestamp asc | limit 100 | pattern log',
+  );
+  assert.strictEqual(qK8s.targetField, 'log');
+  assert.strictEqual(
+    qK8s.baseQuery,
+    'filter pod_app like "something" | parse log "* * *" as timestamp, level, tmpMsg',
+  );
+});
+
 test('buildPatternResolutionQuery generates correct query or returns null', () => {
   // Pattern with 0 <*> -> null
   assert.strictEqual(buildPatternResolutionQuery('Static error message without tokens'), null);
@@ -312,6 +407,17 @@ test('buildPatternResolutionQuery generates correct query or returns null', () =
   assert.strictEqual(
     resQuotes.query,
     'parse @message \'* ERROR - "Failed to connect" code *\' as t0, t1 | filter ispresent(t0) | stats count_distinct(t0) as cd0, earliest(t0) as v0, count_distinct(t1) as cd1, earliest(t1) as v1',
+  );
+
+  // With queryAwsCloudWatch containing custom pipeline and synthetic targetField msg (API Gateway scenario)
+  const apiQuery =
+    'filter apigwId = "id" | filter status like /5./ | fields concat(sourceIp, " - ", status, " - ", requestPath) as msg | display log | pattern msg';
+  const resApi = buildPatternResolutionQuery('<*> - 504 - /api/v1/<*>', apiQuery);
+  assert.ok(resApi);
+  assert.strictEqual(resApi.tokenCount, 2);
+  assert.strictEqual(
+    resApi.query,
+    'filter apigwId = "id" | filter status like /5./ | fields concat(sourceIp, " - ", status, " - ", requestPath) as msg | parse msg "* - 504 - /api/v1/*" as t0, t1 | filter ispresent(t0) | stats count_distinct(t0) as cd0, earliest(t0) as v0, count_distinct(t1) as cd1, earliest(t1) as v1',
   );
 });
 
@@ -410,6 +516,36 @@ test('resolvePatternTokens resolves stable tokens across windows and handles var
   } as unknown as AWSCloudWatchLogsService;
   const resolvedError = await resolvePatternTokens(mockServiceError, 'grp', 'Code <*>', windows);
   assert.strictEqual(resolvedError, 'Code <*>');
+
+  // Case 7: Custom queryAwsCloudWatch pipeline and synthetic targetField msg (API Gateway scenario)
+  let executedQuery = '';
+  const mockServiceCustom = {
+    query: async (_logGroups: string[], q: string) => {
+      executedQuery = q;
+      return [
+        [
+          { field: 'cd0', value: '1' },
+          { field: 'v0', value: '10.0.0.1' },
+          { field: 'cd1', value: '1' },
+          { field: 'v1', value: 'payments' },
+        ],
+      ];
+    },
+  } as unknown as AWSCloudWatchLogsService;
+  const apiCustomQuery =
+    'filter apigwId = "id" | filter status like /5./ | fields concat(sourceIp, " - ", status, " - ", requestPath) as msg | display log | pattern msg';
+  const resolvedCustom = await resolvePatternTokens(
+    mockServiceCustom,
+    'lg',
+    '<*> - 504 - /api/v1/<*>',
+    windows,
+    apiCustomQuery,
+  );
+  assert.strictEqual(resolvedCustom, '10.0.0.1 - 504 - /api/v1/payments');
+  assert.ok(executedQuery.includes('filter apigwId = "id"'));
+  assert.ok(executedQuery.includes('fields concat('));
+  assert.ok(!executedQuery.includes('display log'));
+  assert.ok(executedQuery.includes('parse msg "* - 504 - /api/v1/*" as t0, t1'));
 });
 
 test('applyPatternResolutions maps patterns immutably', () => {
