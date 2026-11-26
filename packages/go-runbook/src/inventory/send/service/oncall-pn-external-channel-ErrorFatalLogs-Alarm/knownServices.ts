@@ -1,7 +1,7 @@
 import type { service } from '../../../../toolkits/send/index.js';
 
 /** The FATAL lines of the documented query, distinct by message. */
-export const EXTERNAL_CHANNEL_FATAL_QUERY = `filter level like "FATAL" or (level like "ERROR" and @message like "* FATAL *") or @message like "ALLARM!"
+const EXTERNAL_CHANNEL_FATAL_QUERY = `filter level like "FATAL" or (level like "ERROR" and @message like "* FATAL *") or @message like "ALLARM!"
 | sort @timestamp asc
 | display @timestamp, trace_id, message, @message
 | dedup message
