@@ -13,6 +13,7 @@ import { applyPlan } from './applySync.js';
 import type { TableSyncResult } from './applySync.js';
 import type { TableSyncPlan } from './planSync.js';
 import { resolveProductionTargets } from './productionTargets.js';
+import { snapshotPlans } from './snapshotPlans.js';
 import type { SendSyncAnagraficaConfig } from '../types/index.js';
 
 /** How many writes are listed per table before the count takes over. */
@@ -163,6 +164,10 @@ export async function runSync(
     script.logger.warning('Dry run: no write was sent to DynamoDB.');
     return [];
   }
+
+  // After every confirmation and before the first request: the previous value
+  // of an overwritten item exists nowhere else once the write lands.
+  await snapshotPlans(script, plans);
 
   const results: TableSyncResult[] = [];
   for (const plan of plans) {

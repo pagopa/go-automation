@@ -77,6 +77,29 @@ Una `PutRequest` sostituisce l'oggetto intero, quindi un attributo che la tabell
 ha e il file invece non ha **sparisce senza comparire in nessun confronto**. Prima
 di scrivere, vengono elencati quegli attributi per ciascun oggetto.
 
+### Lo snapshot prima della scrittura
+
+Prima della **prima** richiesta, e solo dopo tutte le conferme, `--sync` salva
+la versione attuale di ogni oggetto che sta per sovrascrivere, una tabella per
+file in `pre-sync/<tabella>.json` dentro la directory di output della run. È
+sempre attivo e non si disattiva.
+
+- Il formato è NDJSON in forma DynamoDB, come i file del repository, e non viene
+  deserializzato: `{"N":"1.0"}` resta `{"N":"1.0"}`.
+- Si salvano solo gli oggetti che esistono già (`replace` e `merge`): una
+  creazione non ha niente da perdere. Gli oggetti protetti non arrivano mai a
+  un piano, quindi non ci sono.
+- Se lo snapshot non si può scrivere, la run **fallisce prima di inviare
+  qualsiasi scrittura**.
+- Sotto `--dry-run` e se si risponde no alla conferma non si scrive niente, e
+  quindi non si crea nessuno snapshot.
+- È l'immagine letta al momento del confronto, non una rilettura subito prima
+  della scrittura: un oggetto cambiato da altri nel frattempo non è quello
+  salvato.
+
+Il ripristino non è automatico: il file si legge come un file di tabella del
+repository.
+
 ### `UnprocessedItems` non viene ignorato
 
 In caso di _throttling_, gli oggetti rifiutati vengono ritentati con

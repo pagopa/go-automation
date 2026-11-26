@@ -112,11 +112,23 @@ export function fakeScript(
   readonly script: GOScript;
   readonly logs: RecordedLogs;
   readonly questions: string[];
+  /** I comandi DynamoDB inviati dalla run: vuoto finche' non si scrive davvero. */
+  readonly sent: ReadonlyArray<object>;
+  /** La directory di output di questa run. */
+  readonly directory: string;
 } {
   const logs: RecordedLogs = { errors: [], warnings: [], lines: [], sections: [] };
   const questions: string[] = [];
   const typed = [...(options.typed ?? [])];
+  const sent: object[] = [];
+  const directory = outputDirectory ?? fs.mkdtempSync(path.join(os.tmpdir(), 'send-sync-anagrafica-'));
   const provider = {
+    dynamoDB: {
+      send: async (command: object): Promise<object> => {
+        sent.push(command);
+        return await Promise.resolve({ UnprocessedItems: {} });
+      },
+    },
     resolveAccountId: async (): Promise<string> => await Promise.resolve(options.accountId ?? '000000000000'),
   };
 
@@ -130,7 +142,7 @@ export function fakeScript(
       warning: (text: string) => logs.warnings.push(text),
       error: (text: string) => logs.errors.push(text),
     },
-    paths: { resolvePath: (name: string) => path.join(outputDirectory ?? os.tmpdir(), name) },
+    paths: { resolvePath: (name: string) => path.join(directory, name) },
     prompt: {
       text: async (message: string): Promise<string | undefined> => {
         questions.push(message);
@@ -144,5 +156,5 @@ export function fakeScript(
     environment: { canPromptUser: options.canPromptUser ?? true },
   } as unknown as GOScript;
 
-  return { script, logs, questions };
+  return { script, logs, questions, sent, directory };
 }

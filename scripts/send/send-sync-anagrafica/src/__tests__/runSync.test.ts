@@ -26,7 +26,9 @@ function plan(overrides: Partial<TableSyncPlan> = {}): TableSyncPlan {
     profile: 'send-confinfo-test',
     keys: ['cxId'],
     syncMode: 'replace',
-    writes: [{ key: 'pn-test', item: { cxId: s('pn-test') }, reason: 'overwrite', droppedAttributes: [] }],
+    writes: [
+      { key: 'pn-test', item: { cxId: s('pn-test') }, reason: 'overwrite', live: undefined, droppedAttributes: [] },
+    ],
     untouched: 0,
     ...overrides,
   };
@@ -103,6 +105,7 @@ describe('runSync reporting of dropped attributes', () => {
             key: 'pn-test',
             item: { cxId: s('pn-test') },
             reason: 'overwrite',
+            live: undefined,
             droppedAttributes: ['sesEventsList'],
           },
         ],
@@ -312,5 +315,78 @@ describe('runSync on production', () => {
     await runSync(script, makeConfig({ sync: true }), [plan()]);
 
     assert.equal(questions.length, 1);
+  });
+});
+
+/** What a fake DynamoDB client does with a command. */
+type SendHandler = (command: object) => Promise<object>;
+
+describe('runSync pre-write snapshot', () => {
+  /** A plan overwriting one item whose live version differs. */
+  const overwrite = (): TableSyncPlan =>
+    plan({
+      writes: [
+        {
+          key: 'pn-test',
+          item: { cxId: s('pn-test') },
+          reason: 'overwrite',
+          live: { cxId: s('pn-test'), old: s('x') },
+          droppedAttributes: ['old'],
+        },
+      ],
+    });
+
+  it('saves the live item before the first request is sent', async () => {
+    const { script, sent, directory } = fakeScript(undefined, { confirm: true });
+
+    // Written to disk by the time the first command reaches DynamoDB.
+    const file = path.join(directory, 'pre-sync', 'pn-EcAnagrafica.json');
+    let snapshotWhenFirstSent: string | undefined;
+    const provider = script.aws.clients.getClientProvider('send-confinfo-test') as unknown as {
+      dynamoDB: { send: SendHandler };
+    };
+    const send = provider.dynamoDB.send;
+    provider.dynamoDB.send = async (command: object): Promise<object> => {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- percorso costruito dalla mkdtemp della fixture.
+      snapshotWhenFirstSent ??= await fs.readFile(file, 'utf8').catch(() => undefined);
+      return await send(command);
+    };
+
+    await runSync(script, makeConfig({ sync: true }), [overwrite()]);
+
+    assert.ok(sent.length > 0, 'the write must have been sent');
+    assert.deepEqual(JSON.parse(snapshotWhenFirstSent ?? 'null'), { cxId: s('pn-test'), old: s('x') });
+  });
+
+  it('sends nothing when the snapshot cannot be written', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'send-sync-run-'));
+    const blocker = path.join(root, 'file');
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- percorso costruito dalla mkdtemp di questo test.
+    await fs.writeFile(blocker, 'not a directory', 'utf8');
+    const { script, sent } = fakeScript(path.join(blocker, 'outputs'), { confirm: true });
+
+    await assert.rejects(
+      async () => await runSync(script, makeConfig({ sync: true }), [overwrite()]),
+      /Could not save the pre-write snapshot/,
+    );
+    assert.deepEqual(sent, []);
+  });
+
+  it('takes no snapshot on a dry run, which writes nothing', async () => {
+    const { script, sent, directory } = fakeScript(undefined, { confirm: true });
+
+    await runSync(script, makeConfig({ sync: true, dryRun: true }), [overwrite()]);
+
+    assert.deepEqual(sent, []);
+    await assert.rejects(async () => await fs.access(path.join(directory, 'pre-sync')));
+  });
+
+  it('takes no snapshot when the operator declines', async () => {
+    const { script, sent, directory } = fakeScript(undefined, { confirm: false });
+
+    await runSync(script, makeConfig({ sync: true }), [overwrite()]);
+
+    assert.deepEqual(sent, []);
+    await assert.rejects(async () => await fs.access(path.join(directory, 'pre-sync')));
   });
 });

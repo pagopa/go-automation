@@ -21,7 +21,7 @@ import { itemKey } from './itemKey.js';
 import type { AnagraficaTable, ItemDifference, SyncMode, TableOutcome } from '../types/index.js';
 
 /** One item a sync would write. */
-interface SyncWrite {
+export interface SyncWrite {
   /** The item's key, joined in key-schema order. */
   readonly key: string;
 
@@ -30,6 +30,9 @@ interface SyncWrite {
 
   /** Whether the table has no such item yet, or already has a different one. */
   readonly reason: 'create' | 'overwrite';
+
+  /** The item as the table holds it now, which an overwrite replaces; undefined for a create. */
+  readonly live: Record<string, unknown> | undefined;
 
   /** Attributes the live item carries that this write would delete. */
   readonly droppedAttributes: ReadonlyArray<string>;
@@ -89,13 +92,20 @@ function writesOf(outcome: TableOutcome, table: AnagraficaTable): ReadonlyArray<
       key: difference.key,
       item: difference.repository,
       reason: 'overwrite',
+      live: difference.live,
       droppedAttributes: droppedAttributes(difference, table.syncMode),
     });
   }
 
   for (const difference of outcome.onlyRepository) {
     if (difference.repository === undefined) continue;
-    writes.push({ key: difference.key, item: difference.repository, reason: 'create', droppedAttributes: [] });
+    writes.push({
+      key: difference.key,
+      item: difference.repository,
+      reason: 'create',
+      live: undefined,
+      droppedAttributes: [],
+    });
   }
 
   return writes;

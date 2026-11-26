@@ -26,7 +26,7 @@ function plan(overrides: Partial<TableSyncPlan> = {}): TableSyncPlan {
     profile: 'send-confinfo-test',
     keys: ['cxId'],
     syncMode: 'replace',
-    writes: [{ key: 'a', item: { cxId: s('a') }, reason: 'overwrite', droppedAttributes: [] }],
+    writes: [{ key: 'a', item: { cxId: s('a') }, reason: 'overwrite', live: undefined, droppedAttributes: [] }],
     untouched: 0,
     ...overrides,
   };
@@ -93,8 +93,8 @@ describe('applyPlan in replace mode', () => {
       service,
       plan({
         writes: [
-          { key: 'a', item: { cxId: s('a') }, reason: 'overwrite', droppedAttributes: [] },
-          { key: 'b', item: { cxId: s('b') }, reason: 'create', droppedAttributes: [] },
+          { key: 'a', item: { cxId: s('a') }, reason: 'overwrite', live: undefined, droppedAttributes: [] },
+          { key: 'b', item: { cxId: s('b') }, reason: 'create', live: undefined, droppedAttributes: [] },
         ],
       }),
     );
@@ -125,7 +125,15 @@ describe('applyPlan in merge mode', () => {
       service,
       plan({
         syncMode: 'merge',
-        writes: [{ key: 'a', item: { cxId: s('a'), url: s('x') }, reason: 'overwrite', droppedAttributes: [] }],
+        writes: [
+          {
+            key: 'a',
+            item: { cxId: s('a'), url: s('x') },
+            reason: 'overwrite',
+            live: undefined,
+            droppedAttributes: [],
+          },
+        ],
       }),
     );
 
@@ -142,9 +150,27 @@ describe('applyPlan in merge mode', () => {
       plan({
         syncMode: 'merge',
         writes: [
-          { key: 'a', item: { cxId: s('a'), url: s('x') }, reason: 'overwrite', droppedAttributes: [] },
-          { key: 'b', item: { cxId: s('b'), url: s('y') }, reason: 'overwrite', droppedAttributes: [] },
-          { key: 'c', item: { cxId: s('c'), url: s('z') }, reason: 'overwrite', droppedAttributes: [] },
+          {
+            key: 'a',
+            item: { cxId: s('a'), url: s('x') },
+            reason: 'overwrite',
+            live: undefined,
+            droppedAttributes: [],
+          },
+          {
+            key: 'b',
+            item: { cxId: s('b'), url: s('y') },
+            reason: 'overwrite',
+            live: undefined,
+            droppedAttributes: [],
+          },
+          {
+            key: 'c',
+            item: { cxId: s('c'), url: s('z') },
+            reason: 'overwrite',
+            live: undefined,
+            droppedAttributes: [],
+          },
         ],
       }),
     );
