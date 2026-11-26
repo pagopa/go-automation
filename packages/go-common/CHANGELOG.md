@@ -1,5 +1,18 @@
 # @pagopa/go-common
 
+## 1.0.0-next.2
+
+### Minor Changes
+
+- [#298](https://github.com/pagopa/go-automation/pull/298) [`57bfaf8`](https://github.com/pagopa/go-automation/commit/57bfaf84f77fc80b05f4e2ef533dcf804a37ef74) - La console del logger raggruppa l'output in blocchi; il file di log e i log JSON non cambiano.
+
+  - **Blocchi.** `GOConsoleLoggerHandler` apre una scheda per ogni `header()` (`╭─ titolo`, chiusa da `╰─`) e un blocco per ogni `section()` (`◆ titolo`); ogni riga di una scheda o di una sezione sta dietro la barra `│`, e una riga `│` unisce due sezioni consecutive. Il rientro a spazi sotto header e sezioni non c'è più, e `newline()` dentro un blocco stampa la sola barra.
+  - **Info.** Le righe di `info()` non hanno più il prefisso `ℹ` né il colore magenta.
+  - **`GOLogger.fields(entries)`.** Coppie chiave/valore, una per riga, con le chiavi allineate alla più larga.
+  - **`GOLogger.tree(nodes, options?)`.** Un albero (`TreeNode`, lo stesso di `renderTree`), una riga per evento, con i rami `├─`/`└─` scelti dalla posizione; senza rientro, salvo `options.indent`.
+
+- [#298](https://github.com/pagopa/go-automation/pull/298) [`57bfaf8`](https://github.com/pagopa/go-automation/commit/57bfaf84f77fc80b05f4e2ef533dcf804a37ef74) - `GOJSONStreamWriter` (`@pagopa/go-common/exporters`) scrive un valore su uno stream come JSON, a pezzi, con lo stesso testo di `JSON.stringify` e rispettando la backpressure. `GOJSONFileExporter` lo usa: un valore il cui testo non sta in una stringa (per esempio la traccia di un'esecuzione con migliaia di step) si scrive senza `Invalid string length`; il file si scrive in un temporaneo nella stessa cartella e prende il nome finale solo quando è completo, quindi un'esportazione fallita lascia il file precedente com'era.
+
 ## 1.0.0-next.1
 
 ### Patch Changes
