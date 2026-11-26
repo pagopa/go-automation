@@ -45,4 +45,24 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       { url: 'https://pagopa.atlassian.net/browse/PIN-10823', name: 'PIN-10823', type: 'JIRA' },
     ],
   }),
+  interopK8sKnownCase(REFS, {
+    id: 'istat-dataset-download-403',
+    description: 'Download del dataset ISTAT rifiutato con HTTP 403',
+    regex:
+      'Error download ISTAT: AxiosError: Request failed with status code 403\\b|' +
+      'Error during ISTAT import execution: AxiosError: Request failed with status code 403\\b',
+    resolution: 'Thread Slack 22/10/2026.',
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    errorDetails: 'Il servizio ISTAT ha restituito HTTP 403 al download del dataset dei comuni.',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    finalActions: [],
+    links: [
+      {
+        url: 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1792663236871429',
+        name: 'Thread Slack 22/10/2026',
+        type: 'SLACK',
+      },
+    ],
+  }),
 ];
