@@ -13,6 +13,8 @@ altri tipi di allarme.
 | -------- | -------------------------------------------- | ------------------------------------------------------------------ |
 | v01      | `SPEC-011-AlarmQueryTemplates-CLAUDE-v01.md` | `ec8c9862027f7ab50a68b328fc1cdbf21d16fccc8d5e7a3ad80b7cc2c3d1965d` |
 | v02      | `SPEC-011-AlarmQueryTemplates-CLAUDE-v02.md` | `ad45b24ddf06efea94285f351d0f8303da65325f706c02c607f8a97a0b435341` |
+| v03      | `SPEC-011-AlarmQueryTemplates-CLAUDE-v03.md` | `138039e60b27c75ca74af78409f017d01d3448d9d267257c283708a27f19e82a` |
+| v04      | `SPEC-011-AlarmQueryTemplates-CLAUDE-v04.md` | `d6d5170e234acd57c60f04b5ffe4a32b53f5e465f3311b64b779aff2124a1b62` |
 
 ## Scelte del committente (25 novembre 2026)
 
@@ -34,3 +36,27 @@ D8 query a mano strutturata (`lines` + `patternField`) al posto della stringa `q
 
 Riporta D1–D3 e D5–D8. La risoluzione dei token riparte dalle righe di qualunque query, con una regex al posto del
 glob. Nuova D9 sul modello API Gateway; D4 resta aperta in attesa di una riga di log reale.
+
+## Richiesta del committente (26 novembre 2026)
+
+Ridurre al minimo le query su CloudWatch: scaricare una sola volta i log di ogni occorrenza, ricavare i pattern in
+locale con Drain (drain-ts) al posto del comando `pattern`, ricavare dai pattern le regex che filtrano le righe e
+verificare in locale la stabilità locale e globale dei token, con lo stesso criterio della risoluzione su CloudWatch.
+
+## v03 (26 novembre 2026)
+
+Riporta la v02. Aggiunge il motore `drain`: una query per occorrenza che legge le righe del campo, un modello Drain per
+allarme, regex dal modello, stabilità dei token in locale senza query; misura query e byte analizzati per entrambi i
+motori. Nuove D10 (motore predefinito), D11 (libreria), D12 (masking e ripristino), D13 (letture oltre 10.000 righe);
+restano aperte D4 e D9.
+
+## Scelta del committente (26 novembre 2026)
+
+D12, prima parte: per ora solo le maschere UUID ed esadecimali. IP e numeri restano a Drain, perché in addestramento i
+token mascherati non contano nella somiglianza e sulle righe corte dividerebbero lo stesso errore in più pattern.
+
+## v04 (26 novembre 2026)
+
+Riporta la v03 con la prima parte di D12: maschere UUID ed esadecimali con `0x`, il motivo per cui IP e numeri ne
+restano fuori, esempi e test aggiornati. Resta aperta la seconda parte di D12 (maschere rese come `<*>`,
+`resolveStaticTokens` acceso per `drain`, soglia di 2 righe), con D4, D9, D10, D11 e D13.
