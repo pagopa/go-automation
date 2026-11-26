@@ -1,6 +1,6 @@
 {
   "name": "@pagopa/go-runbook",
-  "version": "1.0.0-next.2",
+  "version": "1.0.0-next.3",
   "description": "Declarative runbook engine for operational automation with AWS service integration",
   "type": "module",
   "sideEffects": false,
