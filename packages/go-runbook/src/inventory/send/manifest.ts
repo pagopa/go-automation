@@ -30,6 +30,7 @@ import { SENDER_DASHBOARD_DATA_INDEXER_REGISTRATION } from './lambda/pn-bff-Send
 import { DOWNSTREAM_MONITORING_LAMBDA_REGISTRATION } from './lambda/pn-downstream-monitoring-lambda-LogInvocationErrors-Alarm/registration.js';
 import { CDC_PREPROC_DATA_QUALITY_FILTER_REGISTRATION } from './lambda/pn-cdc-preproc-data-quality-filter-LogInvocationErrors-Alarm/registration.js';
 import { LAMBDA_DAILY_EXPORT_DYNAMO_DB_TABLE_LOG_INVOCATION_ERRORS_ALARM_REGISTRATION } from './lambda/Lambda-DailyExport-DynamoDbTable-LogInvocationErrors-Alarm/registration.js';
+import { METADATA_STATUS_UPDATER_ESM_REGISTRATION } from './lambda/pn-MetadataStatusUpdaterLambda-ESM-Alarm/registration.js';
 import { JWT_AUTHORIZER_LAMBDA_LOG_INVOCATION_ERRORS_ALARM_REGISTRATION } from './lambda/pn-jwtAuthorizerLambda-LogInvocationErrors-Alarm/registration.js';
 // downstream
 import { EMD_DOWNSTREAM_DETECTION_REGISTRATION } from './downstream/emd-downstream-detection-Alarm/registration.js';
@@ -76,6 +77,7 @@ export const SEND_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   CDC_PREPROC_DATA_QUALITY_FILTER_REGISTRATION,
   LAMBDA_DAILY_EXPORT_DYNAMO_DB_TABLE_LOG_INVOCATION_ERRORS_ALARM_REGISTRATION,
   JWT_AUTHORIZER_LAMBDA_LOG_INVOCATION_ERRORS_ALARM_REGISTRATION,
+  METADATA_STATUS_UPDATER_ESM_REGISTRATION,
   // downstream
   EMD_DOWNSTREAM_DETECTION_REGISTRATION,
   EXTERNAL_REGISTRIES_ONE_TRUST_REGISTRATION,
