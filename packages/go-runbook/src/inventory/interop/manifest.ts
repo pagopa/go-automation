@@ -20,6 +20,7 @@ import { AGREEMENT_READMODEL_WRITER_SQL_REGISTRATION } from './k8s/k8s-interop-b
 import { AUDIT_SIGNER_REGISTRATION } from './k8s/k8s-interop-be-audit-signer-errors/registration.js';
 import { ASYNC_TOKEN_GENERATION_READMODEL_CHECKER_REGISTRATION } from './k8s/k8s-interop-be-async-token-generation-readmodel-checker-errors/registration.js';
 import { AUTHORIZATION_PROCESS_REGISTRATION } from './k8s/k8s-interop-be-authorization-process-errors/registration.js';
+import { IPA_IMPORTER_REGISTRATION } from './k8s/k8s-interop-be-ipa-certified-attributes-importer-errors/registration.js';
 import { ISTAT_IMPORTER_REGISTRATION } from './k8s/k8s-interop-be-istat-certified-attributes-importer-errors/registration.js';
 import { ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_REGISTRATION } from './k8s/k8s-interop-be-attribute-registry-readmodel-writer-sql-errors/registration.js';
 import { CATALOG_READMODEL_WRITER_SQL_REGISTRATION } from './k8s/k8s-interop-be-catalog-readmodel-writer-sql-errors/registration.js';
@@ -65,6 +66,7 @@ export const INTEROP_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   ASYNC_TOKEN_GENERATION_READMODEL_CHECKER_REGISTRATION,
   AUTHORIZATION_PROCESS_REGISTRATION,
   ISTAT_IMPORTER_REGISTRATION,
+  IPA_IMPORTER_REGISTRATION,
   ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_REGISTRATION,
   CATALOG_READMODEL_WRITER_SQL_REGISTRATION,
   CATALOG_PLATFORMSTATE_WRITER_REGISTRATION,
