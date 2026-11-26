@@ -45,6 +45,7 @@ import { ADDRESS_MANAGER_POSTEL_REGISTRATION } from './downstream/pn-address-man
 import { PERSONAL_DATA_VAULT_SELFCARE_PG_REGISTRATION } from './downstream/personal-data-vault-SelfcarePG-downstream-detection-Alarm/registration.js';
 import { EXTERNAL_REGISTRIES_SELFCARE_PA_DOWNSTREAM_DETECTION_ALARM_REGISTRATION } from './downstream/pn-external-registries-SelfcarePA-downstream-detection-Alarm/registration.js';
 // log applicativi
+import { EXTERNAL_CHANNEL_FATAL_REGISTRATION } from './service/oncall-pn-external-channel-ErrorFatalLogs-Alarm/registration.js';
 import { WORKDAY_EXTERNAL_CHANNEL_ALB_REGISTRATION } from './service/workday-pn-external-channel-alb-alarm/registration.js';
 import { MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION } from './service/pn-mandate-acceptance-failure-tech-Alarm/registration.js';
 import { DELAYER_RESIDUAL_CAPACITY_REGISTRATION } from './service/pn-delayer-residual-capacity-ErrorFatalLogs-Alarm/registration.js';
@@ -92,6 +93,7 @@ export const SEND_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   EXTERNAL_REGISTRIES_SELFCARE_PA_DOWNSTREAM_DETECTION_ALARM_REGISTRATION,
   // log applicativi
   WORKDAY_EXTERNAL_CHANNEL_ALB_REGISTRATION,
+  EXTERNAL_CHANNEL_FATAL_REGISTRATION,
   MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION,
   DELAYER_RESIDUAL_CAPACITY_REGISTRATION,
   DELAYER_SENDER_LIMIT_JOB_REGISTRATION,
