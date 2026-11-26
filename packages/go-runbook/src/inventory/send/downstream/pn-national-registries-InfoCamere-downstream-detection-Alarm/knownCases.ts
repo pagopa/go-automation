@@ -8,6 +8,7 @@ const INFOCAMERE_PEC_ENDPOINT = 'https://icapis.infocamere.it/ic/pe/wspa/wspa/re
 const INFOCAMERE_AUTHENTICATION_ENDPOINT = 'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/authentication';
 const INFOCAMERE_LEGAL_REPRESENTATIVE_ENDPOINT =
   'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/listaLegaleRappresentante';
+const INFOCAMERE_SEDE_ENDPOINT = 'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/sede';
 /** Known InfoCamere failures evaluated against the pn-national-registries downstream query. */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
@@ -148,6 +149,33 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
           type: 'SLACK',
         },
       ],
+    },
+  }),
+  knownCase({
+    id: 'infocamere-sede-internal-server-error-500',
+    description: '[DOWNSTREAM InfoCamere] HTTP 500 durante la richiesta della sede',
+    condition: stepEvidenceMatches(
+      'query-pn-national-registries',
+      `${downstreamMarkerPattern('InfoCamere', {
+        status: '500 Internal Server Error',
+        method: 'POST',
+        endpoint: `${INFOCAMERE_SEDE_ENDPOINT}/`,
+      })}[^\\s;"\\\\/]+`,
+    ),
+    resolution: 'Risoluzione non documentata.',
+    details: [
+      ['Servizio', 'pn-national-registries'],
+      ['Endpoint', INFOCAMERE_SEDE_ENDPOINT],
+      ['Errore', '{{vars.nationalRegistriesErrorMsg}}'],
+      ['Trace ID', '{{vars.nationalRegistriesTraceId}}'],
+    ],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      errorDetails: `HTTP 500 Internal Server Error restituito da InfoCamere sulla chiamata POST ${INFOCAMERE_SEDE_ENDPOINT}.`,
+      downstreams: [SEND_DOWNSTREAMS.INFOCAMERE],
+      finalActions: [],
+      links: [],
     },
   }),
 ];
