@@ -1,11 +1,5 @@
 import type { service } from '../../../../toolkits/send/index.js';
-
-/** Limit distinct ERROR messages after deduplication, preserving the raw log. */
-export const DELAYER_ERROR_QUERY = `filter @message like 'ERROR'
-| sort @timestamp asc
-| display @timestamp, trace_id, message, @message
-| dedup message
-| limit 1000`;
+import { DELAYER_ERROR_QUERY } from '../../shared/DELAYER_ERROR_QUERY.js';
 
 export const SERVICE: service.ServiceDescriptor = {
   name: 'pn-delayer-sender-limit-job',

@@ -14,6 +14,11 @@ const CONFLICT = 'Error on internalAssignDiscreteCertifiedAttribute. Reason: Req
 const TENANT = 'Certifier tenant ISTAT not found';
 const ALREADY_ASSIGNED = 'istat-discrete-certified-attribute-already-assigned';
 const TENANT_NOT_FOUND = 'istat-certifier-tenant-not-found';
+const DOWNLOAD_403 = 'istat-dataset-download-403';
+const DOWNLOAD_ERROR =
+  'ERROR [istat-certified-attributes-importer] - Error download ISTAT: AxiosError: Request failed with status code 403';
+const IMPORT_ERROR =
+  'ERROR [istat-certified-attributes-importer] - Error during ISTAT import execution: AxiosError: Request failed with status code 403';
 
 async function run(
   environment: string,
@@ -33,6 +38,8 @@ describe('ISTAT certified attributes importer known cases', () => {
         [DUPLICATE, ALREADY_ASSIGNED],
         [CONFLICT, ALREADY_ASSIGNED],
         [TENANT, TENANT_NOT_FOUND],
+        [DOWNLOAD_ERROR, DOWNLOAD_403],
+        [IMPORT_ERROR, DOWNLOAD_403],
       ] as const) {
         assert.deepStrictEqual((await run(environment, { messages: [message] })).matchedIds, [expected], message);
       }
@@ -53,6 +60,8 @@ describe('ISTAT certified attributes importer known cases', () => {
       CONFLICT.replace('409', '500'),
       CONFLICT.replace('409', '4090'),
       TENANT.replace('ISTAT', 'ANAC'),
+      DOWNLOAD_ERROR.replace('403', '404'),
+      IMPORT_ERROR.replace('403', '4030'),
     ]) {
       assert.deepStrictEqual((await run('prod', { messages: [message] })).matchedIds, [], message);
     }

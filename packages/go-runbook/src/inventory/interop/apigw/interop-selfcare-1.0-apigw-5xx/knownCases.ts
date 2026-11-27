@@ -126,6 +126,41 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     links: [],
   }),
   knownCase({
+    id: 'bff-selfcare-users-500',
+    description: 'Errore 500 di Selfcare durante il recupero degli utenti del tenant',
+    regex: 'api\\.selfcare\\.pagopa\\.it/external/v2/institutions/[^\\s]+/users\\s+500:Internal Server Error',
+    resolution: 'Risoluzione non documentata.',
+    proposedStatus: 'IN_PROGRESS',
+    environments: ['prod', 'test'],
+    downstreams: [INTEROP_DOWNSTREAMS.SELFCARE],
+    finalActions: [],
+    links: [
+      {
+        url: 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1795686536751049',
+        name: 'Thread Slack 26/11/2026',
+        type: 'SLACK',
+      },
+    ],
+  }),
+  knownCase({
+    id: 'bff-eservice-document-key-not-found',
+    description: 'Documento dell’e-service assente nel bucket (delete marker)',
+    regex: 'Error getting file eservices/docs/[^\\s]+ in bucket [^\\s:]+: The specified key does not exist',
+    resolution: 'Risoluzione non documentata.',
+    proposedStatus: 'IN_PROGRESS',
+    environments: ['test'],
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    finalActions: [],
+    links: [
+      { url: 'https://pagopa.atlassian.net/browse/PIN-11572', name: 'PIN-11572', type: 'JIRA' },
+      {
+        url: 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1794824145316189',
+        name: 'Thread Slack 16/11/2026',
+        type: 'SLACK',
+      },
+    ],
+  }),
+  knownCase({
     id: 'bff-kafka-lock-timeout',
     description: 'Timeout temporaneo durante la connessione ai broker Kafka',
     regex: 'KafkaJSLockTimeout: Timeout while acquiring lock|connect to broker[^\\n]+:9098',

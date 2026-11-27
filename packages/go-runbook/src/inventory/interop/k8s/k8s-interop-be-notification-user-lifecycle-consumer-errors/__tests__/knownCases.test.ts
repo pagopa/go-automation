@@ -36,12 +36,7 @@ const CASE_FIXTURES: ReadonlyArray<readonly [string, string]> = [
 ];
 
 /** Cases documented for production only. */
-const PROD_ONLY: ReadonlySet<string> = new Set([
-  'notification-kafka-no-broker',
-  'notification-kafka-metadata-timeout',
-  'notification-kafka-read-timeout',
-  'notification-remove-api-role-conflict',
-]);
+const PROD_ONLY: ReadonlySet<string> = new Set(['notification-kafka-no-broker', 'notification-kafka-read-timeout']);
 
 /** Open cases reported alongside the duplicate in a mixed window. */
 const OPEN_ALONGSIDE_DUPLICATE: ReadonlySet<string> = new Set([
@@ -133,5 +128,14 @@ describe('INTEROP notification user lifecycle known cases', () => {
       assert.strictEqual(mixed.draft.proposedStatus, 'COMPLETED');
       assert.match(mixed.draft.conclusionNotes, /^1\. /u);
     }
+  });
+
+  it('recognizes the 409 of the notification config check in every environment', () => {
+    const message =
+      'ERROR - Error in request to ensure a notification config exists for user 13a76b82-2f50-4c25-93d2-52855b719180 in tenant a212c9a0-81fc-4fdf-b799-d7780552aa82 with role security. Reason: AxiosError: Request failed with status code 409';
+    for (const environment of ['prod', 'att', 'test']) {
+      assert.deepStrictEqual(matches([message], environment), ['notification-ensure-config-conflict-409'], environment);
+    }
+    assert.deepStrictEqual(matches([message.replace('code 409', 'code 500')], 'test'), []);
   });
 });

@@ -148,4 +148,40 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     finalActions: [],
     links: [],
   }),
+  interopK8sKnownCase(REFS, {
+    id: 'bff-selfcare-users-500',
+    description: 'Errore HTTP 500 di Selfcare nel recupero degli utenti del tenant',
+    environments: ['prod'],
+    condition: stepEvidenceMatches(
+      BFF_ROWS,
+      'api\\.selfcare\\.pagopa\\.it/external/v2/institutions/[^\\s"]+/users\\s+500:Internal Server Error',
+    ),
+    resolution: 'Risoluzione non documentata.',
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    downstreams: [INTEROP_DOWNSTREAMS.SELFCARE],
+    finalActions: [],
+    links: [
+      {
+        url: 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1795686536751049',
+        name: 'Thread Slack 26/11/2026',
+        type: 'SLACK',
+      },
+    ],
+  }),
+  interopK8sKnownCase(REFS, {
+    id: 'bff-eservice-document-key-not-found',
+    description: 'Documento dell’e-service assente nel bucket (delete marker)',
+    environments: ['test'],
+    condition: stepEvidenceMatches(
+      BFF_ROWS,
+      'Error getting file eservices/docs/[^\\s]+ in bucket [^\\s:]+: The specified key does not exist',
+    ),
+    resolution: 'In attesa di risoluzione con la card di hotfix PIN-11572.',
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    finalActions: [],
+    links: [{ url: 'https://pagopa.atlassian.net/browse/PIN-11572', name: 'PIN-11572', type: 'JIRA' }],
+  }),
 ];
