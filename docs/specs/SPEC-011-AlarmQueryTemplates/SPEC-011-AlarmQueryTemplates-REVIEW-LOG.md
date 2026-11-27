@@ -15,6 +15,7 @@ altri tipi di allarme.
 | v02      | `SPEC-011-AlarmQueryTemplates-CLAUDE-v02.md` | `ad45b24ddf06efea94285f351d0f8303da65325f706c02c607f8a97a0b435341` |
 | v03      | `SPEC-011-AlarmQueryTemplates-CLAUDE-v03.md` | `138039e60b27c75ca74af78409f017d01d3448d9d267257c283708a27f19e82a` |
 | v04      | `SPEC-011-AlarmQueryTemplates-CLAUDE-v04.md` | `d6d5170e234acd57c60f04b5ffe4a32b53f5e465f3311b64b779aff2124a1b62` |
+| v05      | `SPEC-011-AlarmQueryTemplates-GEMINI-v05.md` | `45dc153c6d1c2ad3583697b9bfc955370d7cc4f180cee17fb92456041e37e10b` |
 
 ## Scelte del committente (25 novembre 2026)
 
@@ -60,3 +61,19 @@ token mascherati non contano nella somiglianza e sulle righe corte dividerebbero
 Riporta la v03 con la prima parte di D12: maschere UUID ed esadecimali con `0x`, il motivo per cui IP e numeri ne
 restano fuori, esempi e test aggiornati. Resta aperta la seconda parte di D12 (maschere rese come `<*>`,
 `resolveStaticTokens` acceso per `drain`, soglia di 2 righe), con D4, D9, D10, D11 e D13.
+
+## Scelte del committente (27 novembre 2026)
+
+- D4 e D9: la forma dei log e la scrittura delle query competono a chi gestisce i log e il relativo allarme; valori
+  puntuali (come `apigwId`) si passano tramite `queryVariables`.
+- D10: motore predefinito `drain`, con possibilità di passare a `cloudwatch` specificandolo voce per voce.
+- D11: libreria esterna `@agentix-e/drain-ts` con versione 1.1.1 bloccata nel catalogo del workspace.
+- D12, seconda parte: etichette descrittive `<UUID>` e `<HEX>` nei report finali; `resolveStaticTokens: true` di default
+  per `drain`; soglia di almeno 2 righe complessive per ripristinare un token costante.
+- D13: nessun partizionamento della finestra temporale; se le righe superano 10.000 viene emesso un avviso di
+  troncamento e si analizzano le prime 10.000 righe lette.
+
+## v05 (27 novembre 2026)
+
+Redatta da Gemini in continuità con il ciclo v01–v04. Tutte le decisioni (D1–D13) sono chiuse e approvate. La specifica
+è pronta per l'implementazione.
