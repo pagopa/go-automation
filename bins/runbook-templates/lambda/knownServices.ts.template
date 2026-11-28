@@ -14,7 +14,7 @@ export const LAMBDA_FUNCTION: lambda.LambdaFunction = {
 /**
  * Downstream microservices reachable from the Lambda. Each entry is queried
  * by the Lambda requestId only when a {@link lambda.DownstreamErrorPattern}
- * (see knownErrors.ts) routes to it and a `logGroup` is provided.
+ * (see downstreamErrorPatterns.ts) routes to it and a `logGroup` is provided.
  *
  * TODO: add reachable downstream services as the analysis surfaces them.
  */

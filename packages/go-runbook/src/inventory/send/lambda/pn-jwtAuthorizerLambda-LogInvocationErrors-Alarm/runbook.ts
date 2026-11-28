@@ -6,7 +6,7 @@ import { lambda } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
 import { LAMBDA_FUNCTION } from './knownServices.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 
 /**
  * Builds the pn-jwtAuthorizerLambda-LogInvocationErrors-Alarm runbook definition.
@@ -25,7 +25,7 @@ export function buildRunbook(): Runbook {
       tags: ['lambda', 'pn-jwtAuthorizerLambda', 'authorization'],
     },
     lambda: LAMBDA_FUNCTION,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       runbookName: 'pn-jwtAuthorizerLambda-LogInvocationErrors-Alarm',
       finalActions: [],

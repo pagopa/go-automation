@@ -238,7 +238,7 @@ interface RunbookContext {
 }
 ```
 
-### 2.6 KnownCase
+### 2.6 KnownError
 
 Un caso noto è un pattern riconoscibile nel risultato finale, con un'azione associata.
 
@@ -247,9 +247,12 @@ Un caso noto è un pattern riconoscibile nel risultato finale, con un'azione ass
  * Caso noto: un pattern che identifica una situazione specifica
  * e l'azione da intraprendere.
  */
-interface KnownCase {
-  /** Identificativo univoco del caso */
-  readonly id: string;
+interface KnownError {
+  /**
+   * Codice dell'errore noto, unico in tutto il catalogo e uguale in go-runbooks e in Watchtower:
+   * `<PRODOTTO>_<FAMIGLIA>_<ACRONIMO DEL RUNBOOK>_<ABBREVIAZIONE>` (`knownErrorCodeOf`).
+   */
+  readonly code: string;
   /** Descrizione leggibile del caso */
   readonly description: string;
   /** Condizione che deve essere verificata per matchare questo caso */
@@ -270,7 +273,7 @@ rilevazioni. L'ordine di dichiarazione decide solo a parità di tempo della prim
 
 `supersedes` serve quando due casi descrivono lo stesso errore a livelli di dettaglio diversi, per esempio un caso
 generico "timeout verso il downstream" e uno specifico "timeout verso PDV". Il caso specifico dichiara
-`supersedes: ['downstream-timeout']`; se corrispondono entrambi, resta solo quello specifico. Il builder rifiuta un id
+`supersedes: ['SEND_APIGW_EXAMPLE_DOW-TIM']`; se corrispondono entrambi, resta solo quello specifico. Il builder rifiuta un id
 che non è un caso del runbook (`UNKNOWN_SUPERSEDED_CASE`) e i cicli, compreso un caso che sostituisce se stesso
 (`SUPERSEDES_CYCLE`).
 
@@ -289,7 +292,7 @@ interface Runbook {
   /** Step da eseguire in sequenza (salvo direttive di flusso) */
   readonly steps: readonly StepDescriptor[];
   /** Casi noti da verificare al termine dell'esecuzione, in ordine di dichiarazione */
-  readonly knownCases: readonly KnownCase[];
+  readonly knownErrors: readonly KnownError[];
   /** Azione da eseguire se nessun caso noto corrisponde */
   readonly fallbackAction: CaseAction;
   /** Limite massimo di iterazioni per la protezione anti-loop */
@@ -546,11 +549,11 @@ class RunbookEngine {
     );
 
     // Fase 2: rilevazione dei casi noti, solo per un'esecuzione completata
-    const detections = status === 'completed' ? this.detectKnownCases(runbook.knownCases, finalContext) : [];
+    const detections = status === 'completed' ? this.detectKnownErrors(runbook.knownErrors, finalContext) : [];
 
     // Fase 3: l'azione di ogni rilevazione, in ordine; il fallback solo se nessun caso corrisponde
     if (status === 'completed') {
-      const actions = detections.length > 0 ? detections.map((d) => d.knownCase.action) : [runbook.fallbackAction];
+      const actions = detections.length > 0 ? detections.map((d) => d.knownError.action) : [runbook.fallbackAction];
       for (const action of actions) await this.executeAction(action, finalContext);
     }
 
@@ -664,38 +667,38 @@ private async executeSteps(
  * dell'evidenza: `firstSeenAt` crescente, ordine di dichiarazione a pari merito,
  * rilevazioni senza tempo in fondo.
  */
-private detectKnownCases(
-  knownCases: readonly KnownCase[],
+private detectKnownErrors(
+  knownErrors: readonly KnownError[],
   context: RunbookContext,
-): ReadonlyArray<KnownCaseDetection> {
+): ReadonlyArray<KnownErrorDetection> {
   const matches = new Map<string, CaseMatch>();
-  for (const [declarationIndex, knownCase] of knownCases.entries()) {
-    const { matched, evidence } = this.conditionEvaluator.evaluate(knownCase.condition, context, {
+  for (const [declarationIndex, knownError] of knownErrors.entries()) {
+    const { matched, evidence } = this.conditionEvaluator.evaluate(knownError.condition, context, {
       withResolvedValues: true,
     });
     // readEvidence: tempo, peso e identificativi delle righe di evidenza, via options.evidenceTime
-    if (matched) matches.set(knownCase.id, { knownCase, declarationIndex, ...this.readEvidence(evidence, context) });
+    if (matched) matches.set(knownError.id, { knownError, declarationIndex, ...this.readEvidence(evidence, context) });
   }
 
   const supersededBy = new Map<string, string>();
   for (const match of matches.values()) {
-    for (const replaced of match.knownCase.supersedes ?? []) {
-      if (matches.has(replaced) && !supersededBy.has(replaced)) supersededBy.set(replaced, match.knownCase.id);
+    for (const replaced of match.knownError.supersedes ?? []) {
+      if (matches.has(replaced) && !supersededBy.has(replaced)) supersededBy.set(replaced, match.knownError.id);
     }
   }
 
   return [...matches.values()]
-    .filter((match) => !supersededBy.has(match.knownCase.id))
+    .filter((match) => !supersededBy.has(match.knownError.id))
     .sort(compareCaseMatches) // firstSeenAt, poi ordine di dichiarazione, senza tempo in fondo
     .map(toDetection);
 }
 ```
 
-Ogni rilevazione è un `KnownCaseDetection`:
+Ogni rilevazione è un `KnownErrorDetection`:
 
 ```typescript
-interface KnownCaseDetection {
-  readonly knownCase: KnownCase;
+interface KnownErrorDetection {
+  readonly knownError: KnownError;
   /** Prima evidenza che soddisfa il caso (ISO-8601 UTC); assente se l'evidenza non ha tempo */
   readonly firstSeenAt?: string;
   /** Ultima evidenza che soddisfa il caso (ISO-8601 UTC) */
@@ -1003,8 +1006,8 @@ interface ValidationErrorEntry {
   readonly message: string;
   /** ID dello step coinvolto (se applicabile) */
   readonly stepId?: string;
-  /** ID del KnownCase coinvolto (se applicabile) */
-  readonly caseId?: string;
+  /** Codice del KnownError coinvolto (se applicabile) */
+  readonly knownErrorCode?: string;
 }
 
 /**
@@ -1036,7 +1039,7 @@ type ValidationErrorCode =
  *   })
  *   .step(new CloudWatchLogsQueryStep({ ... }))
  *   .step(new SetVarStep({ ... }), { continueOnFailure: true })
- *   .knownCase({ ... })
+ *   .knownError({ ... })
  *   .fallback(logAction({ ... }))
  *   .maxIterations(500)
  *   .build(); // chiama validate() automaticamente
@@ -1046,7 +1049,7 @@ class RunbookBuilder {
   private readonly id: string;
   private meta?: Omit<RunbookMetadata, 'id'>;
   private readonly stepDescriptors: StepDescriptor[] = [];
-  private readonly cases: KnownCase[] = [];
+  private readonly cases: KnownError[] = [];
   private fallbackAction?: CaseAction;
   private iterationsLimit?: number;
 
@@ -1090,8 +1093,8 @@ class RunbookBuilder {
   /**
    * Aggiunge un caso noto al runbook.
    */
-  knownCase(knownCase: KnownCase): RunbookBuilder {
-    this.cases.push(knownCase);
+  knownError(knownError: KnownError): RunbookBuilder {
+    this.cases.push(knownError);
     return this;
   }
 
@@ -1125,7 +1128,7 @@ class RunbookBuilder {
 
   /**
    * Esegue la validazione del runbook.
-   * Controlla: step ID duplicati, KnownCase con ID duplicati, supersedes verso casi
+   * Controlla: step ID duplicati, KnownError con ID duplicati, supersedes verso casi
    * inesistenti o in ciclo.
    *
    * @returns Array di errori di validazione (vuoto se valido)
@@ -1168,17 +1171,17 @@ class RunbookBuilder {
       stepIds.add(descriptor.step.id);
     }
 
-    // 3. Verifica KnownCase ID duplicati
-    const caseIds = new Set<string>();
-    for (const knownCase of this.cases) {
-      if (caseIds.has(knownCase.id)) {
+    // 3. Verifica i codici dei KnownError duplicati
+    const knownErrorCodes = new Set<string>();
+    for (const knownError of this.cases) {
+      if (knownErrorCodes.has(knownError.code)) {
         errors.push({
-          code: 'DUPLICATE_CASE_ID',
-          message: `KnownCase ID duplicato: "${knownCase.id}". Ogni caso deve avere un ID univoco.`,
-          caseId: knownCase.id,
+          code: 'DUPLICATE_KNOWN_ERROR_CODE',
+          message: `Duplicate KnownError code: "${knownError.code}".`,
+          knownErrorCode: knownError.code,
         });
       }
-      caseIds.add(knownCase.id);
+      knownErrorCodes.add(knownError.code);
     }
 
     // 4. Verifica supersedes: ogni caso sostituito esiste, nessun caso sostituisce se stesso,
@@ -1208,7 +1211,7 @@ class RunbookBuilder {
         ...this.meta!, // Safe: validato nel validate()
       },
       steps: [...this.stepDescriptors],
-      knownCases: [...this.cases],
+      knownErrors: [...this.cases],
       fallbackAction: this.fallbackAction!, // Safe: validato nel validate()
       maxIterations: this.iterationsLimit,
     };
@@ -1390,8 +1393,8 @@ const apiGateway5xxRunbook = RunbookBuilder.create('alarm-api-gw-5xx')
   // I casi si valutano in ordine di dichiarazione e si riportano tutti quelli che corrispondono.
 
   // Caso 1: Timeout dovuto a downstream lento
-  .knownCase({
-    id: 'downstream-timeout',
+  .knownError({
+    code: 'SEND_APIGW_EXAMPLE_DOW-TIM',
     description: 'Timeout causato da servizio downstream lento',
     condition: {
       type: 'and',
@@ -1424,12 +1427,12 @@ const apiGateway5xxRunbook = RunbookBuilder.create('alarm-api-gw-5xx')
   })
 
   // Caso 2: Rate limiting (429 trasformato in 5xx)
-  // Un 500 con errorCode RATE_LIMIT soddisfa anche "internal-error": questo caso è la
+  // Un 500 con errorCode RATE_LIMIT soddisfa anche "SEND_APIGW_EXAMPLE_INT-ERR": questo caso è la
   // spiegazione più precisa dello stesso errore, quindi lo sostituisce.
-  .knownCase({
-    id: 'rate-limiting',
+  .knownError({
+    code: 'SEND_APIGW_EXAMPLE_RAT-LIM',
     description: 'Errore causato da throttling / rate limiting',
-    supersedes: ['internal-error'],
+    supersedes: ['SEND_APIGW_EXAMPLE_INT-ERR'],
     condition: {
       type: 'pattern',
       ref: 'vars.errorCode',
@@ -1447,8 +1450,8 @@ const apiGateway5xxRunbook = RunbookBuilder.create('alarm-api-gw-5xx')
   })
 
   // Caso 3: Internal Server Error generico
-  .knownCase({
-    id: 'internal-error',
+  .knownError({
+    code: 'SEND_APIGW_EXAMPLE_INT-ERR',
     description: 'Errore interno del servizio',
     condition: {
       type: 'compare',
@@ -1486,18 +1489,18 @@ Il motore esegue sempre la pipeline fino in fondo (o fino a `stop`) e solo dopo 
 3. Step 6: nessun errore 504, nessun servizio lento
 4. Step 7-8: diagnosi e log; step 9 (`end-investigation`) -> `next: 'stop'`
 5. Valutazione dei casi, in ordine di dichiarazione:
-   - `downstream-timeout` non corrisponde (status non è 504)
-   - `rate-limiting` corrisponde (pattern `RATE_LIMIT`)
-   - `internal-error` corrisponde (status 500), ma `rate-limiting` lo sostituisce (`supersedes`): esce dalle
-     rilevazioni e resta nella traccia con `supersededBy: 'rate-limiting'`
-6. Una rilevazione, `rate-limiting`: si esegue la sua azione
+   - `SEND_APIGW_EXAMPLE_DOW-TIM` non corrisponde (status non è 504)
+   - `SEND_APIGW_EXAMPLE_RAT-LIM` corrisponde (pattern `RATE_LIMIT`)
+   - `SEND_APIGW_EXAMPLE_INT-ERR` corrisponde (status 500), ma `SEND_APIGW_EXAMPLE_RAT-LIM` lo sostituisce (`supersedes`): esce dalle
+     rilevazioni e resta nella traccia con `supersededBy: 'SEND_APIGW_EXAMPLE_RAT-LIM'`
+6. Una rilevazione, `SEND_APIGW_EXAMPLE_RAT-LIM`: si esegue la sua azione
 
 **Scenario B: status `504`, errorCode = `DOWNSTREAM_TIMEOUT`**
 
 1. Step 1-5: come sopra, estraggono `504` e `DOWNSTREAM_TIMEOUT`
 2. Step 6: la latenza dei downstream imposta `vars.slowService`
 3. Step 7-9: diagnosi, log e `stop`
-4. Al termine corrisponde solo `downstream-timeout`: una rilevazione, una azione
+4. Al termine corrisponde solo `SEND_APIGW_EXAMPLE_DOW-TIM`: una rilevazione, una azione
 
 Se più casi indipendenti corrispondono (nessuno sostituisce l'altro), il risultato li riporta tutti e il motore esegue
 l'azione di ciascuno. Qui le condizioni leggono solo variabili scalari, che non hanno tempo: le rilevazioni seguono
@@ -1554,7 +1557,7 @@ await script.run(async (ctx) => {
   // Ogni caso rilevato, in ordine di tempo della prima evidenza
   if (result.detections.length === 0) ctx.logger.info('Nessun caso noto');
   for (const detection of result.detections) {
-    ctx.logger.info(`${detection.firstSeenAt ?? '-'} ${detection.knownCase.description}`);
+    ctx.logger.info(`${detection.firstSeenAt ?? '-'} ${detection.knownError.description}`);
   }
 
   // Cosa il runbook non ha potuto vedere
@@ -1609,10 +1612,10 @@ await script.run(async (ctx) => {
 |  +------------------------------------------------------------------+ |
 |  |  Contesto finale                                                  | |
 |  |                                                                   | |
-|  |  KnownCase 1 --match?--+                                          | |
-|  |  KnownCase 2 --match?--+--> togli i casi sostituiti (supersedes)  | |
-|  |  KnownCase 3 --match?--+--> ordina per firstSeenAt                | |
-|  |  KnownCase 4 --match?--+          |                               | |
+|  |  KnownError 1 --match?--+                                          | |
+|  |  KnownError 2 --match?--+--> togli i casi sostituiti (supersedes)  | |
+|  |  KnownError 3 --match?--+--> ordina per firstSeenAt                | |
+|  |  KnownError 4 --match?--+          |                               | |
 |  |   (ordine di dichiarazione)       v                               | |
 |  |                         detections[] ---> azione di ognuna        | |
 |  |                               |                                   | |
@@ -1675,7 +1678,7 @@ Tutte le interfacce seguono le convenzioni del progetto: `readonly` su ogni prop
  */
 interface RunbookExecutionTrace {
   /** Versione dello schema per compatibilita in avanti */
-  readonly schemaVersion: '3.0.0';
+  readonly schemaVersion: '4.0.0';
   /** Informazioni generali sull'esecuzione */
   readonly execution: ExecutionInfo;
   /** Parametri di input forniti al runbook */
@@ -1804,7 +1807,7 @@ interface CaseMatchingTrace {
    * ordine di dichiarazione a pari merito, senza tempo in fondo.
    * I casi sostituiti non compaiono. Vuoto se nessun caso corrisponde.
    */
-  readonly matchedCaseIds: readonly string[];
+  readonly matchedKnownErrorCodes: readonly string[];
 }
 
 /**
@@ -1812,8 +1815,8 @@ interface CaseMatchingTrace {
  * Include la condizione, i valori risolti, il risultato del match e, per un match, il suo tempo.
  */
 interface CaseEvaluationTrace {
-  /** ID del caso noto */
-  readonly caseId: string;
+  /** Codice dell'errore noto */
+  readonly knownErrorCode: string;
   /** Descrizione leggibile del caso */
   readonly description: string;
   /** Condizione valutata (vedi Sezione 4) */
@@ -1828,7 +1831,7 @@ interface CaseEvaluationTrace {
   readonly lastSeenAt?: string;
   /** Righe di evidenza del match */
   readonly evidenceRows?: number;
-  /** Il caso che ha sostituito questo, quando corrispondevano entrambi (vedi KnownCase.supersedes) */
+  /** Il caso che ha sostituito questo, quando corrispondevano entrambi (vedi KnownError.supersedes) */
   readonly supersededBy?: string;
 }
 ```
@@ -1904,7 +1907,7 @@ interface RunbookExecutionResult {
    * (ordine di dichiarazione a pari merito, senza tempo in fondo).
    * Vuoto se nessun caso corrisponde e si è eseguito il fallback.
    */
-  readonly detections: ReadonlyArray<KnownCaseDetection>;
+  readonly detections: ReadonlyArray<KnownErrorDetection>;
   /** Evidenza parziale dichiarata dagli step, o registrata dal motore per una lettura fallita */
   readonly coverage: ReadonlyArray<CoverageEntry>;
   /** Una lacuna di tutta la lettura della finestra: ogni catena è incompleta (§18.6) */
@@ -1981,11 +1984,11 @@ lanciano comunque; senza `partialResults` il comportamento resta quello delle ec
 
 Questo esempio mostra il trace prodotto dall'esecuzione del runbook **API Gateway 5xx Alarm Resolution** nello
 **Scenario A** (§9): un errore `500` con `RATE_LIMIT`. La pipeline arriva fino allo step `end-investigation`; alla
-fine corrispondono `rate-limiting` e `internal-error`, e il primo sostituisce il secondo.
+fine corrispondono `SEND_APIGW_EXAMPLE_RAT-LIM` e `SEND_APIGW_EXAMPLE_INT-ERR`, e il primo sostituisce il secondo.
 
 ```json
 {
-  "schemaVersion": "3.0.0",
+  "schemaVersion": "4.0.0",
   "execution": {
     "executionId": "exec-v7-rate-limit",
     "runbookId": "alarm-api-gw-5xx",
@@ -2094,7 +2097,7 @@ fine corrispondono `rate-limiting` e `internal-error`, e il primo sostituisce il
     "casesEvaluated": 4,
     "evaluations": [
       {
-        "caseId": "downstream-timeout",
+        "knownErrorCode": "SEND_APIGW_EXAMPLE_DOW-TIM",
         "description": "Timeout causato da servizio downstream lento",
         "condition": {
           "type": "and",
@@ -2107,7 +2110,7 @@ fine corrispondono `rate-limiting` e `internal-error`, e il primo sostituisce il
         "resolvedValues": { "vars.statusCode": "500", "vars.slowService": null }
       },
       {
-        "caseId": "rate-limiting",
+        "knownErrorCode": "SEND_APIGW_EXAMPLE_RAT-LIM",
         "description": "Errore causato da throttling / rate limiting",
         "condition": {
           "type": "pattern",
@@ -2119,23 +2122,23 @@ fine corrispondono `rate-limiting` e `internal-error`, e il primo sostituisce il
         "evidenceRows": 0
       },
       {
-        "caseId": "internal-error",
+        "knownErrorCode": "SEND_APIGW_EXAMPLE_INT-ERR",
         "description": "Errore interno del servizio",
         "condition": { "type": "compare", "ref": "vars.statusCode", "operator": "==", "value": "500" },
         "matched": true,
         "resolvedValues": { "vars.statusCode": "500" },
         "evidenceRows": 0,
-        "supersededBy": "rate-limiting"
+        "supersededBy": "SEND_APIGW_EXAMPLE_RAT-LIM"
       },
       {
-        "caseId": "alarm-resolved",
+        "knownErrorCode": "SEND_APIGW_EXAMPLE_ALA-RES",
         "description": "Nessun errore nei log - allarme probabilmente rientrato",
         "condition": { "type": "compare", "ref": "vars.diagnosis", "operator": "==", "value": "NO_ERRORS_IN_LOGS" },
         "matched": false,
         "resolvedValues": { "vars.diagnosis": "500 - RATE_LIMIT" }
       }
     ],
-    "matchedCaseIds": ["rate-limiting"]
+    "matchedKnownErrorCodes": ["SEND_APIGW_EXAMPLE_RAT-LIM"]
   },
   "actionsExecuted": [
     {
@@ -2171,8 +2174,8 @@ La `pipeline` è abbreviata: mostra solo alcuni dei dieci step eseguiti.
 - **Pipeline completa**: nessuno step ferma l'esecuzione perché "ha trovato qualcosa"; solo `end-investigation`
   chiude il percorso con `stop`, e i casi vengono valutati dopo
 - **`caseMatching.evaluations`** in ordine di dichiarazione, con tutti i casi valutati
-- **`supersededBy: "rate-limiting"`** su `internal-error`: il caso corrispondeva, ma è stato sostituito dal più preciso
-- **`matchedCaseIds`** e **`actionsExecuted`**: una rilevazione, una azione
+- **`supersededBy: "SEND_APIGW_EXAMPLE_RAT-LIM"`** su `SEND_APIGW_EXAMPLE_INT-ERR`: il caso corrispondeva, ma è stato sostituito dal più preciso
+- **`matchedKnownErrorCodes`** e **`actionsExecuted`**: una rilevazione, una azione
 - **Niente `firstSeenAt`**: le condizioni leggono solo variabili scalari, quindi le rilevazioni non hanno tempo né
   righe di evidenza
 - **`coverage: []`**: l'evidenza è completa
@@ -2183,11 +2186,11 @@ La `pipeline` è abbreviata: mostra solo alcuni dei dieci step eseguiti.
 ### 11.5 Output del runbook (`@pagopa/go-runbook/output`)
 
 Il `RunbookOutput` è l'esito sintetico versionato che gli script salvano accanto alla traccia e che Watchtower legge.
-La versione corrente è `RUNBOOK_OUTPUT_SCHEMA_VERSION` = `'3.0.0'`.
+La versione corrente è `RUNBOOK_OUTPUT_SCHEMA_VERSION` = `'5.0.0'`.
 
 ```typescript
 interface RunbookOutput {
-  readonly schemaVersion: typeof RUNBOOK_OUTPUT_SCHEMA_VERSION; // '3.0.0'
+  readonly schemaVersion: typeof RUNBOOK_OUTPUT_SCHEMA_VERSION; // '5.0.0'
   readonly generatedAt: string;
   readonly runbook: { readonly id: string; readonly name: string; readonly type: RunbookType /* … */ };
   readonly execution: { readonly executionId: string; readonly status: RunbookExecutionStatus /* … */ };
@@ -2205,12 +2208,12 @@ interface RunbookOutput {
 
 **Esiti** (`outcome.kind`) di un runbook di risoluzione allarmi:
 
-| Esito                | Quando                                                                      | Campi principali                                                                                           |
-| -------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `known-case-matched` | almeno una rilevazione                                                      | `detections[]`: `caseId`, `description`, `firstSeenAt?`, `lastSeenAt?`, `evidenceRows`, `resolvedMessage?` |
-| `unknown-case`       | nessuna rilevazione, evidenza completa                                      | `casesEvaluated`, `fallbackMessage?`                                                                       |
-| `inconclusive`       | nessuna rilevazione, evidenza incompleta (lettura fallita, saltata, satura) | `casesEvaluated`, `fallbackMessage?`                                                                       |
-| `failed` / `aborted` | errore tecnico o interruzione                                               | `reason?`, `error?`                                                                                        |
+| Esito                 | Quando                                                                      | Campi principali                                                                                                          |
+| --------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `known-error-matched` | almeno una rilevazione                                                      | `detections[]`: `code`, `description`, `analysisType?`, `firstSeenAt?`, `lastSeenAt?`, `evidenceRows`, `resolvedMessage?` |
+| `unknown-error`       | nessuna rilevazione, evidenza completa                                      | `casesEvaluated`, `fallbackMessage?`                                                                                      |
+| `inconclusive`        | nessuna rilevazione, evidenza incompleta (lettura fallita, saltata, satura) | `casesEvaluated`, `fallbackMessage?`                                                                                      |
+| `failed` / `aborted`  | errore tecnico o interruzione                                               | `reason?`, `error?`                                                                                                       |
 
 Non esistono più un caso primario né una priorità: `detections` elenca tutti i casi, in ordine di tempo.
 
@@ -2229,11 +2232,12 @@ rende in righe (`10:01 Timeout Lambda authorizer (3 volte, fino alle 10:07)`).
 `Evidenza incompleta: K fonti (sature N, non disponibili M, …)` quando ci sono fonti incomplete.
 
 **Classificazione.** `classifyRunbookOutcome` produce un `RunbookCheck`: stato `HIT`, `MISS`, `INCONCLUSIVE`,
-`NO-DATA`, `CONFIG-ERROR` o `EXECUTION-ERROR`; `matchedCaseIds` nell'ordine di tempo delle rilevazioni;
+`NO-DATA`, `CONFIG-ERROR` o `EXECUTION-ERROR`; `matchedKnownErrorCodes` nell'ordine di tempo delle rilevazioni;
 `incompleteSources` con il numero di fonti incomplete per motivo, assente se l'evidenza è completa.
 
 **Bozza d'analisi.** `buildAnalysisDraft(runbook, result)` compone la bozza dalle direttive `analysis` dei casi
-rilevati:
+rilevati. È la bozza del contratto d'analisi di Watchtower v1, quindi il suo `kind` tiene i valori di quel contratto,
+`KNOWN_CASE` e `UNKNOWN_CASE_CONTEXT`:
 
 - con **una sola** rilevazione e niente da dire sulla copertura, la bozza è quella del caso;
 - altrimenti `conclusionNotes` è un elenco numerato dei casi in ordine di tempo
@@ -2292,12 +2296,12 @@ packages/go-runbook/src/
     steps/                  #   SetVarStep, executeStep
     tracing/                #   trace dell'esecuzione
     tree/                   #   albero degli errori: ErrorTreeExecutor, catene, livello dei casi
-    types/                  #   Step, StepResult, Runbook, KnownCase, Condition, …
+    types/                  #   Step, StepResult, Runbook, KnownError, Condition, …
     validation/             #   validazione del runbook
   toolkits/
     common/                 # `./toolkits/common` (e `./output`)
       accounts/             #   account AWS logici: selezioni, rubrica, errori
-      analysis/             #   bozze di analisi e casi noti (knownCase)
+      analysis/             #   bozze di analisi e casi noti (knownError)
       augmentations/        #   estensioni del modello dell'engine
       builders/             #   AlarmRunbookBuilder, finishAlarmRunbook
       engine/               #   OperationalRunbookEngine, assertAwsAccounts
@@ -2329,7 +2333,7 @@ packages/go-runbook/src/
     services/               #   createServiceRegistry, bindServicesToOccurrence
 ```
 
-Ogni runbook concreto sta in `inventory/<prodotto>/<famiglia>/<alarm-name>/`, con `runbook.ts` (`buildRunbook()`), `registration.ts` e di solito `knownCases.ts` e `knownServices.ts`. I dati condivisi tra runbook dello stesso prodotto stanno in `inventory/<prodotto>/shared/`.
+Ogni runbook concreto sta in `inventory/<prodotto>/<famiglia>/<alarm-name>/`, con `runbook.ts` (`buildRunbook()`), `registration.ts` e di solito `knownErrors.ts` e `knownServices.ts`. I dati condivisi tra runbook dello stesso prodotto stanno in `inventory/<prodotto>/shared/`.
 
 **Regole di dipendenza** (dependency-cruiser ed ESLint):
 
@@ -2505,7 +2509,7 @@ I controlli eseguiti sono:
 2. **MISSING_FALLBACK**: azione di fallback non impostata
 3. **EMPTY_STEPS**: nessuno step definito
 4. **DUPLICATE_STEP_ID**: due o più step con lo stesso ID
-5. **DUPLICATE_CASE_ID**: due o più KnownCase con lo stesso ID
+5. **DUPLICATE_CASE_ID**: due o più KnownError con lo stesso ID
 6. **UNKNOWN_SUPERSEDED_CASE**: un `supersedes` nomina un id che non è un caso del runbook
 7. **SUPERSEDES_CYCLE**: un caso sostituisce se stesso, o le sostituzioni formano un ciclo
 8. **UNWIRED_CASE_STEP_REF**: un caso legge uno step che il runbook non esegue (livelli dell'albero compresi)
@@ -2612,7 +2616,7 @@ visto tutto lo deve dire.
 - **Copertura.** Uno step dichiara in `StepResult.coverage` le fonti incomplete e in `StepResult.observedErrors` gli
   errori osservati ma non esaminati (§2.3). Uno step che fallisce dopo una lettura riuscita diventa una fonte
   `unavailable` e l'esecuzione resta `completed` (§5.2).
-- **Esito `inconclusive`.** Nessuna rilevazione con copertura incompleta non è un `unknown-case`: l'output lo
+- **Esito `inconclusive`.** Nessuna rilevazione con copertura incompleta non è un `unknown-error`: l'output lo
   classifica come `inconclusive` (§11.5).
 
 ### 18.3 Esempio di Step che dichiara la copertura

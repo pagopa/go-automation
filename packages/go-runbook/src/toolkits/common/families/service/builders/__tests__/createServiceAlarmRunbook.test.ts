@@ -6,7 +6,7 @@ import { GOLogger } from '@pagopa/go-common/logging';
 import { CloudWatchLogsQueryStep } from '../../../../steps/aws/cloudwatch-logs/CloudWatchLogsQueryStep.js';
 import { buildRunbookOutput } from '../../../../output/buildRunbookOutput.js';
 import { RunbookEngine } from '../../../../../../engine/core/RunbookEngine.js';
-import { knownCase } from '../../../../analysis/knownCase.js';
+import { knownError } from '../../../../analysis/knownError.js';
 import { createServiceAlarmRunbook } from '../createServiceAlarmRunbook.js';
 import type { ServiceAlarmConfig } from '../../types/ServiceAlarmConfig.js';
 import { buildServiceOutputContext } from '../../output/buildServiceOutputContext.js';
@@ -24,7 +24,7 @@ function baseConfig(overrides: Partial<ServiceAlarmConfig> = {}): ServiceAlarmCo
     queryProfile: SEND_SERVICE_PROFILE,
     product: 'SEND',
     service: { name: 'pn-service', logGroup: '/aws/ecs/pn-service', varPrefix: 'pnService' },
-    knownCases: [],
+    knownErrors: [],
     ...overrides,
   };
 }
@@ -137,17 +137,17 @@ describe('createServiceAlarmRunbook', () => {
     assert.strictEqual(limited.evidence[2]?.truncated, true);
   });
 
-  for (const matchKnownCase of [false, true]) {
-    it(`retains the first extracted trace in the output and the correlation query ${matchKnownCase ? 'with' : 'without'} a known case`, async () => {
+  for (const matchKnownError of [false, true]) {
+    it(`retains the first extracted trace in the output and the correlation query ${matchKnownError ? 'with' : 'without'} a known error`, async () => {
       const firstTraceId = '1-6ad86e11-bbc9b685f973172eb4c3377e';
       const laterTraceId = '1-6ad86f35-b3cff4717d51f014d43d8d23';
       const queries: string[] = [];
       const runbook = createServiceAlarmRunbook(
         baseConfig({
-          knownCases: matchKnownCase
+          knownErrors: matchKnownError
             ? [
-                knownCase({
-                  id: 'known-error',
+                knownError({
+                  code: 'known-error',
                   description: 'Known application error',
                   condition: {
                     type: 'compare',
@@ -205,13 +205,13 @@ describe('createServiceAlarmRunbook', () => {
       // The output represents the first chain: the recognized error when there is one.
       assert.strictEqual(
         output?.fields.find(({ name }) => name === 'traceId')?.value,
-        matchKnownCase ? laterTraceId : firstTraceId,
+        matchKnownError ? laterTraceId : firstTraceId,
       );
       assert.strictEqual(queries.length, 2);
       assert.ok(queries[1]?.includes(firstTraceId) === true && queries[1].includes(laterTraceId));
       assert.deepStrictEqual(
-        result.detections.map(({ knownCase }) => knownCase.id),
-        matchKnownCase ? ['known-error'] : [],
+        result.detections.map(({ knownError }) => knownError.code),
+        matchKnownError ? ['known-error'] : [],
       );
     });
   }

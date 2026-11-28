@@ -5,7 +5,7 @@
 import { downstream } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { DOWNSTREAM, SERVICE } from './knownServices.js';
 
 /** Builds the EMD (Multicanalità) downstream-detection runbook. */
@@ -23,7 +23,7 @@ export function buildRunbook(): Runbook {
     },
     service: SERVICE,
     downstream: DOWNSTREAM,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     occurrenceTimeWindow: {
       // The alarm evaluates six five-minute periods. A production occurrence
       // fired 21m42s after its latest matching downstream error.

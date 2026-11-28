@@ -88,9 +88,9 @@ async function execute(
 describe('external-registries SelfcarePA downstream runbook', () => {
   it('correlates q2 before classifying each documented signature, keeping the analysis open', async () => {
     for (const [message, id] of [
-      [TIMEOUT, 'selfcare-pa-read-timeout'],
-      [INVALID_TENANT, 'selfcare-pa-invalid-tenant-context'],
-      [RATE_TOO_LARGE, 'selfcare-pa-user-groups-rate-too-large'],
+      [TIMEOUT, 'SEND_DOWNSTREAM_PERSPADDA_SEL-PA-REA-TIM'],
+      [INVALID_TENANT, 'SEND_DOWNSTREAM_PERSPADDA_SEL-PA-INV-TEN-CON'],
+      [RATE_TOO_LARGE, 'SEND_DOWNSTREAM_PERSPADDA_SEL-PA-USE-GRO-RAT-TOO-LAR'],
     ] as const) {
       const { result, draft, queries } = await execute([message], ['INFO - Downstream request completed']);
       assert.strictEqual(result.stepsExecuted, 4);
@@ -99,7 +99,7 @@ describe('external-registries SelfcarePA downstream runbook', () => {
       assert.ok(queries[1]?.includes(ROOT));
       assert.ok(!queries[1]?.includes('Self='));
       assert.deepStrictEqual(
-        result.detections.map(({ knownCase }) => knownCase.id),
+        result.detections.map(({ knownError }) => knownError.code),
         [id],
       );
       assert.strictEqual(draft?.kind, 'KNOWN_CASE');

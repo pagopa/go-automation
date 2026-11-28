@@ -27,7 +27,7 @@ describe('ActionExecutor', () => {
       {
         type: 'log',
         level: 'info',
-        renderAs: 'known-case',
+        renderAs: 'known-error',
         title: 'Errore {{vars.code}}',
         details: [
           ['Codice', '{{vars.code}}'],

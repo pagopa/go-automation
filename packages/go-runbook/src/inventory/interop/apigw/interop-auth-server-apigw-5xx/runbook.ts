@@ -1,7 +1,7 @@
 import type { Runbook } from '../../../../engine/index.js';
 import { interop } from '../../../../toolkits/interop/index.js';
 import { AUTH_SERVER_5XX_ALARM as alarm } from './alarmDefinition.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { AnalyzeAuditFallbackStep, AUDIT_FALLBACK_PATTERN } from './AnalyzeAuditFallbackStep.js';
 
 /**
@@ -29,7 +29,7 @@ export function buildRunbook(): Runbook {
       buildApplicationLogsQuery: (podApp) =>
         interop.apigw.buildInteropApiGwServiceErrorsQuery(podApp, [AUDIT_FALLBACK_PATTERN]),
     },
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     hooks: [{ at: 'before-cid-analysis', step: new AnalyzeAuditFallbackStep() }],
     analysisDefaults: {
       links: [

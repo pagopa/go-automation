@@ -2,7 +2,7 @@ import { CATALOG_PLATFORMSTATE_WRITER_ALARM } from './alarmDefinition.js';
 import { interop } from '../../../../toolkits/interop/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { PLATFORMSTATE_WRITER_QUERY_PROFILE } from './queryProfile.js';
 import { POD_CONTEXT } from './podContext.js';
 
@@ -28,7 +28,7 @@ export function buildRunbook(): Runbook {
       tags: ['interop', 'k8s', 'service', 'catalog', 'platformstate', 'kafka'],
     },
     queryProfile: PLATFORMSTATE_WRITER_QUERY_PROFILE,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     podContext: {
       step: POD_CONTEXT,
       evidenceId: 'platformstate-writer-context',

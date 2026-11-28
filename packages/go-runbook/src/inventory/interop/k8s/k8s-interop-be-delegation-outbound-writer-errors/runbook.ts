@@ -1,7 +1,7 @@
 import { interop } from '../../../../toolkits/interop/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 import { DELEGATION_OUTBOUND_WRITER_ALARM as alarm } from './alarmDefinition.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { DELEGATION_OUTBOUND_WRITER_QUERY_PROFILE } from './queryProfile.js';
 import { POD_CONTEXT } from './podContext.js';
 
@@ -24,7 +24,7 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'service', 'delegation', 'writer', 'kafka'],
     },
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     queryProfile: DELEGATION_OUTBOUND_WRITER_QUERY_PROFILE,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 5 },
 

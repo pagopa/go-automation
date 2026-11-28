@@ -30,7 +30,7 @@ const CONNECTION: Connection = {
 
 const REPORT: CoverageReport = {
   checkedRunbooks: 1,
-  checkedKnownCases: 1,
+  checkedKnownErrors: 1,
   checkedReferences: 1,
   errors: [],
   warnings: [],

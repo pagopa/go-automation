@@ -2,12 +2,12 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  assertKnownCaseStepRefs,
+  assertKnownErrorStepRefs,
   assertStepDescriptorIds,
   failAlarmConfig,
   type AlarmConfigValidationContext,
 } from '../alarmConfigValidation.js';
-import type { KnownCase } from '../../../../engine/types/KnownCase.js';
+import type { KnownError } from '../../../../engine/types/KnownError.js';
 import type { StepDescriptor } from '../../../../engine/types/StepDescriptor.js';
 
 const CTX: AlarmConfigValidationContext = { builderName: 'createFooAlarmRunbook', runbookId: 'foo-Alarm' };
@@ -24,9 +24,9 @@ function step(id: string): StepDescriptor {
   };
 }
 
-function knownCase(id: string, ref: string): KnownCase {
+function knownError(id: string, ref: string): KnownError {
   return {
-    id,
+    code: id,
     description: id,
     condition: { type: 'exists', ref },
     action: { type: 'log', level: 'info', title: id },
@@ -64,12 +64,12 @@ describe('assertStepDescriptorIds', () => {
   });
 });
 
-describe('assertKnownCaseStepRefs', () => {
+describe('assertKnownErrorStepRefs', () => {
   it('accepts cases that reference only wired steps, or no step at all', () => {
     assert.doesNotThrow(() =>
-      assertKnownCaseStepRefs(
+      assertKnownErrorStepRefs(
         CTX,
-        [knownCase('c1', 'steps.query-foo'), knownCase('c2', 'vars.traceId')],
+        [knownError('c1', 'steps.query-foo'), knownError('c2', 'vars.traceId')],
         new Set(['query-foo']),
         '.',
       ),
@@ -78,8 +78,8 @@ describe('assertKnownCaseStepRefs', () => {
 
   it('rejects a reference to a step the pipeline never wires, appending the family hint', () => {
     assert.throws(
-      () => assertKnownCaseStepRefs(CTX, [knownCase('c1', 'steps.missing')], new Set(['query-foo']), ' (hint).'),
-      /createFooAlarmRunbook "foo-Alarm": knownCase "c1" references step "missing" which is not wired in this runbook \(hint\)\./,
+      () => assertKnownErrorStepRefs(CTX, [knownError('c1', 'steps.missing')], new Set(['query-foo']), ' (hint).'),
+      /createFooAlarmRunbook "foo-Alarm": knownError "c1" references step "missing" which is not wired in this runbook \(hint\)\./,
     );
   });
 });

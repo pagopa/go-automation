@@ -1,0 +1,24 @@
+/**
+ * Known errors for the {{RUNBOOK_ID}} runbook.
+ */
+
+import type { KnownError } from '../../../../engine/index.js';
+// Uncomment with the example below:
+// import { knownError } from '../../../../toolkits/send/index.js';
+// import { stepEvidenceMatches } from '../../../../engine/index.js';
+
+/**
+ * Known errors evaluated against service log analysis.
+ *
+ * TODO: add recurring, already-understood failure modes for this alarm.
+ */
+export const KNOWN_ERRORS: ReadonlyArray<KnownError> = [
+  // knownError({
+  //   code: '{{KNOWN_ERROR_CODE}}',
+  //   description: 'Caso noto da log applicativo',
+  //   condition: stepEvidenceMatches('query-{{SERVICE_NAME}}', 'some error pattern'),
+  //   resolution: 'Chiusura - caso noto',
+  //   details: [['Errore', '{{vars.{{SERVICE_VAR_PREFIX}}ErrorMsg}}']],
+  //   analysis: { proposedStatus: 'COMPLETED', analysisType: 'ANALYZABLE' },
+  // }),
+];

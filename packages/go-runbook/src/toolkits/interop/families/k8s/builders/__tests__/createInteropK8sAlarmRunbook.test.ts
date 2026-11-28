@@ -27,7 +27,7 @@ function config(overrides: Partial<InteropK8sAlarmConfig> = {}): InteropK8sAlarm
   return {
     alarm: ALARM,
     metadata: { name: 'bff', description: '', version: '1.0.0', type: 'alarm-resolution', team: 'GO', tags: [] },
-    knownCases: [],
+    knownErrors: [],
     ...overrides,
   };
 }

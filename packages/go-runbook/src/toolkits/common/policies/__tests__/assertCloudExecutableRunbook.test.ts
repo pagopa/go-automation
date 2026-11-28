@@ -61,10 +61,10 @@ describe('assertCloudExecutableRunbook — OAM reach', () => {
 });
 
 describe('assertCloudExecutableRunbook — side effects', () => {
-  it('rejects a mutation step in an update action of a known case', () => {
+  it('rejects a mutation step in an update action of a known error', () => {
     const runbook = {
       ...runbookWith(new ServiceStep('read', 'data', 'cloudWatchLogs')),
-      knownCases: [
+      knownErrors: [
         {
           id: 'case',
           description: 'case',

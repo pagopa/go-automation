@@ -139,7 +139,7 @@ function renderRunbookResult(
     maxDetailLength: consoleWidth() - TREE_DETAIL_MARGIN,
   });
   if (chains.length === 0) {
-    script.logger.warning('No known case matched');
+    script.logger.warning('No known error matched');
   } else {
     script.logger.newline();
     script.logger.info(`Trovati gli errori noti (${String(chains.length)}):`);

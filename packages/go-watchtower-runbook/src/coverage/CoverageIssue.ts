@@ -8,7 +8,7 @@ export interface CoverageIssue {
   readonly severity: 'ERROR' | 'WARNING';
   readonly code: CoverageIssueCode;
   readonly runbookKey?: string;
-  readonly knownCaseId?: string;
+  readonly knownErrorId?: string;
   readonly product?: string;
   readonly field?: string;
   readonly declaredValue?: string;

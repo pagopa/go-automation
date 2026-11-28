@@ -7,7 +7,7 @@
 ```ts
 export interface OperationalModelAugmentations {
     readonly runbook: RunbookExtensionsAugmentation;
-    readonly knownCase: KnownCaseExtensionsAugmentation;
+    readonly knownError: KnownErrorExtensionsAugmentation;
     readonly stepDescriptor: StepDescriptorExtensionsAugmentation;
     readonly stepDiagnostics: StepDiagnosticsAugmentation;
     readonly executionEnvironment: ExecutionEnvironmentExtensionsAugmentation;
@@ -57,6 +57,7 @@ export declare class RunbookCatalog {
     resolveByKey(key: string): ResolvedRunbook | undefined;
     listDescriptors(): ReadonlyArray<RunbookDescriptor>;
     validateForCloud(): void;
+    private resolve;
     private resolveRegistered;
 }
 ```
@@ -70,6 +71,7 @@ export interface RunbookDescriptor {
     readonly name: string;
     readonly description: string;
     readonly team: string;
+    readonly product: RunbookProduct;
     readonly kind: RunbookKind;
     readonly categories: ReadonlyArray<string>;
     readonly tags: ReadonlyArray<string>;
@@ -77,6 +79,7 @@ export interface RunbookDescriptor {
         string,
         ...string[]
     ];
+    readonly knownErrors: ReadonlyArray<KnownErrorDescriptor>;
     readonly definitionDigest: string;
 }
 ```
@@ -162,10 +165,10 @@ export type EvidenceRetention = {
 export type ExecutionEnvironmentExtensionsAugmentation = 'executionEnvironment';
 ```
 
-### `KnownCaseExtensionsAugmentation` (dist/toolkits/common/augmentations/KnownCaseExtensions.d.ts)
+### `KnownErrorExtensionsAugmentation` (dist/toolkits/common/augmentations/KnownErrorExtensions.d.ts)
 
 ```ts
-export type KnownCaseExtensionsAugmentation = 'knownCase';
+export type KnownErrorExtensionsAugmentation = 'knownError';
 ```
 
 ### `RunbookExtensionsAugmentation` (dist/toolkits/common/augmentations/RunbookExtensions.d.ts)

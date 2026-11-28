@@ -1,5 +1,5 @@
 import { ANALYSIS_DRAFT_BOUNDS } from './analysisDraftBounds.js';
-import type { KnownCaseAnalysisDraft } from './KnownCaseAnalysisDraft.js';
+import type { KnownErrorAnalysisDraft } from './KnownErrorAnalysisDraft.js';
 import type { AnalysisDraftLimits } from './AnalysisDraftLimits.js';
 import type { AnalysisDraftParts } from './AnalysisDraftParts.js';
 
@@ -37,10 +37,10 @@ const MIN_FIRST_ENTRY = 200;
  * @throws Error when even the shortest draft exceeds the limits
  */
 export function fitAnalysisDraft(
-  draft: KnownCaseAnalysisDraft,
+  draft: KnownErrorAnalysisDraft,
   parts?: AnalysisDraftParts,
   limits: AnalysisDraftLimits = DEFAULT_LIMITS,
-): KnownCaseAnalysisDraft {
+): KnownErrorAnalysisDraft {
   const items = limits.arrayItems ?? ANALYSIS_DRAFT_BOUNDS.ARRAY_ITEMS;
   for (const list of ['resources', 'downstreams'] as const) {
     if (draft[list].length > items) {
@@ -49,7 +49,7 @@ export function fitAnalysisDraft(
       );
     }
   }
-  const listed: KnownCaseAnalysisDraft = {
+  const listed: KnownErrorAnalysisDraft = {
     ...draft,
     links: draft.links.slice(0, items),
     finalActions: draft.finalActions.slice(0, items),
@@ -77,12 +77,12 @@ export function fitAnalysisDraft(
  * @returns The fitted draft, or `undefined` when it exceeds the limits or loses the diagnosis
  */
 function fitTexts(
-  listed: KnownCaseAnalysisDraft,
+  listed: KnownErrorAnalysisDraft,
   entries: ReadonlyArray<string>,
   coverageLines: ReadonlyArray<string>,
   detailEntries: ReadonlyArray<string>,
   limits: AnalysisDraftLimits,
-): KnownCaseAnalysisDraft | undefined {
+): KnownErrorAnalysisDraft | undefined {
   const withDetails = detailEntries.length > 0;
   const minimum = jsonTextBytes([shorten(entries[0] ?? '', MIN_FIRST_ENTRY), ...coverageLines].join('\n'));
   let fitted = listed;
@@ -108,12 +108,12 @@ function fitTexts(
  * @returns The draft, or `undefined` when it exceeds the limits or the notes lost the first diagnosis
  */
 function composeTexts(
-  fitted: KnownCaseAnalysisDraft,
+  fitted: KnownErrorAnalysisDraft,
   entries: ReadonlyArray<string>,
   coverageLines: ReadonlyArray<string>,
   detailEntries: ReadonlyArray<string>,
   limits: AnalysisDraftLimits,
-): KnownCaseAnalysisDraft | undefined {
+): KnownErrorAnalysisDraft | undefined {
   const withDetails = detailEntries.length > 0;
   const minimum = jsonTextBytes([shorten(entries[0] ?? '', MIN_FIRST_ENTRY), ...coverageLines].join('\n'));
   const textBudget = Math.max(0, limits.draftBytes - envelopeBytes(fitted, withDetails));
@@ -124,7 +124,7 @@ function composeTexts(
     ? fitText(detailEntries, [], limits.textLength, detailsBudget, 'dettagli')
     : undefined;
   const { errorDetails: _previous, ...rest } = fitted;
-  const candidate: KnownCaseAnalysisDraft = {
+  const candidate: KnownErrorAnalysisDraft = {
     ...rest,
     conclusionNotes,
     ...(errorDetails === undefined || errorDetails === '' ? {} : { errorDetails }),
@@ -189,7 +189,7 @@ function shorten(text: string, maxLength: number): string {
   return `${text.slice(0, Math.max(0, maxLength - ELLIPSIS.length))}${ELLIPSIS}`;
 }
 
-function fits(draft: KnownCaseAnalysisDraft, limits: AnalysisDraftLimits): boolean {
+function fits(draft: KnownErrorAnalysisDraft, limits: AnalysisDraftLimits): boolean {
   return (
     draft.conclusionNotes.length <= limits.textLength &&
     (draft.errorDetails?.length ?? 0) <= limits.textLength &&
@@ -198,12 +198,12 @@ function fits(draft: KnownCaseAnalysisDraft, limits: AnalysisDraftLimits): boole
 }
 
 /** Bytes of the draft without its texts; `errorDetails` counts only when the draft will carry it. */
-function envelopeBytes(draft: KnownCaseAnalysisDraft, withDetails: boolean): number {
+function envelopeBytes(draft: KnownErrorAnalysisDraft, withDetails: boolean): number {
   const { errorDetails: _details, ...rest } = draft;
   return draftBytes({ ...rest, conclusionNotes: '', ...(withDetails ? { errorDetails: '' } : {}) });
 }
 
-function draftBytes(draft: KnownCaseAnalysisDraft): number {
+function draftBytes(draft: KnownErrorAnalysisDraft): number {
   return Buffer.byteLength(JSON.stringify(draft), 'utf8');
 }
 

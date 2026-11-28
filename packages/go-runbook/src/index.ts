@@ -13,7 +13,7 @@
  *
  * const runbook = RunbookBuilder.create('example')
  *   .metadata({ name: 'Example', ... })
- *   .knownCase({ ... })
+ *   .knownError({ ... })
  *   .fallback(logAction({ ... }))
  *   .build();
  *

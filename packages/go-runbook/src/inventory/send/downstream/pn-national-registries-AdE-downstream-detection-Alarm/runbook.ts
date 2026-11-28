@@ -5,7 +5,7 @@
 import { downstream } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { DOWNSTREAM, SERVICE } from './knownServices.js';
 
 /** Builds the pn-national-registries AdE downstream-detection runbook. */
@@ -23,7 +23,7 @@ export function buildRunbook(): Runbook {
     },
     service: SERVICE,
     downstream: DOWNSTREAM,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     occurrenceTimeWindow: {
       // The alarm evaluates 6 periods of 5 minutes; the triggering errors can
       // therefore precede the alarm occurrence by up to 30 minutes.

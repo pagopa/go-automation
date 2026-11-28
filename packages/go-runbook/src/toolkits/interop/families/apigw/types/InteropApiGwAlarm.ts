@@ -3,7 +3,7 @@ import type { InteropApiGwAlarmContext } from './InteropApiGwAlarmContext.js';
 import type { ResolveInteropAlarmContextFn } from '../../../alarms/ResolveInteropAlarmContextFn.js';
 
 /**
- * Everything a runbook, its known cases and the registry need about one
+ * Everything a runbook, its known errors and the registry need about one
  * INTEROP API Gateway alarm.
  *
  * The API Gateway counterpart of `InteropK8sAlarm`, declared with
@@ -24,7 +24,7 @@ export interface InteropApiGwAlarm<TContext extends InteropApiGwAlarmContext = I
   readonly applicationLogGroupTemplate: string;
   /** Every alarm this runbook answers to. */
   readonly alarmNames: readonly [string, ...string[]];
-  /** Ids of the seven pipeline steps, referenced by known cases and tests. */
+  /** Ids of the seven pipeline steps, referenced by known errors and tests. */
   readonly stepIds: InteropApiGwRunbookStepIds;
   /**
    * Resolves the runtime context from the alarm name that fired.

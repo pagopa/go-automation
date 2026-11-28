@@ -67,15 +67,15 @@ function renderTotals(logger: GOLogger, report: RunbookStatisticsReport): void {
     data: [
       { metric: 'Runbooks', value: totals.runbooks },
       { metric: 'Alarm names covered', value: totals.alarms },
-      { metric: 'Known cases', value: totals.knownCases },
+      { metric: 'Known errors', value: totals.knownErrors },
       {
-        metric: 'Known cases annotated',
-        value: `${String(totals.annotatedKnownCases)} (${formatShare(totals.annotatedKnownCases, totals.knownCases)})`,
+        metric: 'Known errors annotated',
+        value: `${String(totals.annotatedKnownErrors)} (${formatShare(totals.annotatedKnownErrors, totals.knownErrors)})`,
       },
       { metric: 'Steps', value: totals.steps },
-      { metric: 'Runbooks w/o known cases', value: totals.runbooksWithoutKnownCases },
+      { metric: 'Runbooks w/o known errors', value: totals.runbooksWithoutKnownErrors },
       { metric: 'Multi-alarm runbooks', value: totals.runbooksWithMultipleAlarms },
-      { metric: 'Avg cases / runbook', value: formatAverage(totals.knownCases, totals.runbooks) },
+      { metric: 'Avg cases / runbook', value: formatAverage(totals.knownErrors, totals.runbooks) },
       { metric: 'Avg steps / runbook', value: formatAverage(totals.steps, totals.runbooks) },
     ],
   });
@@ -103,7 +103,7 @@ function renderBucketSection(
       runbooks: bucket.runbooks,
       share: formatShare(bucket.runbooks, totalRunbooks),
       alarms: bucket.alarms,
-      cases: bucket.knownCases,
+      cases: bucket.knownErrors,
       steps: bucket.steps,
     })),
   });
@@ -181,7 +181,7 @@ function renderDetail(logger: GOLogger, entries: ReadonlyArray<RunbookCatalogEnt
     categories: entry.categories.join(', '),
     alarms: entry.alarmNames.length,
     steps: entry.stepCount,
-    cases: entry.knownCaseCount,
+    cases: entry.knownErrorCount,
   }));
 
   logger.section('Runbook Detail');

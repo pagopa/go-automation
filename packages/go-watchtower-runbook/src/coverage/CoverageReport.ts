@@ -8,7 +8,7 @@ import type { CoverageIssue } from './CoverageIssue.js';
  */
 export interface CoverageReport {
   readonly checkedRunbooks: number;
-  readonly checkedKnownCases: number;
+  readonly checkedKnownErrors: number;
   /** Declared references compared against the census, across every runbook. */
   readonly checkedReferences: number;
   readonly errors: ReadonlyArray<CoverageIssue>;

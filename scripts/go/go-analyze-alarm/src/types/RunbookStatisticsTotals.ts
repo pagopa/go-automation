@@ -6,14 +6,14 @@ export interface RunbookStatisticsTotals {
   readonly runbooks: number;
   /** Distinct CloudWatch alarm names routed to a runbook */
   readonly alarms: number;
-  /** Known cases declared across every runbook */
-  readonly knownCases: number;
-  /** Known cases carrying analysis directives */
-  readonly annotatedKnownCases: number;
+  /** Known errors declared across every runbook */
+  readonly knownErrors: number;
+  /** Known errors carrying analysis directives */
+  readonly annotatedKnownErrors: number;
   /** Steps declared across every runbook */
   readonly steps: number;
-  /** Runbooks declaring no known case (they can only produce a fallback) */
-  readonly runbooksWithoutKnownCases: number;
+  /** Runbooks declaring no known error (they can only produce a fallback) */
+  readonly runbooksWithoutKnownErrors: number;
   /** Runbooks routed by more than one alarm name */
   readonly runbooksWithMultipleAlarms: number;
 }

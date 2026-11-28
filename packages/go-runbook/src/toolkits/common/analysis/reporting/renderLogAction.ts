@@ -1,11 +1,11 @@
 import type { LogAction, LogActionValues } from '../../../../engine/index.js';
 import { interpolatePlaceholders } from '../../../../engine/internal.js';
 
-/** Marker a matched known case is rendered under. */
-const KNOWN_CASE_PREFIX = '[CASO NOTO]';
+/** Marker a matched known error is rendered under. */
+const KNOWN_ERROR_PREFIX = '[CASO NOTO]';
 
 /** Marker an unidentified outcome is rendered under. */
-const UNKNOWN_CASE_PREFIX = '[CASO NON RICONOSCIUTO]';
+const UNKNOWN_ERROR_PREFIX = '[CASO NON RICONOSCIUTO]';
 
 /** Stands in for a placeholder the run never resolved. */
 export const UNAVAILABLE_VALUE = 'non disponibile';
@@ -54,7 +54,7 @@ export function renderLogActionText(action: LogAction, values: LogActionValues):
 
 /** The marker the action's rendering mode puts in front of the title. */
 function prefixFor(action: LogAction): string | undefined {
-  if (action.renderAs === 'known-case') return KNOWN_CASE_PREFIX;
-  if (action.renderAs === 'unknown-case') return UNKNOWN_CASE_PREFIX;
+  if (action.renderAs === 'known-error') return KNOWN_ERROR_PREFIX;
+  if (action.renderAs === 'unknown-error') return UNKNOWN_ERROR_PREFIX;
   return undefined;
 }

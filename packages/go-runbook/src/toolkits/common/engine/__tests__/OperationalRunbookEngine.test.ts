@@ -53,18 +53,18 @@ class DynamoStep implements Step<void> {
 const dynamoGet = (): DynamoStep => new DynamoStep('get', 'data');
 const dynamoPut = (): DynamoStep => new DynamoStep('put', 'mutation');
 
-function runbook(steps: ReadonlyArray<Step>, fallbackAction: CaseAction, knownCaseAction?: CaseAction): Runbook {
+function runbook(steps: ReadonlyArray<Step>, fallbackAction: CaseAction, knownErrorAction?: CaseAction): Runbook {
   return createTestRunbook({
     steps: steps.map((step) => ({ step })),
-    knownCases:
-      knownCaseAction === undefined
+    knownErrors:
+      knownErrorAction === undefined
         ? []
         : [
             {
-              id: 'case',
+              code: 'case',
               description: 'case',
               condition: { type: 'exists', ref: 'vars.never' },
-              action: knownCaseAction,
+              action: knownErrorAction,
             },
           ],
     fallbackAction,

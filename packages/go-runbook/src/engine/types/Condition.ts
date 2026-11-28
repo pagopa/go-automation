@@ -5,7 +5,7 @@ import type { PatternCondition } from './PatternCondition.js';
 
 /**
  * Composable condition DSL for evaluating runbook context.
- * Conditions are used both in control flow steps and known case matching.
+ * Conditions are used both in control flow steps and known error matching.
  */
 export type Condition =
   CompareCondition | PatternCondition | ExistsCondition | ContainsCondition | AndCondition | OrCondition | NotCondition;

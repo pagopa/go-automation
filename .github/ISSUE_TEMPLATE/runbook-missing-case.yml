@@ -1,5 +1,5 @@
 name: 'Runbook: caso noto mancante'
-description: 'Un caso nuovo, o documentato (Confluence/Jira) ma assente da knownCases.ts'
+description: 'Un caso nuovo, o documentato (Confluence/Jira) ma assente da knownErrors.ts'
 title: '[Caso mancante] '
 labels:
   - report/missing-case

@@ -1,8 +1,8 @@
 import { AUTH_SERVER_ALARM } from './alarmDefinition.js';
-import { interop, UNKNOWN_CASE_TITLE, unknownCaseFallback } from '../../../../toolkits/interop/index.js';
+import { interop, UNKNOWN_ERROR_TITLE, unknownErrorFallback } from '../../../../toolkits/interop/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { AUTH_SERVER_4XX_QUERY_PROFILE } from './queryProfile.js';
 
 /**
@@ -32,7 +32,7 @@ export function buildRunbook(): Runbook {
       countField: 'count',
       label: `warning applicativi ${AUTH_SERVER_ALARM.serviceName}`,
     },
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       runbookName: AUTH_SERVER_ALARM.runbookKey,
       links: [
@@ -43,7 +43,7 @@ export function buildRunbook(): Runbook {
         },
       ],
     },
-    fallbackAction: unknownCaseFallback(UNKNOWN_CASE_TITLE, [
+    fallbackAction: unknownErrorFallback(UNKNOWN_ERROR_TITLE, [
       ['Ambiente', '{{vars.interopEnvironment}}'],
       ['API Gateway ID', '{{vars.interopApiGwId}}'],
       ['Errori 4xx API Gateway', '{{vars.apiGwErrorCount}}'],

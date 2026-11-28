@@ -1,7 +1,7 @@
 import type { ReadScope } from '../reads/ReadScope.js';
 import type { BranchOutcome } from '../types/BranchOutcome.js';
 import type { ErrorNodeSpec } from '../types/ErrorNodeSpec.js';
-import type { KnownCaseDetection } from '../types/KnownCaseDetection.js';
+import type { KnownErrorDetection } from '../types/KnownErrorDetection.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
 import type { TreeLevel } from '../types/TreeLevel.js';
 import type { NodeReads } from './NodeReads.js';
@@ -24,7 +24,7 @@ export interface WorkNode {
   readonly pathKeys: ReadonlySet<string>;
   /** Identities of the rows of this node and of its ancestors. */
   readonly pathRows: ReadonlySet<string>;
-  detections: ReadonlyArray<KnownCaseDetection>;
+  detections: ReadonlyArray<KnownErrorDetection>;
   branchOutcome: BranchOutcome;
   /** The reads of each level for this node so far: rows, excluded diagnoses seen. */
   readonly reads: Map<string, NodeReads>;

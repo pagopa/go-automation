@@ -1,7 +1,7 @@
 import { interop } from '../../../../toolkits/interop/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 import { AGREEMENT_READMODEL_WRITER_SQL_ALARM as alarm } from './alarmDefinition.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { AGREEMENT_READMODEL_WRITER_SQL_QUERY_PROFILE } from './queryProfile.js';
 
 const CONFLUENCE_RUNBOOK_URL =
@@ -26,7 +26,7 @@ export function buildRunbook(): Runbook {
     },
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
     queryProfile: AGREEMENT_READMODEL_WRITER_SQL_QUERY_PROFILE,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       runbookName: alarm.runbookKey,
       links: [{ url: CONFLUENCE_RUNBOOK_URL, name: alarm.runbookKey, type: 'CONFLUENCE' }],

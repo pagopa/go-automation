@@ -6,10 +6,10 @@ import type { RunbookCheck } from '../../types/RtaCheckReport.js';
 /** Instant of the occurrence and of every timestamp in the fixtures. */
 export const NOW = '2026-01-01T00:00:00.000Z';
 
-/** Runbook check that matched the `lambda-timeout` known case. */
+/** Runbook check that matched the `lambda-timeout` known error. */
 export const HIT: RunbookCheck = {
   status: 'HIT',
-  matchedCaseIds: ['lambda-timeout'],
+  matchedKnownErrorCodes: ['SEND_LAMBDA_COMMON_LAM-TIM'],
 };
 
 /**
@@ -20,7 +20,7 @@ export const HIT: RunbookCheck = {
  */
 export function runbookOutputFixture(requestId: string): RunbookOutput {
   return {
-    schemaVersion: '4.0.0',
+    schemaVersion: '5.0.0',
     generatedAt: NOW,
     runbook: { id: 'r', name: 'r', type: 'alarm-resolution', version: '1.0.0', team: 'GO' },
     execution: {
@@ -34,10 +34,10 @@ export function runbookOutputFixture(requestId: string): RunbookOutput {
     },
     input: {},
     outcome: {
-      kind: 'known-case-matched',
+      kind: 'known-error-matched',
       detections: [
         {
-          caseId: 'lambda-timeout',
+          code: 'SEND_LAMBDA_COMMON_LAM-TIM',
           description: 'Timeout runtime della Lambda',
           evidenceRows: 1,
           errors: 1,

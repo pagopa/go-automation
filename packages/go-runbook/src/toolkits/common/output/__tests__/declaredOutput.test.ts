@@ -222,8 +222,8 @@ describe('declared runbook output', () => {
 
   it('omits evidence from steps that did not run', async () => {
     const runbook = builder()
-      .knownCase({
-        id: 'known',
+      .knownError({
+        code: 'known',
         description: 'Known',
         condition: { type: 'compare', ref: 'vars.ready', operator: '==', value: 'yes' },
         action: { type: 'log', level: 'info', title: 'Known' },

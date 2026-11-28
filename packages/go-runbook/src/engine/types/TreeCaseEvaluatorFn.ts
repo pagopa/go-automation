@@ -1,10 +1,10 @@
-import type { KnownCase } from './KnownCase.js';
-import type { KnownCaseDetection } from './KnownCaseDetection.js';
+import type { KnownError } from './KnownError.js';
+import type { KnownErrorDetection } from './KnownErrorDetection.js';
 import type { RunbookContext } from './RunbookContext.js';
 
-/** Evaluates known cases on the context of an error node. */
+/** Evaluates known errors on the context of an error node. */
 export type TreeCaseEvaluatorFn = (
-  knownCases: ReadonlyArray<KnownCase>,
+  knownErrors: ReadonlyArray<KnownError>,
   context: RunbookContext,
   nodeId: string,
-) => ReadonlyArray<KnownCaseDetection>;
+) => ReadonlyArray<KnownErrorDetection>;

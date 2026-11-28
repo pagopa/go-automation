@@ -37,7 +37,7 @@ export async function executeWithLogs(
   return {
     result,
     draft: buildAnalysisDraft(runbook, result),
-    matchedIds: result.detections.map(({ knownCase }) => knownCase.id),
+    matchedIds: result.detections.map(({ knownError }) => knownError.code),
     queries: cloudWatchLogs.queries,
   };
 }

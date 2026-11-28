@@ -1,0 +1,68 @@
+import {
+  INTEROP_DOWNSTREAMS,
+  interopK8sKnownError,
+  type InteropK8sKnownErrorRefs,
+} from '../../../../toolkits/interop/index.js';
+import type { KnownError } from '../../../../engine/index.js';
+
+import { ISTAT_IMPORTER_ALARM as alarm } from './alarmDefinition.js';
+const REFS: InteropK8sKnownErrorRefs = {
+  applicationLogsStepId: alarm.stepIds.queryApplicationLogs,
+  cidTrackerStepId: alarm.stepIds.queryCidTracker,
+  varPrefix: alarm.varPrefix,
+};
+const UUID_PATTERN = '[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}';
+/** Confluence v7 plus PIN-10543/PIN-10823, checked on 2026-09-17. */
+export const KNOWN_ERRORS: ReadonlyArray<KnownError> = [
+  interopK8sKnownError(REFS, {
+    code: 'INTEROP_K8S_K8IBICAIE_IST-CER-TEN-NOT-FOU',
+    description: 'Tenant certificatore ISTAT non trovato',
+    regex: 'Certifier tenant ISTAT not found',
+    resolution: 'PIN-10543',
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    errorDetails:
+      'Il flusso non individua il tenant certificatore ISTAT; la causa specifica richiede verifica dei log correlati.',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    finalActions: [],
+    links: [{ url: 'https://pagopa.atlassian.net/browse/PIN-10543', name: 'PIN-10543', type: 'JIRA' }],
+  }),
+  interopK8sKnownError(REFS, {
+    code: 'INTEROP_K8S_K8IBICAIE_IST-DIS-CER-ATT-ALR-ASS',
+    description: 'Attributo certificato discreto già assegnato al tenant (409)',
+    regex:
+      `Certified Discrete Attribute\\s+${UUID_PATTERN}\\s+already assigned to tenant\\s+${UUID_PATTERN}\\b|` +
+      'Error on internalAssignDiscreteCertifiedAttribute\\. Reason: Request failed with status code 409\\b',
+    resolution: '[VEDI COMMENTI] PIN-10543: Certifier tenant ISTAT not found',
+    // Deployment version/severity are not proven by matching the message alone.
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    errorDetails: 'Assegnazione duplicata già gestita; l’emissione come ERROR o stderr può attivare l’allarme.',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    finalActions: [],
+    links: [
+      { url: 'https://pagopa.atlassian.net/browse/PIN-10543', name: 'PIN-10543', type: 'JIRA' },
+      { url: 'https://pagopa.atlassian.net/browse/PIN-10823', name: 'PIN-10823', type: 'JIRA' },
+    ],
+  }),
+  interopK8sKnownError(REFS, {
+    code: 'INTEROP_K8S_K8IBICAIE_IST-DAT-DOW-403',
+    description: 'Download del dataset ISTAT rifiutato con HTTP 403',
+    regex:
+      'Error download ISTAT: AxiosError: Request failed with status code 403\\b|' +
+      'Error during ISTAT import execution: AxiosError: Request failed with status code 403\\b',
+    resolution: 'Thread Slack 22/10/2026.',
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    errorDetails: 'Il servizio ISTAT ha restituito HTTP 403 al download del dataset dei comuni.',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    finalActions: [],
+    links: [
+      {
+        url: 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1792663236871429',
+        name: 'Thread Slack 22/10/2026',
+        type: 'SLACK',
+      },
+    ],
+  }),
+];

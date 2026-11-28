@@ -9,7 +9,7 @@ import type { ExecutionEnvironment } from './ExecutionEnvironment.js';
 import type { RunbookExecutionTrace } from './RunbookExecutionTrace.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
 import type { Runbook } from '../types/Runbook.js';
-import type { KnownCase } from '../types/KnownCase.js';
+import type { KnownError } from '../types/KnownError.js';
 import type { CaseAction } from '../types/CaseAction.js';
 import type { RunbookExecutionStatus } from '../types/RunbookExecutionStatus.js';
 import type { CoverageEntry } from '../types/CoverageEntry.js';
@@ -41,7 +41,7 @@ import type { TraceStatus } from './TraceStatus.js';
  *   varsWritten: {},
  *   flowDirective: 'continue',
  * });
- * builder.traceCaseEvaluation(knownCase, true, { 'vars.statusCode': '504' });
+ * builder.traceCaseEvaluation(knownError, true, { 'vars.statusCode': '504' });
  * builder.traceAction(action, 'notify', 'success', 120);
  *
  * const trace = builder.build(finalContext, 'completed', environment);
@@ -84,19 +84,19 @@ export class TraceBuilder {
   }
 
   /**
-   * Records the evaluation of a known case.
+   * Records the evaluation of a known error.
    *
    */
   traceCaseEvaluation(
-    knownCase: KnownCase,
+    knownError: KnownError,
     matched: boolean,
     resolvedValues: Readonly<Record<string, unknown>>,
     match: Pick<CaseEvaluationTrace, 'firstSeenAt' | 'lastSeenAt' | 'evidenceRows' | 'supersededBy' | 'nodeId'> = {},
   ): void {
     this.caseEvaluations.push({
-      caseId: knownCase.id,
-      description: knownCase.description,
-      condition: knownCase.condition,
+      knownErrorCode: knownError.code,
+      description: knownError.description,
+      condition: knownError.condition,
       matched,
       resolvedValues,
       ...match,
@@ -104,12 +104,12 @@ export class TraceBuilder {
   }
 
   /**
-   * Records the order of the detections, which the trace reports as `matchedCaseIds`.
+   * Records the order of the detections, which the trace reports as `matchedKnownErrorCodes`.
    *
-   * @param caseIds - Ids of the detections, in their order
+   * @param knownErrorCodes - Ids of the detections, in their order
    */
-  traceDetections(caseIds: ReadonlyArray<string>): void {
-    this.detectionIds = caseIds;
+  traceDetections(knownErrorCodes: ReadonlyArray<string>): void {
+    this.detectionIds = knownErrorCodes;
   }
 
   /**
@@ -156,7 +156,7 @@ export class TraceBuilder {
     const completedAt = completedAtDate.toISOString();
     const durationMs = completedAtDate.getTime() - this.startedAtMs;
 
-    const matchedCaseIds = this.detectionIds;
+    const matchedKnownErrorCodes = this.detectionIds;
 
     const variables: Record<string, string> = Object.fromEntries(finalContext.vars);
     const input: Record<string, string> = Object.fromEntries(this.params);
@@ -182,12 +182,12 @@ export class TraceBuilder {
       this.stepTraces.filter((step) => windowIds.has(step.stepId)).map((step) => step.stepId),
     );
     const stepsSkipped = totalSteps - executedWindow.size;
-    const outcomeCase = matchedCaseIds.length === 0 ? 'no-match' : matchedCaseIds.join(',');
+    const outcomeCase = matchedKnownErrorCodes.length === 0 ? 'no-match' : matchedKnownErrorCodes.join(',');
     const primaryActionTrace = this.actionTraces[0];
     const outcomeAction = primaryActionTrace?.actionType ?? 'none';
 
     const summary: ExecutionSummary = {
-      description: this.buildSummaryDescription(status, matchedCaseIds),
+      description: this.buildSummaryDescription(status, matchedKnownErrorCodes),
       totalSteps,
       stepsExecuted,
       stepsFailed,
@@ -197,7 +197,7 @@ export class TraceBuilder {
     };
 
     return {
-      schemaVersion: '3.0.0',
+      schemaVersion: '4.0.0',
       execution: {
         executionId: this.executionId,
         runbookId: this.runbook.metadata.id,
@@ -217,7 +217,7 @@ export class TraceBuilder {
       caseMatching: {
         casesEvaluated: this.caseEvaluations.length,
         evaluations: this.caseEvaluations,
-        matchedCaseIds,
+        matchedKnownErrorCodes,
       },
       actionsExecuted: this.actionTraces.length > 0 ? this.actionTraces : [TraceBuilder.defaultActionTrace],
       coverage: this.coverage,
@@ -232,7 +232,10 @@ export class TraceBuilder {
   /**
    * Builds a human-readable description for the execution summary.
    */
-  private buildSummaryDescription(status: RunbookExecutionStatus, matchedCaseIds: ReadonlyArray<string>): string {
+  private buildSummaryDescription(
+    status: RunbookExecutionStatus,
+    matchedKnownErrorCodes: ReadonlyArray<string>,
+  ): string {
     const runbookName = this.runbook.metadata.name;
 
     if (status === 'failed') {
@@ -243,15 +246,17 @@ export class TraceBuilder {
       return `Runbook "${runbookName}" was aborted`;
     }
 
-    if (matchedCaseIds.length > 0) {
+    if (matchedKnownErrorCodes.length > 0) {
       const descriptions = new Map(
-        this.caseEvaluations.map((evaluation) => [evaluation.caseId, evaluation.description]),
+        this.caseEvaluations.map((evaluation) => [evaluation.knownErrorCode, evaluation.description]),
       );
-      const cases = matchedCaseIds.map((caseId) => `"${descriptions.get(caseId) ?? caseId}"`).join(', ');
-      const noun = matchedCaseIds.length === 1 ? 'case' : `${String(matchedCaseIds.length)} cases`;
+      const cases = matchedKnownErrorCodes
+        .map((knownErrorCode) => `"${descriptions.get(knownErrorCode) ?? knownErrorCode}"`)
+        .join(', ');
+      const noun = matchedKnownErrorCodes.length === 1 ? 'case' : `${String(matchedKnownErrorCodes.length)} cases`;
       return `Runbook "${runbookName}" completed: identified ${noun} ${cases}`;
     }
 
-    return `Runbook "${runbookName}" completed: no known case matched`;
+    return `Runbook "${runbookName}" completed: no known error matched`;
   }
 }

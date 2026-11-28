@@ -5,7 +5,7 @@ import type { RunbookKind } from '@pagopa/go-runbook/inventory';
  * Flattened view of a single runbook registered in the local catalog.
  *
  * It joins the registry metadata (product, kind, categories, alarm names) with
- * the shape of the built runbook (steps, known cases), so statistics can be
+ * the shape of the built runbook (steps, known errors), so statistics can be
  * computed without touching AWS or Watchtower.
  */
 export interface RunbookCatalogEntry {
@@ -27,8 +27,8 @@ export interface RunbookCatalogEntry {
   readonly alarmNames: ReadonlyArray<string>;
   /** Number of steps in the runbook pipeline */
   readonly stepCount: number;
-  /** Number of known cases evaluated at the end of the pipeline */
-  readonly knownCaseCount: number;
-  /** Known cases carrying analysis directives for Watchtower */
-  readonly annotatedKnownCaseCount: number;
+  /** Number of known errors evaluated at the end of the pipeline */
+  readonly knownErrorCount: number;
+  /** Known errors carrying analysis directives for Watchtower */
+  readonly annotatedKnownErrorCount: number;
 }

@@ -6,7 +6,7 @@ import { lambda } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
 import { LAMBDA_FUNCTION } from './knownServices.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { LAMBDA_LOG_READER } from './lambdaLogReader.js';
 
 /**
@@ -28,7 +28,7 @@ export function buildRunbook(): Runbook {
     lambda: LAMBDA_FUNCTION,
     errorQueryStep: new lambda.QueryLambdaAcrossAccountsStep({ ...LAMBDA_LOG_READER, queryKind: 'errors' }),
     invocationQueryStep: new lambda.QueryLambdaAcrossAccountsStep({ ...LAMBDA_LOG_READER, queryKind: 'invocation' }),
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       runbookName: 'Lambda-DailyExport-DynamoDbTable-LogInvocationErrors-Alarm',
       links: [

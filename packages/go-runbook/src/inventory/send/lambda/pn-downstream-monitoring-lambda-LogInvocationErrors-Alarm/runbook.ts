@@ -2,7 +2,7 @@ import { lambda } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
 import { DOWNSTREAM_MONITORING_LAMBDA_ALARM } from './alarmDefinition.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { DOWNSTREAMS, LAMBDA_FUNCTION } from './knownServices.js';
 import { LAMBDA_LOG_READER } from './lambdaLogReader.js';
 
@@ -31,7 +31,7 @@ export function buildRunbook(): Runbook {
     errorQueryStep: new lambda.QueryLambdaAcrossAccountsStep({ ...LAMBDA_LOG_READER, queryKind: 'errors' }),
     invocationQueryStep: new lambda.QueryLambdaAcrossAccountsStep({ ...LAMBDA_LOG_READER, queryKind: 'invocation' }),
     downstreams: DOWNSTREAMS,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       runbookName: DOWNSTREAM_MONITORING_LAMBDA_ALARM,
       links: [

@@ -64,6 +64,6 @@ describe('INTEROP auth-server 4xx runbook', () => {
           ]
         : [],
     );
-    assert.deepStrictEqual(matchedIds, ['auth-server-api-gateway-forbidden-403']);
+    assert.deepStrictEqual(matchedIds, ['INTEROP_APIGW_IASA4_AUT-SER-API-GAT-FOR-403']);
   });
 });

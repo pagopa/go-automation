@@ -219,10 +219,10 @@ Esempio di output (valori reali del catalogo):
     ├────────────────────────────┼────────────────┤
     │ Runbooks                   │             28 │
     │ Alarm names covered        │             42 │
-    │ Known cases                │            145 │
-    │ Known cases annotated      │   145 (100.0%) │
+    │ Known errors                │            145 │
+    │ Known errors annotated      │   145 (100.0%) │
     │ Steps                      │            169 │
-    │ Runbooks w/o known cases   │              0 │
+    │ Runbooks w/o known errors   │              0 │
     │ Multi-alarm runbooks       │              6 │
     │ Avg cases / runbook        │            5.2 │
     │ Avg steps / runbook        │            6.0 │
@@ -328,7 +328,7 @@ dicono cosa il runbook non ha potuto vedere:
 - `Evidenza incompleta: K fonti (…)`: letture sature (righe pari al limite della query o pagine non lette), non
   disponibili (lettura fallita), saltate o a correlazione manuale.
 
-Se nessun caso noto e riconosciuto, lo script stampa `No known case matched` e un **fallback** con tutti i valori raccolti:
+Se nessun caso noto e riconosciuto, lo script stampa `No known error matched` e un **fallback** con tutti i valori raccolti:
 
 ```
 [CASO NON RICONOSCIUTO] Impossibile identificare univocamente la causa dell'errore.
@@ -345,7 +345,7 @@ Ogni esecuzione produce, nella directory output dell'esecuzione, i file JSON ric
 | File                      | Contenuto                                                                                                                                                                                           | Uso                                  |
 | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
 | `trace-{alarmName}.json`  | Traccia completa: pipeline, step, variabili, case matching, action trace; per un albero d'errore anche `errorTree` (i nodi, con `occurrences` degli errori uniti, e le catene con tutti i percorsi) | Audit, debug e post-mortem           |
-| `result-{runbookId}.json` | Esito essenziale versionato (schema `4.0.0`): rilevazioni per caso e richiesta, catene senza l'elenco dei percorsi, copertura, contesto                                                             | Dashboard, notifiche, lettura rapida |
+| `result-{runbookId}.json` | Esito essenziale versionato (schema `5.0.0`): rilevazioni per caso e richiesta, catene senza l'elenco dei percorsi, copertura, contesto                                                             | Dashboard, notifiche, lettura rapida |
 
 I nomi dei profili AWS configurati vengono tolti da entrambi i file prima di salvarli.
 
@@ -367,8 +367,8 @@ result-k8s-interop-be-backend-for-frontend-errors-2026-07-09T09-30-00.000Z.json
 
 Il result distingue esplicitamente:
 
-- `known-case-matched`: individuato almeno un caso noto; `detections` ha una voce per caso e richiesta (in un albero d'errore; una per rilevazione nei runbook di finestra), in ordine di tempo, con il numero di errori (`errors`), il primo messaggio (`resolvedMessage`) e le varianti distinte (`resolvedMessages`);
-- `unknown-case`: esecuzione completata con evidenza completa, ma nessun caso noto ha matchato;
+- `known-error-matched`: individuato almeno un caso noto; `detections` ha una voce per caso e richiesta (in un albero d'errore; una per rilevazione nei runbook di finestra), in ordine di tempo, con il numero di errori (`errors`), il primo messaggio (`resolvedMessage`) e le varianti distinte (`resolvedMessages`);
+- `unknown-error`: esecuzione completata con evidenza completa, ma nessun caso noto ha matchato;
 - `inconclusive`: nessun caso noto, ma l'evidenza è incompleta (una lettura fallita, saltata o satura);
 - `failed` / `aborted`: errore tecnico o interruzione;
 - `procedure-success` / `procedure-failure`: esiti per runbook procedurali.

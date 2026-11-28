@@ -14,12 +14,12 @@ import { ResolveInteropApiGwAlarmContextStep } from '../steps/ResolveInteropApiG
 import type { InteropApiGwAlarmConfig } from '../types/InteropApiGwAlarmConfig.js';
 import type { InteropApiGwRunbookStepIds } from '../types/InteropApiGwRunbookStepIds.js';
 import type { InteropApiGwPipelineAnchor } from '../types/InteropApiGwPipelineAnchor.js';
-import { defaultInteropApiGwUnknownCaseFallback } from './defaultInteropApiGwUnknownCaseFallback.js';
+import { defaultInteropApiGwUnknownErrorFallback } from './defaultInteropApiGwUnknownErrorFallback.js';
 
 /**
  * Canonical step ids of an INTEROP API Gateway alarm runbook.
  *
- * The application-log ids carry the service name so a known case reads
+ * The application-log ids carry the service name so a known error reads
  * which service it is asserting on, exactly like the k8s family.
  *
  * @param serviceName - Pod app whose application logs the runbook reads
@@ -112,7 +112,7 @@ export function createInteropApiGwAlarmRunbook(config: InteropApiGwAlarmConfig):
 
   return finishAlarmRunbook(builder, runbook, {
     builderName: 'createInteropApiGwAlarmRunbook',
-    defaultFallback: () => defaultInteropApiGwUnknownCaseFallback(config),
+    defaultFallback: () => defaultInteropApiGwUnknownErrorFallback(config),
     runbookContext: {
       kind: 'apigw',
       product: RunbookProducts.INTEROP,

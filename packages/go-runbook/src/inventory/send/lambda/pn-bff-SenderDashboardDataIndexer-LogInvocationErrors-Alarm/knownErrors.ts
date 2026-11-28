@@ -1,0 +1,63 @@
+import { knownError, lambda, lambdaLogEvidenceMatches } from '../../../../toolkits/send/index.js';
+import type { KnownError } from '../../../../engine/index.js';
+export const KNOWN_ERRORS: ReadonlyArray<KnownError> = [
+  knownError({
+    code: 'SEND_LAMBDA_PBSDDILIEA_SEN-DAS-DAT-OBJ-NOT-FOU',
+    description: 'Oggetto sorgente della Dashboard Mittenti non trovato nel bucket DataLake',
+    condition: lambdaLogEvidenceMatches('Object not found:\\s*.+\\s+in bucket\\s+.+'),
+    title: 'Dashboard Mittenti: oggetto DataLake non trovato',
+    resolution: 'Risoluzione non documentata.',
+    details: [
+      ['Errore', '{{vars.lastErrorMsg}}'],
+      ['requestId', '{{vars.lambdaRequestId}}'],
+    ],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      errorDetails: 'Uno dei file JSON sorgente non è disponibile nel bucket DataLake configurato.',
+      finalActions: [],
+      links: [],
+    },
+  }),
+  knownError({
+    code: 'SEND_LAMBDA_PBSDDILIEA_SEN-DAS-DAT-FIL-TOO-SMA',
+    description: 'File sorgente della Dashboard Mittenti sotto la soglia minima configurata',
+    condition: lambdaLogEvidenceMatches('File size is less than the minimum size:\\s*\\d+\\s*bytes'),
+    title: 'Dashboard Mittenti: file DataLake vuoto o troppo piccolo',
+    resolution: 'Risoluzione non documentata.',
+    details: [
+      ['Errore', '{{vars.lastErrorMsg}}'],
+      ['requestId', '{{vars.lambdaRequestId}}'],
+    ],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      errorDetails: 'Almeno uno dei file JSON sorgente è sotto la soglia MIN_BYTES_DATA_LAKE_FILE.',
+      finalActions: [],
+      links: [],
+    },
+  }),
+  knownError({
+    code: 'SEND_LAMBDA_PBSDDILIEA_SEN-DAS-DAT-OLD-THA-THR',
+    description: 'I dati della Dashboard Mittenti sono più vecchi della soglia configurata',
+    condition: lambdaLogEvidenceMatches(
+      'No data in the last\\s+\\d+\\s+days\\.\\s*Last data date:\\s*\\d{4}-\\d{2}-\\d{2}',
+    ),
+    title: 'Dashboard Mittenti: nessun dato recente',
+    resolution:
+      'Negli ambienti inferiori non \u00E8 richiesta alcuna azione quando non sono presenti nuovi dati da processare. La pagina non indica una risoluzione per la produzione.',
+    details: [
+      ['Errore', '{{vars.lastErrorMsg}}'],
+      ['requestId', '{{vars.lambdaRequestId}}'],
+    ],
+    analysis: {
+      // L'alarm name non identifica l'ambiente: serve una verifica umana prima di chiudere.
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      errorDetails: 'La lastDate dei dati elaborati supera ALARM_N_DAYS (5 nella configurazione verificata).',
+      finalActions: [],
+      links: [],
+    },
+  }),
+  ...lambda.LAMBDA_RUNTIME_KNOWN_ERRORS,
+];

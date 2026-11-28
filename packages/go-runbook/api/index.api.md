@@ -107,7 +107,7 @@ export type CaseActionType = 'log' | 'notify' | 'update' | 'escalate' | 'composi
 
 ```ts
 export interface CaseEvaluationTrace {
-    readonly caseId: string;
+    readonly knownErrorCode: string;
     readonly description: string;
     readonly condition: Condition;
     readonly matched: boolean;
@@ -126,7 +126,7 @@ export interface CaseEvaluationTrace {
 export interface CaseMatchingTrace {
     readonly casesEvaluated: number;
     readonly evaluations: ReadonlyArray<CaseEvaluationTrace>;
-    readonly matchedCaseIds: ReadonlyArray<string>;
+    readonly matchedKnownErrorCodes: ReadonlyArray<string>;
 }
 ```
 
@@ -324,7 +324,7 @@ export interface ErrorTreeNode {
     readonly descents: ReadonlyArray<TreeDescent>;
     readonly status: 'ok' | 'failed';
     readonly failure?: string;
-    readonly detections: ReadonlyArray<KnownCaseDetection>;
+    readonly detections: ReadonlyArray<KnownErrorDetection>;
     readonly branchOutcome: BranchOutcome;
     readonly incompleteEvidence?: boolean;
 }
@@ -473,11 +473,11 @@ export declare function interpolatePlaceholders(template: string, values: Templa
 export declare function interpolatePlaceholders(template: string, values: TemplatePlaceholderValues, options?: InterpolatePlaceholdersOptions): string;
 ```
 
-### `KnownCase` (type)
+### `KnownError` (type)
 
 ```ts
-export interface KnownCase extends KnownCaseExtensions {
-    readonly id: string;
+export interface KnownError extends KnownErrorExtensions {
+    readonly code: string;
     readonly description: string;
     readonly condition: Condition;
     readonly action: CaseAction;
@@ -485,11 +485,11 @@ export interface KnownCase extends KnownCaseExtensions {
 }
 ```
 
-### `KnownCaseDetection` (type)
+### `KnownErrorDetection` (type)
 
 ```ts
-export interface KnownCaseDetection {
-    readonly knownCase: KnownCase;
+export interface KnownErrorDetection {
+    readonly knownError: KnownError;
     readonly firstSeenAt?: string;
     readonly lastSeenAt?: string;
     readonly evidenceRows: number;
@@ -497,13 +497,13 @@ export interface KnownCaseDetection {
 }
 ```
 
-### `KnownCaseExtensions` (type)
+### `KnownErrorExtensions` (type)
 
 ```ts
-export interface KnownCaseExtensions {
+export interface KnownErrorExtensions {
 }
-interface KnownCaseExtensions {
-    readonly analysis?: KnownCaseAnalysis;
+interface KnownErrorExtensions {
+    readonly analysis?: KnownErrorAnalysis;
 }
 ```
 
@@ -695,7 +695,7 @@ export declare function resolveRef(ref: string, context: RunbookContext): unknow
 export interface Runbook extends RunbookExtensions {
     readonly metadata: RunbookMetadata;
     readonly steps: ReadonlyArray<StepDescriptor>;
-    readonly knownCases: ReadonlyArray<KnownCase>;
+    readonly knownErrors: ReadonlyArray<KnownError>;
     readonly fallbackAction: CaseAction;
     readonly maxIterations?: number;
     readonly tree?: ErrorTreeDefinition;
@@ -726,7 +726,7 @@ export declare class RunbookBuilder {
     wiredStepIds(): ReadonlySet<string>;
     errorTree(tree: ErrorTreeDefinition): this;
     private treeStepIds;
-    knownCase(knownCase: KnownCase): this;
+    knownError(knownError: KnownError): this;
     fallback(action: CaseAction): this;
     maxIterations(max: number): this;
     validate(): ReadonlyArray<ValidationErrorEntry>;
@@ -768,7 +768,7 @@ export declare class RunbookEngine {
     private executeSteps;
     private executeStepDescriptor;
     private captureStepInput;
-    private detectKnownCases;
+    private detectKnownErrors;
     private investigateTree;
     private runNodeSteps;
     private logTreeDetections;
@@ -792,7 +792,7 @@ export interface RunbookEngineOptions {
 export interface RunbookExecutionResult {
     readonly runbookId: string;
     readonly status: RunbookExecutionStatus;
-    readonly detections: ReadonlyArray<KnownCaseDetection>;
+    readonly detections: ReadonlyArray<KnownErrorDetection>;
     readonly coverage: ReadonlyArray<CoverageEntry>;
     readonly windowIncomplete: boolean;
     readonly observedErrors?: ObservedErrors;
@@ -817,7 +817,7 @@ export type RunbookExecutionStatus = 'completed' | 'failed' | 'aborted';
 
 ```ts
 export interface RunbookExecutionTrace {
-    readonly schemaVersion: '3.0.0';
+    readonly schemaVersion: '4.0.0';
     readonly execution: ExecutionInfo;
     readonly input: Readonly<Record<string, string>>;
     readonly pipeline: ReadonlyArray<StepTrace>;
@@ -1102,8 +1102,8 @@ export declare class TraceBuilder {
     private readonly startedAtMs;
     constructor(executionId: string, runbook: Runbook, params: ReadonlyMap<string, string>);
     traceStep(entry: StepTraceEntry): void;
-    traceCaseEvaluation(knownCase: KnownCase, matched: boolean, resolvedValues: Readonly<Record<string, unknown>>, match?: Pick<CaseEvaluationTrace, 'firstSeenAt' | 'lastSeenAt' | 'evidenceRows' | 'supersededBy' | 'nodeId'>): void;
-    traceDetections(caseIds: ReadonlyArray<string>): void;
+    traceCaseEvaluation(knownError: KnownError, matched: boolean, resolvedValues: Readonly<Record<string, unknown>>, match?: Pick<CaseEvaluationTrace, 'firstSeenAt' | 'lastSeenAt' | 'evidenceRows' | 'supersededBy' | 'nodeId'>): void;
+    traceDetections(knownErrorCodes: ReadonlyArray<string>): void;
     traceCoverage(coverage: ReadonlyArray<CoverageEntry>): void;
     traceAction(action: CaseAction, actionType: ActionType, status: TraceStatus, durationMs: number, resolvedMessage?: string, error?: string): void;
     build(finalContext: RunbookContext, status: RunbookExecutionStatus, environment: ExecutionEnvironment, failureReason?: string): RunbookExecutionTrace;
@@ -1312,7 +1312,7 @@ export type ValidationErrorCode = keyof ValidationErrorCodes;
 ```ts
 export interface ValidationErrorCodes {
     readonly DUPLICATE_STEP_ID: true;
-    readonly DUPLICATE_CASE_ID: true;
+    readonly DUPLICATE_KNOWN_ERROR_CODE: true;
     readonly UNKNOWN_SUPERSEDED_CASE: true;
     readonly SUPERSEDES_CYCLE: true;
     readonly MISSING_METADATA: true;
@@ -1335,7 +1335,7 @@ export interface ValidationErrorEntry {
     readonly code: ValidationErrorCode;
     readonly message: string;
     readonly stepId?: string;
-    readonly caseId?: string;
+    readonly knownErrorCode?: string;
 }
 ```
 

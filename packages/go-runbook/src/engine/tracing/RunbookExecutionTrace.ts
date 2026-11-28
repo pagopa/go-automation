@@ -19,7 +19,7 @@ import type { CoverageEntry } from '../types/CoverageEntry.js';
  */
 export interface RunbookExecutionTrace {
   /** Schema version for forward compatibility */
-  readonly schemaVersion: '3.0.0';
+  readonly schemaVersion: '4.0.0';
   /** General execution information */
   readonly execution: ExecutionInfo;
   /** Input parameters provided to the runbook */
@@ -28,7 +28,7 @@ export interface RunbookExecutionTrace {
   readonly pipeline: ReadonlyArray<StepTrace>;
   /** Final state of variables at the end of execution */
   readonly variables: Readonly<Record<string, string>>;
-  /** Detail of known case matching */
+  /** Detail of known error matching */
   readonly caseMatching: CaseMatchingTrace;
   /**
    * Detail of every executed action, in the order they ran: one entry per detection, in the order of the detections,

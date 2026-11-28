@@ -6,7 +6,7 @@ import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine } from '../RunbookEngine.js';
 import { executeStep } from '../../steps/execution/executeStep.js';
 import type { ServiceRegistry } from '../../../toolkits/common/services/ServiceRegistry.js';
-import type { KnownCase } from '../../types/KnownCase.js';
+import type { KnownError } from '../../types/KnownError.js';
 import type { Step } from '../../types/Step.js';
 import type { StepResult } from '../../types/StepResult.js';
 import { createTestServiceRegistry } from '../../../toolkits/common/testing/createTestServiceRegistry.js';
@@ -36,8 +36,8 @@ function createEngine(): RunbookEngine {
 describe('RunbookEngine status handling', () => {
   it('stops with failed status when a step returns success=false without continueOnFailure', async () => {
     const executions: string[] = [];
-    const matchingCase: KnownCase = {
-      id: 'would-match',
+    const matchingCase: KnownError = {
+      code: 'would-match',
       description: 'Would match only if the runbook completed',
       condition: { type: 'compare', ref: 'params.mode', operator: '==', value: 'match' },
       action: { type: 'log', level: 'info', title: 'matched' },
@@ -49,7 +49,7 @@ describe('RunbookEngine status handling', () => {
           { step: recordingStep('failing-step', executions, PLANNED_FAILURE) },
           { step: recordingStep('after-failure', executions) },
         ],
-        knownCases: [matchingCase],
+        knownErrors: [matchingCase],
       }),
       new Map([['mode', 'match']]),
       createTestServiceRegistry(),
@@ -192,15 +192,15 @@ describe('RunbookEngine status handling', () => {
   });
 
   it('runs the action of every detection, in the order of the detections', async () => {
-    const cases: ReadonlyArray<KnownCase> = [
+    const cases: ReadonlyArray<KnownError> = [
       {
-        id: 'first',
+        code: 'first',
         description: 'First case',
         condition: { type: 'compare', ref: 'params.mode', operator: '==', value: 'match' },
         action: { type: 'log', level: 'warn', title: 'first action' },
       },
       {
-        id: 'second',
+        code: 'second',
         description: 'Second case',
         condition: { type: 'compare', ref: 'params.mode', operator: '==', value: 'match' },
         action: { type: 'log', level: 'warn', title: 'second action' },
@@ -208,17 +208,17 @@ describe('RunbookEngine status handling', () => {
     ];
 
     const result = await createEngine().execute(
-      createTestRunbook({ knownCases: cases }),
+      createTestRunbook({ knownErrors: cases }),
       new Map([['mode', 'match']]),
       createTestServiceRegistry(),
     );
 
     // Untimed detections keep the declaration order.
     assert.deepStrictEqual(
-      result.detections.map((d) => d.knownCase.id),
+      result.detections.map((d) => d.knownError.code),
       ['first', 'second'],
     );
-    assert.deepStrictEqual(result.trace.caseMatching.matchedCaseIds, ['first', 'second']);
+    assert.deepStrictEqual(result.trace.caseMatching.matchedKnownErrorCodes, ['first', 'second']);
     assert.deepStrictEqual(
       result.trace.actionsExecuted.map((action) =>
         action.actionDetail.type === 'log' ? action.actionDetail.title : '',
@@ -250,9 +250,9 @@ function timedEngine(): RunbookEngine {
   return new RunbookEngine(new GOLogger(), { evidenceTime: readEvidenceTime });
 }
 
-function logCase(id: string, regex: string, extra: Partial<KnownCase> = {}): KnownCase {
+function logCase(id: string, regex: string, extra: Partial<KnownError> = {}): KnownError {
   return {
-    id,
+    code: id,
     description: id,
     condition: { type: 'contains', ref: 'steps.logs', regex },
     action: { type: 'log', level: 'info', title: id },
@@ -273,7 +273,7 @@ describe('RunbookEngine detections', () => {
             ]),
           },
         ],
-        knownCases: [
+        knownErrors: [
           {
             ...logCase('untimed', 'x'),
             condition: { type: 'compare', ref: 'params.mode', operator: '==', value: 'on' },
@@ -287,7 +287,7 @@ describe('RunbookEngine detections', () => {
     );
 
     assert.deepStrictEqual(
-      result.detections.map((d) => d.knownCase.id),
+      result.detections.map((d) => d.knownError.code),
       ['early', 'late', 'untimed'],
     );
     const late = result.detections[1];
@@ -305,7 +305,7 @@ describe('RunbookEngine detections', () => {
             step: outputStep('logs', [row('2026-11-19 10:09:00.000', 'boom'), row('2026-11-19 10:02:00.000', 'boom')]),
           },
         ],
-        knownCases: [
+        knownErrors: [
           {
             ...logCase('boom', 'boom'),
             condition: {
@@ -332,7 +332,7 @@ describe('RunbookEngine detections', () => {
         steps: [
           { step: outputStep('logs', [row('2026-11-19 10:00:00.000', 'att'), row('2026-11-19 10:30:00.000', 'prod')]) },
         ],
-        knownCases: [
+        knownErrors: [
           {
             ...logCase('env', 'x'),
             condition: {
@@ -363,7 +363,7 @@ describe('RunbookEngine detections', () => {
     const result = await timedEngine().execute(
       createTestRunbook({
         steps: [{ step: outputStep('logs', [row('2026-11-19 10:00:00.000', 'timeout of insert-trigger')]) }],
-        knownCases: [
+        knownErrors: [
           logCase('generic-timeout', 'timeout'),
           logCase('specific-timeout', 'insert-trigger', { supersedes: ['generic-timeout'] }),
         ],
@@ -373,10 +373,10 @@ describe('RunbookEngine detections', () => {
     );
 
     assert.deepStrictEqual(
-      result.detections.map((d) => d.knownCase.id),
+      result.detections.map((d) => d.knownError.code),
       ['specific-timeout'],
     );
-    const generic = result.trace.caseMatching.evaluations.find((e) => e.caseId === 'generic-timeout');
+    const generic = result.trace.caseMatching.evaluations.find((e) => e.knownErrorCode === 'generic-timeout');
     assert.strictEqual(generic?.matched, true);
     assert.strictEqual(generic?.supersededBy, 'specific-timeout');
     assert.strictEqual(result.trace.actionsExecuted.length, 1);
@@ -393,7 +393,7 @@ describe('RunbookEngine detections', () => {
             ]),
           },
         ],
-        knownCases: [
+        knownErrors: [
           logCase('generic-timeout', 'timeout'),
           logCase('specific-timeout', 'insert-trigger', { supersedes: ['generic-timeout'] }),
         ],
@@ -403,7 +403,7 @@ describe('RunbookEngine detections', () => {
     );
 
     assert.deepStrictEqual(
-      result.detections.map((d) => [d.knownCase.id, d.firstSeenAt, d.evidenceRows]),
+      result.detections.map((d) => [d.knownError.code, d.firstSeenAt, d.evidenceRows]),
       [
         ['specific-timeout', '2026-11-19T10:00:00.000Z', 1],
         ['generic-timeout', '2026-11-19T10:20:00.000Z', 1],
@@ -412,7 +412,7 @@ describe('RunbookEngine detections', () => {
   });
 
   it('replaces a case whose condition no longer holds without the rows the superseding case covers', async () => {
-    const needsBoth: KnownCase = {
+    const needsBoth: KnownError = {
       ...logCase('timeout-then-recovery', 'x'),
       condition: {
         type: 'and',
@@ -432,7 +432,7 @@ describe('RunbookEngine detections', () => {
             ]),
           },
         ],
-        knownCases: [
+        knownErrors: [
           needsBoth,
           logCase('specific-timeout', 'insert-trigger', { supersedes: ['timeout-then-recovery'] }),
         ],
@@ -442,7 +442,7 @@ describe('RunbookEngine detections', () => {
     );
 
     assert.deepStrictEqual(
-      result.detections.map((d) => d.knownCase.id),
+      result.detections.map((d) => d.knownError.code),
       ['specific-timeout'],
     );
   });
@@ -458,7 +458,7 @@ describe('RunbookEngine detections', () => {
             ]),
           },
         ],
-        knownCases: [
+        knownErrors: [
           logCase('generic-timeout', 'timeout'),
           logCase('timeout-a', 'lambda-a', { supersedes: ['generic-timeout'] }),
           logCase('timeout-b', 'lambda-b', { supersedes: ['generic-timeout'] }),
@@ -469,7 +469,7 @@ describe('RunbookEngine detections', () => {
     );
 
     assert.deepStrictEqual(
-      result.detections.map((d) => d.knownCase.id),
+      result.detections.map((d) => d.knownError.code),
       ['timeout-a', 'timeout-b'],
     );
   });
@@ -485,7 +485,7 @@ describe('RunbookEngine detections', () => {
             ]),
           },
         ],
-        knownCases: [
+        knownErrors: [
           logCase('generic-timeout', 'timeout'),
           logCase('timeout-a', 'lambda-a', { supersedes: ['generic-timeout'] }),
           {
@@ -500,7 +500,7 @@ describe('RunbookEngine detections', () => {
 
     assert.ok(
       result.detections.some(
-        (d) => d.knownCase.id === 'generic-timeout' && d.firstSeenAt === '2026-11-19T10:05:00.000Z',
+        (d) => d.knownError.code === 'generic-timeout' && d.firstSeenAt === '2026-11-19T10:05:00.000Z',
       ),
     );
   });
@@ -509,7 +509,7 @@ describe('RunbookEngine detections', () => {
     const result = await timedEngine().execute(
       createTestRunbook({
         steps: [{ step: outputStep('logs', { output: [row('2026-11-19 10:00:00.000', 'timeout of lambda-a')] }) }],
-        knownCases: [
+        knownErrors: [
           {
             ...logCase('generic-timeout', 'x'),
             condition: { type: 'contains', ref: 'steps.logs.output.output', regex: 'timeout' },
@@ -525,7 +525,7 @@ describe('RunbookEngine detections', () => {
     );
 
     assert.deepStrictEqual(
-      result.detections.map((d) => d.knownCase.id),
+      result.detections.map((d) => d.knownError.code),
       ['timeout-a'],
     );
   });
@@ -539,7 +539,7 @@ describe('RunbookEngine detections', () => {
           { step: recordingStep('service-read', executions, { success: false, error: 'ThrottlingException' }) },
           { step: recordingStep('after', executions) },
         ],
-        knownCases: [logCase('authorizer-timeout', 'authorizer timeout')],
+        knownErrors: [logCase('authorizer-timeout', 'authorizer timeout')],
         readPolicy: 'partial',
       }),
       new Map(),
@@ -549,7 +549,7 @@ describe('RunbookEngine detections', () => {
     assert.strictEqual(result.status, 'completed');
     assert.deepStrictEqual(executions, ['service-read']);
     assert.deepStrictEqual(
-      result.detections.map((d) => d.knownCase.id),
+      result.detections.map((d) => d.knownError.code),
       ['authorizer-timeout'],
     );
     assert.deepStrictEqual(result.coverage, [
@@ -604,7 +604,7 @@ describe('RunbookEngine detections', () => {
     const result = await engine.execute(
       createTestRunbook({
         steps: [{ step: outputStep('logs', [row('2026-11-19 10:00:00.000', 'boom')]) }],
-        knownCases: [logCase('only', 'boom')],
+        knownErrors: [logCase('only', 'boom')],
       }),
       new Map(),
       createTestServiceRegistry(),
@@ -618,8 +618,8 @@ describe('RunbookEngine detections', () => {
 
   it('ends aborted when the signal aborts while the actions of the detections run', async () => {
     const controller = new AbortController();
-    const abortingCase = (id: string): KnownCase => ({
-      id,
+    const abortingCase = (id: string): KnownError => ({
+      code: id,
       description: id,
       condition: { type: 'compare', ref: 'params.mode', operator: '==', value: 'on' },
       action: {
@@ -636,7 +636,7 @@ describe('RunbookEngine detections', () => {
       },
     });
     const result = await timedEngine().execute(
-      createTestRunbook({ knownCases: [abortingCase('first'), abortingCase('second')] }),
+      createTestRunbook({ knownErrors: [abortingCase('first'), abortingCase('second')] }),
       new Map([['mode', 'on']]),
       createTestServiceRegistry(),
       undefined,

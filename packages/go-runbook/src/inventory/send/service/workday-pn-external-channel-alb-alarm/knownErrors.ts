@@ -1,0 +1,52 @@
+/**
+ * Known errors for the workday-pn-external-channel-alb-alarm runbook.
+ */
+import { all, type KnownError, stepEvidenceMatches } from '../../../../engine/index.js';
+import { knownError } from '../../../../toolkits/send/index.js';
+/**
+ * Known errors evaluated against service log analysis.
+ */
+export const KNOWN_ERRORS: ReadonlyArray<KnownError> = [
+  knownError({
+    code: 'SEND_SERVICE_WPECAA_DUP-EVE-400-02',
+    description: 'Richieste duplicate inviate dai recapitisti',
+    supersedes: ['SEND_SERVICE_WPECAA_DUP-EVE-ERR-CON'],
+    condition: all(
+      stepEvidenceMatches('query-pn-external-channel', 'sendPaperProgressStatusRequest syntax/semantic errors'),
+      stepEvidenceMatches('query-pn-external-channel', "result code = '400\\.02'"),
+      stepEvidenceMatches('query-pn-external-channel', 'ERR_CONS_DUPLICATED_EVENT'),
+    ),
+    resolution:
+      "[SNDA-2371] analisi su grande numero di eventi di recapito duplicati nella notte tra l'11/05 e il 12/05 - Jira",
+    details: [
+      ['Servizio', 'pn-external-channel'],
+      ['Codice errore', '400.02'],
+      ['Errore', 'ERR_CONS_DUPLICATED_EVENT'],
+      ['Trace ID', '{{vars.externalChannelTraceId}}'],
+    ],
+    analysis: {
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
+    },
+  }),
+  knownError({
+    code: 'SEND_SERVICE_WPECAA_DUP-EVE-ERR-CON',
+    description: 'Richieste duplicate inviate dai recapitisti',
+    condition: stepEvidenceMatches('query-pn-external-channel', 'ERR_CONS_DUPLICATED_EVENT'),
+    resolution:
+      "[SNDA-2371] analisi su grande numero di eventi di recapito duplicati nella notte tra l'11/05 e il 12/05 - Jira",
+    details: [
+      ['Servizio', 'pn-external-channel'],
+      ['Errore', 'ERR_CONS_DUPLICATED_EVENT'],
+      ['Trace ID', '{{vars.externalChannelTraceId}}'],
+    ],
+    analysis: {
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
+    },
+  }),
+];

@@ -3,23 +3,23 @@ import { describe, it } from 'node:test';
 
 import { RUNBOOK_CATALOG } from '../registry/runbookRegistry.js';
 import { createTestContext } from '../../__tests__/helpers/createTestContext.js';
-import { matchingCaseIds } from '../../__tests__/helpers/knownCaseMatching.js';
+import { matchingKnownErrorCodes } from '../../__tests__/helpers/knownErrorMatching.js';
 import { logRow } from '../../__tests__/helpers/logRow.js';
 
 describe('documented operational boundaries', () => {
   it('does not prescribe generic configuration changes or internal IO database checks', () => {
     for (const descriptor of RUNBOOK_CATALOG.listDescriptors()) {
       const runbook = RUNBOOK_CATALOG.resolveByKey(descriptor.key)!.build();
-      for (const knownCase of runbook.knownCases) {
-        const guidance = [knownCase.analysis?.resolution, ...(knownCase.analysis?.finalActions ?? [])].join(' ');
+      for (const knownError of runbook.knownErrors) {
+        const guidance = [knownError.analysis?.resolution, ...(knownError.analysis?.finalActions ?? [])].join(' ');
         assert.doesNotMatch(
           guidance,
           /Aumentare la memoria|Verificare il timeout configurato e la Max Concurrency|verificare[^.]*Cosmos DB|smaltimento del lag|archiviazioni attese/iu,
-          `${descriptor.key}: ${knownCase.id}`,
+          `${descriptor.key}: ${knownError.code}`,
         );
-        if (knownCase.analysis?.resolution === 'Risoluzione non documentata.') {
-          assert.notStrictEqual(knownCase.analysis.proposedStatus, 'COMPLETED', knownCase.id);
-          assert.deepStrictEqual(knownCase.analysis.finalActions ?? [], [], knownCase.id);
+        if (knownError.analysis?.resolution === 'Risoluzione non documentata.') {
+          assert.notStrictEqual(knownError.analysis.proposedStatus, 'COMPLETED', knownError.code);
+          assert.deepStrictEqual(knownError.analysis.finalActions ?? [], [], knownError.code);
         }
       }
     }
@@ -40,10 +40,12 @@ describe('documented operational boundaries', () => {
       },
       vars: { downstreamMonitoringS3Recovery: 'RECOVERED_ALL' },
     });
-    const matched = runbook.knownCases.filter(({ id }) => matchingCaseIds(runbook.knownCases, context).includes(id));
+    const matched = runbook.knownErrors.filter(({ code }) =>
+      matchingKnownErrorCodes(runbook.knownErrors, context).includes(code),
+    );
     assert.deepStrictEqual(
-      matched.map(({ id }) => id),
-      ['downstream-monitoring-s3-slow-down'],
+      matched.map(({ code }) => code),
+      ['SEND_LAMBDA_PDMLLIEA_DOW-MON-S3-SLO-DOW'],
     );
     assert.ok(matched.every(({ analysis }) => analysis?.proposedStatus === 'IN_PROGRESS'));
   });

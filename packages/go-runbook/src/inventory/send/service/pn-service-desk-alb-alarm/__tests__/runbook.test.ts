@@ -71,10 +71,10 @@ describe('service desk runbook with injected AWS services', () => {
     const { result } = await execute([row(NOT_FOUND)]);
     assert.strictEqual(result.status, 'completed');
     assert.deepStrictEqual(
-      result.detections.map(({ knownCase }) => knownCase.id),
-      ['service-desk-view-notification-not-found'],
+      result.detections.map(({ knownError }) => knownError.code),
+      ['SEND_SERVICE_PSDAA_SER-DES-VIE-NOT-NOT-FOU'],
     );
-    assert.strictEqual(result.detections[0]?.knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
+    assert.strictEqual(result.detections[0]?.knownError.analysis?.proposedStatus, 'IN_PROGRESS');
     assert.strictEqual(treeNodeVars(result).get('serviceDeskTraceId'), TRACE_ID);
   });
   it('recognizes the 410 signature and reuses the same reader and trace for correlation', async () => {
@@ -86,10 +86,10 @@ describe('service desk runbook with injected AWS services', () => {
     assert.strictEqual(queries.length, 2);
     assert.ok(queries[1]?.includes(TRACE_ID));
     assert.deepStrictEqual(
-      result.detections.map(({ knownCase }) => knownCase.id),
-      ['service-desk-notification-document-gone'],
+      result.detections.map(({ knownError }) => knownError.code),
+      ['SEND_SERVICE_PSDAA_SER-DES-NOT-DOC-GON'],
     );
-    assert.strictEqual(result.detections[0]?.knownCase.analysis?.resolution, 'Risoluzione non documentata.');
+    assert.strictEqual(result.detections[0]?.knownError.analysis?.resolution, 'Risoluzione non documentata.');
   });
   it('does not classify generic audit errors, other 404s or other document statuses', async () => {
     for (const message of [

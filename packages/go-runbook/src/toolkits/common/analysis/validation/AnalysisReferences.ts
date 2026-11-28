@@ -1,3 +1,3 @@
-import type { KnownCaseAnalysis } from '../KnownCaseAnalysis.js';
+import type { KnownErrorAnalysis } from '../KnownErrorAnalysis.js';
 
-export type AnalysisReferences = Pick<KnownCaseAnalysis, 'resources' | 'downstreams' | 'finalActions' | 'links'>;
+export type AnalysisReferences = Pick<KnownErrorAnalysis, 'resources' | 'downstreams' | 'finalActions' | 'links'>;

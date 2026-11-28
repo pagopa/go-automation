@@ -3,7 +3,7 @@ import { interop, type InteropApiGwAlarm } from '../../../../toolkits/interop/in
 import { AUTH_SERVER_API_GW_IDS } from '../../shared/AUTH_SERVER_API_GW_IDS.js';
 
 /**
- * Everything the runbook, its known cases and the registry need about the
+ * Everything the runbook, its known errors and the registry need about the
  * INTEROP auth-server API Gateway alarm.
  *
  * The low-request variant exists only in att and test, so it is declared as an

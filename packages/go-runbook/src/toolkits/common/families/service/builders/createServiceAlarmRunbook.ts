@@ -12,17 +12,17 @@ import { applicationRowIdentity } from '../tree/applicationRowIdentity.js';
 import { attributeTraceRow } from '../tree/attributeTraceRow.js';
 import { enumerateServiceRootErrors } from '../tree/enumerateServiceRootErrors.js';
 import { enumerateTraceErrors } from '../tree/enumerateTraceErrors.js';
-import { defaultServiceUnknownCaseFallback } from './defaultServiceUnknownCaseFallback.js';
+import { defaultServiceUnknownErrorFallback } from './defaultServiceUnknownErrorFallback.js';
 import { finishAlarmRunbook } from '../../../builders/finishAlarmRunbook.js';
 import type { ServicePipelineAnchor } from '../types/ServicePipelineAnchor.js';
 
 /**
  * Builds the runbook of a service alarm: the error scan of the service, then an error tree that reads each error by
- * trace id, with the hooks of the pipeline and the known cases of the configuration.
+ * trace id, with the hooks of the pipeline and the known errors of the configuration.
  *
  * @param config - Configuration of the service alarm
  * @returns The runbook
- * @throws Error when the service identity, the hooks or the known cases are invalid
+ * @throws Error when the service identity, the hooks or the known errors are invalid
  */
 export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
   validateServiceIdentity('createServiceAlarmRunbook', config.id, config.service);
@@ -111,7 +111,7 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
 
   return finishAlarmRunbook(builder, config, {
     builderName: 'createServiceAlarmRunbook',
-    defaultFallback: () => defaultServiceUnknownCaseFallback(service),
+    defaultFallback: () => defaultServiceUnknownErrorFallback(service),
     runbookContext: { kind: 'service', product: config.product, service, queryProfileId: profile.id },
     primaryResource: service.name,
     anchors: { hooks: config.hooks ?? [], reached: reachedAnchors, pipelineName: 'service' },

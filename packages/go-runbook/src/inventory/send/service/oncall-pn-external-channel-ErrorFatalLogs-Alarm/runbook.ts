@@ -2,7 +2,7 @@ import { service } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
 import { EXTERNAL_CHANNEL_FATAL_ALARM } from './alarmDefinition.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { SERVICE } from './knownServices.js';
 
 const RUNBOOK_URL =
@@ -25,7 +25,7 @@ export function buildRunbook(): Runbook {
       tags: ['service', 'pn-external-channel', 'pec', 'oncall'],
     },
     service: SERVICE,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 5 },
     analysisDefaults: {
       runbookName: EXTERNAL_CHANNEL_FATAL_ALARM,

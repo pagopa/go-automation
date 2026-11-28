@@ -10,7 +10,7 @@ export interface RunbookCacheDescriptor {
   readonly id: string;
   /** Runbook semantic version (`metadata.version`). */
   readonly version: string;
-  /** SHA-256 of the serializable runbook structure (known cases, steps, …). */
+  /** SHA-256 of the serializable runbook structure (known errors, steps, …). */
   readonly hash: string;
   /** Resolved occurrence window, including the catalog default when omitted. */
   readonly occurrenceTimeWindow: OccurrenceTimeWindow;

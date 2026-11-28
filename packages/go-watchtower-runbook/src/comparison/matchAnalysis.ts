@@ -6,8 +6,9 @@ import { extractAnalysisEvidence, pickOccurrenceExcerpt } from '../evidence/extr
 import { resolveOccurrenceEvidenceWindow } from '../evidence/resolveOccurrenceEvidenceWindow.js';
 import { analysisTraceMatcher } from '../evidence/analysisTraceMatcher.js';
 import { matchedKeywordCategories } from './synonyms.js';
-import { normalize, tokenDice } from './text.js';
+import { namesIdentifier, normalize, tokenDice } from './text.js';
 import type { DetectedCase } from './DetectedCase.js';
+import { LEGACY_KNOWN_ERROR_IDS } from './LEGACY_KNOWN_ERROR_IDS.js';
 
 /** Options controlling which analyses are usable as comparison oracle. */
 export interface MatchAnalysisOptions {
@@ -47,7 +48,7 @@ function correlationIds(output: RunbookOutput): ReadonlyArray<string> {
  * followed request, as in SEND); otherwise a case without observations has none, and never borrows another's.
  */
 function detectedCases(output: RunbookOutput): ReadonlyArray<DetectedCase> {
-  if (output.outcome.kind !== 'known-case-matched') return [];
+  if (output.outcome.kind !== 'known-error-matched') return [];
   const fallbackMessage = output.outcome.message;
   // Each detection keeps the identifiers of its own occurrence, never those of another occurrence of the same case.
   const observedByCase = output.outcome.detections.map((detection) => [
@@ -67,7 +68,7 @@ function detectedCases(output: RunbookOutput): ReadonlyArray<DetectedCase> {
     const observed = observedByCase[index] ?? [];
     const messages = detection.resolvedMessages ?? [detection.resolvedMessage ?? fallbackMessage];
     return messages.map((message) => ({
-      caseId: detection.caseId,
+      knownErrorCode: detection.code,
       description: detection.description,
       message,
       identifiers: observed.length > 0 ? observed : contextIds,
@@ -126,26 +127,32 @@ function compareCase(
   evidence: ReturnType<typeof extractAnalysisEvidence>,
   traceIdOverlap: ReadonlyArray<string>,
 ): CaseComparison {
-  const caseIdMentioned = evidence.normalizedText.includes(normalize(detected.caseId));
+  // An analysis written before the codes names the known error by its old id: both identify it.
+  const legacyId = LEGACY_KNOWN_ERROR_IDS.get(detected.knownErrorCode);
+  const knownErrorCodeMentioned = [detected.knownErrorCode, legacyId].some(
+    (name) => name !== undefined && namesIdentifier(evidence.normalizedText, name),
+  );
   const descriptionOverlap = detected.description !== '' ? tokenDice(detected.description, evidence.text) : 0;
   const runbookHaystack = normalize(`${detected.message} ${detected.description}`);
   const downstreamOverlap = evidence.downstreamNames.filter((name) => {
     const normalized = normalize(name);
     return normalized !== '' && runbookHaystack.includes(normalized);
   });
-  const runbookCategories = matchedKeywordCategories(`${detected.message} ${detected.description} ${detected.caseId}`);
+  const runbookCategories = matchedKeywordCategories(
+    `${detected.message} ${detected.description} ${legacyId ?? detected.knownErrorCode}`,
+  );
   const analysisCategories = matchedKeywordCategories(evidence.text);
   const errorKeywordOverlap = runbookCategories.filter((category) => analysisCategories.includes(category));
-  // Weighted score (tunable); traceId / caseId are near-deterministic.
+  // Weighted score (tunable); traceId / knownErrorCode are near-deterministic.
   const score =
     0.4 * (traceIdOverlap.length > 0 ? 1 : 0) +
-    0.25 * (caseIdMentioned ? 1 : 0) +
+    0.25 * (knownErrorCodeMentioned ? 1 : 0) +
     0.2 * descriptionOverlap +
     0.1 * (downstreamOverlap.length > 0 ? 1 : 0) +
     0.05 * (errorKeywordOverlap.length > 0 ? 1 : 0);
   return {
     detected,
-    signals: { caseIdMentioned, descriptionOverlap, traceIdOverlap, downstreamOverlap, errorKeywordOverlap },
+    signals: { knownErrorCodeMentioned, descriptionOverlap, traceIdOverlap, downstreamOverlap, errorKeywordOverlap },
     score,
     runbookCategories,
     analysisCategories,
@@ -154,7 +161,7 @@ function compareCase(
 
 function emptySignals(): AnalysisMatchSignals {
   return {
-    caseIdMentioned: false,
+    knownErrorCodeMentioned: false,
     descriptionOverlap: 0,
     traceIdOverlap: [],
     downstreamOverlap: [],
@@ -262,7 +269,7 @@ export function matchAnalysis(
       aiAttempted: false,
       // Carried precisely here: an occurrence the runbook could not classify is
       // the one whose human analysis someone has to read to write the missing
-      // known case.
+      // known error.
       ...(excerpt !== '' ? { analysisExcerpt: excerpt } : {}),
     };
   }
@@ -271,19 +278,20 @@ export function matchAnalysis(
   // Every detected case is compared with the analysis, with its own identifiers: the one that agrees best decides.
   const best = bestComparison(detected, evidence);
   const { signals, score, runbookCategories, analysisCategories } = best;
-  const { traceIdOverlap, caseIdMentioned, descriptionOverlap, downstreamOverlap, errorKeywordOverlap } = signals;
+  const { traceIdOverlap, knownErrorCodeMentioned, descriptionOverlap, downstreamOverlap, errorKeywordOverlap } =
+    signals;
 
   const reasons: string[] = [];
   if (detected.length > 1)
-    reasons.push(`${String(detected.length)} casi rilevati; confronto sul caso "${best.detected.caseId}"`);
+    reasons.push(`${String(detected.length)} casi rilevati; confronto sul caso "${best.detected.knownErrorCode}"`);
   if (traceIdOverlap.length > 0) reasons.push(`traceId in comune: ${traceIdOverlap.join(', ')}`);
-  if (caseIdMentioned) reasons.push(`id caso "${best.detected.caseId}" citato nell'analisi`);
+  if (knownErrorCodeMentioned) reasons.push(`id caso "${best.detected.knownErrorCode}" citato nell'analisi`);
   if (descriptionOverlap > 0) reasons.push(`overlap descrizione ${(descriptionOverlap * 100).toFixed(0)}%`);
   if (downstreamOverlap.length > 0) reasons.push(`downstream in comune: ${downstreamOverlap.join(', ')}`);
   if (errorKeywordOverlap.length > 0) reasons.push(`categoria errore in comune: ${errorKeywordOverlap.join(', ')}`);
 
   let status: V2Status;
-  if (traceIdOverlap.length > 0 || caseIdMentioned) {
+  if (traceIdOverlap.length > 0 || knownErrorCodeMentioned) {
     // The human tracking is not typed: an identifier or a case id in the text cannot prove an exact match.
     status = 'MATCH_STRONG';
     reasons.push('MATCH_EXACT non emesso: il tracking umano di Watchtower non è tipizzato');

@@ -10,7 +10,7 @@ import type { CoverageIssue, CoverageReport } from '@go-automation/go-watchtower
 export function renderCoverage(logger: GOLogger, report: CoverageReport): void {
   logger.section('Copertura dichiarazioni ↔ censimento');
   logger.info(`Runbook analizzati: ${report.checkedRunbooks}`);
-  logger.info(`Casi noti analizzati: ${report.checkedKnownCases}`);
+  logger.info(`Casi noti analizzati: ${report.checkedKnownErrors}`);
   logger.info(`Riferimenti verificati: ${report.checkedReferences}`);
 
   if (report.errors.length > 0) {
@@ -39,7 +39,7 @@ export function renderCoverage(logger: GOLogger, report: CoverageReport): void {
  * @returns The formatted line
  */
 function formatIssue(issue: CoverageIssue): string {
-  const location = [issue.runbookKey, issue.knownCaseId, issue.field].filter(isPresent).join(' · ');
+  const location = [issue.runbookKey, issue.knownErrorId, issue.field].filter(isPresent).join(' · ');
   const suggestion = issue.suggestedValue === undefined ? '' : ` — forse "${issue.suggestedValue}"?`;
   return `[${issue.code}] ${location === '' ? '' : `${location}: `}${issue.message}${suggestion}`;
 }

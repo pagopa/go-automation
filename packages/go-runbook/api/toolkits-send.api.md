@@ -78,7 +78,7 @@ export declare class AlarmRunbookBuilder extends RunbookBuilder {
 ### `AnalysisDraftV1` (type)
 
 ```ts
-export type AnalysisDraftV1 = KnownCaseAnalysisDraft | UnknownCaseContextDraft;
+export type AnalysisDraftV1 = KnownErrorAnalysisDraft | UnknownErrorContextDraft;
 ```
 
 ### `AnalysisType` (type)
@@ -163,7 +163,7 @@ export interface ApiGwAlarmConfig {
     readonly knownUrls: ReadonlyArray<KnownUrl>;
     readonly authorizerFailureCheck?: ApiGwAuthorizerFailureCheckConfig;
     readonly hooks?: ReadonlyArray<PipelineHook<ApiGwPipelineAnchor>>;
-    readonly knownCases: ReadonlyArray<KnownCase>;
+    readonly knownErrors: ReadonlyArray<KnownError>;
     readonly analysisDefaults?: RunbookAnalysisDefaults;
     readonly fallbackAction?: CaseAction;
     readonly queryProfile?: ApiGwQueryProfile;
@@ -443,10 +443,10 @@ export declare function apiGwStatusIs(status: string): Condition;
 export declare function buildApiGwOutputContext(runbook: Runbook, result: RunbookExecutionResult, options?: LogSampleOptions): RunbookOutputContext | undefined;
 ```
 
-### `apigw.builtinApiGwAuthorizerKnownCases` (value)
+### `apigw.builtinApiGwAuthorizerKnownErrors` (value)
 
 ```ts
-export declare function builtinApiGwAuthorizerKnownCases(authorizerFailureCheck: ApiGwAuthorizerFailureCheckConfig | undefined): ReadonlyArray<KnownCase>;
+export declare function builtinApiGwAuthorizerKnownErrors(authorizerFailureCheck: ApiGwAuthorizerFailureCheckConfig | undefined): ReadonlyArray<KnownError>;
 ```
 
 ### `apigw.createSendApiGwAlarmRunbook` (value)
@@ -996,16 +996,16 @@ export declare class InMemoryAwsAccountsPort extends AwsAccountsDirectoryPort {
 }
 ```
 
-### `knownCase` (value)
+### `knownError` (value)
 
 ```ts
-export declare function knownCase(spec: KnownCaseSpec): KnownCase;
+export declare function knownError(spec: KnownErrorSpec): KnownError;
 ```
 
-### `KnownCaseAnalysisDraft` (type)
+### `KnownErrorAnalysisDraft` (type)
 
 ```ts
-export interface KnownCaseAnalysisDraft {
+export interface KnownErrorAnalysisDraft {
     readonly schemaVersion: 1;
     readonly kind: 'KNOWN_CASE';
     readonly conclusionNotes: string;
@@ -1092,10 +1092,10 @@ const DEFAULT_LAMBDA_INVOCATION_QUERY: string;
 const DEFAULT_LAMBDA_PROFILE: LambdaQueryProfile;
 ```
 
-### `lambda.defaultLambdaUnknownCaseFallback` (value)
+### `lambda.defaultLambdaUnknownErrorFallback` (value)
 
 ```ts
-export declare function defaultLambdaUnknownCaseFallback(downstreams: ReadonlyArray<LambdaDownstream>): CaseAction;
+export declare function defaultLambdaUnknownErrorFallback(downstreams: ReadonlyArray<LambdaDownstream>): CaseAction;
 ```
 
 ### `lambda.DownstreamErrorPattern` (type)
@@ -1114,10 +1114,10 @@ export interface DownstreamErrorPattern {
 export declare function isLambdaRunbookContext(value: unknown): value is LambdaRunbookContext;
 ```
 
-### `lambda.LAMBDA_RUNTIME_KNOWN_CASES` (value)
+### `lambda.LAMBDA_RUNTIME_KNOWN_ERRORS` (value)
 
 ```ts
-const LAMBDA_RUNTIME_KNOWN_CASES: ReadonlyArray<KnownCase>;
+const LAMBDA_RUNTIME_KNOWN_ERRORS: ReadonlyArray<KnownError>;
 ```
 
 ### `lambda.LambdaAlarmBuildContext` (type)
@@ -1141,7 +1141,7 @@ export interface LambdaAlarmConfig {
     readonly lambda: LambdaFunction;
     readonly downstreams?: ReadonlyArray<LambdaDownstream>;
     readonly downstreamErrorPatterns?: ReadonlyArray<DownstreamErrorPattern>;
-    readonly knownCases: ReadonlyArray<KnownCase>;
+    readonly knownErrors: ReadonlyArray<KnownError>;
     readonly errorQueryStep?: Step;
     readonly invocationQueryStep?: Step;
     readonly analysisDefaults?: RunbookAnalysisDefaults;
@@ -1311,7 +1311,7 @@ export interface LambdaRunbookContext {
 ### `lambda.LambdaTerminationReason` (type)
 
 ```ts
-export type LambdaTerminationReason = 'known-case' | 'downstream' | 'no-errors' | 'no-match';
+export type LambdaTerminationReason = 'known-error' | 'downstream' | 'no-errors' | 'no-match';
 ```
 
 ### `lambda.ParseLambdaErrorsConfig` (type)
@@ -1511,7 +1511,7 @@ export type OperationalContext = RunbookContext<ServiceRegistry>;
 ```ts
 export interface OperationalModelAugmentations {
     readonly runbook: RunbookExtensionsAugmentation;
-    readonly knownCase: KnownCaseExtensionsAugmentation;
+    readonly knownError: KnownErrorExtensionsAugmentation;
     readonly stepDescriptor: StepDescriptorExtensionsAugmentation;
     readonly stepDiagnostics: StepDiagnosticsAugmentation;
     readonly executionEnvironment: ExecutionEnvironmentExtensionsAugmentation;
@@ -1761,10 +1761,10 @@ export declare function createSendServiceAlarmRunbook(config: Omit<ServiceAlarmC
 export declare function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook;
 ```
 
-### `service.defaultServiceUnknownCaseFallback` (value)
+### `service.defaultServiceUnknownErrorFallback` (value)
 
 ```ts
-export declare function defaultServiceUnknownCaseFallback(service: ServiceDescriptor): CaseAction;
+export declare function defaultServiceUnknownErrorFallback(service: ServiceDescriptor): CaseAction;
 ```
 
 ### `service.isServiceRunbookContext` (value)
@@ -1817,7 +1817,7 @@ export interface ServiceAlarmConfig {
     readonly id: string;
     readonly metadata: Omit<RunbookMetadata, 'id'>;
     readonly service: ServiceDescriptor;
-    readonly knownCases: ReadonlyArray<KnownCase>;
+    readonly knownErrors: ReadonlyArray<KnownError>;
     readonly occurrenceTimeWindow?: OccurrenceTimeWindow;
     readonly analysisDefaults?: RunbookAnalysisDefaults;
     readonly hooks?: ReadonlyArray<PipelineHook<ServicePipelineAnchor>>;
@@ -1944,10 +1944,10 @@ export interface TimeRangeFromParams {
 export declare function tryCloudWatchLogsRead(context: OperationalContext, read: CloudWatchLogsRead): Promise<CloudWatchLogsReadAttempt>;
 ```
 
-### `unknownCaseFallback` (value)
+### `unknownErrorFallback` (value)
 
 ```ts
-export declare function unknownCaseFallback(title: string, rows: ReadonlyArray<LogActionRow>): CaseAction;
+export declare function unknownErrorFallback(title: string, rows: ReadonlyArray<LogActionRow>): CaseAction;
 ```
 
 ## Referenced but not exported
@@ -2027,10 +2027,10 @@ export type ExecutionEnvironmentExtensionsAugmentation = 'executionEnvironment';
 export type ExtractFallbackUuidFn = (message: string) => string | undefined;
 ```
 
-### `KnownCaseExtensionsAugmentation` (dist/toolkits/common/augmentations/KnownCaseExtensions.d.ts)
+### `KnownErrorExtensionsAugmentation` (dist/toolkits/common/augmentations/KnownErrorExtensions.d.ts)
 
 ```ts
-export type KnownCaseExtensionsAugmentation = 'knownCase';
+export type KnownErrorExtensionsAugmentation = 'knownError';
 ```
 
 ### `RunbookExtensionsAugmentation` (dist/toolkits/common/augmentations/RunbookExtensions.d.ts)

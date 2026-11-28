@@ -11,7 +11,7 @@ function build(downstream: DownstreamSelector): string {
     metadata: { name: 'probe', description: '', version: '1.0.0', type: 'alarm-resolution', team: 'GO', tags: [] },
     service: { name: 'pn-probe', varPrefix: 'probe', logGroup: '/aws/ecs/pn-probe' },
     downstream,
-    knownCases: [],
+    knownErrors: [],
   });
   return JSON.stringify(runbook);
 }

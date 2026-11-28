@@ -60,7 +60,7 @@ appunto di design locale, non versionato per convenzione (vedi
 | `coverage`           | Confronta i riferimenti **dichiarati** dai runbook con il censimento Watchtower del prodotto. Sola lettura, scrive un artifact di copertura. | No                            |
 | `readiness`          | Gate di attivazione di `APPLY_KNOWN`: unisce la copertura statica allo **shadow osservato**. Sola lettura, output solo a console.            | No                            |
 
-`readiness` passa solo se reggono **entrambe** le condizioni: copertura statica senza riferimenti mancanti **e**, nella finestra osservata, ogni known case valutato con `wouldApplyStatus = APPLIED`. Zero capability valutate non è un via libera: è assenza di evidenza, e l'esito resta negativo.
+`readiness` passa solo se reggono **entrambe** le condizioni: copertura statica senza riferimenti mancanti **e**, nella finestra osservata, ogni known error valutato con `wouldApplyStatus = APPLIED`. Zero capability valutate non è un via libera: è assenza di evidenza, e l'esito resta negativo.
 
 ### Finestra dello shadow
 
@@ -293,7 +293,7 @@ Per non ripagare ogni volta le query CloudWatch, l'esito del **runbook (V1)** di
 - **Cosa viene cachato**: solo l'`RunbookOutput` (la parte costosa che interroga CloudWatch Logs Insights). Un file JSON per occorrenza.
 - **Dove**: `data/go-rta-check/cache/runbook/<alarmName>/<eventId>.json`, risolto tramite il path system standard di GOScript (`GOPathType.CACHE`): rispetta quindi gli override `GO_DATA_DIR` / `GO_CACHE_DIR`. `<alarmName>` è sanitizzato (i caratteri fuori da `[a-zA-Z0-9._-]` diventano `_`).
 - **Chiave**: la coppia `(alarmName, eventId)`. `eventId` è l'id dell'occorrenza su Watchtower, univoco per ogni scatto dell'allarme.
-- **Fingerprint (validità)**: ogni entry è un envelope `{ fingerprint, meta, output }`. Il `fingerprint` è l'hash di tutto ciò che può cambiare l'esito V1: `fingerprintVersion` (leva locale), **id + versione del runbook**, **hash strutturale della definizione runbook** (known case, step, …), versione schema di `RunbookOutput`, **profili AWS + region** e **finestra temporale** (`firedAt` + minuti). L'entry viene riusata **solo se il fingerprint coincide** con quello ricalcolato al momento; per calcolarlo il runbook viene ricostruito dal registry (operazione pura, senza AWS).
+- **Fingerprint (validità)**: ogni entry è un envelope `{ fingerprint, meta, output }`. Il `fingerprint` è l'hash di tutto ciò che può cambiare l'esito V1: `fingerprintVersion` (leva locale), **id + versione del runbook**, **hash strutturale della definizione runbook** (known error, step, …), versione schema di `RunbookOutput`, **profili AWS + region** e **finestra temporale** (`firedAt` + minuti). L'entry viene riusata **solo se il fingerprint coincide** con quello ricalcolato al momento; per calcolarlo il runbook viene ricostruito dal registry (operazione pura, senza AWS).
 - **Cosa NON viene cachato**: la **V2** (confronto con l'analisi Watchtower) e il download dell'analisi. Sono **ricalcolati a ogni run** (la cache delle analisi è solo in memoria, valida per il singolo run). Così, anche con un hit sul runbook, il confronto usa sempre i dati Watchtower aggiornati.
 - **Lettura (hit)**: se il file esiste, **non** è stato passato `--force` **e il fingerprint coincide**, viene caricato e l'esecuzione del runbook è **saltata** (nella riga compare `fromCache: true`).
 - **Scrittura (miss)**: se manca, è **stale** (fingerprint diverso) o con `--force`, il runbook viene eseguito e l'output **sovrascrive** il file.

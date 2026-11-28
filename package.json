@@ -54,6 +54,7 @@
     "clean:all": "pnpm clean && pnpm -r exec rm -rf node_modules && rm -rf node_modules",
     "create:runbook": "tsx bins/create-runbook/src/index.ts",
     "create:runbook:test": "node --import tsx/esm --test --experimental-test-isolation=none 'bins/create-runbook/src/**/*.test.ts'",
+    "known-error:code": "tsx bins/create-runbook/src/knownErrorCode.ts",
     "deps:check": "pnpm deps:check:packages && pnpm deps:check:scripts:aws && pnpm deps:check:scripts:go && pnpm deps:check:scripts:send && pnpm deps:check:functions && pnpm deps:check:infra && pnpm deps:check:bins",
     "deps:check:bins": "depcruise --config .dependency-cruiser.cjs --output-type err bins/*/src",
     "deps:check:full": "NODE_OPTIONS=--max-old-space-size=8192 depcruise --config .dependency-cruiser.cjs --output-type err packages scripts functions infra bins",

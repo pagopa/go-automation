@@ -25,7 +25,7 @@ function output(
   const recordsMatched = options.recordsMatched ?? 0;
 
   return {
-    schemaVersion: '4.0.0',
+    schemaVersion: '5.0.0',
     generatedAt: '2026-09-01T10:00:00.000Z',
     runbook: {
       id: 'test-runbook',
@@ -74,27 +74,25 @@ function incompleteSources(count: number): ReadonlyArray<CoverageEntry> {
 }
 
 describe('classifyRunbookOutcome', () => {
-  it('classifies known cases, unknown cases and failures', () => {
+  it('classifies known errors, unknown errors and failures', () => {
     const hit = output(
       {
-        kind: 'known-case-matched',
-        detections: [
-          { caseId: 'lambda-timeout', description: 'Timeout', evidenceRows: 1, errors: 1, observations: [] },
-        ],
+        kind: 'known-error-matched',
+        detections: [{ code: 'lambda-timeout', description: 'Timeout', evidenceRows: 1, errors: 1, observations: [] }],
         message: 'm',
       },
       { recordsMatched: 1, recordsScanned: 10 },
     );
     const cases: ReadonlyArray<readonly [string, RunbookOutput, string]> = [
-      ['a matched known case', hit, 'HIT'],
+      ['a matched known error', hit, 'HIT'],
       [
-        'an unknown case with matched records',
-        output({ kind: 'unknown-case', casesEvaluated: 2, message: 'm' }, { recordsMatched: 5, recordsScanned: 100 }),
+        'an unknown error with matched records',
+        output({ kind: 'unknown-error', casesEvaluated: 2, message: 'm' }, { recordsMatched: 5, recordsScanned: 100 }),
         'MISS',
       ],
       [
-        'an unknown case with no matched records',
-        output({ kind: 'unknown-case', casesEvaluated: 0, message: 'm' }),
+        'an unknown error with no matched records',
+        output({ kind: 'unknown-error', casesEvaluated: 0, message: 'm' }),
         'NO-DATA',
       ],
       [
@@ -113,7 +111,7 @@ describe('classifyRunbookOutcome', () => {
     for (const [name, runbookOutput, status] of cases) {
       assert.strictEqual(classifyRunbookOutcome(runbookOutput).status, status, name);
     }
-    assert.deepStrictEqual(classifyRunbookOutcome(hit).matchedCaseIds, ['lambda-timeout']);
+    assert.deepStrictEqual(classifyRunbookOutcome(hit).matchedKnownErrorCodes, ['lambda-timeout']);
     assert.deepStrictEqual(
       classifyRunbookOutcome(
         output({ kind: 'inconclusive', casesEvaluated: 2, message: 'm' }, { incompleteSources: 2 }),
@@ -152,7 +150,7 @@ describe('classifyRunbookOutcome', () => {
   it('does not turn a recoverable retention failure into CONFIG-ERROR when other logs were scanned', () => {
     const result = classifyRunbookOutcome(
       output(
-        { kind: 'unknown-case', casesEvaluated: 1, message: 'No known case' },
+        { kind: 'unknown-error', casesEvaluated: 1, message: 'No known error' },
         {
           recoveredErrors: [{ stepId: 'optional-query', error: RETENTION_ERROR }],
           recordsScanned: 10,
@@ -168,16 +166,16 @@ describe('classifyRunbookOutcome', () => {
     const fields = [{ name: 'apiGwErrorMessage', label: 'Error message API GW', value: 'Internal server error' }];
     const miss = classifyRunbookOutcome(
       output(
-        { kind: 'unknown-case', casesEvaluated: 26, message: 'no match', fallbackMessage: 'Caso non riconosciuto' },
+        { kind: 'unknown-error', casesEvaluated: 26, message: 'no match', fallbackMessage: 'Caso non riconosciuto' },
         { recordsScanned: 100, recordsMatched: 5, fields },
       ),
     );
     // A HIT without CloudWatch statistics reports no scan counters.
     const { telemetry: _withoutTelemetry, ...hitOutput } = output(
       {
-        kind: 'known-case-matched',
+        kind: 'known-error-matched',
         message: 'matched',
-        detections: [{ caseId: 'c', description: 'd', evidenceRows: 1, errors: 1, observations: [] }],
+        detections: [{ code: 'c', description: 'd', evidenceRows: 1, errors: 1, observations: [] }],
       },
       { fields },
     );
@@ -187,7 +185,7 @@ describe('classifyRunbookOutcome', () => {
     assert.deepStrictEqual(miss.fields, fields);
     assert.strictEqual(miss.fallbackMessage, 'Caso non riconosciuto');
     assert.strictEqual(hit.status, 'HIT');
-    assert.deepStrictEqual(hit.matchedCaseIds, ['c']);
+    assert.deepStrictEqual(hit.matchedKnownErrorCodes, ['c']);
     assert.strictEqual(hit.fields, undefined);
     assert.strictEqual(hit.cloudWatchRecordsScanned, undefined);
   });

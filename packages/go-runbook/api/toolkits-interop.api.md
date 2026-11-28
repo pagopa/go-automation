@@ -331,10 +331,10 @@ export declare function apiGwStatusIs(status: string): Condition;
 export declare function buildApiGwOutputContext(runbook: Runbook, result: RunbookExecutionResult, options?: LogSampleOptions): RunbookOutputContext | undefined;
 ```
 
-### `apigw.builtinApiGwAuthorizerKnownCases` (value)
+### `apigw.builtinApiGwAuthorizerKnownErrors` (value)
 
 ```ts
-export declare function builtinApiGwAuthorizerKnownCases(authorizerFailureCheck: ApiGwAuthorizerFailureCheckConfig | undefined): ReadonlyArray<KnownCase>;
+export declare function builtinApiGwAuthorizerKnownErrors(authorizerFailureCheck: ApiGwAuthorizerFailureCheckConfig | undefined): ReadonlyArray<KnownError>;
 ```
 
 ### `apigw.EvaluateApiGwAuthorizerFailureConfig` (type)
@@ -616,10 +616,10 @@ export type CloudWatchLogsRow = ReadonlyArray<GOLogsInsightsResultField>;
 export type CloudWatchLogsRows = ReadonlyArray<CloudWatchLogsRow>;
 ```
 
-### `createInteropApiGwKnownCaseFactory` (value)
+### `createInteropApiGwKnownErrorFactory` (value)
 
 ```ts
-export declare function createInteropApiGwKnownCaseFactory(refs: InteropApiGwKnownCaseRefs): InteropApiGwKnownCaseFn;
+export declare function createInteropApiGwKnownErrorFactory(refs: InteropApiGwKnownErrorRefs): InteropApiGwKnownErrorFn;
 ```
 
 ### `createTestServiceRegistry` (value)
@@ -711,10 +711,10 @@ export declare function createInteropApiGwAlarmRunbook(config: InteropApiGwAlarm
 export declare function defaultInteropApiGwRunbookStepIds(serviceName: string): InteropApiGwRunbookStepIds;
 ```
 
-### `interop.apigw.defaultInteropApiGwUnknownCaseFallback` (value)
+### `interop.apigw.defaultInteropApiGwUnknownErrorFallback` (value)
 
 ```ts
-export declare function defaultInteropApiGwUnknownCaseFallback(config: InteropApiGwAlarmConfig): CaseAction;
+export declare function defaultInteropApiGwUnknownErrorFallback(config: InteropApiGwAlarmConfig): CaseAction;
 ```
 
 ### `interop.apigw.defineInteropApiGwAlarm` (value)
@@ -771,7 +771,7 @@ export interface InteropApiGwAlarmConfig {
     readonly resolverId: string;
     readonly queryProfile: InteropApiGwQueryProfile;
     readonly application?: InteropApiGwApplicationLogConfig;
-    readonly knownCases: ReadonlyArray<KnownCase>;
+    readonly knownErrors: ReadonlyArray<KnownError>;
     readonly timeRangeFromParams?: TimeRangeFromParams;
     readonly occurrenceTimeWindow?: OccurrenceTimeWindow;
     readonly analysisDefaults?: RunbookAnalysisDefaults;
@@ -1040,10 +1040,10 @@ export declare function createInteropK8sAlarmRunbook(config: InteropK8sAlarmConf
 export declare function defaultInteropK8sRunbookStepIds(serviceName: string): InteropK8sRunbookStepIds;
 ```
 
-### `interop.k8s.defaultInteropK8sUnknownCaseFallback` (value)
+### `interop.k8s.defaultInteropK8sUnknownErrorFallback` (value)
 
 ```ts
-export declare function defaultInteropK8sUnknownCaseFallback(service: InteropK8sServiceDescriptor): CaseAction;
+export declare function defaultInteropK8sUnknownErrorFallback(service: InteropK8sServiceDescriptor): CaseAction;
 ```
 
 ### `interop.k8s.INTEROP_K8S_APPLICATION_LOG_GROUP_TEMPLATE` (value)
@@ -1064,7 +1064,7 @@ const INTEROP_K8S_QUERY_PROFILE: InteropK8sQueryProfile;
 export interface InteropK8sAlarmConfig {
     readonly alarm: InteropK8sAlarm;
     readonly metadata: Omit<RunbookMetadata, 'id'>;
-    readonly knownCases: ReadonlyArray<KnownCase>;
+    readonly knownErrors: ReadonlyArray<KnownError>;
     readonly analysisDefaults?: RunbookAnalysisDefaults;
     readonly fallbackAction?: CaseAction;
     readonly queryProfile?: InteropK8sQueryProfile;
@@ -1421,16 +1421,16 @@ export interface InteropK8sAlarm {
 }
 ```
 
-### `interopK8sKnownCase` (value)
+### `interopK8sKnownError` (value)
 
 ```ts
-export declare function interopK8sKnownCase(refs: InteropK8sKnownCaseRefs, config: InteropK8sKnownCaseConfig): KnownCase;
+export declare function interopK8sKnownError(refs: InteropK8sKnownErrorRefs, config: InteropK8sKnownErrorConfig): KnownError;
 ```
 
-### `InteropK8sKnownCaseRefs` (type)
+### `InteropK8sKnownErrorRefs` (type)
 
 ```ts
-export interface InteropK8sKnownCaseRefs {
+export interface InteropK8sKnownErrorRefs {
     readonly applicationLogsStepId: string;
     readonly cidTrackerStepId: string;
     readonly varPrefix: string;
@@ -1471,10 +1471,10 @@ export interface InteropLogRow {
 export declare function isInteropEnvironment(value: unknown): value is InteropEnvironment;
 ```
 
-### `knownCase` (value)
+### `knownError` (value)
 
 ```ts
-export declare function knownCase(spec: KnownCaseSpec): KnownCase;
+export declare function knownError(spec: KnownErrorSpec): KnownError;
 ```
 
 ### `normalizeInteropApiGwAggregateValue` (value)
@@ -1494,7 +1494,7 @@ export type OperationalContext = RunbookContext<ServiceRegistry>;
 ```ts
 export interface OperationalModelAugmentations {
     readonly runbook: RunbookExtensionsAugmentation;
-    readonly knownCase: KnownCaseExtensionsAugmentation;
+    readonly knownError: KnownErrorExtensionsAugmentation;
     readonly stepDescriptor: StepDescriptorExtensionsAugmentation;
     readonly stepDiagnostics: StepDiagnosticsAugmentation;
     readonly executionEnvironment: ExecutionEnvironmentExtensionsAugmentation;
@@ -1630,10 +1630,10 @@ export declare function buildServiceOutputContext(runbook: Runbook, result: Runb
 export declare function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook;
 ```
 
-### `service.defaultServiceUnknownCaseFallback` (value)
+### `service.defaultServiceUnknownErrorFallback` (value)
 
 ```ts
-export declare function defaultServiceUnknownCaseFallback(service: ServiceDescriptor): CaseAction;
+export declare function defaultServiceUnknownErrorFallback(service: ServiceDescriptor): CaseAction;
 ```
 
 ### `service.isServiceRunbookContext` (value)
@@ -1680,7 +1680,7 @@ export interface ServiceAlarmConfig {
     readonly id: string;
     readonly metadata: Omit<RunbookMetadata, 'id'>;
     readonly service: ServiceDescriptor;
-    readonly knownCases: ReadonlyArray<KnownCase>;
+    readonly knownErrors: ReadonlyArray<KnownError>;
     readonly occurrenceTimeWindow?: OccurrenceTimeWindow;
     readonly analysisDefaults?: RunbookAnalysisDefaults;
     readonly hooks?: ReadonlyArray<PipelineHook<ServicePipelineAnchor>>;
@@ -1770,16 +1770,16 @@ export interface TraceIdCandidateMatch {
 }
 ```
 
-### `UNKNOWN_CASE_TITLE` (value)
+### `UNKNOWN_ERROR_TITLE` (value)
 
 ```ts
-const UNKNOWN_CASE_TITLE = "Impossibile identificare univocamente la causa dell'errore.";
+const UNKNOWN_ERROR_TITLE = "Impossibile identificare univocamente la causa dell'errore.";
 ```
 
-### `unknownCaseFallback` (value)
+### `unknownErrorFallback` (value)
 
 ```ts
-export declare function unknownCaseFallback(title: string, rows: ReadonlyArray<LogActionRow>): CaseAction;
+export declare function unknownErrorFallback(title: string, rows: ReadonlyArray<LogActionRow>): CaseAction;
 ```
 
 ## Referenced but not exported
@@ -1844,16 +1844,16 @@ export type ExtractFallbackUuidFn = (message: string) => string | undefined;
 readonly INTEROP: "INTEROP";
 ```
 
-### `InteropApiGwKnownCaseConfig` (dist/toolkits/interop/families/apigw/knownCases/InteropApiGwKnownCaseConfig.d.ts)
+### `InteropApiGwKnownErrorConfig` (dist/toolkits/interop/families/apigw/knownErrors/InteropApiGwKnownErrorConfig.d.ts)
 
 ```ts
-export interface InteropApiGwKnownCaseConfig {
-    readonly id: string;
+export interface InteropApiGwKnownErrorConfig {
+    readonly code: string;
     readonly description: string;
     readonly regex: string;
     readonly resolution: string;
     readonly proposedStatus: ProposedAnalysisStatus;
-    readonly evidence?: InteropApiGwKnownCaseEvidence;
+    readonly evidence?: InteropApiGwKnownErrorEvidence;
     readonly environments?: ReadonlyArray<InteropEnvironment>;
     readonly downstreams?: ReadonlyArray<InteropDownstream>;
     readonly resources?: ReadonlyArray<string>;
@@ -1864,22 +1864,22 @@ export interface InteropApiGwKnownCaseConfig {
 }
 ```
 
-### `InteropApiGwKnownCaseEvidence` (dist/toolkits/interop/families/apigw/knownCases/InteropApiGwKnownCaseEvidence.d.ts)
+### `InteropApiGwKnownErrorEvidence` (dist/toolkits/interop/families/apigw/knownErrors/InteropApiGwKnownErrorEvidence.d.ts)
 
 ```ts
-export type InteropApiGwKnownCaseEvidence = 'ANY' | 'API_GATEWAY' | 'APPLICATION_LOGS';
+export type InteropApiGwKnownErrorEvidence = 'ANY' | 'API_GATEWAY' | 'APPLICATION_LOGS';
 ```
 
-### `InteropApiGwKnownCaseFn` (dist/toolkits/interop/families/apigw/knownCases/InteropApiGwKnownCaseFn.d.ts)
+### `InteropApiGwKnownErrorFn` (dist/toolkits/interop/families/apigw/knownErrors/InteropApiGwKnownErrorFn.d.ts)
 
 ```ts
-export type InteropApiGwKnownCaseFn = (config: InteropApiGwKnownCaseConfig) => KnownCase;
+export type InteropApiGwKnownErrorFn = (config: InteropApiGwKnownErrorConfig) => KnownError;
 ```
 
-### `InteropApiGwKnownCaseRefs` (dist/toolkits/interop/families/apigw/knownCases/InteropApiGwKnownCaseRefs.d.ts)
+### `InteropApiGwKnownErrorRefs` (dist/toolkits/interop/families/apigw/knownErrors/InteropApiGwKnownErrorRefs.d.ts)
 
 ```ts
-export interface InteropApiGwKnownCaseRefs {
+export interface InteropApiGwKnownErrorRefs {
     readonly apiGatewayStepId: string;
     readonly applicationLogsStepId: string;
     readonly cidTrackerStepId: string;
@@ -1909,17 +1909,17 @@ export interface InteropK8sAlarmSpec {
 }
 ```
 
-### `InteropK8sKnownCaseConfig` (dist/toolkits/interop/families/k8s/knownCases/InteropK8sKnownCaseConfig.d.ts)
+### `InteropK8sKnownErrorConfig` (dist/toolkits/interop/families/k8s/knownErrors/InteropK8sKnownErrorConfig.d.ts)
 
 ```ts
-export interface InteropK8sKnownCaseConfig {
-    readonly id: string;
+export interface InteropK8sKnownErrorConfig {
+    readonly code: string;
     readonly description: string;
     readonly title?: string;
     readonly level?: LogActionLevel;
     readonly supersedes?: ReadonlyArray<string>;
     readonly regex?: string;
-    readonly evidence?: InteropK8sKnownCaseEvidence;
+    readonly evidence?: InteropK8sKnownErrorEvidence;
     readonly condition?: Condition;
     readonly environments?: ReadonlyArray<InteropEnvironment>;
     readonly resolution: string;
@@ -1935,16 +1935,16 @@ export interface InteropK8sKnownCaseConfig {
 }
 ```
 
-### `InteropK8sKnownCaseEvidence` (dist/toolkits/interop/families/k8s/knownCases/InteropK8sKnownCaseEvidence.d.ts)
+### `InteropK8sKnownErrorEvidence` (dist/toolkits/interop/families/k8s/knownErrors/InteropK8sKnownErrorEvidence.d.ts)
 
 ```ts
-export type InteropK8sKnownCaseEvidence = 'ANY' | 'APPLICATION_LOGS';
+export type InteropK8sKnownErrorEvidence = 'ANY' | 'APPLICATION_LOGS';
 ```
 
-### `KnownCaseExtensionsAugmentation` (dist/toolkits/common/augmentations/KnownCaseExtensions.d.ts)
+### `KnownErrorExtensionsAugmentation` (dist/toolkits/common/augmentations/KnownErrorExtensions.d.ts)
 
 ```ts
-export type KnownCaseExtensionsAugmentation = 'knownCase';
+export type KnownErrorExtensionsAugmentation = 'knownError';
 ```
 
 ### `RunbookExtensionsAugmentation` (dist/toolkits/common/augmentations/RunbookExtensions.d.ts)

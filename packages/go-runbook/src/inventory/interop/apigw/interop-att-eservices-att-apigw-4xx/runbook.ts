@@ -5,8 +5,8 @@
 import {
   ALARM_TIME_RANGE,
   CloudWatchLogsQueryStep,
-  UNKNOWN_CASE_TITLE,
-  unknownCaseFallback,
+  UNKNOWN_ERROR_TITLE,
+  unknownErrorFallback,
   AlarmRunbookBuilder,
   RunbookProducts,
 } from '../../../../toolkits/interop/index.js';
@@ -19,7 +19,7 @@ import {
   QUERY_STEP_ID,
 } from './alarmDefinition.js';
 import { AnalyzeAttEservicesAccessStep } from './AnalyzeAttEservicesAccessStep.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 
 /**
  * Builds the interop-att-eservices-att-apigw-4xx runbook definition.
@@ -82,13 +82,13 @@ export function buildRunbook(): Runbook {
       ],
     })
     .fallback(
-      unknownCaseFallback(UNKNOWN_CASE_TITLE, [
+      unknownErrorFallback(UNKNOWN_ERROR_TITLE, [
         ['Ambiente', '{{vars.interopEnvironment}}'],
         ['Richieste 4xx', '{{vars.attEservicesRequestCount}}'],
         ['Richieste 403 senza integrazione', '{{vars.attEservicesRejectedCount}}'],
         ['Path osservati', '{{vars.attEservicesPaths}}'],
       ]),
     );
-  for (const candidate of KNOWN_CASES) builder.knownCase(candidate);
+  for (const candidate of KNOWN_ERRORS) builder.knownError(candidate);
   return builder.build();
 }

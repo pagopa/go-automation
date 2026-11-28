@@ -7,13 +7,13 @@ import { renderErrorChainLines, renderErrorChainTree } from '../renderErrorChain
 function group(partial: Partial<ErrorChainGroup>): ErrorChainGroup {
   return {
     nodes: [
-      { level: 0, target: 'api-gateway', label: '502 GET /a', caseIds: [], status: 'unrecognized' },
+      { level: 0, target: 'api-gateway', label: '502 GET /a', knownErrorCodes: [], status: 'unrecognized' },
       {
         level: 1,
         target: 'pn-a',
         label: 'timeout',
         description: 'Timeout di pn-a',
-        caseIds: ['c1'],
+        knownErrorCodes: ['c1'],
         status: 'recognized',
       },
     ],
@@ -74,7 +74,9 @@ describe('renderErrorChainTree', () => {
 
   it('puts a single node on the branch, without the service of a window runbook', () => {
     const window = group({
-      nodes: [{ level: 0, target: 'window', label: 'Client assertion scaduta', caseIds: ['c'], status: 'recognized' }],
+      nodes: [
+        { level: 0, target: 'window', label: 'Client assertion scaduta', knownErrorCodes: ['c'], status: 'recognized' },
+      ],
       count: 2,
       lastSeenAt: '2026-01-01T10:15:30.000Z',
     });
@@ -91,14 +93,14 @@ describe('renderErrorChainTree', () => {
           target: 'pn-trace',
           label:
             '{"@timestamp":"2026-01-01T10:15:00Z","message":"can not \\"retrieve\\" address","logger_name":"it.pagopa',
-          caseIds: [],
+          knownErrorCodes: [],
           status: 'unrecognized',
         },
         {
           level: 1,
           target: 'pn-cut',
           label: '{"@version":"1","message":"Generic exception for iun',
-          caseIds: [],
+          knownErrorCodes: [],
           status: 'failed',
         },
       ],

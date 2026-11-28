@@ -26,7 +26,7 @@ function createContext(vars: Readonly<Record<string, string>> = {}): Operational
 }
 
 describe('ANALYSIS_LOG_ACTION_RENDERER', () => {
-  it('renders a known case as a separated success block with a table', async () => {
+  it('renders a known error as a separated success block with a table', async () => {
     const handler = new RecordingHandler();
     const executor = new ActionExecutor(new GOLogger([handler]), ANALYSIS_LOG_ACTION_RENDERER);
 
@@ -34,10 +34,10 @@ describe('ANALYSIS_LOG_ACTION_RENDERER', () => {
       {
         type: 'log',
         level: 'info',
-        renderAs: 'known-case',
+        renderAs: 'known-error',
         title: '[DOWNSTREAM] Service PersonalDataVault returned errors=500',
         details: [
-          ['Risoluzione', 'Chiusura - caso noto'],
+          ['Risoluzione', 'Chiusura - errore noto'],
           ['Downstream', 'PersonalDataVault'],
         ],
       },
@@ -45,9 +45,9 @@ describe('ANALYSIS_LOG_ACTION_RENDERER', () => {
     );
 
     const joined = handler.events.map((event) => event.message).join('\n');
-    assert.match(joined, /Caso noto rilevato/);
+    assert.match(joined, /Errore noto rilevato/);
     assert.match(joined, /Risoluzione/);
-    assert.match(joined, /Chiusura - caso noto/);
+    assert.match(joined, /Chiusura - errore noto/);
     assert.match(joined, /PersonalDataVault/);
   });
 
@@ -70,7 +70,7 @@ describe('ANALYSIS_LOG_ACTION_RENDERER', () => {
       {
         type: 'log',
         level: 'info',
-        renderAs: 'known-case',
+        renderAs: 'known-error',
         title: 'Errore applicativo',
         details: [
           ['Errore', '{{vars.lastErrorMsg}}'],
@@ -88,13 +88,13 @@ describe('ANALYSIS_LOG_ACTION_RENDERER', () => {
     assert.strictEqual(lines.at(-1), 'Trace ID: non disponibile');
   });
 
-  it('renders an unknown case as a warning table, dropping rows the run never produced', async () => {
+  it('renders an unknown error as a warning table, dropping rows the run never produced', async () => {
     const handler = new RecordingHandler();
     await new ActionExecutor(new GOLogger([handler]), ANALYSIS_LOG_ACTION_RENDERER).execute(
       {
         type: 'log',
         level: 'warn',
-        renderAs: 'unknown-case',
+        renderAs: 'unknown-error',
         title: "Impossibile identificare univocamente la causa dell'errore.",
         details: [
           ['Dettaglio', 'nessun caso noto ha soddisfatto le condizioni del runbook.'],
@@ -106,7 +106,7 @@ describe('ANALYSIS_LOG_ACTION_RENDERER', () => {
     );
 
     const joined = handler.events.map((event) => event.message).join('\n');
-    assert.match(joined, /Caso non riconosciuto/);
+    assert.match(joined, /Errore non riconosciuto/);
     assert.match(joined, /Errori API Gateway/);
     // Never a raw placeholder, and no row for a value the run did not produce.
     assert.doesNotMatch(joined, /\{\{vars\./u);
@@ -118,7 +118,7 @@ describe('ANALYSIS_LOG_ACTION_RENDERER', () => {
       {
         type: 'log',
         level: 'warn',
-        renderAs: 'unknown-case',
+        renderAs: 'unknown-error',
         title: 'Mancata diagnosi',
         details: [['Ambiente', '{{vars.env}}']],
       },
@@ -136,7 +136,7 @@ describe('ANALYSIS_LOG_ACTION_RENDERER', () => {
     const action = {
       type: 'log',
       level: 'info',
-      renderAs: 'known-case',
+      renderAs: 'known-error',
       title: 'Timeout su {{vars.serviceName}}',
       details: [['Errore', '{{vars.errorMsg}}']],
     } as const;

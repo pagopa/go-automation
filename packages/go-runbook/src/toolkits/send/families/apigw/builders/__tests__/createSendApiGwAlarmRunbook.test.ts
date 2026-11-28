@@ -10,7 +10,7 @@ import type { ApiGwExecutionLogAnalysisMode } from '../../../../../common/famili
 import { isApiGwRunbookContext } from '../../../../../common/families/apigw/output/ApiGwRunbookContext.js';
 import { API_GW_AUTHORIZER_LAMBDAS } from '../../authorizers/ApiGwAuthorizerLambdaRegistry.js';
 import type { Condition } from '../../../../../../engine/types/Condition.js';
-import type { KnownCase } from '../../../../../../engine/types/KnownCase.js';
+import type { KnownError } from '../../../../../../engine/types/KnownError.js';
 import type { StepResult } from '../../../../../../engine/types/StepResult.js';
 import type { Runbook } from '../../../../../../engine/types/Runbook.js';
 import type { TreeLevel } from '../../../../../../engine/types/TreeLevel.js';
@@ -46,7 +46,7 @@ function baseConfig(overrides: Partial<ApiGwAlarmConfig> = {}): ApiGwAlarmConfig
     entryService: { name: 'pn-a', logGroup: '/aws/ecs/pn-a', executionLogGroup: EXECUTION_LOG, varPrefix: 'a' },
     services: [{ name: 'pn-b', logGroup: '/aws/ecs/pn-b', varPrefix: 'b' }],
     knownUrls: [],
-    knownCases: [],
+    knownErrors: [],
     ...overrides,
   };
 }
@@ -71,8 +71,8 @@ function traceField(runbook: Runbook, stepId: string, field: string): string {
   return String(step?.getTraceInfo?.(createTestContext({ params: TEST_TIME_RANGE_PARAMS }))?.[field]);
 }
 
-function knownCase(id: string, condition: Condition): KnownCase {
-  return { id, description: id, condition, action: { type: 'log', level: 'info', title: id } };
+function knownError(id: string, condition: Condition): KnownError {
+  return { code: id, description: id, condition, action: { type: 'log', level: 'info', title: id } };
 }
 
 function hook(
@@ -158,19 +158,23 @@ describe('createSendApiGwAlarmRunbook structure', () => {
     assert.ok(!requestStepIds(bestEffort).includes('stop-api-gw-execution-log-unresolved'));
   });
 
-  it('wires the authorizer gate after the parse of each request, with its known cases, when configured', () => {
+  it('wires the authorizer gate after the parse of each request, with its known errors, when configured', () => {
     const runbook = createSendApiGwAlarmRunbook(
       baseConfig({
         authorizerFailureCheck: AUTHORIZER_CHECK,
-        knownCases: [knownCase('demo', { type: 'exists', ref: 'vars.x' })],
+        knownErrors: [knownError('demo', { type: 'exists', ref: 'vars.x' })],
       }),
     );
     assert.deepStrictEqual(requestStepIds(runbook).slice(0, 2), [
       'parse-api-gw-errors',
       'evaluate-api-gw-authorizer-failure',
     ]);
-    const caseIds = runbook.knownCases.map((c) => c.id);
-    assert.ok(['demo', 'api-gw-authorizer-timeout', 'api-gw-authorizer-error'].every((id) => caseIds.includes(id)));
+    const knownErrorCodes = runbook.knownErrors.map((c) => c.code);
+    assert.ok(
+      ['demo', 'SEND_APIGW_COMMON_API-GW-AUT-TIM', 'SEND_APIGW_COMMON_API-GW-AUT-ERR'].every((id) =>
+        knownErrorCodes.includes(id),
+      ),
+    );
   });
 
   it('accepts an entry-only configuration and forwards maxIterations', () => {
@@ -214,10 +218,10 @@ describe('createSendApiGwAlarmRunbook structure', () => {
     assert.match(traceField(withFallback, 'query-api-gw-logs', 'emptyResultFallbackQuery'), /status >= 400/);
   });
 
-  it('builds the default unknown-case fallback from the services, or keeps a custom one', () => {
+  it('builds the default unknown-error fallback from the services, or keeps a custom one', () => {
     const { fallbackAction } = createSendApiGwAlarmRunbook(baseConfig());
     assert.ok(fallbackAction.type === 'log');
-    assert.strictEqual(fallbackAction.renderAs, 'unknown-case');
+    assert.strictEqual(fallbackAction.renderAs, 'unknown-error');
     const rows = new Map(fallbackAction.details);
     assert.strictEqual(rows.get('Errori API Gateway'), '{{vars.apiGwErrorCount}}');
     assert.strictEqual(rows.get('X-Ray Trace ID'), '{{vars.xRayTraceId}}');
@@ -342,8 +346,8 @@ describe('createSendApiGwAlarmRunbook execution', () => {
             { url: 'http://internal/service-a/', target: 'pn-a' },
             { url: 'http://internal/service-b/', target: 'pn-b' },
           ],
-          knownCases: [
-            knownCase('downstream-b-failure', { type: 'contains', ref: 'steps.query-pn-b', regex: 'Failure in B' }),
+          knownErrors: [
+            knownError('downstream-b-failure', { type: 'contains', ref: 'steps.query-pn-b', regex: 'Failure in B' }),
           ],
         }),
         (group) => {
@@ -378,15 +382,15 @@ describe('createSendApiGwAlarmRunbook execution', () => {
       assert.ok(downstreamQuery.includes(useFallback ? SECOND_UUID : ORIGINAL_TRACE));
       assert.ok(!downstreamQuery.includes(FIRST_UUID));
       if (useFallback) assert.ok(!downstreamQuery.includes(ORIGINAL_TRACE));
-      assert.equal(result.detections[0]?.knownCase.id, 'downstream-b-failure');
+      assert.equal(result.detections[0]?.knownError.code, 'downstream-b-failure');
     });
   }
 
-  it('keeps every matching known case and still follows the KnownUrl target', async () => {
+  it('keeps every matching known error and still follows the KnownUrl target', async () => {
     const targetsB = { type: 'compare', ref: 'vars.aNextUrlTarget', operator: '==', value: 'pn-b' } as const;
     const { result, calls } = await run(
       baseConfig({
-        knownCases: [knownCase('primary', targetsB), knownCase('secondary', targetsB)],
+        knownErrors: [knownError('primary', targetsB), knownError('secondary', targetsB)],
         knownUrls: [{ url: 'http://internal/pn-b/', target: 'pn-b' }],
       }),
       (group) =>
@@ -402,10 +406,10 @@ describe('createSendApiGwAlarmRunbook execution', () => {
     );
 
     assert.deepStrictEqual(
-      result.detections.map((c) => c.knownCase.id),
+      result.detections.map((c) => c.knownError.code),
       ['primary', 'secondary'],
     );
-    // A known case no longer ends the traversal: the chain goes on to the downstream service.
+    // A known error no longer ends the traversal: the chain goes on to the downstream service.
     assert.deepStrictEqual(groupsOf(calls), [ACCESS_LOG, '/aws/ecs/pn-a', '/aws/ecs/pn-b']);
   });
 
@@ -426,8 +430,8 @@ describe('createSendApiGwAlarmRunbook execution', () => {
     );
 
     assert.deepStrictEqual(
-      result.detections.map((c) => c.knownCase.id),
-      ['api-gw-authorizer-timeout'],
+      result.detections.map((c) => c.knownError.code),
+      ['SEND_APIGW_COMMON_API-GW-AUT-TIM'],
     );
     assert.strictEqual(treeNodeVars(result).get('apiGwAuthorizerRequestId'), 'auth-req-1');
     assert.deepStrictEqual(groupsOf(calls), [ACCESS_LOG]);
@@ -472,8 +476,8 @@ describe('createSendApiGwAlarmRunbook execution', () => {
       logRow({ status: '500', errorMessage: 'Endpoint request timed out', requestId, path, httpMethod: 'GET' });
     const { result, calls } = await run(
       baseConfig({
-        knownCases: [
-          knownCase('execution-known-failure', {
+        knownErrors: [
+          knownError('execution-known-failure', {
             type: 'contains',
             ref: 'steps.query-api-gw-execution-logs',
             regex: 'ExecutionKnownFailure',
@@ -495,7 +499,7 @@ describe('createSendApiGwAlarmRunbook execution', () => {
     );
 
     assert.deepStrictEqual(
-      result.detections.map((c) => c.knownCase.id),
+      result.detections.map((c) => c.knownError.code),
       ['execution-known-failure'],
     );
     // One AWS call for every requestId (OR clause), even when two failures share an endpoint.
@@ -503,7 +507,7 @@ describe('createSendApiGwAlarmRunbook execution', () => {
     for (const requestId of ['req-a-1', 'req-a-2', 'req-b-1']) assert.ok(calls[1]?.query.includes(requestId));
   });
 
-  it('stops before the X-Ray flow when the execution logs match no known case', async () => {
+  it('stops before the X-Ray flow when the execution logs match no known error', async () => {
     const { result, calls } = await run(baseConfig(), (group) =>
       group === ACCESS_LOG
         ? [logRow({ status: '500', errorMessage: 'Endpoint request timed out', requestId: 'req-a', path: '/a' })]

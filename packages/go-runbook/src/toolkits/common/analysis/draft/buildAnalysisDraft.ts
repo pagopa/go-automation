@@ -1,11 +1,11 @@
-import type { KnownCaseDetection, Runbook, RunbookExecutionResult } from '../../../../engine/index.js';
+import type { KnownErrorDetection, Runbook, RunbookExecutionResult } from '../../../../engine/index.js';
 import { interpolatePlaceholders } from '../../../../engine/internal.js';
-import type { KnownCaseAnalysis } from '../KnownCaseAnalysis.js';
+import type { KnownErrorAnalysis } from '../KnownErrorAnalysis.js';
 import type { AnalysisLinkRef } from '../AnalysisLinkRef.js';
 import type { AnalysisResourceRef } from '../AnalysisResourceRef.js';
 import type { AnalysisDraftV1 } from './AnalysisDraft.js';
-import type { KnownCaseAnalysisDraft } from './KnownCaseAnalysisDraft.js';
-import type { UnknownCaseContextDraft } from './UnknownCaseContextDraft.js';
+import type { KnownErrorAnalysisDraft } from './KnownErrorAnalysisDraft.js';
+import type { UnknownErrorContextDraft } from './UnknownErrorContextDraft.js';
 import { fitAnalysisDraft } from './fitAnalysisDraft.js';
 import { coverageLinesOf } from '../../output/buildCoverageLines.js';
 import { detectionContext } from '../../output/resultContexts.js';
@@ -22,8 +22,8 @@ const UNAVAILABLE_VALUE = 'non disponibile';
 /**
  * Composes the deterministic analysis draft for a completed run.
  *
- * Detections with analysis directives produce a `KNOWN_CASE` draft; a run with no detection produces the
- * `UNKNOWN_CASE_CONTEXT` draft of the defaults alone. Any other outcome produces no draft at all.
+ * Detections with analysis directives produce a `KNOWN_ERROR` draft; a run with no detection produces the
+ * `UNKNOWN_ERROR_CONTEXT` draft of the defaults alone. Any other outcome produces no draft at all.
  *
  * - One detection and nothing to report about coverage: the draft of a single case, as before.
  * - Otherwise `conclusionNotes` lists the detections in time order, one numbered entry each, followed by the coverage
@@ -73,7 +73,7 @@ export function analysisDraftOf(
 
   const entries: DraftEntry[] = [];
   for (const detection of draftDetections(result, view)) {
-    const analysis = detection.knownCase.analysis;
+    const analysis = detection.knownError.analysis;
     if (analysis === undefined) continue;
     entries.push({
       detection,
@@ -90,7 +90,7 @@ export function analysisDraftOf(
 
   const { coverageLines } = reading;
   const chainNotes = treeNoteEntries(result, reading, entries);
-  const draft = buildKnownCaseDraft(runbook, entries, coverageLines, chainVerdict(result, view), chainNotes);
+  const draft = buildKnownErrorDraft(runbook, entries, coverageLines, chainVerdict(result, view), chainNotes);
   const single = entries.length === 1 && coverageLines.length === 0 && chainNotes === undefined;
   return fitAnalysisDraft(
     draft,
@@ -112,25 +112,25 @@ export function analysisDraftOf(
  */
 export function buildPotentialAnalysisDrafts(runbook: Runbook): ReadonlyArray<AnalysisDraftV1> {
   const unknown = runbook.metadata.type === 'alarm-resolution' ? buildUnknownContext(runbook) : undefined;
-  const entries = runbook.knownCases.flatMap((knownCase): DraftEntry[] =>
-    knownCase.analysis === undefined
+  const entries = runbook.knownErrors.flatMap((knownError): DraftEntry[] =>
+    knownError.analysis === undefined
       ? []
       : [
           {
-            detection: { knownCase, evidenceRows: 0, observations: [] },
-            analysis: knownCase.analysis,
-            resolution: knownCase.analysis.resolution,
+            detection: { knownError, evidenceRows: 0, observations: [] },
+            analysis: knownError.analysis,
+            resolution: knownError.analysis.resolution,
           },
         ],
   );
   if (entries.length === 0) return unknown === undefined ? [] : [unknown];
 
-  const known = entries.map((entry) => buildKnownCaseDraft(runbook, [entry], []));
+  const known = entries.map((entry) => buildKnownErrorDraft(runbook, [entry], []));
   // All cases together are the worst case of the lists; their composed texts are fitted as at runtime.
   const together =
     entries.length > 1
       ? [
-          fitAnalysisDraft(buildKnownCaseDraft(runbook, entries, []), {
+          fitAnalysisDraft(buildKnownErrorDraft(runbook, entries, []), {
             noteEntries: noteEntries(entries),
             coverageLines: [],
             detailEntries: detailEntries(entries),
@@ -140,13 +140,13 @@ export function buildPotentialAnalysisDrafts(runbook: Runbook): ReadonlyArray<An
   return unknown === undefined ? [...known, ...together] : [...known, ...together, unknown];
 }
 
-function buildKnownCaseDraft(
+function buildKnownErrorDraft(
   runbook: Runbook,
   entries: ReadonlyArray<DraftEntry>,
   coverageLines: ReadonlyArray<string>,
   verdict?: ChainVerdict,
   chainNotes?: ReadonlyArray<string>,
-): KnownCaseAnalysisDraft {
+): KnownErrorAnalysisDraft {
   const defaults = runbook.analysisDefaults;
   const analyses = entries.map((entry) => entry.analysis);
   const single =
@@ -186,8 +186,8 @@ function buildKnownCaseDraft(
  * @returns The common directive, or `undefined` when the analysis is analyzable
  */
 function commonIgnore(
-  analyses: ReadonlyArray<KnownCaseAnalysis>,
-): Pick<KnownCaseAnalysis, 'ignoreReasonCode' | 'ignoreDetails'> | undefined {
+  analyses: ReadonlyArray<KnownErrorAnalysis>,
+): Pick<KnownErrorAnalysis, 'ignoreReasonCode' | 'ignoreDetails'> | undefined {
   const [first, ...rest] = analyses;
   if (first?.analysisType !== 'IGNORABLE') return undefined;
   const details = JSON.stringify(first.ignoreDetails ?? null);
@@ -203,7 +203,7 @@ function commonIgnore(
 function noteEntries(entries: ReadonlyArray<DraftEntry>): ReadonlyArray<string> {
   return entries.map(
     (entry, index) =>
-      `${String(index + 1)}. ${timePrefix(entry.detection)}${entry.detection.knownCase.description}: ${entry.resolution}`,
+      `${String(index + 1)}. ${timePrefix(entry.detection)}${entry.detection.knownError.description}: ${entry.resolution}`,
   );
 }
 
@@ -223,12 +223,12 @@ function joinErrorDetails(entries: ReadonlyArray<DraftEntry>): string | undefine
 }
 
 /** `2026-11-19 10:15:42 UTC — ` for a timed detection, nothing for an untimed one. */
-function timePrefix(detection: KnownCaseDetection): string {
+function timePrefix(detection: KnownErrorDetection): string {
   if (detection.firstSeenAt === undefined) return '';
   return `${detection.firstSeenAt.slice(0, 19).replace('T', ' ')} UTC — `;
 }
 
-function buildUnknownContext(runbook: Runbook): UnknownCaseContextDraft | undefined {
+function buildUnknownContext(runbook: Runbook): UnknownErrorContextDraft | undefined {
   const defaults = runbook.analysisDefaults;
   if (defaults === undefined) return undefined;
   return {
@@ -246,7 +246,7 @@ function interpolateResolution(
   resolution: string,
   result: RunbookExecutionResult,
   view: ErrorTreeView,
-  detection: KnownCaseDetection,
+  detection: KnownErrorDetection,
 ): string {
   const context = detectionContext(result, view, detection);
   return interpolatePlaceholders(
@@ -288,18 +288,18 @@ function dedupeStrings(values: ReadonlyArray<string>): ReadonlyArray<string> {
 function chainVerdict(result: RunbookExecutionResult, view: ErrorTreeView): ChainVerdict | undefined {
   if (!view.hasTree || result.chains === undefined) return undefined;
   let completed = false;
-  let endAnalyses: KnownCaseAnalysis[] | undefined = [];
+  let endAnalyses: KnownErrorAnalysis[] | undefined = [];
   for (const group of view.chains) {
     for (const member of group.members) {
       const detections = view.last(member)?.detections ?? [];
       if (
         member.end === 'leaf' &&
-        detections.some((detection) => detection.knownCase.analysis?.proposedStatus === 'COMPLETED')
+        detections.some((detection) => detection.knownError.analysis?.proposedStatus === 'COMPLETED')
       ) {
         completed = true;
       }
       const analyses = detections.flatMap((detection) =>
-        detection.knownCase.analysis === undefined ? [] : [detection.knownCase.analysis],
+        detection.knownError.analysis === undefined ? [] : [detection.knownError.analysis],
       );
       if (member.end !== 'leaf' || analyses.length === 0 || analyses.length < detections.length)
         endAnalyses = undefined;
@@ -316,7 +316,7 @@ function chainVerdict(result: RunbookExecutionResult, view: ErrorTreeView): Chai
  * @param result - Result of the execution
  * @returns The detections, in order
  */
-function draftDetections(result: RunbookExecutionResult, view: ErrorTreeView): ReadonlyArray<KnownCaseDetection> {
+function draftDetections(result: RunbookExecutionResult, view: ErrorTreeView): ReadonlyArray<KnownErrorDetection> {
   if (!view.hasTree || result.chains === undefined) return result.detections;
   return view.chains.flatMap((group) => {
     const oldest = group.members[0];
@@ -324,8 +324,8 @@ function draftDetections(result: RunbookExecutionResult, view: ErrorTreeView): R
     const seen = new Set<string>();
     return view.chainNodes(oldest).flatMap((node) =>
       node.detections.filter((detection) => {
-        if (seen.has(detection.knownCase.id)) return false;
-        seen.add(detection.knownCase.id);
+        if (seen.has(detection.knownError.code)) return false;
+        seen.add(detection.knownError.code);
         return true;
       }),
     );

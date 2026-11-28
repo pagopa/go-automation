@@ -14,7 +14,7 @@
  *   id: 'pn-tokenExchangeLambda-LogInvocationErrors-Alarm',
  *   metadata: { name: '...', description: '', version: '1.0.0', type: 'alarm-resolution', team: 'GO', tags: [] },
  *   lambda: { name: 'pn-tokenExchangeLambda', logGroup: '/aws/lambda/pn-tokenExchangeLambda', varPrefix: 'tokenExchange' },
- *   knownCases: [],
+ *   knownErrors: [],
  * });
  * ```
  */

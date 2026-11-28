@@ -2,7 +2,7 @@ import { ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM } from './alarmDefinition
 import { interop } from '../../../../toolkits/interop/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_QUERY_PROFILE } from './queryProfile.js';
 
 const CONFLUENCE_RUNBOOK_URL =
@@ -28,7 +28,7 @@ export function buildRunbook(): Runbook {
     },
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
     queryProfile: ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_QUERY_PROFILE,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       runbookName: ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM.runbookKey,
       links: [

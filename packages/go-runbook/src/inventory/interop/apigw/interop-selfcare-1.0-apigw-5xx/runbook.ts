@@ -1,8 +1,8 @@
 import { SELFCARE_ALARM } from './alarmDefinition.js';
-import { interop, UNKNOWN_CASE_TITLE, unknownCaseFallback } from '../../../../toolkits/interop/index.js';
+import { interop, UNKNOWN_ERROR_TITLE, unknownErrorFallback } from '../../../../toolkits/interop/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 
 /**
  * Builds the interop-selfcare-1.0-apigw-5xx runbook definition.
@@ -24,8 +24,8 @@ export function buildRunbook(): Runbook {
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
     resolverId: 'interop-selfcare-api-gateway-context',
     queryProfile: interop.apigw.INTEROP_API_GW_5XX_SERVICE_ERRORS_PROFILE,
-    knownCases: KNOWN_CASES,
-    fallbackAction: unknownCaseFallback(UNKNOWN_CASE_TITLE, [
+    knownErrors: KNOWN_ERRORS,
+    fallbackAction: unknownErrorFallback(UNKNOWN_ERROR_TITLE, [
       ['Ambiente', '{{vars.interopEnvironment}}'],
       ['API Gateway ID', '{{vars.interopApiGwId}}'],
       ['Errori 5xx API Gateway', '{{vars.apiGwErrorCount}}'],

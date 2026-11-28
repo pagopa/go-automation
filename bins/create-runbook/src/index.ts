@@ -87,21 +87,21 @@ function printGeneratedFileContents(files: ReadonlyArray<GeneratedFile>): void {
 function printNextSteps(answers: RunbookAnswers): void {
   console.log(`\n  ${BOLD}Prossimi passi${RESET}`);
   if (answers.templateId === 'api-gateway') {
-    console.log(`    1. Popola ${CYAN}knownUrls.ts${RESET} e ${CYAN}knownCases.ts${RESET}`);
+    console.log(`    1. Popola ${CYAN}knownUrls.ts${RESET} e ${CYAN}knownErrors.ts${RESET}`);
     console.log(`    2. Aggiungi i servizi raggiungibili in ${CYAN}knownServices.ts${RESET}`);
     console.log(`    3. Verifica i tipi: ${DIM}pnpm --filter=@pagopa/go-runbook build${RESET}`);
   } else if (answers.templateId === 'lambda') {
-    console.log(`    1. Popola ${CYAN}knownCases.ts${RESET} (timeout/OOM già pronti; aggiungi i casi specifici)`);
+    console.log(`    1. Popola ${CYAN}knownErrors.ts${RESET} (timeout/OOM già pronti; aggiungi i casi specifici)`);
     console.log(
-      `    2. Per i downstream: ${CYAN}knownServices.ts${RESET} (DOWNSTREAMS) + ${CYAN}knownErrors.ts${RESET} (DOWNSTREAM_ERROR_PATTERNS)`,
+      `    2. Per i downstream: ${CYAN}knownServices.ts${RESET} (DOWNSTREAMS) + ${CYAN}downstreamErrorPatterns.ts${RESET} (DOWNSTREAM_ERROR_PATTERNS)`,
     );
     console.log(`    3. Verifica i tipi: ${DIM}pnpm --filter=@pagopa/go-runbook build${RESET}`);
   } else if (answers.templateId === 'service') {
-    console.log(`    1. Popola ${CYAN}knownCases.ts${RESET} con i pattern ricorrenti nei log applicativi`);
+    console.log(`    1. Popola ${CYAN}knownErrors.ts${RESET} con i pattern ricorrenti nei log applicativi`);
     console.log(`    2. Se serve, personalizza query errori / trace in ${CYAN}knownServices.ts${RESET}`);
     console.log(`    3. Verifica i tipi: ${DIM}pnpm --filter=@pagopa/go-runbook build${RESET}`);
   } else {
-    console.log(`    1. Aggiungi step e known case in ${CYAN}runbook.ts${RESET}`);
+    console.log(`    1. Aggiungi step e known error in ${CYAN}runbook.ts${RESET}`);
     console.log(`    2. Verifica i tipi: ${DIM}pnpm --filter=@pagopa/go-runbook build${RESET}`);
   }
   console.log('');

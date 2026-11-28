@@ -6,7 +6,7 @@ import { createTestContext } from '../../../../../__tests__/helpers/createTestCo
 import { logRow } from '../../../../../__tests__/helpers/logRow.js';
 
 describe('AnalyzeInteropCidTrackerStep', () => {
-  it('aggregates pod apps, messages and returns resolve for known-case evaluation', async () => {
+  it('aggregates pod apps, messages and returns resolve for known-error evaluation', async () => {
     const step = new AnalyzeInteropCidTrackerStep({ id: 'analyze-cid', label: 'Analyze CID', fromStep: 'query-cid' });
 
     const result = await step.execute(

@@ -1,4 +1,4 @@
-import type { CaseAction, KnownCase, PipelineHook, RunbookMetadata } from '../../../../../engine/index.js';
+import type { CaseAction, KnownError, PipelineHook, RunbookMetadata } from '../../../../../engine/index.js';
 import type { OccurrenceTimeWindow } from '../../../../common/time/occurrence/OccurrenceTimeWindow.js';
 import type { RunbookAnalysisDefaults } from '../../../../common/analysis/RunbookAnalysisDefaults.js';
 import type { TimeRangeFromParams } from '../../../../common/time/TimeRangeFromParams.js';
@@ -18,7 +18,7 @@ export interface InteropApiGwAlarmConfig {
   /** The two queries the pipeline runs. */
   readonly queryProfile: InteropApiGwQueryProfile;
   readonly application?: InteropApiGwApplicationLogConfig;
-  readonly knownCases: ReadonlyArray<KnownCase>;
+  readonly knownErrors: ReadonlyArray<KnownError>;
   /** Time range shared by the API Gateway and CID tracker queries. */
   readonly timeRangeFromParams?: TimeRangeFromParams;
   readonly occurrenceTimeWindow?: OccurrenceTimeWindow;

@@ -1,7 +1,7 @@
 import { interop } from '../../../../toolkits/interop/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 import { NOTIFIER_ALARM } from './alarmDefinition.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 
 /**
  * Builds the k8s-interop-be-notifier-errors runbook definition.
@@ -20,7 +20,7 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'service', 'notifier', 'sqs'],
     },
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
   });
 }

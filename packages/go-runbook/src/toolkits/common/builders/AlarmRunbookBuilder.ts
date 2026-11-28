@@ -55,10 +55,10 @@ export class AlarmRunbookBuilder extends RunbookBuilder {
   }
 
   /**
-   * Sets the analysis references shared by every known case.
+   * Sets the analysis references shared by every known error.
    *
    * Declaring them marks the runbook as annotated: `validateForCloud` then
-   * requires the `analysis` directives on each of its known cases.
+   * requires the `analysis` directives on each of its known errors.
    *
    * @param defaults - References merged into every emitted analysis draft
    * @returns This builder for chaining

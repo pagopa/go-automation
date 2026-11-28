@@ -51,8 +51,8 @@ export function assertCloudExecutableRunbook(runbook: Runbook): void {
     }
   }
 
-  for (const knownCase of runbook.knownCases) {
-    assertReadOnlyAction(runbook.metadata.id, knownCase.action);
+  for (const knownError of runbook.knownErrors) {
+    assertReadOnlyAction(runbook.metadata.id, knownError.action);
   }
   assertReadOnlyAction(runbook.metadata.id, runbook.fallbackAction);
 }

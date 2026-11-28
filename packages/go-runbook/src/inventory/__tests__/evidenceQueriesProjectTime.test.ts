@@ -10,7 +10,7 @@ import { INVENTORY_MANIFEST } from '../manifest.js';
 const PROJECTING = /\|\s*(?:display|fields|stats)\b/iu;
 
 describe('evidence queries of the catalog', () => {
-  it('project the time of every row a known case reads', () => {
+  it('project the time of every row a known error reads', () => {
     const context = createTestContext({
       params: { startTime: '2026-01-01T00:00:00.000Z', endTime: '2026-01-01T00:10:00.000Z' },
       services: { cloudWatchLogs: { getConfiguredSources: () => [] } },
@@ -20,7 +20,7 @@ describe('evidence queries of the catalog', () => {
     for (const registration of INVENTORY_MANIFEST) {
       const runbook = registration.build();
       const read = new Set(
-        runbook.knownCases.flatMap((knownCase) => [...collectConditionStepRefs(knownCase.condition)]),
+        runbook.knownErrors.flatMap((knownError) => [...collectConditionStepRefs(knownError.condition)]),
       );
       for (const step of collectRunbookSteps(runbook)) {
         if (!read.has(step.id)) continue;

@@ -11,7 +11,7 @@ function baseConfig(overrides: Partial<LambdaAlarmConfig> = {}): LambdaAlarmConf
     id: 'pn-fooLambda-LogInvocationErrors-Alarm',
     metadata: TEST_RUNBOOK_METADATA,
     lambda: { name: 'pn-fooLambda', logGroup: '/aws/lambda/pn-fooLambda', varPrefix: 'foo' },
-    knownCases: [],
+    knownErrors: [],
     queryProfile: DEFAULT_LAMBDA_PROFILE,
     product: 'SEND',
     ...overrides,
@@ -87,14 +87,14 @@ describe('createLambdaAlarmRunbook', () => {
     );
   });
 
-  it('rejects a known case referencing a non-wired step', () => {
+  it('rejects a known error referencing a non-wired step', () => {
     assert.throws(
       () =>
         createLambdaAlarmRunbook(
           baseConfig({
-            knownCases: [
+            knownErrors: [
               {
-                id: 'k',
+                code: 'k',
                 description: 'd',
                 condition: { type: 'contains', ref: 'steps.query-nope', regex: 'x' },
                 action: { type: 'log', level: 'info', title: 'm' },

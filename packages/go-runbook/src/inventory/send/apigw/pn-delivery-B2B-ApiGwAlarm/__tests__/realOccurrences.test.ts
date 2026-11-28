@@ -26,54 +26,54 @@ type EvidenceKind =
 interface RealOccurrence {
   readonly firedAt: string;
   readonly kind: EvidenceKind;
-  readonly expectedCaseId: string;
+  readonly expectedKnownErrorCode: string;
 }
 
 const REAL_OCCURRENCES: ReadonlyArray<RealOccurrence> = [
   {
     firedAt: '2026-07-22T08:53:28.977Z',
     kind: 'no-application-logs-internal-error',
-    expectedCaseId: 'apigw-500-no-application-logs',
+    expectedKnownErrorCode: 'SEND_APIGW_PDB2BAGA_API-500-NO-APP-LOG',
   },
   {
     firedAt: '2026-06-16T14:16:25.590Z',
     kind: 'no-application-logs',
-    expectedCaseId: 'apigw-500-no-application-logs',
+    expectedKnownErrorCode: 'SEND_APIGW_PDB2BAGA_API-500-NO-APP-LOG',
   },
   {
     firedAt: '2026-08-28T03:39:34.634Z',
     kind: 'timeout-empty-execution',
-    expectedCaseId: 'apigw-endpoint-timeout-no-delivery-logs',
+    expectedKnownErrorCode: 'SEND_APIGW_PDB2BAGA_API-END-TIM-NO-DEL-LOG',
   },
   {
     firedAt: '2026-08-14T10:23:36.004Z',
     kind: 'timeout-expired-execution',
-    expectedCaseId: 'apigw-endpoint-timeout-no-delivery-logs',
+    expectedKnownErrorCode: 'SEND_APIGW_PDB2BAGA_API-END-TIM-NO-DEL-LOG',
   },
   {
     firedAt: '2026-08-11T07:35:30.208Z',
     kind: 'f24-gone',
-    expectedCaseId: 'pn-f24-safe-storage-metadata-gone',
+    expectedKnownErrorCode: 'SEND_APIGW_PDB2BAGA_PN-F24-SAF-STO-MET-GON',
   },
   {
     firedAt: '2026-08-10T09:41:30.242Z',
     kind: 'missing-payment',
-    expectedCaseId: 'delivery-missing-payment-attachment-index',
+    expectedKnownErrorCode: 'SEND_APIGW_PDB2BAGA_DEL-MIS-PAY-ATT-IND',
   },
   {
     firedAt: '2026-08-09T14:53:33.687Z',
     kind: 'external-registries-selfcare-timeout',
-    expectedCaseId: 'external-registries-selfcarepg-read-timeout',
+    expectedKnownErrorCode: 'SEND_APIGW_PDB2BAGA_EXT-REG-SEL-REA-TIM',
   },
   {
     firedAt: '2026-08-09T08:44:29.821Z',
     kind: 'external-registries-connection-aborted',
-    expectedCaseId: 'external-registries-connection-aborted',
+    expectedKnownErrorCode: 'SEND_APIGW_PDB2BAGA_EXT-REG-CON-ABO',
   },
   {
     firedAt: '2026-08-05T10:31:49.963Z',
     kind: 'selfcare-500',
-    expectedCaseId: 'data-vault-selfcarepg-500',
+    expectedKnownErrorCode: 'SEND_APIGW_PDB2BAGA_DAT-VAU-SEL-500',
   },
 ];
 
@@ -284,7 +284,7 @@ function createServices(kind: EvidenceKind, calls: string[]): ServiceRegistry {
 
 describe('pn-delivery-B2B real occurrence regressions', () => {
   for (const occurrence of REAL_OCCURRENCES) {
-    it(`${occurrence.firedAt} resolves as ${occurrence.expectedCaseId}`, async () => {
+    it(`${occurrence.firedAt} resolves as ${occurrence.expectedKnownErrorCode}`, async () => {
       const calls: string[] = [];
       const firedAt = new Date(occurrence.firedAt);
       const result = await new RunbookEngine(new GOLogger()).execute(
@@ -297,7 +297,7 @@ describe('pn-delivery-B2B real occurrence regressions', () => {
       );
 
       assert.strictEqual(result.status, 'completed');
-      assert.strictEqual(result.detections[0]?.knownCase.id, occurrence.expectedCaseId);
+      assert.strictEqual(result.detections[0]?.knownError.code, occurrence.expectedKnownErrorCode);
       assert.ok(calls.includes('/aws/ecs/pn-delivery'));
 
       if (occurrence.kind === 'no-application-logs' || occurrence.kind === 'no-application-logs-internal-error') {

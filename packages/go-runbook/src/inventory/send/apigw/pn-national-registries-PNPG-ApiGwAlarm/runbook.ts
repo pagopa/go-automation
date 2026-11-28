@@ -7,7 +7,7 @@ import type { Runbook } from '../../../../engine/index.js';
 
 import { API_GW_LOG_GROUP, ENTRY_SERVICE, REACHABLE_SERVICES } from './knownServices.js';
 import { KNOWN_URLS } from './knownUrls.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 
 /**
  * Builds the pn-national-registries-PNPG-ApiGwAlarm runbook definition.
@@ -57,7 +57,7 @@ export function buildRunbook(): Runbook {
       },
     ],
     knownUrls: KNOWN_URLS,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       runbookName: 'pn-national-registries-PNPG-ApiGwAlarm',
       links: [

@@ -6,7 +6,7 @@ import { lambda } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
 import { LAMBDA_FUNCTION, DOWNSTREAMS } from './knownServices.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 
 /**
  * Builds the pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm runbook definition.
@@ -27,6 +27,6 @@ export function buildRunbook(): Runbook {
     },
     lambda: LAMBDA_FUNCTION,
     downstreams: DOWNSTREAMS,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
   });
 }

@@ -32,7 +32,7 @@ describe('RunbookBuilder', () => {
       .fallback(logAction({ level: 'info', title: 'done' }))
       .build();
 
-    assert.deepStrictEqual(Object.keys(runbook), ['metadata', 'steps', 'knownCases', 'fallbackAction']);
+    assert.deepStrictEqual(Object.keys(runbook), ['metadata', 'steps', 'knownErrors', 'fallbackAction']);
     assert.deepStrictEqual(runbook.steps[0], { step, continueOnFailure: true, silent: true });
   });
 
@@ -44,7 +44,7 @@ describe('RunbookBuilder', () => {
       .fallback(logAction({ level: 'info', title: 'done' }))
       .build();
 
-    assert.deepStrictEqual(Object.keys(runbook), ['metadata', 'steps', 'knownCases', 'fallbackAction', 'readPolicy']);
+    assert.deepStrictEqual(Object.keys(runbook), ['metadata', 'steps', 'knownErrors', 'fallbackAction', 'readPolicy']);
     assert.strictEqual(runbook.readPolicy, 'partial');
   });
 
@@ -57,12 +57,12 @@ describe('RunbookBuilder', () => {
     );
   });
 
-  it('rejects a known case referencing a step the runbook does not wire, without a family builder', () => {
+  it('rejects a known error referencing a step the runbook does not wire, without a family builder', () => {
     const builder = RunbookBuilder.create('test-runbook')
       .metadata(METADATA)
       .step(step)
-      .knownCase({
-        id: 'case',
+      .knownError({
+        code: 'case',
         description: 'case',
         condition: { type: 'exists', ref: 'steps.missing-step' },
         action: logAction({ level: 'info', title: 'case' }),
@@ -73,6 +73,6 @@ describe('RunbookBuilder', () => {
       builder.validate().map((error) => error.code),
       ['UNWIRED_CASE_STEP_REF'],
     );
-    assert.throws(() => builder.build(), /KnownCase "case" references step "missing-step" which is not wired/u);
+    assert.throws(() => builder.build(), /KnownError "case" references step "missing-step" which is not wired/u);
   });
 });

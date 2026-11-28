@@ -27,6 +27,6 @@ export interface FinishAlarmRunbookOptions<TAnchor extends string> {
   readonly defaultRunbookName?: string;
   /** Hook wiring; omit for a pipeline that declares no anchors. */
   readonly anchors?: AlarmRunbookAnchors<TAnchor>;
-  /** Factory name reported when a known case points at a step nobody wired. */
+  /** Factory name reported when a known error points at a step nobody wired. */
   readonly builderName: string;
 }

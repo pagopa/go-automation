@@ -25,7 +25,7 @@ describe('writeCoverageReport', () => {
       const artifact = JSON.parse(await fs.readFile(outputPath, 'utf8')) as CoverageArtifactV1;
 
       assert.strictEqual(writtenPath, outputPath);
-      assert.strictEqual(artifact.schemaVersion, 1);
+      assert.strictEqual(artifact.schemaVersion, 2);
       assert.match(artifact.generatedAt, /^\d{4}-\d{2}-\d{2}T/);
       assert.strictEqual(artifact.exitCode, COVERAGE_EXIT_CODES.INVALID_COVERAGE);
       assert.deepStrictEqual(artifact.report, REPORT);
@@ -37,7 +37,7 @@ describe('writeCoverageReport', () => {
 
 const REPORT: CoverageReport = {
   checkedRunbooks: 1,
-  checkedKnownCases: 2,
+  checkedKnownErrors: 2,
   checkedReferences: 3,
   errors: [{ severity: 'ERROR', code: 'RESOURCE_NOT_FOUND', message: 'missing resource' }],
   warnings: [],

@@ -1,5 +1,5 @@
 import type { ErrorTreeNode } from '../types/ErrorTreeNode.js';
-import type { KnownCaseDetection } from '../types/KnownCaseDetection.js';
+import type { KnownErrorDetection } from '../types/KnownErrorDetection.js';
 
 /**
  * The distinct cases of the detections, in the order they were first detected, each with the number of errors it
@@ -18,17 +18,17 @@ import type { KnownCaseDetection } from '../types/KnownCaseDetection.js';
  * ```
  */
 export function caseSummary(
-  detections: ReadonlyArray<KnownCaseDetection>,
+  detections: ReadonlyArray<KnownErrorDetection>,
   nodes?: ReadonlyArray<ErrorTreeNode>,
 ): string {
   if (detections.length === 0) return 'none';
   const errors = new Map<string, Set<string>>();
-  for (const { knownCase } of detections) if (!errors.has(knownCase.id)) errors.set(knownCase.id, new Set());
+  for (const { knownError } of detections) if (!errors.has(knownError.code)) errors.set(knownError.code, new Set());
   if (nodes === undefined) {
-    for (const [index, { knownCase }] of detections.entries()) errors.get(knownCase.id)?.add(String(index));
+    for (const [index, { knownError }] of detections.entries()) errors.get(knownError.code)?.add(String(index));
   } else {
     for (const node of nodes) {
-      for (const { knownCase } of node.detections) errors.get(knownCase.id)?.add(node.errorKey);
+      for (const { knownError } of node.detections) errors.get(knownError.code)?.add(node.errorKey);
     }
   }
   return [...errors].map(([id, keys]) => (keys.size > 1 ? `${id} ×${String(keys.size)}` : id)).join(', ');

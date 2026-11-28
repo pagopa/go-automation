@@ -4,12 +4,12 @@ import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/i
 import { GOLogger } from '@pagopa/go-common/logging';
 import { createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
 import { executeRunbookForOccurrence } from '../../../../../runtime/index.js';
-import { KNOWN_CASES } from '../knownCases.js';
+import { KNOWN_ERRORS } from '../knownErrors.js';
 import { API_GW_LOG_GROUP } from '../knownServices.js';
 import { buildRunbook } from '../runbook.js';
 import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
 import { executeWithLogs } from '../../../../../__tests__/helpers/executeWithLogs.js';
-import { caseMatches, knownCaseById } from '../../../../../__tests__/helpers/knownCaseMatching.js';
+import { caseMatches, knownErrorById } from '../../../../../__tests__/helpers/knownErrorMatching.js';
 import { logRow } from '../../../../../__tests__/helpers/logRow.js';
 import type { RunbookLogsExecution } from '../../../../../__tests__/helpers/RunbookLogsExecution.js';
 
@@ -59,7 +59,7 @@ describe('PNPG national registries diagnosis', () => {
     assert.strictEqual(result.status, 'completed');
     // Every case of the request is reported, the ones read from variables at the time of the request.
     assert.ok(
-      result.detections.some(({ knownCase }) => knownCase.id === 'apigw-504-legal-institutions-completion-observed'),
+      result.detections.some(({ knownError }) => knownError.code === 'SEND_APIGW_PNRPNPGAGA_API-504-LEG-INS-COM-OBS'),
     );
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
@@ -141,9 +141,9 @@ describe('PNPG national registries diagnosis', () => {
     assert.ok(gateway?.items?.[0]?.['message']?.includes('504'));
     assert.ok(queries.some((query) => query.includes("level == 'ERROR'")));
     assert.ok(!serialized.context.evidence.some(({ sourceStep }) => sourceStep === 'query-pn-national-registries'));
-    assert.strictEqual(serialized.outcome.kind, 'known-case-matched');
+    assert.strictEqual(serialized.outcome.kind, 'known-error-matched');
     assert.ok(
-      serialized.outcome.detections.some(({ caseId }) => caseId === 'apigw-504-legal-institutions-completion-observed'),
+      serialized.outcome.detections.some(({ code }) => code === 'SEND_APIGW_PNRPNPGAGA_API-504-LEG-INS-COM-OBS'),
     );
     assert.strictEqual(serialized.analysis?.kind, 'KNOWN_CASE');
     assert.strictEqual(serialized.analysis.proposedStatus, 'IN_PROGRESS');
@@ -151,7 +151,9 @@ describe('PNPG national registries diagnosis', () => {
 
   it('keeps a 504 with no application evidence open without assigning INAD or InfoCamere as cause', async () => {
     const { result, draft } = await execute();
-    assert.ok(result.detections.some(({ knownCase }) => knownCase.id === 'apigw-504-infocamere-inad-timeout'));
+    assert.ok(
+      result.detections.some(({ knownError }) => knownError.code === 'SEND_APIGW_PNRPNPGAGA_API-504-INF-INA-TIM'),
+    );
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
     assert.deepStrictEqual(draft.downstreams, []);
@@ -160,8 +162,8 @@ describe('PNPG national registries diagnosis', () => {
   it('keeps the generic gateway timeout open instead of declaring a transient recovered error', async () => {
     const { result, draft } = await execute([], 'Execution failed due to a timeout error');
     assert.deepStrictEqual(
-      result.detections.map(({ knownCase }) => knownCase.id),
-      ['apigw-504-timeout'],
+      result.detections.map(({ knownError }) => knownError.code),
+      ['SEND_APIGW_PNRPNPGAGA_API-504-TIM'],
     );
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
@@ -169,8 +171,8 @@ describe('PNPG national registries diagnosis', () => {
 
   it('matches the documented connection timeouts only for their actual host and service', () => {
     for (const [id, service, host] of [
-      ['downstream-inad-connect-timeout', 'INAD', 'api.inad.gov.it'],
-      ['downstream-ade-connect-timeout', 'AdE', 'gatewaywebservices.agenziaentrate.it'],
+      ['SEND_APIGW_PNRPNPGAGA_DOW-INA-CON-TIM', 'INAD', 'api.inad.gov.it'],
+      ['SEND_APIGW_PNRPNPGAGA_DOW-ADE-CON-TIM', 'AdE', 'gatewaywebservices.agenziaentrate.it'],
     ]) {
       for (const [target, expected] of [
         [`${host}/192.0.2.1:443`, true],
@@ -183,7 +185,7 @@ describe('PNPG national registries diagnosis', () => {
             ],
           },
         });
-        assert.strictEqual(caseMatches(knownCaseById(KNOWN_CASES, id ?? ''), context), expected, `${id}: ${target}`);
+        assert.strictEqual(caseMatches(knownErrorById(KNOWN_ERRORS, id ?? ''), context), expected, `${id}: ${target}`);
       }
     }
   });

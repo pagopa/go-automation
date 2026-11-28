@@ -29,7 +29,7 @@ export function getEffectiveExecutionLogGroup(config: ApiGwAlarmConfig): string 
  * - `entryService.executionLogGroup` è valorizzato e non vuoto
  *
  * Usato sia dal branching della pipeline in `createSendApiGwAlarmRunbook` sia
- * dalla validazione `validateKnownCaseStepRefs` per calcolare il set di
+ * dalla validazione `validateKnownErrorStepRefs` per calcolare il set di
  * step ID effettivamente cablati.
  *
  * @param config - configurazione del runbook

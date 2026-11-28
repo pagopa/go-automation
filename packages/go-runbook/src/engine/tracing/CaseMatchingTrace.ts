@@ -1,7 +1,7 @@
 import type { CaseEvaluationTrace } from './CaseEvaluationTrace.js';
 
 /**
- * Trace of the known case matching process.
+ * Trace of the known error matching process.
  * Documents every case evaluated, the condition applied, and the result.
  */
 export interface CaseMatchingTrace {
@@ -13,5 +13,5 @@ export interface CaseMatchingTrace {
    * IDs of the detections, in the order of the detections: `firstSeenAt` ascending, declaration order on ties,
    * untimed last. Superseded cases are not listed. Empty when no case matched.
    */
-  readonly matchedCaseIds: ReadonlyArray<string>;
+  readonly matchedKnownErrorCodes: ReadonlyArray<string>;
 }

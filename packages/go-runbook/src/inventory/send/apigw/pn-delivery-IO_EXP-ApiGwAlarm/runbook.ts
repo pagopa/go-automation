@@ -7,7 +7,7 @@ import { readStepOutput, type Runbook, SetVarStep } from '../../../../engine/ind
 
 import { API_GW_LOG_GROUP, ENTRY_SERVICE, REACHABLE_SERVICES } from './knownServices.js';
 import { KNOWN_URLS } from './knownUrls.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 /**
@@ -93,6 +93,6 @@ export function buildRunbook(): Runbook {
         },
       ],
     },
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
   });
 }

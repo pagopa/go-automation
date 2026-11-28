@@ -15,7 +15,7 @@ import { INTEROP_K8S_QUERY_PROFILE } from '../profiles/INTEROP_K8S_QUERY_PROFILE
 import { ResolveInteropK8sAlarmContextStep } from '../steps/ResolveInteropK8sAlarmContextStep.js';
 import { QueryInteropPodContextStep } from '../steps/QueryInteropPodContextStep.js';
 import { appendInteropCidPipeline } from '../../../applicationLogs/builders/appendInteropCidPipeline.js';
-import { defaultInteropK8sUnknownCaseFallback } from './defaultInteropK8sUnknownCaseFallback.js';
+import { defaultInteropK8sUnknownErrorFallback } from './defaultInteropK8sUnknownErrorFallback.js';
 
 /**
  * Assembles an INTEROP k8s alarm runbook: resolve the context of the alarm, read the application logs of its pod
@@ -28,7 +28,7 @@ import { defaultInteropK8sUnknownCaseFallback } from './defaultInteropK8sUnknown
  *
  * @example
  * ```typescript
- * interop.k8s.createInteropK8sAlarmRunbook({ alarm: NOTIFIER_ALARM, metadata, knownCases: KNOWN_CASES });
+ * interop.k8s.createInteropK8sAlarmRunbook({ alarm: NOTIFIER_ALARM, metadata, knownErrors: KNOWN_ERRORS });
  * ```
  */
 export function createInteropK8sAlarmRunbook(config: InteropK8sAlarmConfig): Runbook {
@@ -73,7 +73,7 @@ export function createInteropK8sAlarmRunbook(config: InteropK8sAlarmConfig): Run
 
   return finishAlarmRunbook(builder, runbook, {
     builderName: 'createInteropK8sAlarmRunbook',
-    defaultFallback: () => defaultInteropK8sUnknownCaseFallback(service),
+    defaultFallback: () => defaultInteropK8sUnknownErrorFallback(service),
     runbookContext: {
       kind: 'service',
       product: RunbookProducts.INTEROP,

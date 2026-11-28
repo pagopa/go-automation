@@ -29,7 +29,7 @@ const DEFAULT_WINDOW_DAYS = 14;
  *
  * 1. la copertura statica passa — ogni riferimento dichiarato dai runbook esiste
  *    nel censimento del prodotto;
- * 2. lo shadow conferma sul campo — nella finestra osservata ogni known case
+ * 2. lo shadow conferma sul campo — nella finestra osservata ogni known error
  *    valutato risulta `wouldApplyStatus = APPLIED`.
  *
  * Servono entrambe perché misurano cose diverse: la copertura dice che i nomi

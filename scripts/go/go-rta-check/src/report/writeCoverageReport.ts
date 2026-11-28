@@ -6,7 +6,7 @@ import type { CoverageReport } from '@go-automation/go-watchtower-runbook';
 import type { CoverageExitCode } from '../libs/runCoverageCheck.js';
 
 export interface CoverageArtifactV1 {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 2;
   readonly generatedAt: string;
   readonly exitCode: CoverageExitCode;
   readonly report: CoverageReport;
@@ -27,7 +27,7 @@ export async function writeCoverageReport(
 ): Promise<string> {
   const outputPath = script.paths.resolvePath('coverage.json', GOPathType.OUTPUT);
   const artifact: CoverageArtifactV1 = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     generatedAt: new Date().toISOString(),
     exitCode,
     report,

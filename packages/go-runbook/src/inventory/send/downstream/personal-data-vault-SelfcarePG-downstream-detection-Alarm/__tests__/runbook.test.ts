@@ -38,10 +38,10 @@ describe('personal-data-vault SelfcarePG runbook', () => {
     const { result, queries, draft } = await execute(`${HTTP_500};{"status":500}`);
     assert.strictEqual(result.status, 'completed');
     assert.deepStrictEqual(
-      result.detections.map(({ knownCase }) => knownCase.id),
-      ['selfcarepg-institutions-add-http-500'],
+      result.detections.map(({ knownError }) => knownError.code),
+      ['SEND_DOWNSTREAM_PDVSPGDDA_SEL-INS-ADD-HTT-500'],
     );
-    // A known case does not stop the run: the trace of the error is read too.
+    // A known error does not stop the run: the trace of the error is read too.
     assert.strictEqual(queries.length, 2);
     assert.ok(draft?.kind === 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
@@ -69,8 +69,8 @@ describe('personal-data-vault SelfcarePG runbook', () => {
     assert.deepStrictEqual(unknown.result.detections, []);
     const known = await execute(message, 'io.netty.handler.timeout.ReadTimeoutException: null');
     assert.deepStrictEqual(
-      known.result.detections.map(({ knownCase }) => knownCase.id),
-      ['selfcarepg-read-timeout-with-empty-error'],
+      known.result.detections.map(({ knownError }) => knownError.code),
+      ['SEND_DOWNSTREAM_PDVSPGDDA_SEL-REA-TIM-WIT-EMP-ERR'],
     );
     assert.ok(known.queries[1]?.query.includes(TRACE_ID));
     assert.ok(known.draft?.kind === 'KNOWN_CASE');

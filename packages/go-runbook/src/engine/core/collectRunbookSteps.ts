@@ -6,7 +6,7 @@ import { levelSteps } from '../tree/levelSteps.js';
 
 /**
  * Every step a runbook can execute: the pipeline, the reads and steps of the levels of its error tree, and the steps
- * of the actions of every known case and of the fallback, composite actions included. Used by the service check of
+ * of the actions of every known error and of the fallback, composite actions included. Used by the service check of
  * the engine and by the cloud policy.
  *
  * @param runbook - Runbook to visit
@@ -28,7 +28,7 @@ export function collectRunbookSteps(runbook: Runbook): ReadonlyArray<Step | Tree
         return;
       default: {
         const exhaustive: never = action;
-        throw new Error(`Unknown case action: ${JSON.stringify(exhaustive)}`);
+        throw new Error(`Unknown error action: ${JSON.stringify(exhaustive)}`);
       }
     }
   };
@@ -38,7 +38,7 @@ export function collectRunbookSteps(runbook: Runbook): ReadonlyArray<Step | Tree
     if (level.read !== undefined) seen.add(level.read);
     for (const descriptor of levelSteps(level)) seen.add(descriptor.step);
   }
-  for (const knownCase of runbook.knownCases) visitAction(knownCase.action);
+  for (const knownError of runbook.knownErrors) visitAction(knownError.action);
   visitAction(runbook.fallbackAction);
   return [...seen];
 }

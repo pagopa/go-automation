@@ -1,6 +1,6 @@
 import type {
   IdentifierObservation,
-  KnownCaseDetection,
+  KnownErrorDetection,
   RunbookContext,
   RunbookExecutionResult,
 } from '../../../engine/index.js';
@@ -34,7 +34,7 @@ function nodeOutputContext(result: RunbookExecutionResult, view: ErrorTreeView, 
 export function detectionContext(
   result: RunbookExecutionResult,
   view: ErrorTreeView,
-  detection: KnownCaseDetection,
+  detection: KnownErrorDetection,
 ): RunbookContext {
   const node = view.nodeOf(detection);
   return node === undefined ? result.finalContext : nodeOutputContext(result, view, node.id);
@@ -50,7 +50,7 @@ export function detectionContext(
  */
 export function detectionObservations(
   view: ErrorTreeView,
-  detection: KnownCaseDetection,
+  detection: KnownErrorDetection,
 ): ReadonlyArray<IdentifierObservation> {
   const node = view.nodeOf(detection);
   const path = node === undefined ? [] : [...view.path(node.id)].reverse();

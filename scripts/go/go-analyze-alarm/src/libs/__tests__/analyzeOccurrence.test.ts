@@ -49,8 +49,8 @@ describe('analyzeOccurrence', () => {
         tags: [],
       },
       steps: [],
-      knownCases: [],
-      fallbackAction: { type: 'log', level: 'info', title: 'No known case' },
+      knownErrors: [],
+      fallbackAction: { type: 'log', level: 'info', title: 'No known error' },
     };
 
     await analyzeOccurrence(script, config, () => runbook, { alarmDatetime: config.alarmDatetime });
@@ -102,8 +102,8 @@ describe('analyzeOccurrence', () => {
           tags: [],
         },
         steps: [],
-        knownCases: [],
-        fallbackAction: { type: 'log', level: 'info', title: 'No known case' },
+        knownErrors: [],
+        fallbackAction: { type: 'log', level: 'info', title: 'No known error' },
       };
 
       await analyzeOccurrence(script, config, () => runbook, { alarmDatetime: config.alarmDatetime });

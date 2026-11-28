@@ -13,13 +13,13 @@ function makeRow(status: V1Status, v2: V2Status, analysisId?: string): RtaCheckR
       awsRegion: 'eu-south-1',
       ...(analysisId !== undefined ? { analysisId } : {}),
     },
-    runbook: { status, matchedCaseIds: [], durationMs: 100, cloudWatchRecordsScanned: 10 },
+    runbook: { status, matchedKnownErrorCodes: [], durationMs: 100, cloudWatchRecordsScanned: 10 },
     comparison: {
       status: v2,
       confidence: 0,
       reasons: [],
       signals: {
-        caseIdMentioned: false,
+        knownErrorCodeMentioned: false,
         descriptionOverlap: 0,
         traceIdOverlap: [],
         downstreamOverlap: [],

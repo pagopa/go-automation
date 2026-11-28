@@ -112,7 +112,7 @@ describe('matchAnalysisAi', () => {
     assert.strictEqual(result.matcher, 'deterministic+ai');
     assert.strictEqual(result.aiAttempted, true);
     assert.strictEqual(matcher.calls, 1);
-    assert.strictEqual(result.signals.caseIdMentioned, true);
+    assert.strictEqual(result.signals.knownErrorCodeMentioned, true);
     assert.strictEqual(result.signals.semanticScore, 20);
     assert.strictEqual(result.signals.semanticVerdict, 'conflicting');
     assert.match(result.reasons.join('\n'), /possibile divergenza/);

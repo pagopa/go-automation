@@ -6,7 +6,7 @@ import type { StepDiagnostics } from '../StepDiagnostics.js';
 import { TraceBuilder } from '../TraceBuilder.js';
 import { createTestContext } from '../../../__tests__/helpers/createTestContext.js';
 import { createTestRunbook } from '../../../__tests__/helpers/createTestRunbook.js';
-import type { KnownCase } from '../../types/KnownCase.js';
+import type { KnownError } from '../../types/KnownError.js';
 
 const RUNBOOK = createTestRunbook();
 
@@ -55,8 +55,8 @@ describe('TraceBuilder', () => {
   });
 
   describe('detections and coverage', () => {
-    const knownCase = (id: string): KnownCase => ({
-      id,
+    const knownError = (id: string): KnownError => ({
+      code: id,
       description: `Case ${id}`,
       condition: { type: 'exists', ref: 'vars.x' },
       action: { type: 'log', level: 'info', title: id },
@@ -65,24 +65,24 @@ describe('TraceBuilder', () => {
     it('reports the detections in the order recorded, with every evaluation in declaration order', () => {
       const builder = builderWithOneStep();
       builder.traceCaseEvaluation(
-        knownCase('a'),
+        knownError('a'),
         true,
         {},
         { firstSeenAt: '2026-05-13T10:05:00.000Z', evidenceRows: 1 },
       );
       builder.traceCaseEvaluation(
-        knownCase('b'),
+        knownError('b'),
         true,
         {},
         { firstSeenAt: '2026-05-13T10:01:00.000Z', evidenceRows: 2 },
       );
-      builder.traceCaseEvaluation(knownCase('c'), true, {}, { supersededBy: 'a', evidenceRows: 1 });
+      builder.traceCaseEvaluation(knownError('c'), true, {}, { supersededBy: 'a', evidenceRows: 1 });
       builder.traceDetections(['b', 'a']);
       const trace = builder.build(createTestContext(), 'completed', ENV);
 
-      assert.deepStrictEqual(trace.caseMatching.matchedCaseIds, ['b', 'a']);
+      assert.deepStrictEqual(trace.caseMatching.matchedKnownErrorCodes, ['b', 'a']);
       assert.deepStrictEqual(
-        trace.caseMatching.evaluations.map((e) => e.caseId),
+        trace.caseMatching.evaluations.map((e) => e.knownErrorCode),
         ['a', 'b', 'c'],
       );
       assert.strictEqual(trace.caseMatching.evaluations[2]?.supersededBy, 'a');
@@ -98,7 +98,7 @@ describe('TraceBuilder', () => {
       const trace = builder.build(createTestContext(), 'completed', ENV);
 
       assert.deepStrictEqual(trace.coverage, [{ stepId: 'analyze-x', complete: false, reason: 'saturated' }]);
-      assert.strictEqual(trace.schemaVersion, '3.0.0');
+      assert.strictEqual(trace.schemaVersion, '4.0.0');
     });
   });
 });

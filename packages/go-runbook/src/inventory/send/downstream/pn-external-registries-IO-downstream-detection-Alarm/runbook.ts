@@ -1,7 +1,7 @@
 import { downstream } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 import { EXTERNAL_REGISTRIES_IO_ALARM } from './alarmDefinition.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { DOWNSTREAM, SERVICE } from './knownServices.js';
 const RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3312976074/pn-external-registries-IO-downstream-detection-Alarm';
@@ -21,7 +21,7 @@ export function buildRunbook(): Runbook {
     },
     service: SERVICE,
     downstream: DOWNSTREAM,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     occurrenceTimeWindow: {
       // Preserve the diagnostic window associated with the documented 3/6 periods.
       // This scan interval is not a fixed alarm recovery timer.

@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module';
 
 import type { Ajv as AjvInstance, AnySchema, Options as AjvOptions, ValidateFunction } from 'ajv';
-import type { KnownCase } from '@pagopa/go-runbook';
+import type { KnownError } from '@pagopa/go-runbook';
 import type { RunbookAnalysisDefaults, RunbookProduct } from '@pagopa/go-runbook/toolkits/common';
 import { INTEROP_DOWNSTREAMS } from '@pagopa/go-runbook/toolkits/interop';
 import { SEND_DOWNSTREAMS } from '@pagopa/go-runbook/toolkits/send';
@@ -63,11 +63,11 @@ export async function checkRunbookCoverage(input: RunbookCoverageInput): Promise
   const alarmOwners = buildAlarmOwnerIndex(input.census);
 
   const resolved = resolveProducts(declarations, alarmOwners, productIndexes, errors, warnings);
-  let checkedKnownCases = 0;
+  let checkedKnownErrors = 0;
   let checkedReferences = 0;
 
   for (const declaration of declarations) {
-    checkedKnownCases += declaration.knownCases.length;
+    checkedKnownErrors += declaration.knownErrors.length;
     const productId = resolved.get(declaration.key);
     const census = productId === undefined ? undefined : censusByProductId.get(productId);
     if (census === undefined) continue;
@@ -79,7 +79,7 @@ export async function checkRunbookCoverage(input: RunbookCoverageInput): Promise
 
   return {
     checkedRunbooks: declarations.length,
-    checkedKnownCases,
+    checkedKnownErrors,
     checkedReferences,
     errors,
     warnings,
@@ -93,7 +93,7 @@ interface RunbookDeclaration {
   readonly product: RunbookProduct;
   readonly alarmNames: ReadonlyArray<string>;
   readonly defaults: RunbookAnalysisDefaults | undefined;
-  readonly knownCases: ReadonlyArray<KnownCase>;
+  readonly knownErrors: ReadonlyArray<KnownError>;
 }
 
 function extractDeclarations(registry: RunbookCatalog): ReadonlyArray<RunbookDeclaration> {
@@ -107,7 +107,7 @@ function extractDeclarations(registry: RunbookCatalog): ReadonlyArray<RunbookDec
       product: resolved.product,
       alarmNames: descriptor.alarmNames,
       defaults: runbook.analysisDefaults,
-      knownCases: runbook.knownCases,
+      knownErrors: runbook.knownErrors,
     });
   }
   return declarations;
@@ -302,10 +302,10 @@ function checkDeclaration(
     errors,
   });
 
-  for (const knownCase of declaration.knownCases) {
-    const analysis = knownCase.analysis;
+  for (const knownError of declaration.knownErrors) {
+    const analysis = knownError.analysis;
     if (analysis === undefined) continue;
-    checked += checkReferenceGroup(declaration, knownCase.id, analysis, {
+    checked += checkReferenceGroup(declaration, knownError.code, analysis, {
       resourcesByName,
       downstreamNames,
       finalActionNames,
@@ -320,7 +320,7 @@ function checkDeclaration(
         severity: 'ERROR',
         code: COVERAGE_ERROR_CODES.IGNORE_REASON_NOT_FOUND,
         runbookKey: declaration.key,
-        knownCaseId: knownCase.id,
+        knownErrorId: knownError.code,
         product: declaration.product,
         field: 'ignoreReasonCode',
         declaredValue: analysis.ignoreReasonCode,
@@ -329,7 +329,7 @@ function checkDeclaration(
       });
       continue;
     }
-    checkIgnoreDetails(declaration, knownCase.id, analysis.ignoreDetails, reason, errors);
+    checkIgnoreDetails(declaration, knownError.code, analysis.ignoreDetails, reason, errors);
   }
 
   return checked;
@@ -344,7 +344,7 @@ interface ReferenceIndexes {
 
 function checkReferenceGroup(
   declaration: RunbookDeclaration,
-  knownCaseId: string | undefined,
+  knownErrorId: string | undefined,
   group: RunbookAnalysisDefaults | undefined,
   indexes: ReferenceIndexes,
 ): number {
@@ -359,7 +359,7 @@ function checkReferenceGroup(
         severity: 'ERROR',
         code: COVERAGE_ERROR_CODES.RESOURCE_NOT_FOUND,
         runbookKey: declaration.key,
-        ...(knownCaseId === undefined ? {} : { knownCaseId }),
+        ...(knownErrorId === undefined ? {} : { knownErrorId }),
         product: declaration.product,
         field: 'resources',
         declaredValue: resource.name,
@@ -373,7 +373,7 @@ function checkReferenceGroup(
         severity: 'ERROR',
         code: COVERAGE_ERROR_CODES.RESOURCE_TYPE_MISMATCH,
         runbookKey: declaration.key,
-        ...(knownCaseId === undefined ? {} : { knownCaseId }),
+        ...(knownErrorId === undefined ? {} : { knownErrorId }),
         product: declaration.product,
         field: 'resources.type',
         declaredValue: resource.type,
@@ -383,13 +383,13 @@ function checkReferenceGroup(
     }
   }
 
-  checked += checkNames(declaration, knownCaseId, group.downstreams ?? [], indexes.downstreamNames, {
+  checked += checkNames(declaration, knownErrorId, group.downstreams ?? [], indexes.downstreamNames, {
     code: COVERAGE_ERROR_CODES.DOWNSTREAM_NOT_FOUND,
     field: 'downstreams',
     label: 'Downstream',
     errors: indexes.errors,
   });
-  checked += checkNames(declaration, knownCaseId, group.finalActions ?? [], indexes.finalActionNames, {
+  checked += checkNames(declaration, knownErrorId, group.finalActions ?? [], indexes.finalActionNames, {
     code: COVERAGE_ERROR_CODES.FINAL_ACTION_NOT_FOUND,
     field: 'finalActions',
     label: 'Final action',
@@ -407,7 +407,7 @@ interface NameCheckOptions {
 
 function checkNames(
   declaration: RunbookDeclaration,
-  knownCaseId: string | undefined,
+  knownErrorId: string | undefined,
   declared: ReadonlyArray<string>,
   censused: ReadonlySet<string>,
   options: NameCheckOptions,
@@ -418,7 +418,7 @@ function checkNames(
       severity: 'ERROR',
       code: options.code,
       runbookKey: declaration.key,
-      ...(knownCaseId === undefined ? {} : { knownCaseId }),
+      ...(knownErrorId === undefined ? {} : { knownErrorId }),
       product: declaration.product,
       field: options.field,
       declaredValue: name,
@@ -433,7 +433,7 @@ function checkNames(
 
 function checkIgnoreDetails(
   declaration: RunbookDeclaration,
-  knownCaseId: string,
+  knownErrorId: string,
   details: Readonly<Record<string, unknown>> | undefined,
   reason: IgnoreReasonDto,
   errors: CoverageIssue[],
@@ -449,7 +449,7 @@ function checkIgnoreDetails(
       severity: 'ERROR',
       code: COVERAGE_ERROR_CODES.IGNORE_DETAILS_SCHEMA_INVALID,
       runbookKey: declaration.key,
-      knownCaseId,
+      knownErrorId,
       product: declaration.product,
       field: 'ignoreDetails',
       declaredValue: reason.code,
@@ -466,7 +466,7 @@ function checkIgnoreDetails(
     severity: 'ERROR',
     code: COVERAGE_ERROR_CODES.IGNORE_DETAILS_INVALID,
     runbookKey: declaration.key,
-    knownCaseId,
+    knownErrorId,
     product: declaration.product,
     field: 'ignoreDetails',
     declaredValue: reason.code,

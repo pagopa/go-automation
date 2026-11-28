@@ -7,7 +7,7 @@ import type { Runbook } from '../../../../engine/index.js';
 
 import { API_GW_LOG_GROUP, AUTHORIZER_LOG_GROUP, ENTRY_SERVICE, VERSIONING_LOG_GROUP } from './knownServices.js';
 import { KNOWN_URLS } from './knownUrls.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { QueryStreamLambdaLogsStep } from './QueryStreamLambdaLogsStep.js';
 
 /**
@@ -70,6 +70,6 @@ export function buildRunbook(): Runbook {
         ],
       },
     ],
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
   });
 }

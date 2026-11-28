@@ -5,7 +5,7 @@
 import { interop } from '../../../../toolkits/interop/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { SIGNED_OBJECTS_PERSISTER_ALARM as ALARM } from './alarmDefinition.js';
 import { SIGNED_OBJECTS_PERSISTER_QUERY_PROFILE } from './queryProfile.js';
 
@@ -26,7 +26,7 @@ export function buildRunbook(): Runbook {
       tags: ['interop', 'k8s', 'service', 'signed-objects', 'safe-storage'],
     },
     queryProfile: SIGNED_OBJECTS_PERSISTER_QUERY_PROFILE,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       links: [
         {

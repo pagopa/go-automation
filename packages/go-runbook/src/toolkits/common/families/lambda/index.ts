@@ -6,7 +6,7 @@
 export { createLambdaAlarmRunbook } from './builders/createLambdaAlarmRunbook.js';
 export { resolveLambdaAlarmBuildContext } from './builders/resolveLambdaAlarmBuildContext.js';
 export type { LambdaAlarmBuildContext } from './builders/resolveLambdaAlarmBuildContext.js';
-export { defaultLambdaUnknownCaseFallback } from './builders/defaultLambdaUnknownCaseFallback.js';
+export { defaultLambdaUnknownErrorFallback } from './builders/defaultLambdaUnknownErrorFallback.js';
 export { PrepareLambdaSectionStep } from './steps/PrepareLambdaSectionStep.js';
 export type { PrepareLambdaSectionConfig } from './steps/PrepareLambdaSectionStep.js';
 export { ParseLambdaErrorsStep } from './steps/ParseLambdaErrorsStep.js';
@@ -24,7 +24,7 @@ export { isLambdaRunbookContext } from './output/LambdaRunbookContext.js';
 export type { LambdaOutputContext } from './output/LambdaOutputContext.js';
 export type { LambdaDownstreamOutput } from './output/LambdaDownstreamOutput.js';
 export { buildLambdaOutputContext } from './output/buildLambdaOutputContext.js';
-export { LAMBDA_RUNTIME_KNOWN_CASES } from './knownCases/LAMBDA_RUNTIME_KNOWN_CASES.js';
+export { LAMBDA_RUNTIME_KNOWN_ERRORS } from './knownErrors/LAMBDA_RUNTIME_KNOWN_ERRORS.js';
 export type { LambdaQueryProfile } from './profiles/LambdaQueryProfile.js';
 export { DEFAULT_LAMBDA_PROFILE } from './profiles/DEFAULT_LAMBDA_PROFILE.js';
 export { DEFAULT_LAMBDA_ERROR_QUERY } from './queries/DEFAULT_LAMBDA_ERROR_QUERY.js';

@@ -25,7 +25,7 @@ const defaultAlarmName: InteropK8sAlarmNameFn = (runbookKey, environment) => `${
  * from them.
  *
  * @param spec - The identifiers that distinguish this runbook
- * @returns The alarm definition consumed by the runbook, its known cases and the registry
+ * @returns The alarm definition consumed by the runbook, its known errors and the registry
  *
  * @example
  * ```typescript

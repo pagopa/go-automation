@@ -83,7 +83,7 @@ export class ConditionEvaluator {
 
   /**
    * Evaluates a condition and returns the resolved trace values in the
-   * same traversal. This is used by known-case tracing: large array refs
+   * same traversal. This is used by known-error tracing: large array refs
    * are scanned once and represented with compact match-detail objects
    * instead of raw arrays.
    *

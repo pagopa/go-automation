@@ -21,7 +21,7 @@ export interface LambdaFunction {
    * There is no AWS Lambda service in the runbook `ServiceRegistry`, so the
    * runbook never calls `GetFunctionConfiguration`: timeout/memory are
    * inferred from the `REPORT` log line. When provided, this value is
-   * propagated to the `lambdaConfiguredTimeoutMs` var (so timeout known cases
+   * propagated to the `lambdaConfiguredTimeoutMs` var (so timeout known errors
    * can reference it) and to `details.lambda.configuredTimeoutMs` in the
    * result output, to compare against the observed `Duration`.
    */

@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { CaseAction } from '../../../../engine/types/CaseAction.js';
-import type { KnownCase } from '../../../../engine/types/KnownCase.js';
+import type { KnownError } from '../../../../engine/types/KnownError.js';
 import type { Runbook } from '../../../../engine/types/Runbook.js';
 import type { RunbookExecutionResult } from '../../../../engine/types/RunbookExecutionResult.js';
 import type { RunbookExecutionStatus } from '../../../../engine/types/RunbookExecutionStatus.js';
@@ -14,17 +14,20 @@ import { createTestRunbook } from '../../../../__tests__/helpers/createTestRunbo
 
 const FALLBACK_ACTION: CaseAction = { type: 'log', level: 'warn', title: 'fallback {{vars.reason}}' };
 
-function createRunbook(args: { readonly type?: RunbookType; readonly knownCases?: ReadonlyArray<KnownCase> }): Runbook {
+function createRunbook(args: {
+  readonly type?: RunbookType;
+  readonly knownErrors?: ReadonlyArray<KnownError>;
+}): Runbook {
   return createTestRunbook({
     metadata: { ...createTestRunbook().metadata, type: args.type ?? 'alarm-resolution' },
-    knownCases: args.knownCases ?? [],
+    knownErrors: args.knownErrors ?? [],
     fallbackAction: FALLBACK_ACTION,
   });
 }
 
 function createResult(args: {
   readonly status?: RunbookExecutionStatus;
-  readonly matchedCases?: ReadonlyArray<KnownCase>;
+  readonly matchedCases?: ReadonlyArray<KnownError>;
   readonly vars?: Readonly<Record<string, string>>;
   readonly pipeline?: ReadonlyArray<StepTrace>;
 }): RunbookExecutionResult {
@@ -65,47 +68,66 @@ function createResult(args: {
   };
 }
 
-function knownCase(): KnownCase {
+function knownError(): KnownError {
   return {
-    id: 'known',
-    description: 'Known case',
+    code: 'known',
+    description: 'Known error',
     condition: { type: 'compare', ref: 'vars.reason', operator: '==', value: 'known' },
     action: { type: 'log', level: 'info', title: 'known {{vars.reason}}' },
   };
 }
 
 describe('buildRunbookOutput', () => {
-  it('maps matched cases to known-case-matched and includes traceFile', () => {
-    const matched = knownCase();
+  it('maps matched cases to known-error-matched and includes traceFile', () => {
+    const matched = knownError();
     const output = buildRunbookOutput(
-      createRunbook({ knownCases: [matched] }),
+      createRunbook({ knownErrors: [matched] }),
       createResult({ matchedCases: [matched] }),
       {
         traceFile: 'trace-test.json',
       },
     );
 
-    assert.strictEqual(output.schemaVersion, '4.0.0');
-    assert.strictEqual(output.outcome.kind, 'known-case-matched');
+    assert.strictEqual(output.schemaVersion, '5.0.0');
+    assert.strictEqual(output.outcome.kind, 'known-error-matched');
     assert.strictEqual(output.execution.traceFile, 'trace-test.json');
     assert.strictEqual(output.execution.recoveredErrors[0]?.error, 'temporary error');
-    if (output.outcome.kind === 'known-case-matched') {
-      assert.strictEqual(output.outcome.detections[0]?.caseId, 'known');
+    if (output.outcome.kind === 'known-error-matched') {
+      assert.strictEqual(output.outcome.detections[0]?.code, 'known');
       assert.strictEqual(output.outcome.detections[0]?.resolvedMessage, 'resolved action');
+      assert.strictEqual(output.outcome.detections[0]?.analysisType, undefined, 'no analysis, no type');
     }
   });
 
-  it('maps completed alarm-resolution without matches to unknown-case with interpolated fallback', () => {
+  it('carries the analysis type of each detected known error', () => {
+    const ignorable: KnownError = {
+      ...knownError(),
+      analysis: {
+        resolution: 'Nessuna azione',
+        proposedStatus: 'COMPLETED',
+        analysisType: 'IGNORABLE',
+        ignoreReasonCode: 'X',
+      },
+    };
+    const output = buildRunbookOutput(
+      createRunbook({ knownErrors: [ignorable] }),
+      createResult({ matchedCases: [ignorable] }),
+    );
+    assert.ok(output.outcome.kind === 'known-error-matched');
+    assert.strictEqual(output.outcome.detections[0]?.analysisType, 'IGNORABLE');
+  });
+
+  it('maps completed alarm-resolution without matches to unknown-error with interpolated fallback', () => {
     const output = buildRunbookOutput(createRunbook({}), createResult({}));
 
-    assert.strictEqual(output.outcome.kind, 'unknown-case');
-    if (output.outcome.kind === 'unknown-case') {
+    assert.strictEqual(output.outcome.kind, 'unknown-error');
+    if (output.outcome.kind === 'unknown-error') {
       assert.strictEqual(output.outcome.casesEvaluated, 2);
       assert.strictEqual(output.outcome.fallbackMessage, 'fallback no-match');
     }
   });
 
-  it('gives failed executions precedence over unknown-case', () => {
+  it('gives failed executions precedence over unknown-error', () => {
     const failedStep: StepTrace = {
       executionOrder: 1,
       stepId: 'query',

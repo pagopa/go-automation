@@ -10,6 +10,6 @@ export interface ValidationErrorEntry {
   readonly message: string;
   /** ID of the involved step (if applicable) */
   readonly stepId?: string;
-  /** ID of the involved KnownCase (if applicable) */
-  readonly caseId?: string;
+  /** ID of the involved KnownError (if applicable) */
+  readonly knownErrorCode?: string;
 }

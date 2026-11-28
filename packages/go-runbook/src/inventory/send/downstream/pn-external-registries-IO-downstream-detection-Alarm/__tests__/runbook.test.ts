@@ -44,7 +44,7 @@ describe('external-registries IO downstream runbook', () => {
     assert.strictEqual(queries.length, 2);
     assert.match(queries[1]?.query ?? '', /@message like \//u);
     assert.ok(queries[1]?.query.includes(TRACE_ID));
-    assert.strictEqual(result.detections[0]?.knownCase.id, 'io-read-timeout');
+    assert.strictEqual(result.detections[0]?.knownError.code, 'SEND_DOWNSTREAM_PERIODDA_IO-REA-TIM');
   });
 
   it('publishes the courtesy timeline checks for the documented JSON failure without proposing closure', async () => {

@@ -1,7 +1,7 @@
 import type { Runbook } from '../../../../engine/index.js';
-import { unknownCaseFallback, AlarmRunbookBuilder } from '../../../../toolkits/send/index.js';
+import { unknownErrorFallback, AlarmRunbookBuilder } from '../../../../toolkits/send/index.js';
 import { SPIDHUB_ALARM, RUNBOOK_URL, SPIDHUB_LOG_GROUP } from './alarmDefinition.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { QuerySpidHubDiagnosticsStep } from './QuerySpidHubDiagnosticsStep.js';
 
 /**
@@ -81,8 +81,8 @@ export function buildRunbook(): Runbook {
         },
       ],
     });
-  for (const knownCase of KNOWN_CASES) builder.knownCase(knownCase);
+  for (const knownError of KNOWN_ERRORS) builder.knownError(knownError);
   return builder
-    .fallback(unknownCaseFallback('Diagnosi SPID Hub non disponibile', [['Azione', 'Risoluzione non documentata.']]))
+    .fallback(unknownErrorFallback('Diagnosi SPID Hub non disponibile', [['Azione', 'Risoluzione non documentata.']]))
     .build();
 }

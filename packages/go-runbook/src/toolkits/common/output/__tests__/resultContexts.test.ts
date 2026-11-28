@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { detectionContext, detectionObservations, representativeContext } from '../resultContexts.js';
 import { ErrorTreeView } from '../tree/ErrorTreeView.js';
 import { CHAINS, DETECTION, EARLY, LATE, TRACE, TREE, treeResult } from '../tree/__tests__/errorTreeFixture.js';
-import type { KnownCaseDetection } from '../../../../engine/types/KnownCaseDetection.js';
+import type { KnownErrorDetection } from '../../../../engine/types/KnownErrorDetection.js';
 
 describe('resultContexts', () => {
   it('gives a node its variables and the step results of the window and of its path, its own last', () => {
@@ -16,7 +16,7 @@ describe('resultContexts', () => {
 
   it('uses the final context for a detection of the window', () => {
     const result = treeResult();
-    const window: KnownCaseDetection = { ...DETECTION, observations: [] };
+    const window: KnownErrorDetection = { ...DETECTION, observations: [] };
     assert.equal(detectionContext(result, new ErrorTreeView(result), window), result.finalContext);
   });
 
@@ -30,7 +30,7 @@ describe('resultContexts', () => {
   });
 
   it('gives a detection without observations of its own the correlation of its path', () => {
-    const bare: KnownCaseDetection = { ...DETECTION, observations: [] };
+    const bare: KnownErrorDetection = { ...DETECTION, observations: [] };
     const view = new ErrorTreeView({
       tree: TREE.map((node) => (node.id === 'a1' ? { ...node, detections: [bare] } : node)),
       chains: CHAINS,

@@ -1,7 +1,7 @@
 import type { Runbook } from '../../../../engine/index.js';
 import { interop } from '../../../../toolkits/interop/index.js';
 import { INTEROP_API_V2_5XX_ALARM as alarm } from './alarmDefinition.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 
 const RUNBOOK_URL = 'https://pagopa.atlassian.net/wiki/spaces/GO/pages/2585526322/interop-api-v2-prod-apigw-5xx';
 
@@ -31,7 +31,7 @@ export function buildRunbook(): Runbook {
       buildApplicationLogsQuery: (podApp) =>
         interop.apigw.buildInteropApiGwServiceErrorsQuery(podApp, ['Unexpected client kind']),
     },
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       links: [{ url: RUNBOOK_URL, name: 'Runbook API v2 5xx', type: 'CONFLUENCE' }],
     },

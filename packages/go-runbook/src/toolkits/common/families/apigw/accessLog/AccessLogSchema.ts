@@ -40,7 +40,7 @@ export interface AccessLogSchema {
 
   /**
    * Nome della var di contesto in cui scrivere il trace id estratto.
-   * SEND: `'xRayTraceId'` (mantenuto per back-compat con i knownCases SEND
+   * SEND: `'xRayTraceId'` (mantenuto per back-compat con i knownErrors SEND
    * esistenti). INTEROP libero di usare `'traceId'` o `'cid'`.
    */
   readonly traceIdContextVar: string;

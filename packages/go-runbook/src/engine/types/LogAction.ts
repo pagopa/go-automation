@@ -18,7 +18,7 @@ export interface LogAction {
   readonly details?: ReadonlyArray<LogActionRow>;
   /**
    * Rendering hint, opaque to the engine: the injected {@link LogActionRenderer}
-   * interprets it (the analysis renderer knows `known-case` and `unknown-case`).
+   * interprets it (the analysis renderer knows `known-error` and `unknown-error`).
    * The key keeps its name because it is part of the definition digest.
    */
   readonly renderAs?: string;

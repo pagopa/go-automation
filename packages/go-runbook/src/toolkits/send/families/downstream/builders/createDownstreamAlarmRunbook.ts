@@ -14,7 +14,7 @@ import type { DownstreamSelector } from '../types/DownstreamSelector.js';
  * line. The query belongs to this toolkit, so a runbook declares which
  * downstream it watches and never spells the query out.
  *
- * @param config - Service, downstream and known cases of the runbook
+ * @param config - Service, downstream and known errors of the runbook
  * @returns A validated {@link Runbook} ready for execution
  * @throws Error when the selector is inconsistent, e.g. excluded status codes
  *         without an exact downstream name
@@ -26,7 +26,7 @@ import type { DownstreamSelector } from '../types/DownstreamSelector.js';
  *   metadata: { ... },
  *   service: { name: 'pn-national-registries', varPrefix: 'nationalRegistries', logGroup: '/aws/ecs/pn-national-registries' },
  *   downstream: { kind: 'named', name: SEND_DOWNSTREAMS.INAD, excludedStatusCodes: [404] },
- *   knownCases: KNOWN_CASES,
+ *   knownErrors: KNOWN_ERRORS,
  * });
  * ```
  */

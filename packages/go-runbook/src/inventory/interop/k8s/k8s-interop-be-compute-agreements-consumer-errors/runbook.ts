@@ -2,7 +2,7 @@ import { COMPUTE_AGREEMENTS_CONSUMER_ALARM } from './alarmDefinition.js';
 import { interop } from '../../../../toolkits/interop/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 
 const CONFLUENCE_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/2739208193/k8s-interop-be-compute-agreements-consumer-errors-prod';
@@ -25,7 +25,7 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'service', 'compute', 'agreements', 'consumer', 'kafka'],
     },
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       runbookName: COMPUTE_AGREEMENTS_CONSUMER_ALARM.runbookKey,
       links: [

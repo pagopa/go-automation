@@ -1,5 +1,5 @@
 import type { RunbookProduct } from '../../../registration/RunbookProduct.js';
-import type { CaseAction, KnownCase, PipelineHook, RunbookMetadata } from '../../../../../engine/index.js';
+import type { CaseAction, KnownError, PipelineHook, RunbookMetadata } from '../../../../../engine/index.js';
 import type { OccurrenceTimeWindow } from '../../../time/occurrence/OccurrenceTimeWindow.js';
 import type { RunbookAnalysisDefaults } from '../../../analysis/RunbookAnalysisDefaults.js';
 import type { ServicePipelineAnchor } from './ServicePipelineAnchor.js';
@@ -22,7 +22,7 @@ export interface ServiceAlarmConfig {
   /** Servizio applicativo da analizzare. */
   readonly service: ServiceDescriptor;
   /** Casi noti valutati contro il contesto risultante. */
-  readonly knownCases: ReadonlyArray<KnownCase>;
+  readonly knownErrors: ReadonlyArray<KnownError>;
   /** Finestra diagnostica opzionale; in assenza vale il default del catalogo. */
   readonly occurrenceTimeWindow?: OccurrenceTimeWindow;
   /** Extra analysis references; the builder always prepends the primary resource. */

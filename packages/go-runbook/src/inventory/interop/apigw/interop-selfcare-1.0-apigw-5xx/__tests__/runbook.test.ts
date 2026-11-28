@@ -27,7 +27,7 @@ describe('INTEROP Selfcare API Gateway 5xx runbook', () => {
         integrationError: 'Execution failed due to a timeout error',
       }),
     ]);
-    assert.deepStrictEqual(matchedIds, ['api-gateway-backend-timeout-504']);
+    assert.deepStrictEqual(matchedIds, ['INTEROP_APIGW_IS10A5_API-GAT-BAC-TIM-504']);
     const output = apigw.buildApiGwOutputContext(buildRunbook(), result);
     assert.match(JSON.stringify(output?.evidence), /Execution failed due to a timeout error/u);
   });
@@ -50,6 +50,9 @@ describe('INTEROP Selfcare API Gateway 5xx runbook', () => {
         }),
       ],
     );
-    assert.deepStrictEqual(matchedIds, ['tenant-not-found-known-selfcare-id', 'bff-s3-list-bucket-not-authorized']);
+    assert.deepStrictEqual(matchedIds, [
+      'INTEROP_APIGW_IS10A5_TEN-NOT-FOU-KNO-SEL-ID',
+      'INTEROP_APIGW_IS10A5_BFF-S3-LIS-BUC-NOT-AUT',
+    ]);
   });
 });
