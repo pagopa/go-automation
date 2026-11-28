@@ -7,7 +7,7 @@ import type { Runbook } from '../../../../engine/index.js';
 
 import { API_GW_LOG_GROUP, ENTRY_SERVICE, REACHABLE_SERVICES, VERSIONING_LAMBDA_LOG_GROUP } from './knownServices.js';
 import { KNOWN_URLS } from './knownUrls.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { QueryVersioningLambdaErrorsStep } from './QueryVersioningLambdaErrorsStep.js';
 import { VERSIONING_LAMBDA_PROBE_STEP_ID } from './versioningLambdaProbe.js';
 
@@ -63,6 +63,6 @@ export function buildRunbook(): Runbook {
         silent: true,
       },
     ],
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
   });
 }

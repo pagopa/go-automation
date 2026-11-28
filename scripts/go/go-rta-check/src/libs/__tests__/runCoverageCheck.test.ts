@@ -53,7 +53,7 @@ describe('runCoverageCheck', () => {
 function report(...errors: ReadonlyArray<CoverageIssue>): CoverageReport {
   return {
     checkedRunbooks: 1,
-    checkedKnownCases: 1,
+    checkedKnownErrors: 1,
     checkedReferences: 1,
     errors,
     warnings: [],

@@ -6,7 +6,7 @@ import { service } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
 import { SERVICE } from './knownServices.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 
 /**
  * Builds the pn-service-desk-alb-alarm runbook definition.
@@ -25,7 +25,7 @@ export function buildRunbook(): Runbook {
       tags: ['service', 'pn-service-desk', 'alb'],
     },
     service: SERVICE,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 5 },
     analysisDefaults: {
       runbookName: 'pn-service-desk-alb-alarm',

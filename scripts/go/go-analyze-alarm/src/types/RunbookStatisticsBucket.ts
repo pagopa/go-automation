@@ -8,8 +8,8 @@ export interface RunbookStatisticsBucket {
   readonly runbooks: number;
   /** Alarm names covered by those runbooks */
   readonly alarms: number;
-  /** Known cases declared by those runbooks */
-  readonly knownCases: number;
+  /** Known errors declared by those runbooks */
+  readonly knownErrors: number;
   /** Steps declared by those runbooks */
   readonly steps: number;
 }

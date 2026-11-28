@@ -1,5 +1,5 @@
-import type { KnownCase, StepDescriptor } from '../../../engine/index.js';
-import { findUnwiredKnownCaseStepRef } from '../../../engine/internal.js';
+import type { KnownError, StepDescriptor } from '../../../engine/index.js';
+import { findUnwiredKnownErrorStepRef } from '../../../engine/internal.js';
 
 /**
  * Identifies the builder reporting a configuration problem, so every family
@@ -53,26 +53,26 @@ export function assertStepDescriptorIds(
 }
 
 /**
- * Fail-fast when a known case references a step this runbook never wires.
+ * Fail-fast when a known error references a step this runbook never wires.
  *
  * Catches the typo and the "case written for another profile" mistake at
  * build time, instead of leaving a condition that can never match.
  *
  * @param ctx - Builder and runbook under validation
- * @param knownCases - Cases declared by the runbook author
+ * @param knownErrors - Cases declared by the runbook author
  * @param wiredStepIds - Ids the assembled pipeline actually contains
  * @param hint - Family-specific tail appended to the error message
  */
-export function assertKnownCaseStepRefs(
+export function assertKnownErrorStepRefs(
   ctx: AlarmConfigValidationContext,
-  knownCases: ReadonlyArray<KnownCase>,
+  knownErrors: ReadonlyArray<KnownError>,
   wiredStepIds: ReadonlySet<string>,
   hint: string,
 ): void {
-  const unwired = findUnwiredKnownCaseStepRef(knownCases, wiredStepIds);
+  const unwired = findUnwiredKnownErrorStepRef(knownErrors, wiredStepIds);
   if (unwired === undefined) return;
   failAlarmConfig(
     ctx,
-    `knownCase "${unwired.caseId}" references step "${unwired.stepId}" which is not wired in this runbook${hint}`,
+    `knownError "${unwired.knownErrorCode}" references step "${unwired.stepId}" which is not wired in this runbook${hint}`,
   );
 }

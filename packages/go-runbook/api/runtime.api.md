@@ -195,7 +195,7 @@ export interface OccurrenceTimeWindow {
 ```ts
 export interface OperationalModelAugmentations {
     readonly runbook: RunbookExtensionsAugmentation;
-    readonly knownCase: KnownCaseExtensionsAugmentation;
+    readonly knownError: KnownErrorExtensionsAugmentation;
     readonly stepDescriptor: StepDescriptorExtensionsAugmentation;
     readonly stepDiagnostics: StepDiagnosticsAugmentation;
     readonly executionEnvironment: ExecutionEnvironmentExtensionsAugmentation;
@@ -347,10 +347,10 @@ export type EvidenceRetention = {
 export type ExecutionEnvironmentExtensionsAugmentation = 'executionEnvironment';
 ```
 
-### `KnownCaseExtensionsAugmentation` (dist/toolkits/common/augmentations/KnownCaseExtensions.d.ts)
+### `KnownErrorExtensionsAugmentation` (dist/toolkits/common/augmentations/KnownErrorExtensions.d.ts)
 
 ```ts
-export type KnownCaseExtensionsAugmentation = 'knownCase';
+export type KnownErrorExtensionsAugmentation = 'knownError';
 ```
 
 ### `RunbookExtensionsAugmentation` (dist/toolkits/common/augmentations/RunbookExtensions.d.ts)

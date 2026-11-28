@@ -213,8 +213,8 @@ describe('VerifyPostelBatchesStep', () => {
 
     assert.strictEqual(result.status, 'completed');
     assert.deepStrictEqual(
-      result.detections.map(({ knownCase }) => knownCase.id),
-      ['postel-all-batches-worked-after-retry'],
+      result.detections.map(({ knownError }) => knownError.code),
+      ['SEND_DOWNSTREAM_PAMPOSTELDDA_POS-ALL-BAT-WOR-AFT-RET'],
     );
     assert.deepStrictEqual(
       result.trace.pipeline.map(({ stepId }) => stepId),

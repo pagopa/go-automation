@@ -2,7 +2,7 @@ import { omitUndefined } from '@pagopa/go-common/utils';
 
 import type { IdentifierObservation } from '../../../engine/index.js';
 import { canonicalTraceId } from '../parsing/traceIds/traceIdentity.js';
-import type { KnownCaseDetectionOutput } from './KnownCaseDetectionOutput.js';
+import type { KnownErrorDetectionOutput } from './KnownErrorDetectionOutput.js';
 import type { DetectedCaseError } from './DetectedCaseError.js';
 import type { CaseErrors } from './CaseErrors.js';
 import { earliest, latest } from './isEarlier.js';
@@ -32,11 +32,11 @@ import { mergeObservations } from './tree/mergeObservations.js';
  */
 export function detectionOccurrences(
   detected: ReadonlyArray<DetectedCaseError>,
-): ReadonlyArray<KnownCaseDetectionOutput> {
+): ReadonlyArray<KnownErrorDetectionOutput> {
   const groups = new Map<string, [DetectedCaseError, ...DetectedCaseError[]]>();
   for (const entry of detected) {
     const key = entry.inTree
-      ? `${entry.output.caseId}\n${occurrenceKey(entry.output.observations)}`
+      ? `${entry.output.code}\n${occurrenceKey(entry.output.observations)}`
       : `window\n${entry.errorKey}`;
     const group = groups.get(key);
     if (group === undefined) groups.set(key, [entry]);
@@ -54,9 +54,9 @@ export function detectionOccurrences(
 export function errorsByCase(detected: ReadonlyArray<DetectedCaseError>): ReadonlyArray<CaseErrors> {
   const byCase = new Map<string, { description: string; keys: Set<string> }>();
   for (const { output, errorKey } of detected) {
-    const entry = byCase.get(output.caseId) ?? { description: output.description, keys: new Set<string>() };
+    const entry = byCase.get(output.code) ?? { description: output.description, keys: new Set<string>() };
     entry.keys.add(errorKey);
-    byCase.set(output.caseId, entry);
+    byCase.set(output.code, entry);
   }
   return [...byCase.values()].map(({ description, keys }) => ({ description, errors: keys.size }));
 }
@@ -69,14 +69,15 @@ function occurrenceKey(observations: ReadonlyArray<IdentifierObservation>): stri
   return [...identifiers].sort().join('\u0001');
 }
 
-function occurrenceOf(group: readonly [DetectedCaseError, ...DetectedCaseError[]]): KnownCaseDetectionOutput {
+function occurrenceOf(group: readonly [DetectedCaseError, ...DetectedCaseError[]]): KnownErrorDetectionOutput {
   const outputs = group.map(({ output }) => output);
   const head = group[0].output;
   const messages = [...new Set(outputs.flatMap(({ resolvedMessage }) => resolvedMessage ?? []))];
   return {
-    caseId: head.caseId,
+    code: head.code,
     description: head.description,
     ...omitUndefined({
+      analysisType: head.analysisType,
       firstSeenAt: earliest(outputs.map(({ firstSeenAt }) => firstSeenAt)),
       lastSeenAt: latest(outputs.map(({ lastSeenAt }) => lastSeenAt)),
     }),

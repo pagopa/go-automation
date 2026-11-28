@@ -121,7 +121,7 @@ export function toHtmlRow(row: RtaCheckRow): ReportHtmlRow {
   return {
     firedAt: row.event.firedAt,
     v1: runbook.status,
-    caso: runbook.matchedCaseIds.join(', '),
+    caso: runbook.matchedKnownErrorCodes.join(', '),
     v2: row.comparison.status,
     confidence: row.comparison.confidence.toFixed(2),
     matcher: formatMatchSource(row.comparison.matcher, row.comparison.aiAttempted),

@@ -80,7 +80,7 @@ export function buildSummary(rows: ReadonlyArray<RtaCheckRow>): RtaCheckSummary 
  */
 export function buildReport(input: RtaCheckInput, rows: ReadonlyArray<RtaCheckRow>): RtaCheckReport {
   return {
-    schemaVersion: '2.0.0',
+    schemaVersion: '3.0.0',
     generatedAt: new Date().toISOString(),
     input,
     summary: buildSummary(rows),

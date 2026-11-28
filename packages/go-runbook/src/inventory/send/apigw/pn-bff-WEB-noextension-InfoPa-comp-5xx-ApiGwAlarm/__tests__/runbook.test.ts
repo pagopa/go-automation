@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { RunbookContext } from '../../../../../engine/index.js';
 import { buildRunbook } from '../runbook.js';
-import { KNOWN_CASES } from '../knownCases.js';
+import { KNOWN_ERRORS } from '../knownErrors.js';
 import { API_GW_LOG_GROUP, ENTRY_SERVICE } from '../knownServices.js';
 import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
 import { executeWithLogs } from '../../../../../__tests__/helpers/executeWithLogs.js';
-import { caseMatches, knownCaseById } from '../../../../../__tests__/helpers/knownCaseMatching.js';
+import { caseMatches, knownErrorById } from '../../../../../__tests__/helpers/knownErrorMatching.js';
 import { logRow } from '../../../../../__tests__/helpers/logRow.js';
 import { treeNodeVars } from '../../../../../__tests__/helpers/treeNodeVars.js';
 
@@ -46,23 +46,23 @@ function context(messages: ReadonlyArray<string>, queried = true): RunbookContex
 }
 
 function matches(id: string, ctx: RunbookContext): boolean {
-  return caseMatches(knownCaseById(KNOWN_CASES, id), ctx);
+  return caseMatches(knownErrorById(KNOWN_ERRORS, id), ctx);
 }
 
 describe('InfoPa API Gateway runbook', () => {
   it('does not resolve a BFF timeout before querying the downstream', () => {
-    assert.strictEqual(matches('bff-external-registries-read-timeout', context([], false)), false);
-    assert.strictEqual(matches('bff-external-registries-read-timeout', context([])), true);
+    assert.strictEqual(matches('SEND_APIGW_PBWEBNIPC5AGA_BFF-EXT-REG-REA-TIM', context([], false)), false);
+    assert.strictEqual(matches('SEND_APIGW_PBWEBNIPC5AGA_BFF-EXT-REG-REA-TIM', context([])), true);
   });
 
   it('requires endpoint-specific evidence for the documented Selfcare timeout', () => {
-    assert.strictEqual(matches('external-registries-selfcare-read-timeout', context([SELFCARE_TIMEOUT])), true);
+    assert.strictEqual(matches('SEND_APIGW_PBWEBNIPC5AGA_EXT-REG-SEL-REA-TIM', context([SELFCARE_TIMEOUT])), true);
     for (const message of [
       SELFCARE_TIMEOUT.replace('api.selfcare.pagopa.it', 'other.example'),
       SELFCARE_TIMEOUT.replace('ReadTimeoutException', 'ReadTimeoutExceptionOther'),
       'io.netty.handler.timeout.ReadTimeoutException',
     ]) {
-      assert.strictEqual(matches('external-registries-selfcare-read-timeout', context([message])), false);
+      assert.strictEqual(matches('SEND_APIGW_PBWEBNIPC5AGA_EXT-REG-SEL-REA-TIM', context([message])), false);
     }
   });
 
@@ -78,7 +78,7 @@ describe('InfoPa API Gateway runbook', () => {
     vars.set('apiGwPath', '/bff/v1/pa/groups');
     vars.set('bffErrorMsg', bff);
     const correlated = { ...ctx, vars, stepResults: steps };
-    const id = 'selfcare-user-groups-invalid-tenant-context';
+    const id = 'SEND_APIGW_PBWEBNIPC5AGA_SEL-USE-GRO-INV-TEN-CON';
     assert.equal(matches(id, correlated), true);
     assert.equal(
       matches(id, { ...correlated, vars: new Map([...vars, ['apiGwPath', '/bff/v1/institutions']]) }),
@@ -111,20 +111,20 @@ describe('InfoPa API Gateway runbook', () => {
       errorType: 'WebClientRequestException',
     });
     const retry = 'Exception caught by retry; Caused by: io.netty.handler.timeout.ReadTimeoutException: null';
-    assert.strictEqual(matches('external-registries-selfcare-read-timeout', context([failure, retry])), true);
-    assert.strictEqual(matches('external-registries-selfcare-read-timeout', context([failure])), false);
-    assert.strictEqual(matches('external-registries-selfcare-read-timeout', context([retry])), false);
+    assert.strictEqual(matches('SEND_APIGW_PBWEBNIPC5AGA_EXT-REG-SEL-REA-TIM', context([failure, retry])), true);
+    assert.strictEqual(matches('SEND_APIGW_PBWEBNIPC5AGA_EXT-REG-SEL-REA-TIM', context([failure])), false);
+    assert.strictEqual(matches('SEND_APIGW_PBWEBNIPC5AGA_EXT-REG-SEL-REA-TIM', context([retry])), false);
   });
 
   it('requires the complete committed-response signature and the upstream timeout', () => {
-    assert.strictEqual(matches('external-registries-response-already-committed', context([ABORTED, COMMITTED])), true);
-    assert.strictEqual(matches('external-registries-response-already-committed', context([ABORTED])), false);
-    assert.strictEqual(matches('external-registries-response-already-committed', context([COMMITTED])), false);
+    assert.strictEqual(matches('SEND_APIGW_PBWEBNIPC5AGA_EXT-REG-RES-ALR-COM', context([ABORTED, COMMITTED])), true);
+    assert.strictEqual(matches('SEND_APIGW_PBWEBNIPC5AGA_EXT-REG-RES-ALR-COM', context([ABORTED])), false);
+    assert.strictEqual(matches('SEND_APIGW_PBWEBNIPC5AGA_EXT-REG-RES-ALR-COM', context([COMMITTED])), false);
     // Without the BFF timeout above, the committed response is not this case.
     const ctx = context([ABORTED, COMMITTED]);
     const vars = new Map(ctx.vars);
     vars.set('bffReadTimeout', 'false');
-    assert.strictEqual(matches('external-registries-response-already-committed', { ...ctx, vars }), false);
+    assert.strictEqual(matches('SEND_APIGW_PBWEBNIPC5AGA_EXT-REG-RES-ALR-COM', { ...ctx, vars }), false);
   });
 
   it('traverses using the X-Ray root when BFF and downstream fallback UUIDs differ', async () => {
@@ -157,7 +157,7 @@ describe('InfoPa API Gateway runbook', () => {
       queries.map(({ groups }) => groups[0]),
       [API_GW_LOG_GROUP, ENTRY_SERVICE.executionLogGroup, '/aws/ecs/pn-bff', '/aws/ecs/pn-external-registries'],
     );
-    assert.strictEqual(result.detections[0]?.knownCase.id, 'external-registries-selfcare-read-timeout');
+    assert.strictEqual(result.detections[0]?.knownError.code, 'SEND_APIGW_PBWEBNIPC5AGA_EXT-REG-SEL-REA-TIM');
     assert.strictEqual(treeNodeVars(result, 'pn-bff').get('bffFallbackUuid'), FALLBACK);
   });
 });

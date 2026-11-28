@@ -1,0 +1,33 @@
+import { apiGwPathMatches, apiGwStatusIs, knownError } from '../../../../toolkits/send/index.js';
+import { all, type KnownError, stepEvidenceMatches, varEquals } from '../../../../engine/index.js';
+
+/** Confluence 2865397761 v1-v4 documents this BFF timeout, with no resolution. */
+export const KNOWN_ERRORS: ReadonlyArray<KnownError> = [
+  knownError({
+    code: 'SEND_APIGW_PBWEBNAC5AGA_BFF-GET-ADD-REA-TIM',
+    description: 'Timeout di lettura del BFF durante getAddressesV1 verso pn-user-attributes',
+    condition: all(
+      apiGwStatusIs('500'),
+      varEquals('apiGwHttpMethod', 'GET'),
+      apiGwPathMatches('^/(?:bff/)?v1/addresses$'),
+      stepEvidenceMatches(
+        'query-pn-bff',
+        'Ending process _getAddressesV1 with errors=nested exception is io\\.netty\\.handler\\.timeout\\.ReadTimeoutException\\b',
+      ),
+    ),
+    resolution: 'Risoluzione non documentata.',
+    level: 'warn',
+    details: [
+      ['Metodo', '{{vars.apiGwHttpMethod}}'],
+      ['Path', '{{vars.apiGwPath}}'],
+      ['X-Ray Trace ID', '{{vars.xRayTraceId}}'],
+      ['Errore', '{{vars.bffErrorMsg}}'],
+    ],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      resources: [{ name: 'pn-user-attributes' }],
+      finalActions: [],
+    },
+  }),
+];

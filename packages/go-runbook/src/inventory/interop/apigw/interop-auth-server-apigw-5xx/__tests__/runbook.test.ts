@@ -12,8 +12,8 @@ import { AUTH_SERVER_5XX_ALARM as alarm } from '../alarmDefinition.js';
 import { AUDIT_FALLBACK_CONFIRMED_VAR, AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR } from '../AnalyzeAuditFallbackStep.js';
 import { buildRunbook } from '../runbook.js';
 
-const SUCCEEDED = 'auth-server-audit-fallback-succeeded';
-const UNVERIFIED = 'auth-server-audit-fallback-unverified';
+const SUCCEEDED = 'INTEROP_APIGW_IASA5_AUT-SER-AUD-FAL-SUC';
+const UNVERIFIED = 'INTEROP_APIGW_IASA5_AUT-SER-AUD-FAL-UNV';
 const FALLBACK =
   'Main auditing flow failed, going through fallback. Error: Timeout while acquiring lock (4 waiting locks): "connect to broker b-3.interopplatformevents.gfkljw.c4.kafka.eu-south-1.amazonaws.com:9098"';
 const STANDALONE_KAFKA_TIMEOUT =
@@ -69,29 +69,29 @@ function sequenceConfirmed({ result }: RunbookLogsExecution): string | undefined
 describe('INTEROP auth-server 5xx runbook', () => {
   it('recognizes every documented signature from its own evidence source', async () => {
     for (const [id, message, source] of [
-      ['auth-server-api-gateway-timeout', 'Execution failed due to a timeout error', 'API_GATEWAY'],
-      ['auth-server-waf-timeout', 'WAF call got timed out', 'APPLICATION'],
-      ['auth-server-kafka-lock-timeout', STANDALONE_KAFKA_TIMEOUT, 'APPLICATION'],
+      ['INTEROP_APIGW_IASA5_AUT-SER-API-GAT-TIM', 'Execution failed due to a timeout error', 'API_GATEWAY'],
+      ['INTEROP_APIGW_IASA5_AUT-SER-WAF-TIM', 'WAF call got timed out', 'APPLICATION'],
+      ['INTEROP_APIGW_IASA5_AUT-SER-KAF-LOC-TIM', STANDALONE_KAFKA_TIMEOUT, 'APPLICATION'],
       [UNVERIFIED, FALLBACK, 'APPLICATION'],
       [
-        'auth-server-invalid-client-assertion-header',
+        'INTEROP_APIGW_IASA5_AUT-SER-INV-CLI-ASS-HEA',
         'Invalid claims in client assertion header: [{"code":"unrecognized_keys","keys":["x5c","use"],"path":[],"message":"Unrecognized keys"}]',
         'APPLICATION',
       ],
       [
-        'auth-server-invalid-identity-token',
+        'INTEROP_APIGW_IASA5_AUT-SER-INV-IDE-TOK',
         "ERROR - InvalidIdentityTokenException: Couldn't retrieve verification key from your identity provider, please reference AssumeRoleWithWebIdentity documentation for requirements",
         'APPLICATION',
       ],
-      ['auth-server-waf-call-failed', WAF_FAILED, 'APPLICATION'],
+      ['INTEROP_APIGW_IASA5_AUT-SER-WAF-CAL-FAI', WAF_FAILED, 'APPLICATION'],
       [
-        'auth-server-stream-not-readable',
+        'INTEROP_APIGW_IASA5_AUT-SER-STR-NOT-REA',
         'title: Unexpected error - detail: Unexpected error - errors: 007-9991, Unexpected error - original error: Error: Unexpected error',
         'APPLICATION',
       ],
-      ['auth-server-stream-not-readable', 'Error in request: stream is not readable', 'APPLICATION'],
+      ['INTEROP_APIGW_IASA5_AUT-SER-STR-NOT-REA', 'Error in request: stream is not readable', 'APPLICATION'],
       [
-        'auth-server-endpoint-connection-reset',
+        'INTEROP_APIGW_IASA5_AUT-SER-END-CON-RES',
         'Execution failed due to a network error communicating with endpoint: Connection reset by peer',
         'API_GATEWAY',
       ],
@@ -136,10 +136,10 @@ describe('INTEROP auth-server 5xx runbook', () => {
       application: [row(FALLBACK, 'a'), row(invalidHeader, 'b')],
       traces: { a: SUCCESS },
     });
-    assert.deepStrictEqual(header.matchedIds, [SUCCEEDED, 'auth-server-invalid-client-assertion-header']);
+    assert.deepStrictEqual(header.matchedIds, [SUCCEEDED, 'INTEROP_APIGW_IASA5_AUT-SER-INV-CLI-ASS-HEA']);
 
     const waf = await execute({ application: [row(FALLBACK, 'a'), row(WAF_FAILED, 'b')], traces: { a: SUCCESS } });
-    assert.strictEqual(waf.matchedIds[0], 'auth-server-waf-call-failed');
+    assert.strictEqual(waf.matchedIds[0], 'INTEROP_APIGW_IASA5_AUT-SER-WAF-CAL-FAI');
   });
 
   it('confirms the fallback sequence only with the bucket of the resolved environment', async () => {

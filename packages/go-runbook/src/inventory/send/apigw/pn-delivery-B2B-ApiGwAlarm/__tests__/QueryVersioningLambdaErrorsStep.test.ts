@@ -75,7 +75,7 @@ describe('QueryVersioningLambdaErrorsStep', () => {
 
     assert.strictEqual(result.success, true);
     // Nothing was corroborated here, so the probe must not trigger an early
-    // known-case evaluation: the traversal still has to run.
+    // known-error evaluation: the traversal still has to run.
     assert.strictEqual(result.next, 'continue');
     assert.strictEqual(queryCalls, 0);
     assert.strictEqual(result.vars?.[VERSIONING_LAMBDA_PROBE_STATE_VAR], 'skipped');
@@ -164,7 +164,7 @@ describe('QueryVersioningLambdaErrorsStep', () => {
 
     assert.strictEqual(result.success, true);
     // Nothing was corroborated here, so the probe must not trigger an early
-    // known-case evaluation: the traversal still has to run.
+    // known-error evaluation: the traversal still has to run.
     assert.strictEqual(result.next, 'continue');
     assert.strictEqual(result.vars?.[VERSIONING_LAMBDA_PROBE_STATE_VAR], 'unavailable');
     assert.strictEqual(result.vars?.[VERSIONING_LAMBDA_ERROR_COUNT_VAR], '');

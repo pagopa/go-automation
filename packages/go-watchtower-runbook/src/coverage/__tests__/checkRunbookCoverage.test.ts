@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { KnownCase, Runbook } from '@pagopa/go-runbook';
-import type { KnownCaseAnalysis } from '@pagopa/go-runbook/output';
+import type { KnownError, Runbook } from '@pagopa/go-runbook';
+import type { KnownErrorAnalysis } from '@pagopa/go-runbook/output';
 import type { RunbookAnalysisDefaults } from '@pagopa/go-runbook/toolkits/common';
 import { INTEROP_DOWNSTREAMS } from '@pagopa/go-runbook/toolkits/interop';
 import { SEND_DOWNSTREAMS } from '@pagopa/go-runbook/toolkits/send';
@@ -31,7 +31,7 @@ describe('checkRunbookCoverage', () => {
 
     assert.deepStrictEqual(report.errors, []);
     assert.strictEqual(report.checkedRunbooks, 1);
-    assert.strictEqual(report.checkedKnownCases, 1);
+    assert.strictEqual(report.checkedKnownErrors, 1);
     assert.ok(report.checkedReferences >= 3);
   });
 
@@ -41,7 +41,7 @@ describe('checkRunbookCoverage', () => {
     const error = report.errors.find((issue) => issue.code === 'DOWNSTREAM_NOT_FOUND');
     assert.ok(error, 'expected a DOWNSTREAM_NOT_FOUND error');
     assert.strictEqual(error.declaredValue, 'Konecta');
-    assert.strictEqual(error.knownCaseId, 'primary');
+    assert.strictEqual(error.knownErrorId, 'SEND_APIGW_COMMON_PRIMARY');
   });
 
   it('suggests the censused value on a case-only or type mismatch without accepting it', async () => {
@@ -99,7 +99,7 @@ describe('checkRunbookCoverage', () => {
     const report = await run({
       registrations: [
         registration('send-runbook', 'SEND', [INTEROP_ALARM], runbookOf({}, {})),
-        registration('interop-runbook', 'INTEROP', [ALARM], runbookOf({}, {})),
+        registration('interop-runbook', 'INTEROP', [ALARM], runbookOf({}, {}, 'INTEROP_APIGW_COMMON_PRIMARY')),
       ],
     });
 
@@ -203,7 +203,7 @@ describe('checkRunbookCoverage', () => {
 // ─── fixtures ─────────────────────────────────────────────────────────────────
 
 interface RunOptions {
-  readonly analysis?: Partial<KnownCaseAnalysis>;
+  readonly analysis?: Partial<KnownErrorAnalysis>;
   readonly defaults?: RunbookAnalysisDefaults;
   readonly alarmNames?: ReadonlyArray<string>;
   readonly ignoreReasons?: ReadonlyArray<IgnoreReasonDto>;
@@ -256,7 +256,11 @@ function registration(
   };
 }
 
-function runbookOf(defaults: RunbookAnalysisDefaults, analysis: Partial<KnownCaseAnalysis>): Runbook {
+function runbookOf(
+  defaults: RunbookAnalysisDefaults,
+  analysis: Partial<KnownErrorAnalysis>,
+  code = 'SEND_APIGW_COMMON_PRIMARY',
+): Runbook {
   return {
     metadata: {
       id: 'rb',
@@ -268,19 +272,19 @@ function runbookOf(defaults: RunbookAnalysisDefaults, analysis: Partial<KnownCas
       tags: [],
     },
     steps: [],
-    knownCases: [knownCase(analysis)],
+    knownErrors: [knownError(analysis, code)],
     fallbackAction: { type: 'log', level: 'info', title: 'fallback' },
     cloudExecutionPolicy: { sideEffects: 'NONE' },
     analysisDefaults: defaults,
   };
 }
 
-function knownCase(analysis: Partial<KnownCaseAnalysis>): KnownCase {
+function knownError(analysis: Partial<KnownErrorAnalysis>, code: string): KnownError {
   return {
-    id: 'primary',
+    code,
     description: 'primary',
     condition: { type: 'contains', ref: 'steps.query', regex: 'boom' },
-    action: { type: 'log', level: 'info', renderAs: 'known-case', title: 'primary' },
+    action: { type: 'log', level: 'info', renderAs: 'known-error', title: 'primary' },
     analysis: {
       resolution: 'Chiusura - caso noto.',
       proposedStatus: 'COMPLETED',

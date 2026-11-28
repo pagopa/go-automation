@@ -40,7 +40,7 @@ const NO_MATCH: AnalysisMatch = {
   confidence: 0,
   reasons: [],
   signals: {
-    caseIdMentioned: false,
+    knownErrorCodeMentioned: false,
     descriptionOverlap: 0,
     traceIdOverlap: [],
     downstreamOverlap: [],

@@ -15,7 +15,7 @@ import { enumerateLambdaDownstreamErrors } from '../tree/enumerateLambdaDownstre
 import { enumerateLambdaInvocations } from '../tree/enumerateLambdaInvocations.js';
 import { lambdaRowRequestId } from '../helpers/lambdaRowRequestId.js';
 import { resolveLambdaAlarmBuildContext } from './resolveLambdaAlarmBuildContext.js';
-import { defaultLambdaUnknownCaseFallback } from './defaultLambdaUnknownCaseFallback.js';
+import { defaultLambdaUnknownErrorFallback } from './defaultLambdaUnknownErrorFallback.js';
 import { finishAlarmRunbook } from '../../../builders/finishAlarmRunbook.js';
 import type { LambdaPipelineAnchor } from '../types/LambdaPipelineAnchor.js';
 import { LAMBDA_PIPELINE_STEP_IDS as STEP_IDS } from './LAMBDA_PIPELINE_STEP_IDS.js';
@@ -150,10 +150,10 @@ export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
     levels: downstreamLevels,
   });
 
-  // 7. Known cases, fallback, context, analysis defaults, iteration cap, build.
+  // 7. Known errors, fallback, context, analysis defaults, iteration cap, build.
   return finishAlarmRunbook(builder, config, {
     builderName: 'createLambdaAlarmRunbook',
-    defaultFallback: () => defaultLambdaUnknownCaseFallback(ctx.downstreams),
+    defaultFallback: () => defaultLambdaUnknownErrorFallback(ctx.downstreams),
     runbookContext: { ...ctx.runbookContext },
     primaryResource: config.lambda.name,
     anchors: { hooks: ctx.hooks, reached: reachedAnchors, pipelineName: 'Lambda' },

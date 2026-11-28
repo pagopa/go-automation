@@ -1,4 +1,4 @@
-import type { KnownCaseDetection } from './KnownCaseDetection.js';
+import type { KnownErrorDetection } from './KnownErrorDetection.js';
 import type { CoverageEntry } from './CoverageEntry.js';
 import type { ObservedErrors } from './ObservedErrors.js';
 import type { RunbookContext } from './RunbookContext.js';
@@ -17,10 +17,10 @@ export interface RunbookExecutionResult {
   /** Execution status */
   readonly status: RunbookExecutionStatus;
   /**
-   * Every known case that matched the final context, ordered by `firstSeenAt` (declaration order on ties, untimed
+   * Every known error that matched the final context, ordered by `firstSeenAt` (declaration order on ties, untimed
    * detections last). Empty when no case matched and the fallback ran instead.
    */
-  readonly detections: ReadonlyArray<KnownCaseDetection>;
+  readonly detections: ReadonlyArray<KnownErrorDetection>;
   /** Partial evidence declared by the steps, or recorded by the engine for a failed read. */
   readonly coverage: ReadonlyArray<CoverageEntry>;
   readonly windowIncomplete: boolean;

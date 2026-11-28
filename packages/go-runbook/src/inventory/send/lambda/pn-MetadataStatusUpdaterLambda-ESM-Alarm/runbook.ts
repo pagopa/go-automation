@@ -2,7 +2,7 @@ import { lambda } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
 import { METADATA_STATUS_UPDATER_ESM_ALARM } from './alarmDefinition.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { DOWNSTREAMS, LAMBDA_FUNCTION } from './knownServices.js';
 
 const RUNBOOK_URL =
@@ -27,7 +27,7 @@ export function buildRunbook(): Runbook {
     },
     lambda: LAMBDA_FUNCTION,
     downstreams: DOWNSTREAMS,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       runbookName: METADATA_STATUS_UPDATER_ESM_ALARM,
       links: [{ url: RUNBOOK_URL, name: METADATA_STATUS_UPDATER_ESM_ALARM, type: 'CONFLUENCE' }],

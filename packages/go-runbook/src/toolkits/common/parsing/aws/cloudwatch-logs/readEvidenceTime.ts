@@ -34,7 +34,7 @@ interface ResultField {
  *
  * Typed identifiers (`trace_id`, `requestId`, `cid`, …) are read from rows and plain objects.
  *
- * @param element - An element of an array step output matched by a known case
+ * @param element - An element of an array step output matched by a known error
  * @returns The time of the element, or `undefined` when it has none
  */
 export function readEvidenceTime(element: unknown): EvidenceTime | undefined {

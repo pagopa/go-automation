@@ -11,7 +11,7 @@ declare module '../../../engine/types/RunbookExtensions.js' {
     readonly occurrenceTimeWindow?: OccurrenceTimeWindow;
     /** Constraints for the cloud worker. */
     readonly cloudExecutionPolicy?: CloudExecutionPolicy;
-    /** Analysis references shared by every known case. */
+    /** Analysis references shared by every known error. */
     readonly analysisDefaults?: RunbookAnalysisDefaults;
     /** Structured, family-specific context read by the output builders. */
     readonly runbookContext?: AlarmRunbookContext;

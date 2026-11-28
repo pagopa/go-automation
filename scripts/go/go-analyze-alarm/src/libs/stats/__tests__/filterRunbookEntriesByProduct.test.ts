@@ -16,8 +16,8 @@ function entry(key: string, product: RunbookProduct): RunbookCatalogEntry {
     tags: [],
     alarmNames: [],
     stepCount: 0,
-    knownCaseCount: 0,
-    annotatedKnownCaseCount: 0,
+    knownErrorCount: 0,
+    annotatedKnownErrorCount: 0,
   };
 }
 

@@ -14,4 +14,4 @@ export { identifierKey } from './reads/identifierKey.js';
 export { isRequestId } from './reads/isRequestId.js';
 export { safeCorrelationValue } from './reads/safeCorrelationValue.js';
 export { levelSteps } from './tree/levelSteps.js';
-export { findUnwiredKnownCaseStepRef } from './validation/findUnwiredKnownCaseStepRef.js';
+export { findUnwiredKnownErrorStepRef } from './validation/findUnwiredKnownErrorStepRef.js';

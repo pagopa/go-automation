@@ -11,7 +11,7 @@ function detected(errorKey: string, header: string, message: string, time: strin
     errorKey,
     inTree,
     output: {
-      caseId: 'selfcarepg-read-timeout',
+      code: 'selfcarepg-read-timeout',
       description: 'ReadTimeout del downstream SelfcarePG',
       firstSeenAt: time,
       lastSeenAt: time,

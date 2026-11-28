@@ -7,7 +7,7 @@ import { interop } from '../../../../toolkits/interop/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
 import { ONE_TRUST_NOTICES_ALARM as ALARM } from './alarmDefinition.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 
 /**
  * Builds the k8s-interop-be-one-trust-notices-errors-prod runbook definition.
@@ -38,7 +38,7 @@ export function buildRunbook(): Runbook {
 | display @timestamp, pod_app, cid, @message
 | sort @timestamp asc`,
     },
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       runbookName: ALARM.runbookKey,
       links: [

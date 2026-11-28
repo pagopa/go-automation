@@ -16,7 +16,7 @@ assignees: ''
 
 <!-- Link alla pagina del Confluence space GO da cui deriva la procedura -->
 
-## Known case previsti
+## Known error previsti
 
 <!-- Elenca i casi noti attesi: condizione di match e azione associata -->
 

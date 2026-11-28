@@ -90,7 +90,7 @@ describe('SPID Hub occurrence output', () => {
       query === ERROR_QUERY ? [errorRow(HEADERS_ERROR), errorRow(RESPONDER_ERROR)] : [streamRow()],
     );
     assert.strictEqual(output.execution.status, 'completed');
-    assert.strictEqual(output.outcome.kind, 'known-case-matched');
+    assert.strictEqual(output.outcome.kind, 'known-error-matched');
     assert.deepStrictEqual(Object.fromEntries(output.context.fields.map(({ name, value }) => [name, value])), {
       alarmName: SPIDHUB_ALARM,
       spidHubDiagnostics: 'COLLECTED',
@@ -150,8 +150,8 @@ describe('SPID Hub occurrence output', () => {
     assert.deepStrictEqual(output.context.details?.['awsAccounts'], [
       { account: 'send/confinfo', environment: 'prod', accountId: SPIDHUB_ACCOUNT_ID, region: SEND_REGION },
     ]);
-    // The known-case details resolve {{vars.spidHubAccountId}} from the directory.
-    const matched = output.outcome.kind === 'known-case-matched' ? output.outcome.detections : [];
+    // The known-error details resolve {{vars.spidHubAccountId}} from the directory.
+    const matched = output.outcome.kind === 'known-error-matched' ? output.outcome.detections : [];
     assert.strictEqual(matched.length, 2);
     assert.ok(matched.every(({ resolvedMessage }) => resolvedMessage?.includes(`Account: ${SPIDHUB_ACCOUNT_ID}`)));
     assert.deepStrictEqual(output.context.details?.['alarm'], {
@@ -161,7 +161,7 @@ describe('SPID Hub occurrence output', () => {
     });
   });
 
-  it('preserves evidence for errors that do not match a known case', async () => {
+  it('preserves evidence for errors that do not match a known error', async () => {
     const output = await execute((query) => (query === ERROR_QUERY ? [errorRow('Unexpected error')] : [streamRow()]));
     // The ALB requests are correlated by hand: without a case the evidence is not complete.
     assert.strictEqual(output.outcome.kind, 'inconclusive');
@@ -202,7 +202,7 @@ describe('SPID Hub occurrence output', () => {
       if (query === STREAM_QUERY) throw new Error('AccessDenied');
       return [errorRow(HEADERS_ERROR)];
     });
-    assert.strictEqual(output.outcome.kind, 'known-case-matched');
+    assert.strictEqual(output.outcome.kind, 'known-error-matched');
     assert.strictEqual(diagnostics(output)?.['spidHubErrorLogCount'], 1);
     assert.ok(output.coverage.sources.some(({ reason }) => reason === 'unavailable'));
   });

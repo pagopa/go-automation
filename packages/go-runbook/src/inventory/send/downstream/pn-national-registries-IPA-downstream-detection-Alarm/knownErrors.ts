@@ -1,0 +1,62 @@
+/**
+ * Known errors for the pn-national-registries-IPA-downstream-detection-Alarm runbook.
+ */
+import { downstreamMarkerPattern, knownError, SEND_DOWNSTREAMS } from '../../../../toolkits/send/index.js';
+import { type KnownError, stepEvidenceMatches } from '../../../../engine/index.js';
+const IPA_WS23_ENDPOINT = 'https://www.indicepa.gov.it/ws/WS23DOMDIGCFServices/api/WS23_DOM_DIG_CF';
+/** Known IPA failures evaluated against the pn-national-registries log query. */
+export const KNOWN_ERRORS: ReadonlyArray<KnownError> = [
+  knownError({
+    code: 'SEND_DOWNSTREAM_PNRIPADDA_IPA-SER-UNA-503',
+    description: '[DOWNSTREAM IPA] Indice PA temporaneamente non disponibile (HTTP 503)',
+    condition: stepEvidenceMatches(
+      'query-pn-national-registries',
+      downstreamMarkerPattern('IPA', {
+        status: '503 Service Unavailable',
+        method: 'POST',
+        endpoint: 'https://www.indicepa.gov.it/ws/WS23DOMDIGCFServices/api/WS23_DOM_DIG_CF',
+      }),
+    ),
+    title: '[DOWNSTREAM IPA] Indice PA non disponibile (HTTP 503)',
+    resolution:
+      'Monitorare la risorsa per verificare le tempistiche del disservizio. Nel caso in esame \u00E8 rientrato al successivo evento di polling e non si sono intraprese altre azioni',
+    details: [
+      ['Servizio', 'pn-national-registries'],
+      ['Endpoint', IPA_WS23_ENDPOINT],
+      ['Errore', '{{vars.nationalRegistriesErrorMsg}}'],
+      ['Trace ID', '{{vars.nationalRegistriesTraceId}}'],
+    ],
+    analysis: {
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      errorDetails: `HTTP 503 Service Unavailable restituito da IPA sulla chiamata POST ${IPA_WS23_ENDPOINT}.`,
+      downstreams: [SEND_DOWNSTREAMS.IPA],
+      finalActions: [],
+      links: [],
+    },
+  }),
+  knownError({
+    code: 'SEND_DOWNSTREAM_PNRIPADDA_IPA-CON-PRE-CLO',
+    description: '[DOWNSTREAM IPA] Connessione chiusa prematuramente dal downstream',
+    condition: stepEvidenceMatches(
+      'query-pn-national-registries',
+      `${downstreamMarkerPattern('IPA')}Connection prematurely closed BEFORE response\\b`,
+    ),
+    title: '[DOWNSTREAM IPA] Connessione chiusa prima della risposta',
+    resolution:
+      'Monitorare la risorsa per verificare le tempistiche del disservizio. Nel caso in esame \u00E8 rientrato al successivo evento di polling e non si sono intraprese altre azioni',
+    details: [
+      ['Servizio', 'pn-national-registries'],
+      ['Errore', '{{vars.nationalRegistriesErrorMsg}}'],
+      ['Trace ID', '{{vars.nationalRegistriesTraceId}}'],
+    ],
+    analysis: {
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      errorDetails: 'Connessione verso IPA chiusa prematuramente prima della risposta.',
+      downstreams: [SEND_DOWNSTREAMS.IPA],
+      finalActions: [],
+      links: [],
+    },
+  }),
+];

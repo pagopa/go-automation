@@ -1,12 +1,12 @@
 import type { Condition } from '../types/Condition.js';
 
 /**
- * Trace of the evaluation of a single known case.
+ * Trace of the evaluation of a single known error.
  * Includes the condition, resolved values, match result and, for a match, its time.
  */
 export interface CaseEvaluationTrace {
-  /** Known case ID */
-  readonly caseId: string;
+  /** Known error ID */
+  readonly knownErrorCode: string;
   /** Human-readable case description */
   readonly description: string;
   /** Condition evaluated (see Condition DSL) */
@@ -21,7 +21,7 @@ export interface CaseEvaluationTrace {
   readonly lastSeenAt?: string;
   /** Evidence rows behind a match. */
   readonly evidenceRows?: number;
-  /** The case that replaced this one, when both matched (see `KnownCase.supersedes`). */
+  /** The case that replaced this one, when both matched (see `KnownError.supersedes`). */
   readonly supersededBy?: string;
   /** Error-tree node the case was evaluated on; absent for a window-level runbook. */
   readonly nodeId?: string;

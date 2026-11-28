@@ -52,11 +52,24 @@ di `ServiceRegistry`, che i servizi di go-aws soddisfano strutturalmente.
 I sorgenti stanno in `src/inventory/<prodotto>/<famiglia>/<alarm-name>/`
 (per esempio `src/inventory/send/apigw/pn-delivery-B2B-ApiGwAlarm/`). Ogni
 cartella contiene `runbook.ts` (con `buildRunbook()`), `registration.ts` e di
-solito `knownCases.ts` e `knownServices.ts`. Le registrazioni di ogni prodotto
+solito `knownErrors.ts` e `knownServices.ts`. Le registrazioni di ogni prodotto
 sono raccolte in `src/inventory/<prodotto>/manifest.ts`.
 
 Per crearne uno nuovo: `pnpm create:runbook` (vedi
 [bins/create-runbook/README.md](../../bins/create-runbook/README.md)).
+
+## Il codice di un errore noto
+
+Ogni errore noto ha un `code`, unico in tutto il catalogo e uguale nel YAML di go-runbooks e in Watchtower: è la
+chiave che lega le tre fonti. Ha quattro parti separate da `_`:
+`<PRODOTTO>_<FAMIGLIA>_<ACRONIMO DEL RUNBOOK>_<ABBREVIAZIONE>`, per esempio
+`INTEROP_K8S_K8IBARRWSE_ATT-REG-TEM-NET-ERR`. Un errore noto che una famiglia aggiunge a più runbook ha l'acronimo
+`COMMON` (`SEND_LAMBDA_COMMON_LAM-TIM`).
+
+Il codice si scrive nel sorgente quando l'errore noto nasce, e non si ricalcola: rinominare un runbook non lo cambia.
+Lo propone `pnpm known-error:code <chiave del runbook> <nome-in-kebab-case>` (con `--common` per un errore noto della
+famiglia), che usa `knownErrorCodeOf`. `RunbookCatalog.validateForCloud` rifiuta un codice fuori forma, più lungo di
+100 caratteri o dato a due errori noti diversi. Un codice che cambia va cambiato anche in go-runbooks e in Watchtower.
 
 ## Esempio
 
@@ -67,7 +80,7 @@ import { CloudWatchLogsQueryStep, OperationalRunbookEngine } from '@pagopa/go-ru
 const runbook = RunbookBuilder.create('alarm-api-gw-5xx')
   .metadata({ name: 'API GW 5xx' /* ... */ })
   .step(new CloudWatchLogsQueryStep({/* ... */}))
-  .knownCase({/* ... */})
+  .knownError({/* ... */})
   .fallback(logAction({/* ... */}))
   .build();
 

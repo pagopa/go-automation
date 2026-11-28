@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { interop } from '../../../../../toolkits/interop/index.js';
-import { cidTrackerOutput, conditionContext, podLogRows } from '../../../shared/__tests__/helpers/knownCaseTesting.js';
+import { cidTrackerOutput, conditionContext, podLogRows } from '../../../shared/__tests__/helpers/knownErrorTesting.js';
 import type { LogRows } from '../../../../../__tests__/helpers/LogRows.js';
 import { createTestReads } from '../../../../../__tests__/helpers/createTestReads.js';
 import {

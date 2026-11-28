@@ -100,8 +100,8 @@ describe('INTEROP inventory', () => {
 
   it('declares unique case ids', () => {
     for (const registration of INTEROP_MANIFEST) {
-      const { knownCases } = registration.build();
-      assert.strictEqual(new Set(knownCases.map(({ id }) => id)).size, knownCases.length, registration.key);
+      const { knownErrors } = registration.build();
+      assert.strictEqual(new Set(knownErrors.map(({ code }) => code)).size, knownErrors.length, registration.key);
     }
   });
 });

@@ -39,7 +39,7 @@ const CONFIG: InteropApiGwAlarmConfig = {
   },
   resolverId: 'test-api-context',
   queryProfile: INTEROP_API_GW_5XX_SERVICE_ERRORS_PROFILE,
-  knownCases: [],
+  knownErrors: [],
 };
 
 const probe: Step = {

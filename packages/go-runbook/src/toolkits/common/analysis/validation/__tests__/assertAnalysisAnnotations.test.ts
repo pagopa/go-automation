@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { KnownCase } from '../../../../../engine/types/KnownCase.js';
-import type { KnownCaseAnalysis } from '../../KnownCaseAnalysis.js';
+import type { KnownError } from '../../../../../engine/types/KnownError.js';
+import type { KnownErrorAnalysis } from '../../KnownErrorAnalysis.js';
 import type { AnalysisResourceRef } from '../../AnalysisResourceRef.js';
 import type { Runbook } from '../../../../../engine/types/Runbook.js';
 import type { RunbookAnalysisDefaults } from '../../RunbookAnalysisDefaults.js';
@@ -13,7 +13,7 @@ import { createTestRunbook } from '../../../../../__tests__/helpers/createTestRu
 
 const SEND_CATALOG: ReadonlySet<string> = new Set<string>(Object.values(SEND_DOWNSTREAMS));
 
-const VALID_ANALYSIS: KnownCaseAnalysis = {
+const VALID_ANALYSIS: KnownErrorAnalysis = {
   resolution: 'Chiusura - caso noto.',
   proposedStatus: 'COMPLETED',
   analysisType: 'ANALYZABLE',
@@ -31,7 +31,7 @@ describe('assertAnalysisAnnotations', () => {
 
   it('rejects every invalid declaration, naming the problem', () => {
     const url = 'https://example.test/dashboard';
-    const cases: ReadonlyArray<readonly [RunbookAnalysisDefaults, Partial<KnownCaseAnalysis>, RegExp]> = [
+    const cases: ReadonlyArray<readonly [RunbookAnalysisDefaults, Partial<KnownErrorAnalysis>, RegExp]> = [
       // 'Selfcare' is an INTEROP census row; SEND spells it 'SelfCare'.
       [{}, { downstreams: [INTEROP_DOWNSTREAMS.SELFCARE] }, /outside the SEND catalog/],
       [{}, { analysisType: 'IGNORABLE' }, /IGNORABLE without an ignoreReasonCode/],
@@ -57,16 +57,16 @@ describe('assertAnalysisAnnotations', () => {
     }
   });
 
-  it('requires the annotation on every known case, with or without defaults', () => {
+  it('requires the annotation on every known error, with or without defaults', () => {
     for (const defaults of [{}, undefined]) {
       const runbook: Runbook = {
         ...buildRunbook({ defaults, analysis: VALID_ANALYSIS }),
-        knownCases: [knownCase('annotated', VALID_ANALYSIS), knownCase('bare', undefined)],
+        knownErrors: [knownError('annotated', VALID_ANALYSIS), knownError('bare', undefined)],
       };
 
       assert.throws(
         () => assertAnalysisAnnotations(runbook, 'SEND', SEND_CATALOG),
-        /known case "bare" is missing the analysis/,
+        /known error "bare" is missing the analysis/,
       );
     }
   });
@@ -82,7 +82,7 @@ describe('assertAnalysisAnnotations', () => {
     );
   });
 
-  it('validates resource type bounds in defaults as it does in known cases', () => {
+  it('validates resource type bounds in defaults as it does in known errors', () => {
     const atLimit = buildRunbook({
       defaults: { resources: [{ name: 'pn-delivery', type: 'a'.repeat(255) }] },
       analysis: VALID_ANALYSIS,
@@ -136,8 +136,8 @@ describe('assertAnalysisAnnotations', () => {
   it('does not add every mutually exclusive resolution to the same potential draft', () => {
     const runbook: Runbook = {
       ...buildRunbook({ defaults: {}, analysis: VALID_ANALYSIS }),
-      knownCases: Array.from({ length: 40 }, (_unused, index) =>
-        knownCase(`case-${index}`, { ...VALID_ANALYSIS, resolution: 'x'.repeat(4_000) }),
+      knownErrors: Array.from({ length: 40 }, (_unused, index) =>
+        knownError(`case-${index}`, { ...VALID_ANALYSIS, resolution: 'x'.repeat(4_000) }),
       ),
     };
 
@@ -149,9 +149,9 @@ describe('assertAnalysisAnnotations', () => {
       Array.from({ length: 33 }, (_unused, index) => ({ name: `${prefix}-${String(index)}` }));
     const runbook: Runbook = {
       ...buildRunbook({ defaults: {}, analysis: VALID_ANALYSIS }),
-      knownCases: [
-        knownCase('a', { ...VALID_ANALYSIS, resources: resources('a') }),
-        knownCase('b', { ...VALID_ANALYSIS, resources: resources('b') }),
+      knownErrors: [
+        knownError('a', { ...VALID_ANALYSIS, resources: resources('a') }),
+        knownError('b', { ...VALID_ANALYSIS, resources: resources('b') }),
       ],
     };
 
@@ -175,19 +175,19 @@ describe('assertAnalysisAnnotations', () => {
 
 interface RunbookFixtureOptions {
   readonly defaults: RunbookAnalysisDefaults | undefined;
-  readonly analysis: KnownCaseAnalysis | undefined;
+  readonly analysis: KnownErrorAnalysis | undefined;
 }
 
 function buildRunbook(options: RunbookFixtureOptions): Runbook {
   return createTestRunbook({
-    knownCases: [knownCase('primary', options.analysis)],
+    knownErrors: [knownError('primary', options.analysis)],
     ...(options.defaults === undefined ? {} : { analysisDefaults: options.defaults }),
   });
 }
 
-function knownCase(id: string, analysis: KnownCaseAnalysis | undefined): KnownCase {
+function knownError(id: string, analysis: KnownErrorAnalysis | undefined): KnownError {
   return {
-    id,
+    code: id,
     description: id,
     condition: { type: 'contains', ref: 'steps.query', regex: 'boom' },
     action: { type: 'log', level: 'info', title: `[CASO NOTO] ${id}` },

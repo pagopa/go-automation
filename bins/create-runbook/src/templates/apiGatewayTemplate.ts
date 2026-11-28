@@ -45,7 +45,7 @@ function apiGatewayPlaceholders(answers: RunbookAnswers): ReadonlyMap<string, st
 
 /**
  * Template for API Gateway alarm runbooks: emits the canonical four-file
- * layout (knownServices, knownUrls, knownCases, runbook) modelled on the
+ * layout (knownServices, knownUrls, knownErrors, runbook) modelled on the
  * existing pn-delivery / pn-address-book runbooks.
  */
 export const API_GATEWAY_TEMPLATE: RunbookTemplate = {
@@ -53,12 +53,12 @@ export const API_GATEWAY_TEMPLATE: RunbookTemplate = {
   products: ['SEND'],
   family: 'apigw',
   label: 'API Gateway alarm (4 file)',
-  description: 'Runbook completo per allarmi API Gateway: knownServices, knownUrls, knownCases, runbook.',
+  description: 'Runbook completo per allarmi API Gateway: knownServices, knownUrls, knownErrors, runbook.',
   templateDir: 'api-gateway',
   files: [
     { template: 'knownServices.ts.template', output: 'knownServices.ts' },
     { template: 'knownUrls.ts.template', output: 'knownUrls.ts' },
-    { template: 'knownCases.ts.template', output: 'knownCases.ts' },
+    { template: 'knownErrors.ts.template', output: 'knownErrors.ts' },
     { template: 'runbook.ts.template', output: 'runbook.ts' },
   ],
   inputs: [

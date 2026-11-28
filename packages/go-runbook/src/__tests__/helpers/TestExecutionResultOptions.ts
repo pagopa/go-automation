@@ -1,4 +1,4 @@
-import type { KnownCase } from '../../engine/types/KnownCase.js';
+import type { KnownError } from '../../engine/types/KnownError.js';
 import type { CoverageEntry } from '../../engine/types/CoverageEntry.js';
 import type { RunbookExecutionStatus } from '../../engine/types/RunbookExecutionStatus.js';
 import type { TestContextOptions } from './TestContextOptions.js';
@@ -7,7 +7,7 @@ import type { TestContextOptions } from './TestContextOptions.js';
 export interface TestExecutionResultOptions extends TestContextOptions {
   readonly status?: RunbookExecutionStatus;
   /** The matched cases, in the order of the detections. */
-  readonly matchedCases?: ReadonlyArray<KnownCase>;
+  readonly matchedCases?: ReadonlyArray<KnownError>;
   /** Incomplete sources of the evidence. */
   readonly coverage?: ReadonlyArray<CoverageEntry>;
 }

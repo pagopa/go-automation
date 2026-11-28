@@ -3,7 +3,7 @@
  * `vars.terminationReason` and rendered by the closing summary.
  */
 export type LambdaTerminationReason =
-  | 'known-case' // a known case matched
+  | 'known-error' // a known error matched
   | 'downstream' // the error points to a downstream microservice
   | 'no-errors' // the error scan returned no rows
-  | 'no-match'; // errors found but no known case matched
+  | 'no-match'; // errors found but no known error matched

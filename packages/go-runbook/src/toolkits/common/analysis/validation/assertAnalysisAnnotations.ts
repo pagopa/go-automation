@@ -1,5 +1,5 @@
 import { getErrorMessage } from '@pagopa/go-common/errors';
-import type { KnownCaseAnalysis } from '../KnownCaseAnalysis.js';
+import type { KnownErrorAnalysis } from '../KnownErrorAnalysis.js';
 import type { AnalysisLinkRef } from '../AnalysisLinkRef.js';
 import type { AnalysisResourceRef } from '../AnalysisResourceRef.js';
 import type { Runbook } from '../../../../engine/index.js';
@@ -23,7 +23,7 @@ const MAX_ARRAY_ITEMS = ANALYSIS_DRAFT_BOUNDS.ARRAY_ITEMS;
  * unresolvable draft, so a configuration error fails in CI instead of blocking
  * the apply in production.
  *
- * Every known case of a registered runbook must carry `analysis`: without it the
+ * Every known error of a registered runbook must carry `analysis`: without it the
  * apply would find no draft and block.
  *
  * @param runbook - The built runbook definition
@@ -44,82 +44,84 @@ export function assertAnalysisAnnotations(
   }
   assertReferences(runbookId, undefined, defaults ?? {}, catalog, product);
 
-  for (const knownCase of runbook.knownCases) {
-    const analysis = knownCase.analysis;
+  for (const knownError of runbook.knownErrors) {
+    const analysis = knownError.analysis;
     if (analysis === undefined) {
-      throw new Error(`Runbook "${runbookId}": known case "${knownCase.id}" is missing the analysis annotation`);
+      throw new Error(`Runbook "${runbookId}": known error "${knownError.code}" is missing the analysis annotation`);
     }
-    assertKnownCaseAnalysis(runbookId, knownCase.id, analysis, catalog, product);
+    assertKnownErrorAnalysis(runbookId, knownError.code, analysis, catalog, product);
   }
 
   assertNoReferenceConflicts(runbookId, runbook);
   assertDraftBudget(runbookId, runbook);
 }
 
-function assertKnownCaseAnalysis(
+function assertKnownErrorAnalysis(
   runbookId: string,
-  caseId: string,
-  analysis: KnownCaseAnalysis,
+  knownErrorCode: string,
+  analysis: KnownErrorAnalysis,
   catalog: ReadonlySet<string>,
   product: RunbookProduct,
 ): void {
   if (analysis.resolution.trim() === '') {
-    throw new Error(`Runbook "${runbookId}": known case "${caseId}" declares an empty resolution`);
+    throw new Error(`Runbook "${runbookId}": known error "${knownErrorCode}" declares an empty resolution`);
   }
   if (analysis.resolution.length > MAX_TEXT_LENGTH) {
-    throw new Error(`Runbook "${runbookId}": known case "${caseId}" resolution exceeds ${MAX_TEXT_LENGTH} characters`);
+    throw new Error(
+      `Runbook "${runbookId}": known error "${knownErrorCode}" resolution exceeds ${MAX_TEXT_LENGTH} characters`,
+    );
   }
   if (analysis.errorDetails !== undefined && analysis.errorDetails.length > MAX_TEXT_LENGTH) {
     throw new Error(
-      `Runbook "${runbookId}": known case "${caseId}" errorDetails exceeds ${MAX_TEXT_LENGTH} characters`,
+      `Runbook "${runbookId}": known error "${knownErrorCode}" errorDetails exceeds ${MAX_TEXT_LENGTH} characters`,
     );
   }
   if (analysis.analysisType === 'IGNORABLE' && (analysis.ignoreReasonCode ?? '').trim() === '') {
-    throw new Error(`Runbook "${runbookId}": known case "${caseId}" is IGNORABLE without an ignoreReasonCode`);
+    throw new Error(`Runbook "${runbookId}": known error "${knownErrorCode}" is IGNORABLE without an ignoreReasonCode`);
   }
   if (analysis.ignoreDetails !== undefined && (analysis.ignoreReasonCode ?? '').trim() === '') {
     throw new Error(
-      `Runbook "${runbookId}": known case "${caseId}" declares ignoreDetails without an ignoreReasonCode`,
+      `Runbook "${runbookId}": known error "${knownErrorCode}" declares ignoreDetails without an ignoreReasonCode`,
     );
   }
   if (analysis.ignoreReasonCode !== undefined && analysis.ignoreReasonCode.length > MAX_IGNORE_REASON_CODE_LENGTH) {
     throw new Error(
-      `Runbook "${runbookId}": known case "${caseId}" ignoreReasonCode exceeds ${MAX_IGNORE_REASON_CODE_LENGTH} characters`,
+      `Runbook "${runbookId}": known error "${knownErrorCode}" ignoreReasonCode exceeds ${MAX_IGNORE_REASON_CODE_LENGTH} characters`,
     );
   }
 
-  assertReferences(runbookId, caseId, analysis, catalog, product);
+  assertReferences(runbookId, knownErrorCode, analysis, catalog, product);
 }
 
 function assertReferences(
   runbookId: string,
-  caseId: string | undefined,
+  knownErrorCode: string | undefined,
   references: AnalysisReferences,
   catalog: ReadonlySet<string>,
   product: RunbookProduct,
 ): void {
   for (const name of references.downstreams ?? []) {
-    assertInCatalog(runbookId, caseId, name, catalog, product);
+    assertInCatalog(runbookId, knownErrorCode, name, catalog, product);
   }
-  assertBoundedNames(runbookId, caseId, references.finalActions ?? [], 'finalActions');
-  assertResources(runbookId, caseId, references.resources ?? []);
-  assertLinks(runbookId, caseId, references.links ?? []);
+  assertBoundedNames(runbookId, knownErrorCode, references.finalActions ?? [], 'finalActions');
+  assertResources(runbookId, knownErrorCode, references.resources ?? []);
+  assertLinks(runbookId, knownErrorCode, references.links ?? []);
 }
 
 function assertResources(
   runbookId: string,
-  caseId: string | undefined,
+  knownErrorCode: string | undefined,
   resources: ReadonlyArray<AnalysisResourceRef>,
 ): void {
   assertBoundedNames(
     runbookId,
-    caseId,
+    knownErrorCode,
     resources.map((resource) => resource.name),
     'resources',
   );
   for (const resource of resources) {
     if (resource.type !== undefined && (resource.type.trim() === '' || resource.type.length > MAX_NAME_LENGTH)) {
-      throw new Error(`${where(runbookId, caseId)}: resource "${resource.name}" declares an invalid type`);
+      throw new Error(`${where(runbookId, knownErrorCode)}: resource "${resource.name}" declares an invalid type`);
     }
   }
 }
@@ -127,48 +129,54 @@ function assertResources(
 /** Fails on a value outside the catalog of the declared product. */
 function assertInCatalog(
   runbookId: string,
-  caseId: string | undefined,
+  knownErrorCode: string | undefined,
   name: string,
   catalog: ReadonlySet<string>,
   product: RunbookProduct,
 ): void {
   if (catalog.has(name)) return;
-  throw new Error(`${where(runbookId, caseId)}: downstream "${name}" is outside the ${product} catalog`);
+  throw new Error(`${where(runbookId, knownErrorCode)}: downstream "${name}" is outside the ${product} catalog`);
 }
 
 function assertBoundedNames(
   runbookId: string,
-  caseId: string | undefined,
+  knownErrorCode: string | undefined,
   names: ReadonlyArray<string>,
   field: string,
 ): void {
   for (const name of names) {
     if (name.trim() === '') {
-      throw new Error(`${where(runbookId, caseId)}: ${field} declares an empty name`);
+      throw new Error(`${where(runbookId, knownErrorCode)}: ${field} declares an empty name`);
     }
     if (name.length > MAX_NAME_LENGTH) {
-      throw new Error(`${where(runbookId, caseId)}: ${field} name "${name}" exceeds ${MAX_NAME_LENGTH} characters`);
+      throw new Error(
+        `${where(runbookId, knownErrorCode)}: ${field} name "${name}" exceeds ${MAX_NAME_LENGTH} characters`,
+      );
     }
   }
   const unique = new Set(names);
   if (unique.size !== names.length) {
-    throw new Error(`${where(runbookId, caseId)}: ${field} declares duplicate names`);
+    throw new Error(`${where(runbookId, knownErrorCode)}: ${field} declares duplicate names`);
   }
 }
 
-function assertLinks(runbookId: string, caseId: string | undefined, links: ReadonlyArray<AnalysisLinkRef>): void {
+function assertLinks(
+  runbookId: string,
+  knownErrorCode: string | undefined,
+  links: ReadonlyArray<AnalysisLinkRef>,
+): void {
   for (const link of links) {
     if (!isAbsoluteHttpUrl(link.url)) {
-      throw new Error(`${where(runbookId, caseId)}: link "${link.url}" is not an http/https URL`);
+      throw new Error(`${where(runbookId, knownErrorCode)}: link "${link.url}" is not an http/https URL`);
     }
     if (link.url.length > MAX_URL_LENGTH) {
-      throw new Error(`${where(runbookId, caseId)}: link URL exceeds ${MAX_URL_LENGTH} characters`);
+      throw new Error(`${where(runbookId, knownErrorCode)}: link URL exceeds ${MAX_URL_LENGTH} characters`);
     }
     if (link.name !== undefined && link.name.length > MAX_NAME_LENGTH) {
-      throw new Error(`${where(runbookId, caseId)}: link name exceeds ${MAX_NAME_LENGTH} characters`);
+      throw new Error(`${where(runbookId, knownErrorCode)}: link name exceeds ${MAX_NAME_LENGTH} characters`);
     }
     if (link.type !== undefined && link.type.length > MAX_LINK_TYPE_LENGTH) {
-      throw new Error(`${where(runbookId, caseId)}: link type exceeds ${MAX_LINK_TYPE_LENGTH} characters`);
+      throw new Error(`${where(runbookId, knownErrorCode)}: link type exceeds ${MAX_LINK_TYPE_LENGTH} characters`);
     }
   }
 }
@@ -187,17 +195,17 @@ function assertNoReferenceConflicts(runbookId: string, runbook: Runbook): void {
   const resources = new Map<string, ReferenceDeclaration<AnalysisResourceRef>>();
   const links = new Map<string, ReferenceDeclaration<AnalysisLinkRef>>();
   const declarations: ReadonlyArray<{
-    readonly caseId: string | undefined;
+    readonly knownErrorCode: string | undefined;
     readonly references: AnalysisReferences;
   }> = [
-    { caseId: undefined, references: runbook.analysisDefaults ?? {} },
-    ...runbook.knownCases
-      .filter((knownCase) => knownCase.analysis !== undefined)
-      .map((knownCase) => ({ caseId: knownCase.id, references: knownCase.analysis ?? {} })),
+    { knownErrorCode: undefined, references: runbook.analysisDefaults ?? {} },
+    ...runbook.knownErrors
+      .filter((knownError) => knownError.analysis !== undefined)
+      .map((knownError) => ({ knownErrorCode: knownError.code, references: knownError.analysis ?? {} })),
   ];
 
   for (const declaration of declarations) {
-    const location = where(runbookId, declaration.caseId);
+    const location = where(runbookId, declaration.knownErrorCode);
     for (const resource of declaration.references.resources ?? []) {
       assertNoConflict(resources, resource.name, resource, location, sameResource, 'resource');
     }
@@ -262,6 +270,8 @@ function assertDraftBudget(runbookId: string, runbook: Runbook): void {
   throw new Error(`Runbook "${runbookId}": potential analysis draft is ${largestBytes} bytes, over the 64 KiB budget`);
 }
 
-function where(runbookId: string, caseId: string | undefined): string {
-  return caseId === undefined ? `Runbook "${runbookId}" defaults` : `Runbook "${runbookId}": known case "${caseId}"`;
+function where(runbookId: string, knownErrorCode: string | undefined): string {
+  return knownErrorCode === undefined
+    ? `Runbook "${runbookId}" defaults`
+    : `Runbook "${runbookId}": known error "${knownErrorCode}"`;
 }

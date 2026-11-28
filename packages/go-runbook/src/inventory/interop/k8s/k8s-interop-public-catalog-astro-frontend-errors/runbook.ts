@@ -2,7 +2,7 @@ import { PUBLIC_CATALOG_ALARM } from './alarmDefinition.js';
 import { interop } from '../../../../toolkits/interop/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 
 /**
  * Builds the k8s-interop-public-catalog-astro-frontend-errors runbook definition.
@@ -21,6 +21,6 @@ export function buildRunbook(): Runbook {
       team: 'GO',
       tags: ['interop', 'k8s', 'service', 'public-catalog'],
     },
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
   });
 }

@@ -49,7 +49,7 @@ const SEND_EXECUTION_LOG_QUERY_TEMPLATE = `{{REQUEST_ID_FILTER_CLAUSE}}
  *
  * Il trace id SEND è X-Ray, leggibile dal campo `xrayTraceId` in formato
  * `Root=<value>`. La var di contesto resta `xRayTraceId` per back-compat
- * con i knownCases SEND esistenti.
+ * con i knownErrors SEND esistenti.
  */
 export const SEND_API_GW_PROFILE: ApiGwQueryProfile = {
   id: 'send',

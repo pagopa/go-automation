@@ -1,7 +1,7 @@
 import { interop } from '../../../../toolkits/interop/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 import { NOTIFICATION_SCHEDULER_ALARM } from './alarmDefinition.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { NOTIFICATION_SCHEDULER_QUERY_PROFILE } from './queryProfile.js';
 import { POD_CONTEXT } from './podContext.js';
 
@@ -26,7 +26,7 @@ export function buildRunbook(): Runbook {
       tags: ['interop', 'k8s', 'service', 'notification', 'scheduler', 'kafka'],
     },
     queryProfile: NOTIFICATION_SCHEDULER_QUERY_PROFILE,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 5 },
     podContext: {
       step: POD_CONTEXT,

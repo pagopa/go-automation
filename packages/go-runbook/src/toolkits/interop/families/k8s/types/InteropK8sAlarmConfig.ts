@@ -1,4 +1,4 @@
-import type { CaseAction, KnownCase, PipelineHook, RunbookMetadata } from '../../../../../engine/index.js';
+import type { CaseAction, KnownError, PipelineHook, RunbookMetadata } from '../../../../../engine/index.js';
 import type { OccurrenceTimeWindow } from '../../../../common/time/occurrence/OccurrenceTimeWindow.js';
 import type { AnalysisResourceRef } from '../../../../common/analysis/AnalysisResourceRef.js';
 import type { RunbookAnalysisDefaults } from '../../../../common/analysis/RunbookAnalysisDefaults.js';
@@ -14,9 +14,9 @@ export interface InteropK8sAlarmConfig {
   /** The alarm: runbook key, pod app, log group, var prefix and context resolution. */
   readonly alarm: InteropK8sAlarm;
   readonly metadata: Omit<RunbookMetadata, 'id'>;
-  readonly knownCases: ReadonlyArray<KnownCase>;
+  readonly knownErrors: ReadonlyArray<KnownError>;
   /**
-   * Analysis references shared by the known cases. The builder always prepends the
+   * Analysis references shared by the known errors. The builder always prepends the
    * service as `PRIMARY` resource, so only the extra references go here.
    */
   readonly analysisDefaults?: RunbookAnalysisDefaults;

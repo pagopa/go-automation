@@ -1,5 +1,5 @@
 import type { BranchOutcome } from './BranchOutcome.js';
-import type { KnownCaseDetection } from './KnownCaseDetection.js';
+import type { KnownErrorDetection } from './KnownErrorDetection.js';
 import type { TreeDescent } from './TreeDescent.js';
 
 /** A node of the error tree, once investigated. */
@@ -22,8 +22,8 @@ export interface ErrorTreeNode {
   /** `failed` when a step of the node failed: the chain stops there, with what the node collected. */
   readonly status: 'ok' | 'failed';
   readonly failure?: string;
-  /** Known cases that recognize the node, in time order. */
-  readonly detections: ReadonlyArray<KnownCaseDetection>;
+  /** Known errors that recognize the node, in time order. */
+  readonly detections: ReadonlyArray<KnownErrorDetection>;
   readonly branchOutcome: BranchOutcome;
   readonly incompleteEvidence?: boolean;
 }

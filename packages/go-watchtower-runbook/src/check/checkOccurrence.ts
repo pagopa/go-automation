@@ -201,7 +201,7 @@ function failedRow(event: AlarmEventDto, error: unknown, profileNames: ReadonlyA
   const status = classifyExecutionFailure(error);
   return {
     event: toEventInfo(event),
-    runbook: { status, matchedCaseIds: [], error: message },
+    runbook: { status, matchedKnownErrorCodes: [], error: message },
     comparison: failedComparison(event.analysisId !== null, status),
     fromCache: false,
   };
@@ -283,7 +283,7 @@ function failedComparison(hasAnalysis: boolean, status: 'CONFIG-ERROR' | 'EXECUT
         : 'Runbook non eseguito (errore di esecuzione).',
     ],
     signals: {
-      caseIdMentioned: false,
+      knownErrorCodeMentioned: false,
       descriptionOverlap: 0,
       traceIdOverlap: [],
       downstreamOverlap: [],

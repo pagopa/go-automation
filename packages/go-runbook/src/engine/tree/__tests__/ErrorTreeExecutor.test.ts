@@ -6,7 +6,7 @@ import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine } from '../../core/RunbookEngine.js';
 import type { ErrorNodeSpec } from '../../types/ErrorNodeSpec.js';
 import type { ErrorTreeDefinition } from '../../types/ErrorTreeDefinition.js';
-import type { KnownCase } from '../../types/KnownCase.js';
+import type { KnownError } from '../../types/KnownError.js';
 import type { Condition } from '../../types/Condition.js';
 import type { ErrorTreeNode } from '../../types/ErrorTreeNode.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
@@ -155,11 +155,11 @@ function serviceLevel(reader: TreeLevelReader, overrides: Partial<TreeLevel> = {
   };
 }
 
-function logCase(id: string, condition: Condition, extra: Partial<KnownCase> = {}): KnownCase {
-  return { id, description: id, condition, action: { type: 'log', level: 'info', title: id }, ...extra };
+function logCase(id: string, condition: Condition, extra: Partial<KnownError> = {}): KnownError {
+  return { code: id, description: id, condition, action: { type: 'log', level: 'info', title: id }, ...extra };
 }
 
-const CASES: ReadonlyArray<KnownCase> = [
+const CASES: ReadonlyArray<KnownError> = [
   logCase('root-500', { type: 'compare', ref: 'vars.status', operator: '==', value: '500' }),
   logCase('npe', { type: 'pattern', ref: 'steps.read-svc', regex: 'NullPointer' }),
   logCase('svc-empty', {
@@ -173,11 +173,11 @@ const CASES: ReadonlyArray<KnownCase> = [
 
 async function run(
   tree: ErrorTreeDefinition,
-  knownCases: ReadonlyArray<KnownCase> = CASES,
+  knownErrors: ReadonlyArray<KnownError> = CASES,
   requests: ReadonlyArray<string> = REQUESTS,
 ): Promise<RunbookExecutionResult> {
   return new RunbookEngine(new GOLogger()).execute(
-    createTestRunbook({ steps: [{ step: outputStep('access', requests) }], knownCases, tree }),
+    createTestRunbook({ steps: [{ step: outputStep('access', requests) }], knownErrors, tree }),
     new Map(),
     createTestServiceRegistry(),
   );
@@ -221,11 +221,11 @@ describe('ErrorTreeExecutor', () => {
     );
     const e1 = nodeByKey(result, 'e1');
     assert.deepStrictEqual(
-      e1.detections.map((detection) => detection.knownCase.id),
+      e1.detections.map((detection) => detection.knownError.code),
       ['npe'],
     );
     assert.deepStrictEqual(
-      nodeByKey(result, 'r2').detections.map((detection) => detection.knownCase.id),
+      nodeByKey(result, 'r2').detections.map((detection) => detection.knownError.code),
       ['root-500', 'svc-empty'],
     );
     assert.deepStrictEqual(result.observedErrors, { unit: 'request', observed: 4, examined: 4 });
@@ -251,7 +251,9 @@ describe('ErrorTreeExecutor', () => {
       ['api:r1', 'api:r5'],
     );
     assert.strictEqual(new Set(copies.map((node) => node.errorKey)).size, 1);
-    const npe = buildErrorChains(result).find((group) => group.nodes.some((node) => node.caseIds.includes('npe')));
+    const npe = buildErrorChains(result).find((group) =>
+      group.nodes.some((node) => node.knownErrorCodes.includes('npe')),
+    );
     assert.deepStrictEqual([npe?.count, npe?.errors], [2, 1]);
   });
 
@@ -320,10 +322,12 @@ describe('ErrorTreeExecutor', () => {
     assert.strictEqual(nodeByKey(result, 'r3').branchOutcome, 'incomplete');
     // e2 descended to a complete empty read: its branch is complete and without diagnosis.
     assert.deepStrictEqual(
-      nodeByKey(result, 'e2').detections.map((detection) => detection.knownCase.id),
+      nodeByKey(result, 'e2').detections.map((detection) => detection.knownError.code),
       ['undiagnosed-branch'],
     );
-    const evaluations = result.trace.caseMatching.evaluations.filter((evaluation) => evaluation.caseId === 'npe');
+    const evaluations = result.trace.caseMatching.evaluations.filter(
+      (evaluation) => evaluation.knownErrorCode === 'npe',
+    );
     assert.ok(evaluations.every((evaluation) => evaluation.nodeId?.includes('svc:') === true));
   });
 
@@ -398,7 +402,7 @@ describe('ErrorTreeExecutor', () => {
     );
 
     assert.deepStrictEqual(
-      ['r1', 'r2', 'r3'].map((key) => nodeByKey(result, key).detections.map((detection) => detection.knownCase.id)),
+      ['r1', 'r2', 'r3'].map((key) => nodeByKey(result, key).detections.map((detection) => detection.knownError.code)),
       [['npe-below'], ['no-npe-below'], []],
     );
   });
@@ -416,7 +420,7 @@ describe('ErrorTreeExecutor', () => {
     const e1 = nodeByKey(result, 'e1');
     assert.strictEqual(e1.status, 'failed');
     assert.deepStrictEqual(
-      e1.detections.map((detection) => detection.knownCase.id),
+      e1.detections.map((detection) => detection.knownError.code),
       ['npe'],
     );
     const failedChain = result.chains?.find((group) => group.members[0]?.nodeIds.includes(e1.id));

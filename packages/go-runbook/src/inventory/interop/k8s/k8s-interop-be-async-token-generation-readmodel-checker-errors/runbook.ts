@@ -1,7 +1,7 @@
 import { interop } from '../../../../toolkits/interop/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 import { ASYNC_TOKEN_GENERATION_READMODEL_CHECKER_ALARM as alarm } from './alarmDefinition.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { ASYNC_TOKEN_GENERATION_READMODEL_CHECKER_QUERY_PROFILE } from './queryProfile.js';
 const CONFLUENCE_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3206578389/k8s-interop-be-async-token-generation-readmodel-checker-errors';
@@ -24,7 +24,7 @@ export function buildRunbook(): Runbook {
     },
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
     queryProfile: ASYNC_TOKEN_GENERATION_READMODEL_CHECKER_QUERY_PROFILE,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       runbookName: alarm.runbookKey,
       finalActions: [],

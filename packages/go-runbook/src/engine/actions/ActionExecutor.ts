@@ -124,7 +124,7 @@ export class ActionExecutor {
   /**
    * Executes a log action.
    *
-   * A `known-case` / `unknown-case` action renders as a banner plus a table
+   * A `known-error` / `unknown-error` action renders as a banner plus a table
    * built straight from its rows; anything else logs the rendered text at
    * the declared level.
    */

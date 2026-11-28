@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { KnownCase } from '../../../../../engine/types/KnownCase.js';
-import type { KnownCaseAnalysis } from '../../KnownCaseAnalysis.js';
+import type { KnownError } from '../../../../../engine/types/KnownError.js';
+import type { KnownErrorAnalysis } from '../../KnownErrorAnalysis.js';
 import type { Runbook } from '../../../../../engine/types/Runbook.js';
 import type { RunbookAnalysisDefaults } from '../../RunbookAnalysisDefaults.js';
 import type { RunbookExecutionStatus } from '../../../../../engine/types/RunbookExecutionStatus.js';
@@ -41,13 +41,13 @@ describe('buildAnalysisDraft', () => {
   });
 
   it('is IGNORABLE only when every detection is ignorable with the same reason', () => {
-    const ignorable = (id: string, code: string): KnownCase =>
+    const ignorable = (id: string, code: string): KnownError =>
       analysedCase(id, { analysisType: 'IGNORABLE', ignoreReasonCode: code, proposedStatus: 'COMPLETED' });
     const same = [ignorable('a', 'TEST'), ignorable('b', 'TEST')];
     const different = [ignorable('a', 'TEST'), ignorable('b', 'MAINTENANCE')];
     const mixed = [ignorable('a', 'TEST'), analysedCase('b', {})];
 
-    const draftOf = (cases: ReadonlyArray<KnownCase>): ReturnType<typeof buildAnalysisDraft> =>
+    const draftOf = (cases: ReadonlyArray<KnownError>): ReturnType<typeof buildAnalysisDraft> =>
       buildAnalysisDraft(runbook({ defaults: {}, cases }), createTestExecutionResult({ matchedCases: cases }));
     const sameDraft = draftOf(same);
     assert.strictEqual(sameDraft?.kind === 'KNOWN_CASE' ? sameDraft.analysisType : undefined, 'IGNORABLE');
@@ -69,7 +69,7 @@ describe('buildAnalysisDraft', () => {
       ...result,
       detections: [
         {
-          knownCase: cases[0] ?? analysedCase('x', {}),
+          knownError: cases[0] ?? analysedCase('x', {}),
           firstSeenAt: '2026-11-19T10:15:42.000Z',
           evidenceRows: 1,
           observations: [],
@@ -161,7 +161,7 @@ describe('buildAnalysisDraft', () => {
   });
 
   it('builds static budget candidates with the same envelope and merge rules as runtime drafts', () => {
-    const cases: ReadonlyArray<KnownCase> = [
+    const cases: ReadonlyArray<KnownError> = [
       {
         ...analysedCase('primary', {
           resolution: 'Primary resolution',
@@ -181,8 +181,8 @@ describe('buildAnalysisDraft', () => {
     });
 
     const candidates = buildPotentialAnalysisDrafts(definition);
-    const runtimeDrafts = cases.map((knownCase) =>
-      buildAnalysisDraft(definition, createTestExecutionResult({ matchedCases: [knownCase] })),
+    const runtimeDrafts = cases.map((knownError) =>
+      buildAnalysisDraft(definition, createTestExecutionResult({ matchedCases: [knownError] })),
     );
     // All cases together are the worst case of the lists; the notes then list both declared resolutions.
     const together = buildAnalysisDraft(definition, createTestExecutionResult({ matchedCases: cases }));
@@ -192,7 +192,7 @@ describe('buildAnalysisDraft', () => {
     assert.deepStrictEqual(candidates, runtimeDrafts);
   });
 
-  it('emits the UNKNOWN_CASE_CONTEXT draft when no case matched', () => {
+  it('emits the UNKNOWN_ERROR_CONTEXT draft when no case matched', () => {
     const defaults: RunbookAnalysisDefaults = {
       runbookName: 'Runbook documentale',
       downstreams: [SEND_DOWNSTREAMS.NESSUNO],
@@ -231,19 +231,19 @@ describe('buildAnalysisDraft', () => {
 
 interface RunbookFixture {
   readonly defaults: RunbookAnalysisDefaults | undefined;
-  readonly cases: ReadonlyArray<KnownCase>;
+  readonly cases: ReadonlyArray<KnownError>;
 }
 
 function runbook(fixture: RunbookFixture): Runbook {
   return createTestRunbook({
-    knownCases: fixture.cases,
+    knownErrors: fixture.cases,
     ...(fixture.defaults === undefined ? {} : { analysisDefaults: fixture.defaults }),
   });
 }
 
-function analysedCase(id: string, analysis: Partial<KnownCaseAnalysis>): KnownCase {
+function analysedCase(id: string, analysis: Partial<KnownErrorAnalysis>): KnownError {
   return {
-    id,
+    code: id,
     description: id,
     condition: { type: 'contains', ref: 'steps.query', regex: 'boom' },
     action: { type: 'log', level: 'info', title: `[CASO NOTO] ${id}` },

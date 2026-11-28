@@ -1,7 +1,7 @@
 import type { Runbook } from '../../../../engine/index.js';
 import { interop } from '../../../../toolkits/interop/index.js';
 import { INTEROP_API_V3_5XX_ALARM as alarm } from './alarmDefinition.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 
 const RUNBOOK_URL = 'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3418358470/interop-api-v3-prod-apigw-5xx';
 
@@ -28,7 +28,7 @@ export function buildRunbook(): Runbook {
       ...interop.apigw.INTEROP_API_GW_5XX_SERVICE_ERRORS_PROFILE,
       applicationLogsQueryProfileId: 'interop-k8s-m2m-v3-5xx',
     },
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       links: [{ url: RUNBOOK_URL, name: 'Runbook API v3 5xx', type: 'CONFLUENCE' }],
     },

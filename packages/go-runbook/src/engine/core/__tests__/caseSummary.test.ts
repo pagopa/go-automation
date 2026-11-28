@@ -2,18 +2,18 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { caseSummary } from '../caseSummary.js';
-import type { KnownCase } from '../../types/KnownCase.js';
+import type { KnownError } from '../../types/KnownError.js';
 import type { ErrorTreeNode } from '../../types/ErrorTreeNode.js';
-import type { KnownCaseDetection } from '../../types/KnownCaseDetection.js';
+import type { KnownErrorDetection } from '../../types/KnownErrorDetection.js';
 
-function detection(id: string): KnownCaseDetection {
-  const knownCase: KnownCase = {
-    id,
+function detection(id: string): KnownErrorDetection {
+  const knownError: KnownError = {
+    code: id,
     description: id,
     condition: { type: 'compare', ref: 'vars.x', operator: '==', value: 'y' },
     action: { type: 'log', level: 'info', title: id },
   };
-  return { knownCase, evidenceRows: 1, observations: [] };
+  return { knownError, evidenceRows: 1, observations: [] };
 }
 
 describe('caseSummary', () => {

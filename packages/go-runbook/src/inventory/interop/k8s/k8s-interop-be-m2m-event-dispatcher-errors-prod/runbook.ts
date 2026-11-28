@@ -1,7 +1,7 @@
 import { interop } from '../../../../toolkits/interop/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 import { M2M_EVENT_DISPATCHER_ALARM } from './alarmDefinition.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 
 /**
  * Builds the k8s-interop-be-m2m-event-dispatcher-errors-prod runbook definition.
@@ -26,7 +26,7 @@ export function buildRunbook(): Runbook {
       buildApplicationLogsQuery: (podApp) =>
         `filter pod_namespace = "prod"\n| ${interop.k8s.buildInteropK8sApplicationLogsQuery(podApp)}`,
     },
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       runbookName: M2M_EVENT_DISPATCHER_ALARM.runbookKey,
       links: [

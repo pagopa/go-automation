@@ -16,7 +16,7 @@ function servicePlaceholders(answers: RunbookAnswers): ReadonlyMap<string, strin
 }
 
 /**
- * Template for service-log alarm runbooks: emits knownServices, knownCases
+ * Template for service-log alarm runbooks: emits knownServices, knownErrors
  * and runbook files based on `service.createSendServiceAlarmRunbook`.
  */
 export const SERVICE_TEMPLATE: RunbookTemplate = {
@@ -28,7 +28,7 @@ export const SERVICE_TEMPLATE: RunbookTemplate = {
   templateDir: 'service',
   files: [
     { template: 'knownServices.ts.template', output: 'knownServices.ts' },
-    { template: 'knownCases.ts.template', output: 'knownCases.ts' },
+    { template: 'knownErrors.ts.template', output: 'knownErrors.ts' },
     { template: 'runbook.ts.template', output: 'runbook.ts' },
   ],
   inputs: [

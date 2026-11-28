@@ -15,7 +15,7 @@ function rowWithAiExplanation(explanation: string): RtaCheckRow {
     },
     runbook: {
       status: 'HIT',
-      matchedCaseIds: ['lambda-timeout'],
+      matchedKnownErrorCodes: ['lambda-timeout'],
     },
     comparison: {
       status: 'MATCH_STRONG',
@@ -24,7 +24,7 @@ function rowWithAiExplanation(explanation: string): RtaCheckRow {
       matcher: 'ai',
       aiAttempted: true,
       signals: {
-        caseIdMentioned: false,
+        knownErrorCodeMentioned: false,
         descriptionOverlap: 0,
         traceIdOverlap: [],
         downstreamOverlap: [],

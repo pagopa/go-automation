@@ -169,8 +169,8 @@ function timedChain(
 function groupKey(chain: TreeChain, byId: ReadonlyMap<string, ErrorTreeNode>): string {
   const nodes = chain.nodeIds.map((id) => {
     const node = byId.get(id);
-    const caseIds = (node?.detections ?? []).map((detection) => detection.knownCase.id).sort();
-    return `${node?.target ?? '?'}=${caseIds.length > 0 ? caseIds.join('+') : '?'}`;
+    const knownErrorCodes = (node?.detections ?? []).map((detection) => detection.knownError.code).sort();
+    return `${node?.target ?? '?'}=${knownErrorCodes.length > 0 ? knownErrorCodes.join('+') : '?'}`;
   });
   return `${nodes.join('>')}|${chain.end}|${chain.interruption?.reason ?? ''}`;
 }
@@ -184,7 +184,7 @@ function caseRank(
   let rank = Number.POSITIVE_INFINITY;
   for (const id of chain?.nodeIds ?? []) {
     for (const detection of byId.get(id)?.detections ?? []) {
-      rank = Math.min(rank, caseOrder.get(detection.knownCase.id) ?? Number.POSITIVE_INFINITY);
+      rank = Math.min(rank, caseOrder.get(detection.knownError.code) ?? Number.POSITIVE_INFINITY);
     }
   }
   return rank;

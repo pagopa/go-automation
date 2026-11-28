@@ -14,7 +14,7 @@ export const LAMBDA_FUNCTION: lambda.LambdaFunction = {
 /**
  * Downstream microservices reachable from the Lambda. Each entry is queried
  * by the Lambda requestId only when a {@link lambda.DownstreamErrorPattern}
- * (see knownErrors.ts) routes to it and a `logGroup` is provided.
+ * (see downstreamErrorPatterns.ts) routes to it and a `logGroup` is provided.
  *
  * The PDF lists pn-stream as involved service, but does not define a
  * correlated log query. Keep it without logGroup so the runbook classifies the

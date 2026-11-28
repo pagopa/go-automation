@@ -6,7 +6,7 @@ import { downstream } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
 import { DOWNSTREAM, SERVICE } from './knownServices.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 
 /**
  * Builds the pn-external-registries-SelfcarePA-downstream-detection-Alarm runbook definition.
@@ -26,7 +26,7 @@ export function buildRunbook(): Runbook {
     },
     service: SERVICE,
     downstream: DOWNSTREAM,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     // The latest observed errors begin over 34 minutes before the event.
     occurrenceTimeWindow: { beforeMinutes: 40, afterMinutes: 5 },
     analysisDefaults: {

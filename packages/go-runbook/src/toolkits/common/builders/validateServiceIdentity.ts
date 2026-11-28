@@ -2,7 +2,7 @@ import type { ServiceDescriptor } from '../families/service/types/ServiceDescrip
 
 /**
  * Allowed characters for the service slug used to build step ids
- * (`query-<name>`, …), referenced by known cases. Flat (single quantifier) form;
+ * (`query-<name>`, …), referenced by known errors. Flat (single quantifier) form;
  * leading/trailing hyphens are rejected separately to avoid a nested-quantifier
  * regex (the `security/detect-unsafe-regex` ReDoS heuristic).
  */

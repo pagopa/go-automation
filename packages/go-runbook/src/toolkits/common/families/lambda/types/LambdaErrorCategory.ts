@@ -1,6 +1,6 @@
 /**
  * Canonical classification of a Lambda invocation error, written to
- * `vars.lambdaErrorCategory` so runbook known cases can match on it.
+ * `vars.lambdaErrorCategory` so runbook known errors can match on it.
  *
  * Priority order during classification:
  * `timeout` → `out-of-memory` → `throttle` → `downstream` →

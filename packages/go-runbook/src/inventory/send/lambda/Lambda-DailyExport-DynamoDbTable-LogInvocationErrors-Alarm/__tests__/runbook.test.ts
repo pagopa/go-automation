@@ -66,8 +66,8 @@ describe('DailyExport DynamoDB runbook', () => {
     assert.strictEqual(result.status, 'completed');
     assert.strictEqual(treeNodeVars(result).get('lambdaErrorCategory'), 'timeout');
     assert.deepStrictEqual(
-      result.detections.map(({ knownCase }) => knownCase.id),
-      ['daily-export-timeout'],
+      result.detections.map(({ knownError }) => knownError.code),
+      ['SEND_LAMBDA_LDEDDTLIEA_DAI-EXP-TIM'],
     );
     assert.deepStrictEqual(
       calls.map(({ accountId }) => accountId),
@@ -88,8 +88,8 @@ describe('DailyExport DynamoDB runbook', () => {
       ],
     );
     assert.strictEqual(result.status, 'completed');
-    assert.strictEqual(result.detections[0]?.knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
-    assert.doesNotMatch(result.detections[0]?.knownCase.analysis?.resolution ?? '', /recuper|retry|chius/i);
+    assert.strictEqual(result.detections[0]?.knownError.analysis?.proposedStatus, 'IN_PROGRESS');
+    assert.doesNotMatch(result.detections[0]?.knownError.analysis?.resolution ?? '', /recuper|retry|chius/i);
   });
 
   it('does not invent cases for generic application errors or missing logs', async () => {

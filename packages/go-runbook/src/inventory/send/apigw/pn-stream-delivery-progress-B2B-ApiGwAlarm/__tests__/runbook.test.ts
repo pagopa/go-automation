@@ -5,9 +5,9 @@ import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine, type RunbookExecutionResult } from '../../../../../engine/index.js';
 import { createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
 import { buildRunbook } from '../runbook.js';
-import { KNOWN_CASES } from '../knownCases.js';
+import { KNOWN_ERRORS } from '../knownErrors.js';
 import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
-import { caseMatches, knownCaseById } from '../../../../../__tests__/helpers/knownCaseMatching.js';
+import { caseMatches, knownErrorById } from '../../../../../__tests__/helpers/knownErrorMatching.js';
 import { API_GW_LOG_GROUP, AUTHORIZER_LOG_GROUP, ENTRY_SERVICE, VERSIONING_LOG_GROUP } from '../knownServices.js';
 
 const ID = 'a2240f30-32dc-407d-80d9-4fd363aeaeb4';
@@ -73,7 +73,7 @@ describe('pn-stream delivery progress API Gateway runbook', () => {
       [],
       [row({ '@requestId': ID, '@message': `REPORT RequestId: ${ID} Status: timeout` })],
     );
-    assert.equal(result.detections[0]?.knownCase.id, 'stream-authorizer-runtime-timeout');
+    assert.equal(result.detections[0]?.knownError.code, 'SEND_APIGW_PSDPB2BAGA_STR-AUT-RUN-TIM');
     assert.equal(calls.filter((g) => g === API_GW_LOG_GROUP).length, 1);
   });
   it('confirms the documented runtime timeout with correlated authorizer REPORT evidence', async () => {
@@ -92,10 +92,10 @@ describe('pn-stream delivery progress API Gateway runbook', () => {
       [row({ '@requestId': ID, '@message': `REPORT RequestId: ${ID}\tDuration: 10000.00 ms\tStatus: timeout` })],
     );
     assert.deepEqual(
-      result.detections.map(({ knownCase }) => knownCase.id),
-      ['stream-authorizer-runtime-timeout'],
+      result.detections.map(({ knownError }) => knownError.code),
+      ['SEND_APIGW_PSDPB2BAGA_STR-AUT-RUN-TIM'],
     );
-    // A known case does not end the traversal: the service is still read, and finds nothing for this request.
+    // A known error does not end the traversal: the service is still read, and finds nothing for this request.
     assert.deepEqual(calls, [API_GW_LOG_GROUP, AUTHORIZER_LOG_GROUP, ENTRY_SERVICE.logGroup]);
   });
 
@@ -113,8 +113,8 @@ describe('pn-stream delivery progress API Gateway runbook', () => {
       ],
       [row({ '@message': `(${ID}) Lambda invocation failed with status: 504. Lambda request id: N/A` })],
     );
-    assert.equal(result.detections[0]?.knownCase.id, 'stream-lambda-invocation-504');
-    assert.ok(!result.detections.some((c) => c.knownCase.id === 'stream-authorizer-runtime-timeout'));
+    assert.equal(result.detections[0]?.knownError.code, 'SEND_APIGW_PSDPB2BAGA_STR-LAM-INV-504');
+    assert.ok(!result.detections.some((c) => c.knownError.code === 'SEND_APIGW_PSDPB2BAGA_STR-AUT-RUN-TIM'));
   });
 
   it('does not infer runtime timeout, recovery or OOM from latency and empty logs', async () => {
@@ -149,7 +149,7 @@ describe('pn-stream delivery progress API Gateway runbook', () => {
       [row({ '@requestId': ID, '@message': 'INFO PN_GENERIC_ERROR AxiosError: Request failed with status code 403' })],
       true,
     );
-    assert.equal(result.detections[0]?.knownCase.id, 'stream-versioning-client-403');
+    assert.equal(result.detections[0]?.knownError.code, 'SEND_APIGW_PSDPB2BAGA_STR-VER-CLI-403');
     assert.ok(calls.includes(VERSIONING_LOG_GROUP));
   });
 
@@ -181,30 +181,30 @@ describe('pn-stream delivery progress API Gateway runbook', () => {
       }),
     ]);
     assert.ok(calls.includes('/aws/ecs/pn-stream'));
-    assert.equal(result.detections[0]?.knownCase.id, 'stream-endpoint-timeout');
+    assert.equal(result.detections[0]?.knownError.code, 'SEND_APIGW_PSDPB2BAGA_STR-END-TIM');
   });
 
   it('matches each documented gateway signature', () => {
     const fixtures: ReadonlyArray<readonly [string, string, unknown]> = [
       [
-        'stream-waf-evaluation-error',
+        'SEND_APIGW_PSDPB2BAGA_STR-WAF-EVA-ERR',
         'query-api-gw-logs',
         [row({ errorMessage: 'There was an error evaluating the AWS WAF rules associated with this API' })],
       ],
       [
-        'stream-lambda-invocation-500',
+        'SEND_APIGW_PSDPB2BAGA_STR-LAM-INV-500',
         'query-api-gw-execution-logs',
         [row({ '@message': 'Lambda invocation failed with status: 500. Lambda request id: example' })],
       ],
       [
-        'stream-authorizer-invocation-error',
+        'SEND_APIGW_PSDPB2BAGA_STR-AUT-INV-ERR',
         'query-api-gw-execution-logs',
         [row({ '@message': 'Gateway response type: AUTHORIZER_CONFIGURATION_ERROR with status code: 500' })],
       ],
     ];
     for (const [id, stepId, output] of fixtures) {
       assert.equal(
-        caseMatches(knownCaseById(KNOWN_CASES, id), createTestContext({ stepResults: { [stepId]: output } })),
+        caseMatches(knownErrorById(KNOWN_ERRORS, id), createTestContext({ stepResults: { [stepId]: output } })),
         true,
         id,
       );

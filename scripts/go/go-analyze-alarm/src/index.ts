@@ -1,7 +1,7 @@
 /**
  * Go Analyze Alarm - Entry Point
  *
- * Analyzes an alarm, executes its associated runbook, and determines the correct operational outcome and next action based on collected evidence and known cases.
+ * Analyzes an alarm, executes its associated runbook, and determines the correct operational outcome and next action based on collected evidence and known errors.
  */
 
 import { GOScript } from '@go-automation/go-script';

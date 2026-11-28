@@ -4,7 +4,7 @@ import type { ErrorTreeRun } from '../types/ErrorTreeRun.js';
 import type { DescendRequest } from '../types/DescendRequest.js';
 import type { ErrorNodeSpec } from '../types/ErrorNodeSpec.js';
 import type { ErrorTreeDefinition } from '../types/ErrorTreeDefinition.js';
-import type { KnownCase } from '../types/KnownCase.js';
+import type { KnownError } from '../types/KnownError.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
 import type { TreeLevel } from '../types/TreeLevel.js';
 import type { TreeLevelReader } from '../types/TreeLevelReader.js';
@@ -45,13 +45,13 @@ const MAX_DEPTH = 32;
  * one read per batch, whose rows are divided among the parents by exact identifier. Every parent gets, even without
  * rows, how its read ended: the read ledger keeps the state of every descent and of every level for a node. Once the
  * tree is complete, the nodes are evaluated from the deepest: the after-descent steps, the outcome of the branch
- * below, then the known cases of the level.
+ * below, then the known errors of the level.
  *
  * Per-execution: create one for every run.
  *
  * @example
  * ```typescript
- * const run = await new ErrorTreeExecutor(tree, caseLevels, knownCases, deps).run(windowContext);
+ * const run = await new ErrorTreeExecutor(tree, caseLevels, knownErrors, deps).run(windowContext);
  * ```
  */
 export class ErrorTreeExecutor {
@@ -63,13 +63,13 @@ export class ErrorTreeExecutor {
   /**
    * @param tree - Levels of the runbook
    * @param caseLevels - Levels each case is evaluated on, by case id
-   * @param knownCases - Cases of the runbook, in declaration order
+   * @param knownErrors - Cases of the runbook, in declaration order
    * @param deps - Collaborators provided by the engine
    */
   constructor(
     private readonly tree: ErrorTreeDefinition,
     private readonly caseLevels: ReadonlyMap<string, ReadonlySet<string>>,
-    private readonly knownCases: ReadonlyArray<KnownCase>,
+    private readonly knownErrors: ReadonlyArray<KnownError>,
     private readonly deps: ErrorTreeExecutorDeps,
   ) {
     this.levels = new Map(tree.levels.map((level) => [level.target, level]));
@@ -410,15 +410,15 @@ export class ErrorTreeExecutor {
 
   /**
    * Evaluates the nodes from the deepest: the after-descent steps of the level, the outcome of the branch below,
-   * then the known cases of the level, on the context the node reached.
+   * then the known errors of the level, on the context the node reached.
    */
   private async evaluate(): Promise<void> {
     const byId = new Map(this.nodes.map((node) => [node.id, node]));
-    const casesByLevel = new Map<string, KnownCase[]>();
-    for (const knownCase of this.knownCases) {
-      for (const target of this.caseLevels.get(knownCase.id) ?? [this.tree.root.target]) {
+    const casesByLevel = new Map<string, KnownError[]>();
+    for (const knownError of this.knownErrors) {
+      for (const target of this.caseLevels.get(knownError.code) ?? [this.tree.root.target]) {
         const list = casesByLevel.get(target) ?? [];
-        list.push(knownCase);
+        list.push(knownError);
         casesByLevel.set(target, list);
       }
     }

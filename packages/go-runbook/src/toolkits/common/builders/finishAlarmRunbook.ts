@@ -2,12 +2,12 @@ import type { Runbook } from '../../../engine/index.js';
 import { orphanHookAnchors } from '../../../engine/internal.js';
 import type { AlarmRunbookBuilder } from './AlarmRunbookBuilder.js';
 import { omitUndefined } from '@pagopa/go-common/utils';
-import { assertKnownCaseStepRefs } from './alarmConfigValidation.js';
+import { assertKnownErrorStepRefs } from './alarmConfigValidation.js';
 import type { AlarmRunbookTailConfig } from './AlarmRunbookTailConfig.js';
 import type { FinishAlarmRunbookOptions } from './FinishAlarmRunbookOptions.js';
 
 /**
- * Closes an alarm runbook: known cases, fallback, structured context,
+ * Closes an alarm runbook: known errors, fallback, structured context,
  * analysis defaults, iteration cap, orphan-anchor check, build.
  *
  * Every toolkit builder ends with these seven steps in this order. Keeping them
@@ -25,7 +25,7 @@ import type { FinishAlarmRunbookOptions } from './FinishAlarmRunbookOptions.js';
  * ```typescript
  * return finishAlarmRunbook(builder, config, {
  *   builderName: 'createLambdaAlarmRunbook',
- *   defaultFallback: () => defaultLambdaUnknownCaseFallback(ctx.downstreams),
+ *   defaultFallback: () => defaultLambdaUnknownErrorFallback(ctx.downstreams),
  *   runbookContext: { ...ctx.runbookContext },
  *   primaryResource: config.lambda.name,
  *   anchors: { hooks: ctx.hooks, reached: reachedAnchors, pipelineName: 'Lambda' },
@@ -40,15 +40,15 @@ export function finishAlarmRunbook<TAnchor extends string = never>(
   // Checked against what the builder assembled, not against a list each toolkit
   // maintains by hand: three of the five forgot the check entirely, so a case
   // left on a renamed step id built cleanly and could never match again.
-  assertKnownCaseStepRefs(
+  assertKnownErrorStepRefs(
     { builderName: options.builderName, runbookId: config.id },
-    config.knownCases,
+    config.knownErrors,
     builder.wiredStepIds(),
     '. Remove the reference or wire the step.',
   );
 
-  for (const knownCase of config.knownCases) {
-    builder.knownCase(knownCase);
+  for (const knownError of config.knownErrors) {
+    builder.knownError(knownError);
   }
 
   builder.fallback(config.fallbackAction ?? options.defaultFallback());

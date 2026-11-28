@@ -35,7 +35,7 @@ export type DownstreamSelector =
     }
   | {
       readonly kind: 'named';
-      /** Census name, also the value the known cases annotate. */
+      /** Census name, also the value the known errors annotate. */
       readonly name: SendDownstream;
       /** What the application actually writes, when it differs from {@link name}. */
       readonly emittedAs?: string;

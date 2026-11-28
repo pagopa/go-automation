@@ -69,11 +69,11 @@ export function classifyRunbookOutcome(output: RunbookOutput): ClassifiedRunbook
   const recoveredText = output.execution.recoveredErrors.map((error) => `${error.stepId}: ${error.error}`).join(' | ');
 
   switch (outcome.kind) {
-    case 'known-case-matched':
+    case 'known-error-matched':
       return {
         status: 'HIT',
         outcomeKind: outcome.kind,
-        matchedCaseIds: outcome.detections.map((detection) => detection.caseId),
+        matchedKnownErrorCodes: outcome.detections.map((detection) => detection.code),
         ...coverageField,
         ...base,
       };
@@ -81,7 +81,7 @@ export function classifyRunbookOutcome(output: RunbookOutput): ClassifiedRunbook
       return {
         status: 'INCONCLUSIVE',
         outcomeKind: outcome.kind,
-        matchedCaseIds: [],
+        matchedKnownErrorCodes: [],
         ...coverageField,
         ...(recoveredText !== '' ? { error: recoveredText } : {}),
         ...(output.context.fields.length > 0 ? { fields: output.context.fields } : {}),
@@ -95,24 +95,30 @@ export function classifyRunbookOutcome(output: RunbookOutput): ClassifiedRunbook
       return {
         status: classifyFailure(error),
         outcomeKind: outcome.kind,
-        matchedCaseIds: [],
+        matchedKnownErrorCodes: [],
         ...(error !== '' ? { error } : {}),
         ...base,
       };
     }
-    case 'unknown-case':
+    case 'unknown-error':
     case 'procedure-success': {
       if (recoveredText !== '' && isConfigError(recoveredText)) {
-        return { status: 'CONFIG-ERROR', outcomeKind: outcome.kind, matchedCaseIds: [], error: recoveredText, ...base };
+        return {
+          status: 'CONFIG-ERROR',
+          outcomeKind: outcome.kind,
+          matchedKnownErrorCodes: [],
+          error: recoveredText,
+          ...base,
+        };
       }
       const noData = stats === undefined || stats.recordsMatched === 0 || stats.recordsScanned === 0;
       // These are the outcomes someone has to diagnose, so they carry the
       // evidence the fallback would have shown on screen.
-      const fallbackMessage = outcome.kind === 'unknown-case' ? outcome.fallbackMessage : undefined;
+      const fallbackMessage = outcome.kind === 'unknown-error' ? outcome.fallbackMessage : undefined;
       return {
         status: noData ? 'NO-DATA' : 'MISS',
         outcomeKind: outcome.kind,
-        matchedCaseIds: [],
+        matchedKnownErrorCodes: [],
         ...(recoveredText !== '' ? { error: recoveredText } : {}),
         ...(output.context.fields.length > 0 ? { fields: output.context.fields } : {}),
         ...(fallbackMessage !== undefined ? { fallbackMessage } : {}),
@@ -138,5 +144,5 @@ function countIncompleteSources(output: RunbookOutput): Readonly<Partial<Record<
 
 /** Classification used when no registered runbook exists for an occurrence. */
 export function noRunbookCheck(): RunbookCheck {
-  return { status: 'NO_RUNBOOK', matchedCaseIds: [] };
+  return { status: 'NO_RUNBOOK', matchedKnownErrorCodes: [] };
 }

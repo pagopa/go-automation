@@ -36,12 +36,12 @@ pnpm create:runbook --type base --id pn-foo-Bar --dry-run
 
 ## Templates
 
-| id            | files generated                                                     | description                                |
-| ------------- | ------------------------------------------------------------------- | ------------------------------------------ |
-| `api-gateway` | `knownServices.ts`, `knownUrls.ts`, `knownCases.ts`, `runbook.ts`   | Full API Gateway alarm runbook             |
-| `lambda`      | `knownServices.ts`, `knownErrors.ts`, `knownCases.ts`, `runbook.ts` | Lambda `LogInvocationErrors` alarm runbook |
-| `service`     | `knownServices.ts`, `knownCases.ts`, `runbook.ts`                   | Application-log alarm runbook              |
-| `base`        | `runbook.ts`                                                        | Generic `RunbookBuilder` runbook           |
+| id            | files generated                                                                  | description                                |
+| ------------- | -------------------------------------------------------------------------------- | ------------------------------------------ |
+| `api-gateway` | `knownServices.ts`, `knownUrls.ts`, `knownErrors.ts`, `runbook.ts`               | Full API Gateway alarm runbook             |
+| `lambda`      | `knownServices.ts`, `downstreamErrorPatterns.ts`, `knownErrors.ts`, `runbook.ts` | Lambda `LogInvocationErrors` alarm runbook |
+| `service`     | `knownServices.ts`, `knownErrors.ts`, `runbook.ts`                               | Application-log alarm runbook              |
+| `base`        | `runbook.ts`                                                                     | Generic `RunbookBuilder` runbook           |
 
 Every template exports its builder as `buildRunbook()`: the runbook's identity is
 its directory, not the function name. When wiring is enabled a `registration.ts`
@@ -93,6 +93,18 @@ API Gateway template inputs: `--api-gw-log-group`, `--entry-service`,
 Lambda template inputs: `--entry-lambda`, `--var-prefix`, `--event-source`.
 
 Service template inputs: `--service-name`, `--var-prefix`, `--log-group`.
+
+## The code of a new known error
+
+Every known error has a `code`, the same in go-runbooks and in Watchtower: the templates write the code of their
+example known error, and for a new one in an existing runbook
+
+```bash
+pnpm known-error:code <runbook-key> <name-in-kebab-case>   # add --common for a known error of the whole family
+```
+
+prints the code to write in its declaration. For a runbook not registered yet, or documented only in go-runbooks,
+add `--product <PRODUCT> --kind <KIND>`.
 
 ## Tests
 

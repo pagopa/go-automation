@@ -17,7 +17,7 @@ const MATRIX_KEY_SEPARATOR = '\u0000';
 interface MutableBucket {
   runbooks: number;
   alarms: number;
-  knownCases: number;
+  knownErrors: number;
   steps: number;
 }
 
@@ -52,18 +52,18 @@ export function computeRunbookStatistics(
   const matrix = new Map<string, MutableBucket>();
   const distinctAlarms = new Set<string>();
 
-  let knownCases = 0;
-  let annotatedKnownCases = 0;
+  let knownErrors = 0;
+  let annotatedKnownErrors = 0;
   let steps = 0;
-  let runbooksWithoutKnownCases = 0;
+  let runbooksWithoutKnownErrors = 0;
   let runbooksWithMultipleAlarms = 0;
 
   for (const entry of entries) {
     for (const alarmName of entry.alarmNames) distinctAlarms.add(alarmName);
-    knownCases += entry.knownCaseCount;
-    annotatedKnownCases += entry.annotatedKnownCaseCount;
+    knownErrors += entry.knownErrorCount;
+    annotatedKnownErrors += entry.annotatedKnownErrorCount;
     steps += entry.stepCount;
-    if (entry.knownCaseCount === 0) runbooksWithoutKnownCases += 1;
+    if (entry.knownErrorCount === 0) runbooksWithoutKnownErrors += 1;
     if (entry.alarmNames.length > 1) runbooksWithMultipleAlarms += 1;
 
     accumulate(byProduct, entry.product, entry);
@@ -76,10 +76,10 @@ export function computeRunbookStatistics(
   const totals: RunbookStatisticsTotals = {
     runbooks: entries.length,
     alarms: distinctAlarms.size,
-    knownCases,
-    annotatedKnownCases,
+    knownErrors,
+    annotatedKnownErrors,
     steps,
-    runbooksWithoutKnownCases,
+    runbooksWithoutKnownErrors,
     runbooksWithMultipleAlarms,
   };
 
@@ -102,14 +102,14 @@ function accumulate(buckets: Map<string, MutableBucket>, label: string, entry: R
     buckets.set(label, {
       runbooks: 1,
       alarms: entry.alarmNames.length,
-      knownCases: entry.knownCaseCount,
+      knownErrors: entry.knownErrorCount,
       steps: entry.stepCount,
     });
     return;
   }
   bucket.runbooks += 1;
   bucket.alarms += entry.alarmNames.length;
-  bucket.knownCases += entry.knownCaseCount;
+  bucket.knownErrors += entry.knownErrorCount;
   bucket.steps += entry.stepCount;
 }
 
@@ -120,7 +120,7 @@ function toBuckets(buckets: ReadonlyMap<string, MutableBucket>): ReadonlyArray<R
       label,
       runbooks: bucket.runbooks,
       alarms: bucket.alarms,
-      knownCases: bucket.knownCases,
+      knownErrors: bucket.knownErrors,
       steps: bucket.steps,
     }))
     .sort((left, right) => right.runbooks - left.runbooks || left.label.localeCompare(right.label));

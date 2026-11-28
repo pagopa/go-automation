@@ -12,11 +12,11 @@ function setVar(id: string): SetVarStep {
 describe('collectRunbookSteps', () => {
   it('visits the pipeline and the steps of every action, once each', () => {
     const shared = setVar('shared');
-    // Safe: collectRunbookSteps reads only steps, known cases and the fallback.
+    // Safe: collectRunbookSteps reads only steps, known errors and the fallback.
     const runbook = {
       metadata: { id: 'rb' },
       steps: [{ step: setVar('a') }, { step: shared }],
-      knownCases: [
+      knownErrors: [
         {
           id: 'case',
           description: 'case',

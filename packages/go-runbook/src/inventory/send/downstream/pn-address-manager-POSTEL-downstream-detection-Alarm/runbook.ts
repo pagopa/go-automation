@@ -2,10 +2,10 @@
  * Runbook: pn-address-manager-POSTEL-downstream-detection-Alarm
  */
 
-import { downstream, unknownCaseFallback } from '../../../../toolkits/send/index.js';
+import { downstream, unknownErrorFallback } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { DOWNSTREAM, SERVICE } from './knownServices.js';
 import { VerifyPostelBatchesStep } from './VerifyPostelBatchesStep.js';
 
@@ -24,7 +24,7 @@ export function buildRunbook(): Runbook {
     },
     service: SERVICE,
     downstream: DOWNSTREAM,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     occurrenceTimeWindow: {
       beforeMinutes: 10,
       afterMinutes: 5,
@@ -42,7 +42,7 @@ export function buildRunbook(): Runbook {
         silent: true,
       },
     ],
-    fallbackAction: unknownCaseFallback('Recupero dei batch POSTEL non ancora dimostrato.', [
+    fallbackAction: unknownErrorFallback('Recupero dei batch POSTEL non ancora dimostrato.', [
       ['Dettaglio', 'proseguire la verifica dei batch mancanti e del downstream Consolidatore postale.'],
       ['Servizio', 'pn-address-manager'],
       ['Batch impattati', '{{vars.postelImpactedBatchCount}}'],

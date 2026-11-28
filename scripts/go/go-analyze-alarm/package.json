@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Analyzes an alarm, executes its associated runbook, and determines the correct operational outcome and next action based on collected evidence and known cases.",
+  "description": "Analyzes an alarm, executes its associated runbook, and determines the correct operational outcome and next action based on collected evidence and known errors.",
   "main": "dist/index.js",
   "exports": {
     ".": {

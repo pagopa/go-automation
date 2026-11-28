@@ -12,13 +12,13 @@ function row(partial: Partial<AnalysisMatch>): RtaCheckRow {
       awsAccountId: 'a',
       awsRegion: 'eu-south-1',
     },
-    runbook: { status: 'HIT', matchedCaseIds: ['case'] },
+    runbook: { status: 'HIT', matchedKnownErrorCodes: ['case'] },
     comparison: {
       status: 'MATCH_STRONG',
       confidence: 0.88,
       reasons: [],
       signals: {
-        caseIdMentioned: false,
+        knownErrorCodeMentioned: false,
         descriptionOverlap: 0,
         traceIdOverlap: [],
         downstreamOverlap: [],

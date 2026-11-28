@@ -10,7 +10,7 @@ export {
   createInteropK8sAlarmRunbook,
   defaultInteropK8sRunbookStepIds,
 } from './builders/createInteropK8sAlarmRunbook.js';
-export { defaultInteropK8sUnknownCaseFallback } from './builders/defaultInteropK8sUnknownCaseFallback.js';
+export { defaultInteropK8sUnknownErrorFallback } from './builders/defaultInteropK8sUnknownErrorFallback.js';
 export {
   buildInteropK8sApplicationLogGroup,
   INTEROP_K8S_APPLICATION_LOG_GROUP_TEMPLATE,

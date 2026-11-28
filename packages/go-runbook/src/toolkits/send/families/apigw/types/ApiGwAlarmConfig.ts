@@ -1,4 +1,4 @@
-import type { CaseAction, KnownCase, PipelineHook, RunbookMetadata } from '../../../../../engine/index.js';
+import type { CaseAction, KnownError, PipelineHook, RunbookMetadata } from '../../../../../engine/index.js';
 import type { RunbookAnalysisDefaults } from '../../../../common/analysis/RunbookAnalysisDefaults.js';
 import type { ApiGwPipelineAnchor } from './ApiGwPipelineAnchor.js';
 import type { ApiGwService } from '../../../../common/families/apigw/types/ApiGwService.js';
@@ -13,7 +13,7 @@ import type { ApiGwExecutionLogAnalysisMode } from '../../../../common/families/
  * La factory assembla un {@link Runbook} interamente validato a partire
  * da questi input, così che gli autori di runbook debbano fornire solo i
  * dati specifici del proprio allarme (entry service, services, known URLs,
- * known cases).
+ * known errors).
  *
  * La pipeline è **dinamica**: solo l'entry service è eseguito di default;
  * gli altri servizi sono raggiunti solo quando un {@link KnownUrl}
@@ -65,7 +65,7 @@ export interface ApiGwAlarmConfig {
    * See {@link ApiGwPipelineAnchor} for the available positions.
    */
   readonly hooks?: ReadonlyArray<PipelineHook<ApiGwPipelineAnchor>>;
-  readonly knownCases: ReadonlyArray<KnownCase>;
+  readonly knownErrors: ReadonlyArray<KnownError>;
   /** Extra analysis references; the builder always prepends the primary resource. */
   readonly analysisDefaults?: RunbookAnalysisDefaults;
   /**
@@ -88,7 +88,7 @@ export interface ApiGwAlarmConfig {
    * Behaviour of the optional execution-log branch. Default `terminal`
    * preserves the legacy pipeline. `best-effort` treats execution logs as
    * enrichment and always falls through to application logs when they are
-   * unavailable or do not identify a known case.
+   * unavailable or do not identify a known error.
    */
   readonly executionLogAnalysisMode?: ApiGwExecutionLogAnalysisMode;
   /** Limite iterazioni anti-loop opzionale forwarded all'engine */

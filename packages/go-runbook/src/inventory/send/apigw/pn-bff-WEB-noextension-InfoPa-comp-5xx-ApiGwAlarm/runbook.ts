@@ -1,6 +1,6 @@
 import { apigw } from '../../../../toolkits/send/index.js';
 import { type Runbook, SetVarStep } from '../../../../engine/index.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { API_GW_LOG_GROUP, ENTRY_SERVICE, REACHABLE_SERVICES } from './knownServices.js';
 import { KNOWN_URLS } from './knownUrls.js';
 import { INFO_PA_QUERY_PROFILE } from './queryProfile.js';
@@ -57,7 +57,7 @@ export function buildRunbook(): Runbook {
         silent: true,
       },
     ],
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       runbookName: INFO_PA_ALARM,
       finalActions: [],

@@ -18,7 +18,7 @@ export function createTestExecutionResult(options: TestExecutionResultOptions = 
   return {
     runbookId: 'test-runbook',
     status,
-    detections: matchedCases.map((knownCase) => ({ knownCase, evidenceRows: 0, observations: [] })),
+    detections: matchedCases.map((knownError) => ({ knownError, evidenceRows: 0, observations: [] })),
     coverage,
     windowIncomplete: createTestLedger(coverage).windowIncomplete(),
     durationMs: 0,
@@ -26,7 +26,7 @@ export function createTestExecutionResult(options: TestExecutionResultOptions = 
     finalContext,
     recoveredErrors: finalContext.recoveredErrors,
     trace: {
-      schemaVersion: '3.0.0',
+      schemaVersion: '4.0.0',
       execution: {
         executionId: finalContext.executionId,
         runbookId: 'test-runbook',
@@ -42,7 +42,11 @@ export function createTestExecutionResult(options: TestExecutionResultOptions = 
       input: { ...options.params },
       pipeline: [],
       variables: { ...options.vars },
-      caseMatching: { casesEvaluated: 0, evaluations: [], matchedCaseIds: matchedCases.map(({ id }) => id) },
+      caseMatching: {
+        casesEvaluated: 0,
+        evaluations: [],
+        matchedKnownErrorCodes: matchedCases.map(({ code }) => code),
+      },
       actionsExecuted: [],
       coverage,
       summary: {

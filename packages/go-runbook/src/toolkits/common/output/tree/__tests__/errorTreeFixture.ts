@@ -1,6 +1,6 @@
 import type { ErrorTreeNode } from '../../../../../engine/types/ErrorTreeNode.js';
-import type { KnownCase } from '../../../../../engine/types/KnownCase.js';
-import type { KnownCaseDetection } from '../../../../../engine/types/KnownCaseDetection.js';
+import type { KnownError } from '../../../../../engine/types/KnownError.js';
+import type { KnownErrorDetection } from '../../../../../engine/types/KnownErrorDetection.js';
 import type { RunbookExecutionResult } from '../../../../../engine/types/RunbookExecutionResult.js';
 import type { TreeChainGroup } from '../../../../../engine/types/TreeChainGroup.js';
 import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
@@ -10,9 +10,9 @@ export const TRACE = '1-6789abcd-0123456789abcdef01234567';
 export const EARLY = '2026-01-01T00:00:00.000Z';
 export const LATE = '2026-01-01T00:05:00.000Z';
 
-function knownCase(id: string): KnownCase {
+function knownError(id: string): KnownError {
   return {
-    id,
+    code: id,
     description: `Caso ${id}`,
     condition: { type: 'compare', ref: 'vars.x', operator: '==', value: 'y' },
     action: { type: 'log', level: 'info', title: id },
@@ -20,8 +20,8 @@ function knownCase(id: string): KnownCase {
 }
 
 /** The detection of the node `a1`: it observed `req-1` before the root did. */
-export const DETECTION: KnownCaseDetection = {
-  knownCase: knownCase('c1'),
+export const DETECTION: KnownErrorDetection = {
+  knownError: knownError('c1'),
   evidenceRows: 1,
   observations: [{ kind: 'requestId', value: 'req-1', observedAt: EARLY }],
 };

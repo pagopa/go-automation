@@ -6,8 +6,8 @@ import { lambda } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
 import { LAMBDA_FUNCTION, DOWNSTREAMS } from './knownServices.js';
-import { DOWNSTREAM_ERROR_PATTERNS } from './knownErrors.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { DOWNSTREAM_ERROR_PATTERNS } from './downstreamErrorPatterns.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 
 /**
  * Builds the pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm runbook definition.
@@ -28,6 +28,6 @@ export function buildRunbook(): Runbook {
     lambda: LAMBDA_FUNCTION,
     downstreams: DOWNSTREAMS,
     downstreamErrorPatterns: DOWNSTREAM_ERROR_PATTERNS,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
   });
 }

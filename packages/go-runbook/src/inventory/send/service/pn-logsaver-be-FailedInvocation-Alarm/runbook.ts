@@ -1,5 +1,5 @@
 import { all, type Runbook, varEquals } from '../../../../engine/index.js';
-import { knownCase, unknownCaseFallback, AlarmRunbookBuilder } from '../../../../toolkits/send/index.js';
+import { knownError, unknownErrorFallback, AlarmRunbookBuilder } from '../../../../toolkits/send/index.js';
 import { LOGSAVER_ALARM, RUNBOOK_URL } from './alarmDefinition.js';
 import { LOG_GROUP, QueryLogsaverDiagnosticsStep } from './QueryLogsaverDiagnosticsStep.js';
 
@@ -94,9 +94,9 @@ export function buildRunbook(): Runbook {
         },
       ],
     })
-    .knownCase(
-      knownCase({
-        id: 'logsaver-batch-verification-required',
+    .knownError(
+      knownError({
+        code: 'SEND_SERVICE_PLBFIA_LOG-BAT-VER-REQ',
         description: 'Soli errori di interruzione del task Fargate Spot',
         condition: all(
           varEquals('logsaverDiagnostics', 'COLLECTED'),
@@ -110,9 +110,9 @@ export function buildRunbook(): Runbook {
         analysis: { proposedStatus: 'COMPLETED', analysisType: 'ANALYZABLE', finalActions: [], links: [] },
       }),
     )
-    .knownCase(
-      knownCase({
-        id: 'logsaver-spot-with-unaccounted-errors',
+    .knownError(
+      knownError({
+        code: 'SEND_SERVICE_PLBFIA_LOG-SPO-WIT-UNA-ERR',
         description: 'Firma Spot presente con errori ancora da verificare',
         condition: all(
           varEquals('logsaverDiagnostics', 'COLLECTED'),
@@ -127,7 +127,7 @@ export function buildRunbook(): Runbook {
       }),
     )
     .fallback(
-      unknownCaseFallback('Evidenze insufficienti sul fallimento del job logsaver', [
+      unknownErrorFallback('Evidenze insufficienti sul fallimento del job logsaver', [
         ['Risoluzione', 'Risoluzione non documentata.'],
       ]),
     )

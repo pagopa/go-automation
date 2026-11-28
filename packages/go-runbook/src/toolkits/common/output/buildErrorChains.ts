@@ -60,8 +60,8 @@ export function errorChainsOf(result: RunbookExecutionResult, view: ErrorTreeVie
       {
         level: 0,
         target: WINDOW_TARGET,
-        label: detection.knownCase.description,
-        caseIds: [detection.knownCase.id],
+        label: detection.knownError.description,
+        knownErrorCodes: [detection.knownError.code],
         status: 'recognized',
       },
     ],
@@ -72,10 +72,10 @@ export function errorChainsOf(result: RunbookExecutionResult, view: ErrorTreeVie
     errors: 1,
     ...omitUndefined({ firstSeenAt: detection.firstSeenAt, lastSeenAt: detection.lastSeenAt }),
     routes: [],
-    samples: [{ key: detection.knownCase.id, correlation: {} }],
+    samples: [{ key: detection.knownError.code, correlation: {} }],
     members: [
       {
-        key: detection.knownCase.id,
+        key: detection.knownError.code,
         correlation: {},
         ...(detection.firstSeenAt !== undefined ? { occurredAt: detection.firstSeenAt } : {}),
       },
@@ -141,14 +141,14 @@ function treeChainGroup(group: TreeChainGroup, view: ErrorTreeView): ErrorChainG
 
 /** A node of the tree as a node of a chain. */
 function chainNode(node: ErrorTreeNode, view: ErrorTreeView): ErrorChainNode {
-  const caseIds = node.detections.map((detection) => detection.knownCase.id);
-  const description = [...new Set(node.detections.map((detection) => detection.knownCase.description))].join(' + ');
+  const knownErrorCodes = node.detections.map((detection) => detection.knownError.code);
+  const description = [...new Set(node.detections.map((detection) => detection.knownError.description))].join(' + ');
   return {
     level: node.level,
     target: node.target,
     label: node.label,
     ...(description !== '' && description !== node.label ? { description } : {}),
-    caseIds,
+    knownErrorCodes,
     status: view.statusOf(node),
   };
 }

@@ -14,7 +14,7 @@ function basePlaceholders(answers: RunbookAnswers): ReadonlyMap<string, string> 
 
 /**
  * Generic/base runbook template: a single `runbook.ts` built with
- * `RunbookBuilder`, ready to extend with steps and known cases.
+ * `RunbookBuilder`, ready to extend with steps and known errors.
  */
 export const BASE_TEMPLATE: RunbookTemplate = {
   id: 'base',

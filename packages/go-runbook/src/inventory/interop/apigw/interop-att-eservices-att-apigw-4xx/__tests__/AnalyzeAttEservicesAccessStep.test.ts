@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { StepResult } from '../../../../../engine/index.js';
-import { conditionContext } from '../../../shared/__tests__/helpers/knownCaseTesting.js';
+import { conditionContext } from '../../../shared/__tests__/helpers/knownErrorTesting.js';
 import type { LogRows } from '../../../../../__tests__/helpers/LogRows.js';
 import { AnalyzeAttEservicesAccessStep, type AttEservicesAccessAnalysis } from '../AnalyzeAttEservicesAccessStep.js';
 import { API_GW_ID, QUERY_STEP_ID } from '../alarmDefinition.js';

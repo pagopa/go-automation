@@ -3,7 +3,7 @@ import type { ActionType } from './ActionType.js';
 import type { TraceStatus } from './TraceStatus.js';
 
 /**
- * Trace of the action executed after known case matching.
+ * Trace of the action executed after known error matching.
  * Documents the action type, result, and duration.
  */
 export interface ActionTrace {

@@ -76,14 +76,14 @@ describe('national registries and delayer documented execution', () => {
       const { draft, result } = await execute(runbook, message);
       assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT', runbook.metadata.id);
       assert.deepStrictEqual(result.detections, []);
-      assert.ok(draft.links.length > 0, 'the unknown case keeps the runbook references');
+      assert.ok(draft.links.length > 0, 'the unknown error keeps the runbook references');
     }
   });
 
   it('classifies missing drivers by the Rome day of the occurrence', async () => {
-    for (const [alarmDatetime, caseId, proposedStatus] of [
-      ['2026-09-27T22:30:00.000Z', 'no-drivers-monday', 'IN_PROGRESS'],
-      ['2026-09-29T10:00:00.000Z', 'no-drivers-other-day', 'COMPLETED'],
+    for (const [alarmDatetime, knownErrorCode, proposedStatus] of [
+      ['2026-09-27T22:30:00.000Z', 'SEND_SERVICE_PDSLJEFLA_NO-DRI-MON', 'IN_PROGRESS'],
+      ['2026-09-29T10:00:00.000Z', 'SEND_SERVICE_PDSLJEFLA_NO-DRI-OTH-DAY', 'COMPLETED'],
     ] as const) {
       const { draft, result } = await execute(
         buildDelayerRunbook(),
@@ -91,8 +91,8 @@ describe('national registries and delayer documented execution', () => {
         alarmDatetime,
       );
       assert.deepStrictEqual(
-        result.detections.map(({ knownCase }) => knownCase.id),
-        [caseId],
+        result.detections.map(({ knownError }) => knownError.code),
+        [knownErrorCode],
       );
       assert.strictEqual(draft?.kind, 'KNOWN_CASE');
       assert.strictEqual(draft.proposedStatus, proposedStatus);

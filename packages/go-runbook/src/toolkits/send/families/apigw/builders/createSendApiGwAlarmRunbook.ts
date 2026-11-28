@@ -19,8 +19,8 @@ import { logRowIdentity } from '../../../../common/steps/aws/cloudwatch-logs/log
 import { QueryApiGwExecutionLogsStep } from '../../../../common/families/apigw/steps/QueryApiGwExecutionLogsStep.js';
 import { StopApiGwExecutionLogAnalysisStep } from '../../../../common/families/apigw/steps/StopApiGwExecutionLogAnalysisStep.js';
 import { EvaluateApiGwAuthorizerFailureStep } from '../../../../common/families/apigw/steps/EvaluateApiGwAuthorizerFailureStep.js';
-import { builtinApiGwAuthorizerKnownCases } from '../../../../common/families/apigw/knownCases/authorizerKnownCases.js';
-import { defaultSendApiGwUnknownCaseFallback } from './defaultSendApiGwUnknownCaseFallback.js';
+import { builtinApiGwAuthorizerKnownErrors } from '../../../../common/families/apigw/knownErrors/authorizerKnownErrors.js';
+import { defaultSendApiGwUnknownErrorFallback } from './defaultSendApiGwUnknownErrorFallback.js';
 import { resolveApiGwAlarmBuildContext } from './resolveApiGwAlarmBuildContext.js';
 import { SEND_API_GW_STEP_IDS as STEP_IDS } from './SEND_API_GW_STEP_IDS.js';
 
@@ -215,15 +215,15 @@ export function createSendApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     levels: serviceLevels,
   });
 
-  // 8. Known cases.
-  for (const knownCase of builtinApiGwAuthorizerKnownCases(config.authorizerFailureCheck)) {
-    builder.knownCase(knownCase);
+  // 8. Known errors.
+  for (const knownError of builtinApiGwAuthorizerKnownErrors(config.authorizerFailureCheck)) {
+    builder.knownError(knownError);
   }
-  // 9. Known cases, fallback, context, analysis defaults, iteration cap, build.
+  // 9. Known errors, fallback, context, analysis defaults, iteration cap, build.
   return finishAlarmRunbook(builder, config, {
     builderName: 'createSendApiGwAlarmRunbook',
     defaultFallback: () =>
-      defaultSendApiGwUnknownCaseFallback(
+      defaultSendApiGwUnknownErrorFallback(
         allServices,
         profile.accessLog.schema.traceIdContextVar,
         profile.accessLog.schema.traceIdLabel,

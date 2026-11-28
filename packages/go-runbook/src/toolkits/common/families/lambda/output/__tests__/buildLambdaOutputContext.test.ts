@@ -19,7 +19,7 @@ const RUNBOOK = createLambdaAlarmRunbook({
     eventSource: 'sqs',
     configuredTimeoutMs: 15000,
   },
-  knownCases: [],
+  knownErrors: [],
   queryProfile: DEFAULT_LAMBDA_PROFILE,
   product: 'SEND',
 });

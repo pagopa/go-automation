@@ -1,4 +1,4 @@
-import type { CaseAction, KnownCase } from '../../../engine/index.js';
+import type { CaseAction, KnownError } from '../../../engine/index.js';
 import type { RunbookAnalysisDefaults } from '../analysis/RunbookAnalysisDefaults.js';
 
 /**
@@ -7,7 +7,7 @@ import type { RunbookAnalysisDefaults } from '../analysis/RunbookAnalysisDefault
  */
 export interface AlarmRunbookTailConfig {
   readonly id: string;
-  readonly knownCases: ReadonlyArray<KnownCase>;
+  readonly knownErrors: ReadonlyArray<KnownError>;
   readonly fallbackAction?: CaseAction;
   readonly analysisDefaults?: RunbookAnalysisDefaults;
   readonly maxIterations?: number;

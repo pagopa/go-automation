@@ -10,7 +10,7 @@ import type { CompareOperator } from './CompareOperator.js';
  * comparison; otherwise they fall back to lexical string comparison.
  * Equality (`==`, `!=`) is always string-based so `'1'` and `1` compare equal.
  *
- * Single source of truth shared by {@link ConditionEvaluator} (known-case
+ * Single source of truth shared by {@link ConditionEvaluator} (known-error
  * `compare` conditions) and the `compare` check step — keeping the operator
  * semantics from drifting between the two.
  *

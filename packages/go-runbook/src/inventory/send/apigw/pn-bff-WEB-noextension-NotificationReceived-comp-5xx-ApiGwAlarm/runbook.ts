@@ -7,7 +7,7 @@ import { type Runbook, SetVarStep } from '../../../../engine/index.js';
 
 import { API_GW_LOG_GROUP, ENTRY_SERVICE, REACHABLE_SERVICES } from './knownServices.js';
 import { KNOWN_URLS } from './knownUrls.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { NOTIFICATION_RECEIVED_QUERY_PROFILE } from './queryProfile.js';
 
 /**
@@ -59,7 +59,7 @@ export function buildRunbook(): Runbook {
     authorizerFailureCheck: {
       defaultAuthorizer: apigw.API_GW_AUTHORIZER_LAMBDAS['pn-jwtAuthorizerLambda'],
     },
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       runbookName: 'pn-bff-WEB-noextension-NotificationReceived-comp-5xx-ApiGwAlarm',
       links: [

@@ -105,8 +105,8 @@ describe('pn-downstream-monitoring-lambda runbook', () => {
       ],
     );
     assert.deepStrictEqual(
-      result.detections.map(({ knownCase }) => knownCase.id),
-      ['downstream-monitoring-aws-slow-down'],
+      result.detections.map(({ knownError }) => knownError.code),
+      ['SEND_LAMBDA_PDMLLIEA_DOW-MON-AWS-SLO-DOW'],
     );
     const invocationRows = result.finalContext.stepResults.get('query-lambda-invocation') as Rows;
     assert.deepStrictEqual(
@@ -141,8 +141,8 @@ describe('pn-downstream-monitoring-lambda runbook', () => {
     assert.strictEqual(result.status, 'completed');
     assert.strictEqual(treeNodeVars(result).get('lambdaErrorCategory'), 'out-of-memory');
     assert.deepStrictEqual(
-      result.detections.map(({ knownCase }) => knownCase.id),
-      ['lambda-out-of-memory'],
+      result.detections.map(({ knownError }) => knownError.code),
+      ['SEND_LAMBDA_COMMON_LAM-OUT-OF-MEM'],
     );
     assert.deepStrictEqual(
       invocationCalls.map(({ account, query }) => ({ account, correlated: query.includes(requestId) })),

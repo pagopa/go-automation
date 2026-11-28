@@ -49,7 +49,7 @@ export interface AnalysisDraftParts {
 ### `AnalysisDraftV1` (type)
 
 ```ts
-export type AnalysisDraftV1 = KnownCaseAnalysisDraft | UnknownCaseContextDraft;
+export type AnalysisDraftV1 = KnownErrorAnalysisDraft | UnknownErrorContextDraft;
 ```
 
 ### `AnalysisLinkRef` (type)
@@ -235,7 +235,7 @@ export interface ErrorChainNode {
     readonly target: string;
     readonly label: string;
     readonly description?: string;
-    readonly caseIds: ReadonlyArray<string>;
+    readonly knownErrorCodes: ReadonlyArray<string>;
     readonly status: 'recognized' | 'unrecognized' | 'failed';
 }
 ```
@@ -287,7 +287,7 @@ export interface FailedOutcome {
 ### `fitAnalysisDraft` (value)
 
 ```ts
-export declare function fitAnalysisDraft(draft: KnownCaseAnalysisDraft, parts?: AnalysisDraftParts, limits?: AnalysisDraftLimits): KnownCaseAnalysisDraft;
+export declare function fitAnalysisDraft(draft: KnownErrorAnalysisDraft, parts?: AnalysisDraftParts, limits?: AnalysisDraftLimits): KnownErrorAnalysisDraft;
 ```
 
 ### `IdentifierObservation` (type)
@@ -309,10 +309,10 @@ export interface InconclusiveOutcome {
 }
 ```
 
-### `KnownCaseAnalysis` (type)
+### `KnownErrorAnalysis` (type)
 
 ```ts
-export interface KnownCaseAnalysis {
+export interface KnownErrorAnalysis {
     readonly resolution: string;
     readonly proposedStatus: ProposedAnalysisStatus;
     readonly analysisType: AnalysisType;
@@ -326,10 +326,10 @@ export interface KnownCaseAnalysis {
 }
 ```
 
-### `KnownCaseAnalysisDraft` (type)
+### `KnownErrorAnalysisDraft` (type)
 
 ```ts
-export interface KnownCaseAnalysisDraft {
+export interface KnownErrorAnalysisDraft {
     readonly schemaVersion: 1;
     readonly kind: 'KNOWN_CASE';
     readonly conclusionNotes: string;
@@ -346,12 +346,13 @@ export interface KnownCaseAnalysisDraft {
 }
 ```
 
-### `KnownCaseDetectionOutput` (type)
+### `KnownErrorDetectionOutput` (type)
 
 ```ts
-export interface KnownCaseDetectionOutput {
-    readonly caseId: string;
+export interface KnownErrorDetectionOutput {
+    readonly code: string;
     readonly description: string;
+    readonly analysisType?: AnalysisType;
     readonly firstSeenAt?: string;
     readonly lastSeenAt?: string;
     readonly evidenceRows: number;
@@ -362,12 +363,12 @@ export interface KnownCaseDetectionOutput {
 }
 ```
 
-### `KnownCaseMatchedOutcome` (type)
+### `KnownErrorMatchedOutcome` (type)
 
 ```ts
-export interface KnownCaseMatchedOutcome {
-    readonly kind: 'known-case-matched';
-    readonly detections: ReadonlyArray<KnownCaseDetectionOutput>;
+export interface KnownErrorMatchedOutcome {
+    readonly kind: 'known-error-matched';
+    readonly detections: ReadonlyArray<KnownErrorDetectionOutput>;
     readonly message: string;
 }
 ```
@@ -394,7 +395,7 @@ export interface ObservedErrors {
 ```ts
 export interface OperationalModelAugmentations {
     readonly runbook: RunbookExtensionsAugmentation;
-    readonly knownCase: KnownCaseExtensionsAugmentation;
+    readonly knownError: KnownErrorExtensionsAugmentation;
     readonly stepDescriptor: StepDescriptorExtensionsAugmentation;
     readonly stepDiagnostics: StepDiagnosticsAugmentation;
     readonly executionEnvironment: ExecutionEnvironmentExtensionsAugmentation;
@@ -445,7 +446,7 @@ export declare function renderErrorChainTree(groups: ReadonlyArray<ErrorChainSum
 ### `RUNBOOK_OUTPUT_SCHEMA_VERSION` (value)
 
 ```ts
-const RUNBOOK_OUTPUT_SCHEMA_VERSION = "4.0.0";
+const RUNBOOK_OUTPUT_SCHEMA_VERSION = "5.0.0";
 ```
 
 ### `RunbookCheck` (type)
@@ -454,7 +455,7 @@ const RUNBOOK_OUTPUT_SCHEMA_VERSION = "4.0.0";
 export interface RunbookCheck {
     readonly status: RunbookCheckStatus;
     readonly outcomeKind?: string;
-    readonly matchedCaseIds: ReadonlyArray<string>;
+    readonly matchedKnownErrorCodes: ReadonlyArray<string>;
     readonly incompleteSources?: Readonly<Partial<Record<CoverageReason, number>>>;
     readonly durationMs?: number;
     readonly cloudWatchRecordsScanned?: number;
@@ -500,7 +501,7 @@ export interface RunbookEvidence {
 ### `RunbookOutcome` (type)
 
 ```ts
-export type RunbookOutcome = KnownCaseMatchedOutcome | UnknownCaseOutcome | InconclusiveOutcome | ProcedureSuccessOutcome | ProcedureFailureOutcome | FailedOutcome | AbortedOutcome;
+export type RunbookOutcome = KnownErrorMatchedOutcome | UnknownErrorOutcome | InconclusiveOutcome | ProcedureSuccessOutcome | ProcedureFailureOutcome | FailedOutcome | AbortedOutcome;
 ```
 
 ### `RunbookOutput` (type)
@@ -567,10 +568,10 @@ export interface RunbookTelemetry {
 }
 ```
 
-### `UnknownCaseContextDraft` (type)
+### `UnknownErrorContextDraft` (type)
 
 ```ts
-export interface UnknownCaseContextDraft {
+export interface UnknownErrorContextDraft {
     readonly schemaVersion: 1;
     readonly kind: 'UNKNOWN_CASE_CONTEXT';
     readonly runbookName?: string;
@@ -581,11 +582,11 @@ export interface UnknownCaseContextDraft {
 }
 ```
 
-### `UnknownCaseOutcome` (type)
+### `UnknownErrorOutcome` (type)
 
 ```ts
-export interface UnknownCaseOutcome {
-    readonly kind: 'unknown-case';
+export interface UnknownErrorOutcome {
+    readonly kind: 'unknown-error';
     readonly casesEvaluated: number;
     readonly fallbackMessage?: string;
     readonly message: string;
@@ -636,10 +637,10 @@ export type EvidenceRetention = {
 export type ExecutionEnvironmentExtensionsAugmentation = 'executionEnvironment';
 ```
 
-### `KnownCaseExtensionsAugmentation` (dist/toolkits/common/augmentations/KnownCaseExtensions.d.ts)
+### `KnownErrorExtensionsAugmentation` (dist/toolkits/common/augmentations/KnownErrorExtensions.d.ts)
 
 ```ts
-export type KnownCaseExtensionsAugmentation = 'knownCase';
+export type KnownErrorExtensionsAugmentation = 'knownError';
 ```
 
 ### `RunbookExtensionsAugmentation` (dist/toolkits/common/augmentations/RunbookExtensions.d.ts)

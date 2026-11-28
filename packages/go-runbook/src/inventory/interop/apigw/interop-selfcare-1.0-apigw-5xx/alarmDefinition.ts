@@ -1,7 +1,7 @@
 import { interop, type InteropApiGwAlarm } from '../../../../toolkits/interop/index.js';
 
 /**
- * Everything the runbook, its known cases and the registry need about the
+ * Everything the runbook, its known errors and the registry need about the
  * INTEROP Selfcare API Gateway alarm. The environment sits in the middle of the alarm name.
  */
 export const SELFCARE_ALARM: InteropApiGwAlarm = interop.apigw.defineInteropApiGwAlarm({

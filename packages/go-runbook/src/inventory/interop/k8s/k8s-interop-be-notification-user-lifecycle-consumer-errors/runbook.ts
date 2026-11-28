@@ -2,7 +2,7 @@ import { NOTIFICATION_USER_LIFECYCLE_ALARM } from './alarmDefinition.js';
 import { interop } from '../../../../toolkits/interop/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { NOTIFICATION_USER_LIFECYCLE_QUERY_PROFILE } from './queryProfile.js';
 
 /**
@@ -23,7 +23,7 @@ export function buildRunbook(): Runbook {
       tags: ['interop', 'k8s', 'service', 'notification', 'kafka'],
     },
     queryProfile: NOTIFICATION_USER_LIFECYCLE_QUERY_PROFILE,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       runbookName: NOTIFICATION_USER_LIFECYCLE_ALARM.runbookKey,
       finalActions: [],

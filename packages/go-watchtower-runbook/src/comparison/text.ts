@@ -32,3 +32,21 @@ export function tokenDice(a: string, b: string): number {
   }
   return (2 * intersection) / (setA.size + setB.size);
 }
+
+/** A character that can be part of an identifier: a code (`SEND_SERVICE_A_MIS-DRI`) or an old id (`missing-drivers`). */
+const IDENTIFIER_CHAR = '[a-z0-9_-]';
+
+/**
+ * Whether a normalized text names an identifier as a whole token: `send_service_a_mis-dri` is not named by a text that
+ * only mentions `send_service_a_mis-dri-cap`.
+ *
+ * @param normalizedText - Text already passed through {@link normalize}
+ * @param identifier - The identifier, in any case
+ * @returns Whether the identifier occurs with no identifier character on either side
+ */
+export function namesIdentifier(normalizedText: string, identifier: string): boolean {
+  const normalized = normalize(identifier);
+  if (!normalizedText.includes(normalized)) return false;
+  const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?<!${IDENTIFIER_CHAR})${escaped}(?!${IDENTIFIER_CHAR})`).test(normalizedText);
+}

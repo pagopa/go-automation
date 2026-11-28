@@ -1,7 +1,7 @@
 /**
  * Generic operational toolkit: entrypoint `@pagopa/go-runbook/toolkits/common`.
  *
- * Service ports, CloudWatch Logs steps, parsing, policies, analysis and known cases,
+ * Service ports, CloudWatch Logs steps, parsing, policies, analysis and known errors,
  * registration, the generic families (`apigw`, `lambda`, `service`) as
  * namespaces, and the test service registry. It knows no product: SEND and
  * INTEROP data live in `./toolkits/send` and `./toolkits/interop`.
@@ -104,11 +104,11 @@ export type { BuildRunbookOutputOptions } from './output/BuildRunbookOutputOptio
 export type { RunbookOutputContextBuilderFn } from './output/RunbookOutputContextBuilderFn.js';
 export type { LogSampleOptions } from './output/LogSampleOptions.js';
 
-// Analysis and known cases
+// Analysis and known errors
 export type { RunbookAnalysisDefaults } from './analysis/RunbookAnalysisDefaults.js';
-export { knownCase } from './analysis/knownCase.js';
-export type { KnownCaseSpec } from './analysis/knownCase.js';
-export { UNKNOWN_CASE_TITLE, unknownCaseFallback } from './analysis/reporting/unknownCaseFallback.js';
+export { knownError } from './analysis/knownError.js';
+export type { KnownErrorSpec } from './analysis/knownError.js';
+export { UNKNOWN_ERROR_TITLE, unknownErrorFallback } from './analysis/reporting/unknownErrorFallback.js';
 export { ANALYSIS_LOG_ACTION_RENDERER } from './analysis/reporting/ANALYSIS_LOG_ACTION_RENDERER.js';
 export { assertAnalysisAnnotations } from './analysis/validation/assertAnalysisAnnotations.js';
 export type { DownstreamCatalogs } from './analysis/validation/DownstreamCatalogs.js';
@@ -118,6 +118,8 @@ export { RunbookCatalog } from './registration/RunbookCatalog.js';
 export type { RunbookCatalogOptions } from './registration/RunbookCatalogOptions.js';
 export type { RunbookRegistration } from './registration/RunbookRegistration.js';
 export type { RunbookDescriptor } from './registration/RunbookDescriptor.js';
+export type { KnownErrorDescriptor } from './registration/KnownErrorDescriptor.js';
+export { knownErrorCodeOf } from './registration/knownErrorCodeOf.js';
 export type { ResolvedRunbook } from './registration/ResolvedRunbook.js';
 export type { RunbookBuilderFn } from './registration/RunbookBuilderFn.js';
 export { RunbookKinds } from './registration/RunbookKind.js';
@@ -125,6 +127,7 @@ export type { RunbookKind } from './registration/RunbookKind.js';
 export { RunbookProducts } from './registration/RunbookProduct.js';
 export type { RunbookProduct } from './registration/RunbookProduct.js';
 export { isRunbookProduct } from './registration/isRunbookProduct.js';
+export { isRunbookKind } from './registration/isRunbookKind.js';
 
 // Families
 export * as apigw from './families/apigw/index.js';

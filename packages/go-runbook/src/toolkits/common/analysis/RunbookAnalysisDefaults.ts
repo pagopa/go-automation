@@ -2,7 +2,7 @@ import type { AnalysisLinkRef } from './AnalysisLinkRef.js';
 import type { AnalysisResourceRef } from './AnalysisResourceRef.js';
 
 /**
- * References shared by every known case of a runbook.
+ * References shared by every known error of a runbook.
  *
  * They are merged with the per-case declarations when the draft is composed:
  * lists are unioned with de-duplication; the proposed status and the analysis

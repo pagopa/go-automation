@@ -16,8 +16,8 @@ function entry(overrides: Partial<RunbookCatalogEntry> & Pick<RunbookCatalogEntr
     tags: [],
     alarmNames: [],
     stepCount: 0,
-    knownCaseCount: 0,
-    annotatedKnownCaseCount: 0,
+    knownErrorCount: 0,
+    annotatedKnownErrorCount: 0,
     ...overrides,
   };
 }
@@ -30,10 +30,10 @@ describe('computeRunbookStatistics', () => {
           key: 'a',
           alarmNames: ['a-dev', 'a-prod'],
           stepCount: 4,
-          knownCaseCount: 3,
-          annotatedKnownCaseCount: 2,
+          knownErrorCount: 3,
+          annotatedKnownErrorCount: 2,
         }),
-        entry({ key: 'b', alarmNames: ['b-prod'], stepCount: 6, knownCaseCount: 0, annotatedKnownCaseCount: 0 }),
+        entry({ key: 'b', alarmNames: ['b-prod'], stepCount: 6, knownErrorCount: 0, annotatedKnownErrorCount: 0 }),
       ],
       GENERATED_AT,
     );
@@ -42,10 +42,10 @@ describe('computeRunbookStatistics', () => {
     assert.deepEqual(report.totals, {
       runbooks: 2,
       alarms: 3,
-      knownCases: 3,
-      annotatedKnownCases: 2,
+      knownErrors: 3,
+      annotatedKnownErrors: 2,
       steps: 10,
-      runbooksWithoutKnownCases: 1,
+      runbooksWithoutKnownErrors: 1,
       runbooksWithMultipleAlarms: 1,
     });
   });

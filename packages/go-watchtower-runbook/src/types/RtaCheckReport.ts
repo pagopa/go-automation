@@ -33,7 +33,7 @@ export type RunbookCheck = ClassifiedRunbookCheck;
 
 /** Transparent per-signal breakdown of the V2 comparison. */
 export interface AnalysisMatchSignals {
-  readonly caseIdMentioned: boolean;
+  readonly knownErrorCodeMentioned: boolean;
   readonly descriptionOverlap: number;
   readonly traceIdOverlap: ReadonlyArray<string>;
   readonly downstreamOverlap: ReadonlyArray<string>;
@@ -128,7 +128,7 @@ export interface RtaCheckInput {
 
 /** Full machine-readable report. */
 export interface RtaCheckReport {
-  readonly schemaVersion: '2.0.0';
+  readonly schemaVersion: '3.0.0';
   readonly generatedAt: string;
   readonly input: RtaCheckInput;
   readonly summary: RtaCheckSummary;

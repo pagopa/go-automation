@@ -63,7 +63,7 @@ describe('AlarmRunbookBuilder', () => {
     assert.deepStrictEqual(Object.keys(runbook), [
       'metadata',
       'steps',
-      'knownCases',
+      'knownErrors',
       'fallbackAction',
       'readPolicy',
       'occurrenceTimeWindow',

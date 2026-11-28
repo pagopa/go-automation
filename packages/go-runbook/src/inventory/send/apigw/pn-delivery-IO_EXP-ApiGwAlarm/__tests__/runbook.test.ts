@@ -2,13 +2,13 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookExecutionResult } from '../../../../../engine/index.js';
-import { buildRunbookOutput, type KnownCaseAnalysisDraft } from '../../../../../toolkits/send/index.js';
+import { buildRunbookOutput, type KnownErrorAnalysisDraft } from '../../../../../toolkits/send/index.js';
 import { buildRunbook } from '../runbook.js';
-import { KNOWN_CASES } from '../knownCases.js';
+import { KNOWN_ERRORS } from '../knownErrors.js';
 import { API_GW_LOG_GROUP } from '../knownServices.js';
 import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
 import { executeWithLogs } from '../../../../../__tests__/helpers/executeWithLogs.js';
-import { caseMatches, knownCaseById } from '../../../../../__tests__/helpers/knownCaseMatching.js';
+import { caseMatches, knownErrorById } from '../../../../../__tests__/helpers/knownErrorMatching.js';
 import type { LoggedQuery } from '../../../../../__tests__/helpers/LoggedQuery.js';
 import { treeNodeVars } from '../../../../../__tests__/helpers/treeNodeVars.js';
 
@@ -40,7 +40,7 @@ async function execute(
   additionalAccessRows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [],
 ): Promise<{
   result: RunbookExecutionResult;
-  draft: KnownCaseAnalysisDraft;
+  draft: KnownErrorAnalysisDraft;
   calls: ReadonlyArray<LoggedQuery>;
 }> {
   const { result, draft, queries } = await executeWithLogs(
@@ -64,7 +64,7 @@ async function execute(
 
 function matches(id: string, stepId: string, message: string): boolean {
   return caseMatches(
-    knownCaseById(KNOWN_CASES, id),
+    knownErrorById(KNOWN_ERRORS, id),
     createTestContext({ stepResults: { [stepId]: [row({ '@message': message })] } }),
   );
 }
@@ -79,8 +79,8 @@ describe('IO_EXP diagnosis', () => {
         'Gateway response type: AUTHORIZER_CONFIGURATION_ERROR with status code: 500',
       ],
     );
-    assert.strictEqual(result.detections[0]?.knownCase.id, 'authorizer-invocation-504');
-    // A known case does not end the traversal: Delivery is still read for the same request.
+    assert.strictEqual(result.detections[0]?.knownError.code, 'SEND_APIGW_PDIOEXPAGA_AUT-INV-504');
+    // A known error does not end the traversal: Delivery is still read for the same request.
     assert.deepStrictEqual(
       calls.map((c) => c.groups[0]),
       [API_GW_LOG_GROUP, EXECUTION_GROUP, '/aws/ecs/pn-delivery'],
@@ -100,7 +100,7 @@ describe('IO_EXP diagnosis', () => {
       'Lambda invocation failed with status: 403. Lambda request id: integration-request',
       'Execution failed due to configuration error: The request signature we calculated does not match the signature you provided. Check your AWS Secret Access Key and signing method.',
     ]);
-    assert.strictEqual(result.detections[0]?.knownCase.id, 'integration-signature-mismatch');
+    assert.strictEqual(result.detections[0]?.knownError.code, 'SEND_APIGW_PDIOEXPAGA_INT-SIG-MIS');
     assert.strictEqual(draft?.proposedStatus, 'IN_PROGRESS');
   });
 
@@ -114,8 +114,8 @@ describe('IO_EXP diagnosis', () => {
       {},
       [access({ requestId: OTHER_REQUEST, authorizerStatus: '500' })],
     );
-    assert.strictEqual(result.detections[0]?.knownCase.id, 'authorizer-configuration-error');
-    assert.ok(!result.detections.some(({ knownCase }) => knownCase.id === 'authorizer-invocation-504'));
+    assert.strictEqual(result.detections[0]?.knownError.code, 'SEND_APIGW_PDIOEXPAGA_AUT-CON-ERR');
+    assert.ok(!result.detections.some(({ knownError }) => knownError.code === 'SEND_APIGW_PDIOEXPAGA_AUT-INV-504'));
   });
 
   it('recognizes signatures in the same request despite interleaved requests and reversed log order', async () => {
@@ -128,7 +128,7 @@ describe('IO_EXP diagnosis', () => {
       const { result } = await execute(access({ authorizerStatus: '500' }), executionMessages, {}, [
         access({ requestId: OTHER_REQUEST }),
       ]);
-      assert.strictEqual(result.detections[0]?.knownCase.id, 'authorizer-invocation-504');
+      assert.strictEqual(result.detections[0]?.knownError.code, 'SEND_APIGW_PDIOEXPAGA_AUT-INV-504');
     }
   });
 
@@ -138,19 +138,19 @@ describe('IO_EXP diagnosis', () => {
       { requestId: '', message: AUTHORIZER_ERROR },
     ]);
     // Lines without the request id belong to no request: only the access log speaks for it.
-    const missingIds = missing.result.detections.map(({ knownCase }) => knownCase.id);
-    assert.strictEqual(missingIds[0], 'authorizer-access-log-failure');
-    assert.ok(!missingIds.includes('authorizer-configuration-error'));
-    assert.ok(!missingIds.includes('authorizer-invocation-504'));
+    const missingIds = missing.result.detections.map(({ knownError }) => knownError.code);
+    assert.strictEqual(missingIds[0], 'SEND_APIGW_PDIOEXPAGA_AUT-ACC-LOG-FAI');
+    assert.ok(!missingIds.includes('SEND_APIGW_PDIOEXPAGA_AUT-CON-ERR'));
+    assert.ok(!missingIds.includes('SEND_APIGW_PDIOEXPAGA_AUT-INV-504'));
 
     // Lines of a request that was not looked up are not evidence of this investigation.
     const unknown = await execute(access({ authorizerStatus: '500' }), [
       { requestId: 'unrequested-id', message: INVOCATION_504 },
       { requestId: 'unrequested-id', message: AUTHORIZER_ERROR },
     ]);
-    const ids = unknown.result.detections.map(({ knownCase }) => knownCase.id);
-    assert.ok(!ids.includes('authorizer-configuration-error'));
-    assert.ok(!ids.includes('authorizer-invocation-504'));
+    const ids = unknown.result.detections.map(({ knownError }) => knownError.code);
+    assert.ok(!ids.includes('SEND_APIGW_PDIOEXPAGA_AUT-CON-ERR'));
+    assert.ok(!ids.includes('SEND_APIGW_PDIOEXPAGA_AUT-INV-504'));
   });
 
   it('retains an unresolved authorizer diagnosis and declares the execution logs unavailable when they cannot be read', async () => {
@@ -158,7 +158,7 @@ describe('IO_EXP diagnosis', () => {
       access({ authorizerStatus: '500', authorizerLatency: '10000' }),
       new Error('AccessDeniedException'),
     );
-    assert.strictEqual(result.detections[0]?.knownCase.id, 'authorizer-access-log-failure');
+    assert.strictEqual(result.detections[0]?.knownError.code, 'SEND_APIGW_PDIOEXPAGA_AUT-ACC-LOG-FAI');
     assert.strictEqual(treeNodeVars(result).get('apiGwExecutionLogMode'), 'unavailable');
     assert.deepStrictEqual(
       result.coverage.map(({ source, reason, detail }) => ({ source, reason, detail })),
@@ -171,7 +171,7 @@ describe('IO_EXP diagnosis', () => {
   it('does not assume that an integration 502 proves Delivery unavailability', async () => {
     const { result, draft, calls } = await execute(access({ integrationServiceStatus: '502' }));
     assert.ok(calls.some((c) => c.groups[0] === EXECUTION_GROUP));
-    assert.strictEqual(result.detections[0]?.knownCase.id, 'integration-502');
+    assert.strictEqual(result.detections[0]?.knownError.code, 'SEND_APIGW_PDIOEXPAGA_INT-502');
     assert.strictEqual(draft?.proposedStatus, 'IN_PROGRESS');
   });
 
@@ -193,7 +193,7 @@ describe('IO_EXP diagnosis', () => {
         }),
       ],
     });
-    assert.strictEqual(result.detections[0]?.knownCase.id, 'downstream-pdv-500-internal-server-error');
+    assert.strictEqual(result.detections[0]?.knownError.code, 'SEND_APIGW_PDIOEXPAGA_DOW-PDV-500-INT-SER-ERR');
     const query = calls.find((c) => c.groups[0] === '/aws/ecs/pn-data-vault-sep')?.query ?? '';
     assert.ok(query.includes(ROOT));
     assert.ok(!query.includes(FALLBACK));
@@ -204,18 +204,18 @@ describe('IO_EXP diagnosis', () => {
 
   it('requires PDV evidence in the downstream service and the specific F24 metadata Gone signature', () => {
     const pdv = '[DOWNSTREAM] Service PersonalDataVault_UserRegistry returned errors=500 Internal Server Error';
-    assert.strictEqual(matches('downstream-pdv-500-internal-server-error', 'query-pn-data-vault', pdv), true);
-    assert.strictEqual(matches('downstream-pdv-500-internal-server-error', 'query-pn-delivery', pdv), false);
+    assert.strictEqual(matches('SEND_APIGW_PDIOEXPAGA_DOW-PDV-500-INT-SER-ERR', 'query-pn-data-vault', pdv), true);
+    assert.strictEqual(matches('SEND_APIGW_PDIOEXPAGA_DOW-PDV-500-INT-SER-ERR', 'query-pn-delivery', pdv), false);
     assert.strictEqual(
       matches(
-        'f24-metadata-gone',
+        'SEND_APIGW_PDIOEXPAGA_F24-MET-GON',
         'query-pn-f24',
         '410 Gone from GET http://internal.example:8080/safe-storage/v1/files/PN_F24_META-example.json',
       ),
       true,
     );
     assert.strictEqual(
-      matches('f24-metadata-gone', 'query-pn-f24', '410 Gone from GET https://unrelated.example/file'),
+      matches('SEND_APIGW_PDIOEXPAGA_F24-MET-GON', 'query-pn-f24', '410 Gone from GET https://unrelated.example/file'),
       false,
     );
   });
@@ -233,7 +233,7 @@ describe('IO_EXP diagnosis', () => {
         }),
       ],
     });
-    assert.strictEqual(result.detections[0]?.knownCase.id, 'f24-metadata-gone');
+    assert.strictEqual(result.detections[0]?.knownError.code, 'SEND_APIGW_PDIOEXPAGA_F24-MET-GON');
     assert.strictEqual(draft?.proposedStatus, 'IN_PROGRESS');
   });
 
@@ -269,7 +269,7 @@ describe('IO_EXP diagnosis', () => {
         ['/aws/ecs/pn-delivery', '/aws/ecs/pn-data-vault-sep', '/aws/ecs/pn-f24', '/aws/ecs/pn-safe-storage'],
       );
       assert.strictEqual(treeNodeVars(result, 'pn-delivery').get('deliveryNextUrlTarget'), 'pn-f24');
-      assert.strictEqual(result.detections[0]?.knownCase.id, 'f24-metadata-gone');
+      assert.strictEqual(result.detections[0]?.knownError.code, 'SEND_APIGW_PDIOEXPAGA_F24-MET-GON');
     }
   });
 });

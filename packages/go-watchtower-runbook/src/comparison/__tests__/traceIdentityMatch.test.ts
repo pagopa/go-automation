@@ -16,7 +16,7 @@ const COMPACT = '6789abcd0123456789abcdef01234567';
 /** An output whose detected case observed one identifier of the given kind. */
 function observing(kind: EvidenceIdentifierKind, value: string): RunbookOutput {
   const base = runbookOutputFixture('unrelated');
-  if (base.outcome.kind !== 'known-case-matched') throw new Error('fixture');
+  if (base.outcome.kind !== 'known-error-matched') throw new Error('fixture');
   const [detection] = base.outcome.detections;
   if (detection === undefined) throw new Error('fixture');
   return {

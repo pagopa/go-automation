@@ -2,7 +2,7 @@ import { BFF_ALARM } from './alarmDefinition.js';
 import { interop } from '../../../../toolkits/interop/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { BFF_QUERY_PROFILE } from './queryProfile.js';
 import { AnalyzeBffEvidenceStep } from './AnalyzeBffEvidenceStep.js';
 
@@ -25,7 +25,7 @@ export function buildRunbook(): Runbook {
     },
     queryProfile: BFF_QUERY_PROFILE,
     hooks: [{ at: 'before-cid-analysis', step: new AnalyzeBffEvidenceStep() }],
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       links: [
         {

@@ -3,12 +3,12 @@ import { describe, it } from 'node:test';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext, RunbookExecutionResult } from '../../../../../engine/index.js';
 import { buildRunbook } from '../runbook.js';
-import { KNOWN_CASES } from '../knownCases.js';
+import { KNOWN_ERRORS } from '../knownErrors.js';
 import { API_GW_LOG_GROUP } from '../knownServices.js';
 import { NOTIFICATION_RECEIVED_QUERY_PROFILE as PROFILE } from '../queryProfile.js';
 import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
 import { executeWithLogs } from '../../../../../__tests__/helpers/executeWithLogs.js';
-import { caseMatches, knownCaseById } from '../../../../../__tests__/helpers/knownCaseMatching.js';
+import { caseMatches, knownErrorById } from '../../../../../__tests__/helpers/knownErrorMatching.js';
 import { treeNodeVars } from '../../../../../__tests__/helpers/treeNodeVars.js';
 
 const ROOT = '1-6ac5cc09-67ca536f1c9e14130fb3b03e';
@@ -29,7 +29,7 @@ function context(stepId: string, message: string, vars: Record<string, string> =
 }
 
 function matches(id: string, ctx: RunbookContext): boolean {
-  return caseMatches(knownCaseById(KNOWN_CASES, id), ctx);
+  return caseMatches(knownErrorById(KNOWN_ERRORS, id), ctx);
 }
 
 async function executePaymentsTrace(
@@ -118,12 +118,18 @@ describe('NotificationReceived WEB diagnosis', () => {
   it('recognizes the actual delivery stack-trace signature with changing collection lengths', () => {
     for (const length of [53, 54]) {
       const message = `it.pagopa.pn.commons.exceptions.PnInternalException: Internal Server Error; nested exception is java.lang.IndexOutOfBoundsException: Index -1 out of bounds for length ${length}`;
-      assert.strictEqual(matches('delivery-index-out-of-bounds', context('query-pn-delivery', message)), true);
-      assert.strictEqual(matches('delivery-index-out-of-bounds', context('query-pn-bff', message)), false);
+      assert.strictEqual(
+        matches('SEND_APIGW_PBWEBNNRC5AGA_DEL-IND-OUT-OF-BOU', context('query-pn-delivery', message)),
+        true,
+      );
+      assert.strictEqual(
+        matches('SEND_APIGW_PBWEBNNRC5AGA_DEL-IND-OUT-OF-BOU', context('query-pn-bff', message)),
+        false,
+      );
     }
     assert.strictEqual(
       matches(
-        'delivery-index-out-of-bounds',
+        'SEND_APIGW_PBWEBNNRC5AGA_DEL-IND-OUT-OF-BOU',
         context('query-pn-delivery', 'java.lang.IndexOutOfBoundsException: Index 1 out of bounds for length 2'),
       ),
       false,
@@ -133,7 +139,7 @@ describe('NotificationReceived WEB diagnosis', () => {
   it('recognizes documented date and DynamoDB errors without treating database 400 as API Gateway status', () => {
     assert.strictEqual(
       matches(
-        'delivery-dynamodb-filter-expression-too-large',
+        'SEND_APIGW_PBWEBNNRC5AGA_DEL-DYN-FIL-EXP-TOO-LAR',
         context(
           'query-pn-delivery',
           'software.amazon.awssdk.services.dynamodb.model.DynamoDbException: Invalid FilterExpression: Expression size has exceeded the maximum allowed size; expression size: 4223 (Status Code: 400)',
@@ -143,7 +149,7 @@ describe('NotificationReceived WEB diagnosis', () => {
     );
     assert.strictEqual(
       matches(
-        'delivery-date-range-reversed',
+        'SEND_APIGW_PBWEBNNRC5AGA_DEL-DAT-RAN-REV',
         context(
           'query-pn-delivery',
           "java.lang.IllegalArgumentException: Start (YearAndMonth(year=2025, month=10)) can't be after end (YearAndMonth(year=2024, month=12))",
@@ -156,20 +162,26 @@ describe('NotificationReceived WEB diagnosis', () => {
   it('requires the full correlated Data Vault or Checkout failure signature', () => {
     const vault =
       'org.springframework.web.client.ResourceAccessException: I/O error on GET http://alb.confidential.pn.internal:8080/datavault-private/v1/recipients/internal; java.net.SocketTimeoutException: Read timed out';
-    assert.strictEqual(matches('delivery-data-vault-read-timeout', context('query-pn-delivery', vault)), true);
     assert.strictEqual(
-      matches('delivery-data-vault-read-timeout', context('query-pn-delivery', 'Exception caught by retry')),
+      matches('SEND_APIGW_PBWEBNNRC5AGA_DEL-DAT-VAU-REA-TIM', context('query-pn-delivery', vault)),
+      true,
+    );
+    assert.strictEqual(
+      matches(
+        'SEND_APIGW_PBWEBNNRC5AGA_DEL-DAT-VAU-REA-TIM',
+        context('query-pn-delivery', 'Exception caught by retry'),
+      ),
       false,
     );
     const checkout =
       '[DOWNSTREAM] Service Checkout returned errors=connection timed out after 3000 ms: api.platform.pagopa.it/192.0.2.1:443';
     assert.strictEqual(
-      matches('checkout-connect-timeout', context('query-pn-external-registries-checkout', checkout)),
+      matches('SEND_APIGW_PBWEBNNRC5AGA_CHE-CON-TIM', context('query-pn-external-registries-checkout', checkout)),
       true,
     );
     assert.strictEqual(
       matches(
-        'checkout-connect-timeout',
+        'SEND_APIGW_PBWEBNNRC5AGA_CHE-CON-TIM',
         context(
           'query-pn-external-registries-checkout',
           checkout.replace('api.platform.pagopa.it', 'unrelated.example'),
@@ -181,14 +193,18 @@ describe('NotificationReceived WEB diagnosis', () => {
 
   it('keeps the BFF symptom fallbacks for a complete branch below without diagnosis', () => {
     const fixtures = [
-      { id: 'bff-payments-info-read-timeout', message: PAYMENTS_TIMEOUT, vars: { externalRegistriesLogCount: '0' } },
       {
-        id: 'bff-delivery-read-timeout',
+        id: 'SEND_APIGW_PBWEBNNRC5AGA_BFF-PAY-INF-REA-TIM',
+        message: PAYMENTS_TIMEOUT,
+        vars: { externalRegistriesLogCount: '0' },
+      },
+      {
+        id: 'SEND_APIGW_PBWEBNNRC5AGA_BFF-DEL-REA-TIM',
         message: 'ReadTimeoutException Request to GET http://internal.example:8080/delivery/notifications/received',
         vars: { deliveryLogCount: '0' },
       },
       {
-        id: 'bff-connection-observed-error',
+        id: 'SEND_APIGW_PBWEBNNRC5AGA_BFF-CON-OBS-ERR',
         message: 'The connection observed an error',
         vars: { externalRegistriesLogCount: '1' },
       },
@@ -257,7 +273,7 @@ describe('NotificationReceived WEB diagnosis', () => {
       },
     );
     assert.strictEqual(result.status, 'completed');
-    assert.strictEqual(result.detections[0]?.knownCase.id, 'delivery-index-out-of-bounds');
+    assert.strictEqual(result.detections[0]?.knownError.code, 'SEND_APIGW_PBWEBNNRC5AGA_DEL-IND-OUT-OF-BOU');
     assert.ok(queries.some(({ groups }) => groups[0] === '/aws/ecs/pn-delivery'));
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
@@ -273,8 +289,8 @@ describe('NotificationReceived WEB diagnosis', () => {
     );
     // The checkout timeout below explains the BFF error: its symptom cases need a branch without diagnosis.
     assert.deepStrictEqual(
-      result.detections.map(({ knownCase }) => knownCase.id),
-      ['checkout-connect-timeout'],
+      result.detections.map(({ knownError }) => knownError.code),
+      ['SEND_APIGW_PBWEBNNRC5AGA_CHE-CON-TIM'],
     );
     assert.strictEqual(treeNodeVars(result, 'pn-bff').get('branchOutcome'), 'diagnosed');
   });
@@ -294,8 +310,8 @@ describe('NotificationReceived WEB diagnosis', () => {
       ],
     );
     assert.deepStrictEqual(
-      result.detections.map(({ knownCase }) => knownCase.id),
-      ['checkout-connect-timeout'],
+      result.detections.map(({ knownError }) => knownError.code),
+      ['SEND_APIGW_PBWEBNNRC5AGA_CHE-CON-TIM'],
     );
     assert.strictEqual(treeNodeVars(result, 'pn-bff').get('bffNextUrlTarget'), 'pn-external-registries');
   });
@@ -306,7 +322,7 @@ describe('NotificationReceived WEB diagnosis', () => {
       assert.strictEqual(result.status, 'completed');
       assert.ok(calls.includes('/aws/ecs/pn-external-registries-checkout'));
       assert.strictEqual(treeNodeVars(result, 'pn-bff').get('branchOutcome'), 'undiagnosed');
-      assert.strictEqual(result.detections[0]?.knownCase.id, 'bff-payments-info-read-timeout');
+      assert.strictEqual(result.detections[0]?.knownError.code, 'SEND_APIGW_PBWEBNNRC5AGA_BFF-PAY-INF-REA-TIM');
     }
   });
 
@@ -315,7 +331,7 @@ describe('NotificationReceived WEB diagnosis', () => {
     assert.strictEqual(result.status, 'completed');
     assert.ok(!calls.includes('/aws/ecs/pn-external-registries-checkout'));
     assert.strictEqual(treeNodeVars(result, 'pn-bff').get('branchOutcome'), 'undiagnosed');
-    assert.strictEqual(result.detections[0]?.knownCase.id, 'bff-payments-info-read-timeout');
+    assert.strictEqual(result.detections[0]?.knownError.code, 'SEND_APIGW_PBWEBNNRC5AGA_BFF-PAY-INF-REA-TIM');
   });
 
   it('surfaces a failed checkout query instead of resolving the upstream BFF timeout', async () => {

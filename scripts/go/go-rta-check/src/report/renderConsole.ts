@@ -83,7 +83,7 @@ export function formatVerificationCell(row: RtaCheckRow): string {
 
 /** Prints one row of the live per-execution table as each occurrence completes. */
 export function renderResultsRow(logger: GOLogger, productName: string, alarmName: string, row: RtaCheckRow): void {
-  const cases = row.runbook.matchedCaseIds;
+  const cases = row.runbook.matchedKnownErrorCodes;
   const incomplete = row.runbook.incompleteSources === undefined ? '' : ' · evidenza incompleta';
   const esito =
     row.runbook.status === 'HIT' && cases.length > 0
@@ -165,11 +165,11 @@ function formatCritical(row: RtaCheckRow): string {
   const runbook = row.runbook;
   let detail: string;
   if (runbook.status === 'HIT') {
-    detail = `CONFLICT con casi "${runbook.matchedCaseIds.join(', ')}"`;
+    detail = `CONFLICT con casi "${runbook.matchedKnownErrorCodes.join(', ')}"`;
   } else if (runbook.error !== undefined && runbook.error !== '') {
     detail = runbook.error.slice(0, 90);
   } else {
-    detail = runbook.matchedCaseIds.join(', ');
+    detail = runbook.matchedKnownErrorCodes.join(', ');
   }
   return `  • [${runbook.status}] ${row.event.firedAt} ${detail}`.trimEnd();
 }

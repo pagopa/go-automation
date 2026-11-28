@@ -7,7 +7,7 @@ export interface RunbookCheck {
   readonly status: RunbookCheckStatus;
   readonly outcomeKind?: string;
   /** Ids of the detections, in time order. */
-  readonly matchedCaseIds: ReadonlyArray<string>;
+  readonly matchedKnownErrorCodes: ReadonlyArray<string>;
   /** Incomplete sources of the evidence, by reason; absent when the evidence is complete. */
   readonly incompleteSources?: Readonly<Partial<Record<CoverageReason, number>>>;
   readonly durationMs?: number;
@@ -19,11 +19,11 @@ export interface RunbookCheck {
    * (`MISS`, `INCONCLUSIVE` and `NO-DATA`).
    *
    * Without it a coverage report says *that* a runbook recognised nothing but
-   * never *why*, which is the one thing needed to write the missing known case.
-   * Bounded by construction: these are the same summary fields the unknown-case
+   * never *why*, which is the one thing needed to write the missing known error.
+   * Bounded by construction: these are the same summary fields the unknown-error
    * fallback renders, not raw log rows.
    */
   readonly fields?: ReadonlyArray<RunbookResultField>;
-  /** Message rendered by the unknown-case fallback, when the runbook has one. */
+  /** Message rendered by the unknown-error fallback, when the runbook has one. */
   readonly fallbackMessage?: string;
 }

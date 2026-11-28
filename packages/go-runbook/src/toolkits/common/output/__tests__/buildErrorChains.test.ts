@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 
 import type { CoverageEntry } from '../../../../engine/types/CoverageEntry.js';
 import type { IdentifierObservation } from '../../../../engine/types/IdentifierObservation.js';
-import type { KnownCase } from '../../../../engine/types/KnownCase.js';
+import type { KnownError } from '../../../../engine/types/KnownError.js';
 import type { RunbookExecutionResult } from '../../../../engine/types/RunbookExecutionResult.js';
 import { buildErrorChains } from '../buildErrorChains.js';
 import { createTestExecutionResult } from '../../../../__tests__/helpers/createTestExecutionResult.js';
 
-function knownCase(id: string): KnownCase {
+function knownError(id: string): KnownError {
   return {
-    id,
+    code: id,
     description: id,
     condition: { type: 'compare', ref: 'vars.x', operator: '==', value: 'y' },
     action: { type: 'log', level: 'info', title: id },
@@ -24,7 +24,7 @@ function windowResult(
 ): RunbookExecutionResult {
   return {
     ...createTestExecutionResult({ coverage }),
-    detections: detections.map(([id, observations]) => ({ knownCase: knownCase(id), evidenceRows: 1, observations })),
+    detections: detections.map(([id, observations]) => ({ knownError: knownError(id), evidenceRows: 1, observations })),
   };
 }
 
@@ -47,7 +47,7 @@ describe('buildErrorChains without an error tree', () => {
       ),
     );
     assert.deepStrictEqual(
-      chains.map((chain) => [chain.nodes[0]?.caseIds[0], chain.incompleteEvidence]),
+      chains.map((chain) => [chain.nodes[0]?.knownErrorCodes[0], chain.incompleteEvidence]),
       [
         ['named', true],
         ['other', false],

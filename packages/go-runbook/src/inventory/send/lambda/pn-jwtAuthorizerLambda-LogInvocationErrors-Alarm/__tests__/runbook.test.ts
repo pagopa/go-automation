@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { KNOWN_CASES } from '../knownCases.js';
+import { KNOWN_ERRORS } from '../knownErrors.js';
 import { createTestContext } from '../../../../../__tests__/helpers/createTestContext.js';
 import { executeWithLogs } from '../../../../../__tests__/helpers/executeWithLogs.js';
-import { matchingCaseIds } from '../../../../../__tests__/helpers/knownCaseMatching.js';
+import { matchingKnownErrorCodes } from '../../../../../__tests__/helpers/knownErrorMatching.js';
 import { logRow } from '../../../../../__tests__/helpers/logRow.js';
 import type { RunbookLogsExecution } from '../../../../../__tests__/helpers/RunbookLogsExecution.js';
 import { LAMBDA_FUNCTION } from '../knownServices.js';
@@ -28,13 +28,13 @@ const SOCKET = `Uncaught Exception ${JSON.stringify({
 })}`;
 const DISCONNECT = "Error disconnecting from Redis: TypeError: Cannot read properties of null (reading 'disconnect')";
 const FIXTURES = [
-  ['jwt-iam-api-gateway-access-denied', IAM_DENIED],
-  ['jwt-kms-key-not-found', KMS_INVALID],
-  ['jwt-kms-key-not-found', KMS_MISSING],
-  ['jwt-redis-cluster-down', CLUSTER_DOWN],
-  ['jwt-redis-cluster-down', HASH_SLOT],
-  ['jwt-redis-socket-closed', SOCKET],
-  ['jwt-redis-disconnect-null', DISCONNECT],
+  ['SEND_LAMBDA_PJALLIEA_JWT-IAM-API-GAT-ACC-DEN', IAM_DENIED],
+  ['SEND_LAMBDA_PJALLIEA_JWT-KMS-KEY-NOT-FOU', KMS_INVALID],
+  ['SEND_LAMBDA_PJALLIEA_JWT-KMS-KEY-NOT-FOU', KMS_MISSING],
+  ['SEND_LAMBDA_PJALLIEA_JWT-RED-CLU-DOW', CLUSTER_DOWN],
+  ['SEND_LAMBDA_PJALLIEA_JWT-RED-CLU-DOW', HASH_SLOT],
+  ['SEND_LAMBDA_PJALLIEA_JWT-RED-SOC-CLO', SOCKET],
+  ['SEND_LAMBDA_PJALLIEA_JWT-RED-DIS-NUL', DISCONNECT],
 ] as const;
 
 /** Runs the runbook: the error scan returns `errors`, the invocation query `invocation`. */
@@ -66,7 +66,7 @@ describe('JWT authorizer Lambda runbook', () => {
     for (const [id, message] of FIXTURES) {
       const { result, draft, queries } = await execute([message], [report]);
       assert.deepStrictEqual(
-        result.detections.map((c) => c.knownCase.id),
+        result.detections.map((c) => c.knownError.code),
         [id],
       );
       // The window (prepare, errors, invocations) and the steps of the invocation (parse, analysis, descent).
@@ -75,7 +75,7 @@ describe('JWT authorizer Lambda runbook', () => {
       assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
       assert.strictEqual(
         draft.conclusionNotes,
-        id === 'jwt-iam-api-gateway-access-denied' ? 'PN-20045' : 'Risoluzione non documentata.',
+        id === 'SEND_LAMBDA_PJALLIEA_JWT-IAM-API-GAT-ACC-DEN' ? 'PN-20045' : 'Risoluzione non documentata.',
       );
       assert.strictEqual(queries.length, 2);
       assert.ok(queries[1]?.query.includes(REQUEST_ID));
@@ -88,8 +88,8 @@ describe('JWT authorizer Lambda runbook', () => {
     const { result, draft, queries } = await execute(['Unrecognized authorizer error'], [KMS_INVALID]);
     assert.strictEqual(queries.length, 2);
     assert.deepStrictEqual(
-      result.detections.map((c) => c.knownCase.id),
-      ['jwt-kms-key-not-found'],
+      result.detections.map((c) => c.knownError.code),
+      ['SEND_LAMBDA_PJALLIEA_JWT-KMS-KEY-NOT-FOU'],
     );
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
@@ -106,11 +106,11 @@ describe('JWT authorizer Lambda runbook', () => {
   it('does not promote a disconnect error into evidence that the Redis cluster was down', async () => {
     const { result } = await execute([DISCONNECT]);
     assert.deepStrictEqual(
-      result.detections.map((c) => c.knownCase.id),
-      ['jwt-redis-disconnect-null'],
+      result.detections.map((c) => c.knownError.code),
+      ['SEND_LAMBDA_PJALLIEA_JWT-RED-DIS-NUL'],
     );
     const both = await execute([DISCONNECT, HASH_SLOT]);
-    assert.strictEqual(both.result.detections[0]?.knownCase.id, 'jwt-redis-cluster-down');
+    assert.strictEqual(both.result.detections[0]?.knownError.code, 'SEND_LAMBDA_PJALLIEA_JWT-RED-CLU-DOW');
   });
 
   it('keeps empty logs, unrelated errors and undocumented runtime failures unknown', async () => {
@@ -144,7 +144,7 @@ describe('JWT authorizer Lambda runbook', () => {
       const context = createTestContext({
         stepResults: { 'query-lambda-errors': messages.map((value) => [{ field: '@message', value }]) },
       });
-      assert.deepStrictEqual(matchingCaseIds(KNOWN_CASES, context), [], messages.join(' | '));
+      assert.deepStrictEqual(matchingKnownErrorCodes(KNOWN_ERRORS, context), [], messages.join(' | '));
     }
   });
 });

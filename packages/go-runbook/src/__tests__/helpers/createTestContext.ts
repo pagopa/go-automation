@@ -4,7 +4,7 @@ import type { TestContextOptions } from './TestContextOptions.js';
 import { createTestReads } from './createTestReads.js';
 
 /**
- * Builds the context a step or a known-case condition receives, with only what
+ * Builds the context a step or a known-error condition receives, with only what
  * the test sets; also usable where a plain `RunbookContext` is expected.
  *
  * @param options - Params, vars, step outputs, stub services, recovered errors, signal and gaps of the reads

@@ -97,13 +97,16 @@ function withAiNotApplicable(match: AnalysisMatch): AnalysisMatch {
 
 /** A traceId or case id in common: the strongest agreement an untyped human tracking allows. */
 function hasDeterministicExactMatch(match: AnalysisMatch): boolean {
-  return match.status === 'MATCH_STRONG' && (match.signals.traceIdOverlap.length > 0 || match.signals.caseIdMentioned);
+  return (
+    match.status === 'MATCH_STRONG' &&
+    (match.signals.traceIdOverlap.length > 0 || match.signals.knownErrorCodeMentioned)
+  );
 }
 
 function withDeterministicExactMatch(match: AnalysisMatch): AnalysisMatch {
   const signals = [];
   if (match.signals.traceIdOverlap.length > 0) signals.push('traceId');
-  if (match.signals.caseIdMentioned) signals.push('caseId');
+  if (match.signals.knownErrorCodeMentioned) signals.push('knownErrorCode');
   return {
     ...match,
     matcher: MATCH_SOURCE.deterministic,
@@ -154,7 +157,7 @@ export async function matchAnalysisAi(
   ) {
     return withAiNotApplicable(lexical);
   }
-  if (check.status !== 'HIT' || check.matchedCaseIds.length === 0) {
+  if (check.status !== 'HIT' || check.matchedKnownErrorCodes.length === 0) {
     return withAiNotApplicable(lexical);
   }
   const deterministicExact = hasDeterministicExactMatch(lexical);

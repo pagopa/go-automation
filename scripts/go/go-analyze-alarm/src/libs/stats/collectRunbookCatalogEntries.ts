@@ -15,7 +15,7 @@ export type RunbookCatalogSource = Pick<RunbookCatalog, 'listDescriptors' | 'res
 /**
  * Flattens every registered runbook into a {@link RunbookCatalogEntry}.
  *
- * Each runbook is built once to read its pipeline shape (steps, known cases);
+ * Each runbook is built once to read its pipeline shape (steps, known errors);
  * builders are pure factories, so this stays a local, side-effect-free read.
  * Complexity: O(R) where R is the number of registered runbooks.
  *
@@ -38,9 +38,9 @@ export function collectRunbookCatalogEntries(
     if (resolved === undefined) continue;
 
     const runbook = resolved.build();
-    let annotatedKnownCaseCount = 0;
-    for (const knownCase of runbook.knownCases) {
-      if (knownCase.analysis !== undefined) annotatedKnownCaseCount += 1;
+    let annotatedKnownErrorCount = 0;
+    for (const knownError of runbook.knownErrors) {
+      if (knownError.analysis !== undefined) annotatedKnownErrorCount += 1;
     }
 
     entries.push({
@@ -53,8 +53,8 @@ export function collectRunbookCatalogEntries(
       tags: descriptor.tags,
       alarmNames: descriptor.alarmNames,
       stepCount: runbook.steps.length,
-      knownCaseCount: runbook.knownCases.length,
-      annotatedKnownCaseCount,
+      knownErrorCount: runbook.knownErrors.length,
+      annotatedKnownErrorCount,
     });
   }
 

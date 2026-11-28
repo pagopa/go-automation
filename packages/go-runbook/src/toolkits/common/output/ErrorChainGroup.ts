@@ -6,9 +6,9 @@ import type { ErrorChainRoute } from './ErrorChainRoute.js';
 import type { ErrorChainSample } from './ErrorChainSample.js';
 
 /**
- * A group of identical error chains: from a root error down to a leaf, with the known case of each node.
+ * A group of identical error chains: from a root error down to a leaf, with the known error of each node.
  *
- * Chains with the same sequence of `(target, caseIds)`, the same end and the same interruption are merged, with the
+ * Chains with the same sequence of `(target, knownErrorCodes)`, the same end and the same interruption are merged, with the
  * count and the time range. A window-level runbook has chains of one node, one per detected case.
  */
 export interface ErrorChainGroup {

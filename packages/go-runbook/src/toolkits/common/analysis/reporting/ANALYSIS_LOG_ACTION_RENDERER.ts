@@ -4,7 +4,7 @@ import type { LogAction, LogActionRenderer, LogActionValues } from '../../../../
 import { interpolatePlaceholders } from '../../../../engine/internal.js';
 import { renderLogActionText, resolveLogActionRows, UNAVAILABLE_VALUE } from './renderLogAction.js';
 
-/** Console block of a known or unknown case. */
+/** Console block of a known or unknown error. */
 interface StructuredLogBanner {
   readonly kind: 'success' | 'warning';
   readonly text: string;
@@ -18,8 +18,8 @@ interface StructuredLogBanner {
  * reach `Object.prototype` (e.g. `'toString'`).
  */
 const BANNERS: ReadonlyMap<string, StructuredLogBanner> = new Map([
-  ['known-case', { kind: 'success', text: 'Caso noto rilevato', titleField: 'Caso', dropUnavailable: false }],
-  ['unknown-case', { kind: 'warning', text: 'Caso non riconosciuto', titleField: 'Esito', dropUnavailable: true }],
+  ['known-error', { kind: 'success', text: 'Errore noto rilevato', titleField: 'Caso', dropUnavailable: false }],
+  ['unknown-error', { kind: 'warning', text: 'Errore non riconosciuto', titleField: 'Esito', dropUnavailable: true }],
 ]);
 
 /**

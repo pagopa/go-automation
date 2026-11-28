@@ -5,9 +5,9 @@ import type { Runbook } from '../types/Runbook.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
 import type { RunbookExecutionResult } from '../types/RunbookExecutionResult.js';
 
-import type { KnownCase } from '../types/KnownCase.js';
+import type { KnownError } from '../types/KnownError.js';
 import type { CaseAction } from '../types/CaseAction.js';
-import type { KnownCaseDetection } from '../types/KnownCaseDetection.js';
+import type { KnownErrorDetection } from '../types/KnownErrorDetection.js';
 import { caseSummary } from './caseSummary.js';
 
 import type { RunbookExecutionStatus } from '../types/RunbookExecutionStatus.js';
@@ -75,7 +75,7 @@ const DEFAULT_ENVIRONMENT: ExecutionEnvironment = {
  * - Anti-loop protection with maxIterations
  * - continueOnFailure support for resilient steps
  * - Detailed execution tracing with full input/output/vars
- * - Every matching known case reported as a detection, ordered by the time of its evidence
+ * - Every matching known error reported as a detection, ordered by the time of its evidence
  * - Partial evidence (coverage) declared by the steps, and kept when a later step fails
  *
  * @example
@@ -106,12 +106,12 @@ export class RunbookEngine {
    * Flow:
    * 1. Initialize context with input parameters
    * 2. Execute steps in sequence, until a step stops the pipeline
-   * 3. Evaluate every known case, in declaration order
+   * 3. Evaluate every known error, in declaration order
    * 4. Execute the action of every detection, in the order of the detections (or the fallback)
    * 5. Build and return execution result with trace
    *
    * With the `partial` read policy, a step that fails after some evidence has been collected does not fail the
-   * execution: the pipeline stops, the failed read becomes an `unavailable` coverage entry and the known cases are
+   * execution: the pipeline stops, the failed read becomes an `unavailable` coverage entry and the known errors are
    * evaluated on the context reached.
    *
    * @param runbook - Runbook definition to execute
@@ -203,7 +203,7 @@ export class RunbookEngine {
       }
     }
 
-    let detections: ReadonlyArray<KnownCaseDetection> = [];
+    let detections: ReadonlyArray<KnownErrorDetection> = [];
     let treeRun: ErrorTreeRun | undefined;
     let chains: ReadonlyArray<TreeChainGroup> | undefined;
     // A gap that names some identifiers is carried by their nodes, not by every chain.
@@ -211,7 +211,7 @@ export class RunbookEngine {
     if (status === 'completed' && !isAborted(finalContext)) {
       try {
         if (runbook.tree === undefined) {
-          detections = this.detectKnownCases(runbook.knownCases, finalContext, traceBuilder);
+          detections = this.detectKnownErrors(runbook.knownErrors, finalContext, traceBuilder);
         } else {
           treeRun = await this.investigateTree(runbook, finalContext, {
             maxIterations,
@@ -219,8 +219,8 @@ export class RunbookEngine {
             state,
           });
           detections = orderedTreeDetections(treeRun);
-          chains = buildTreeChains(treeRun.nodes, windowIncomplete, caseOrderOf(runbook.knownCases));
-          traceBuilder.traceDetections([...new Set(detections.map((detection) => detection.knownCase.id))]);
+          chains = buildTreeChains(treeRun.nodes, windowIncomplete, caseOrderOf(runbook.knownErrors));
+          traceBuilder.traceDetections([...new Set(detections.map((detection) => detection.knownError.code))]);
           this.logTreeDetections(treeRun);
         }
       } catch (error: unknown) {
@@ -238,7 +238,7 @@ export class RunbookEngine {
           ? [{ action: runbook.fallbackAction, context: fallbackContext(finalContext, treeRun, chains) }]
           : treeRun !== undefined && chains !== undefined
             ? treeActions(treeRun, chains)
-            : detections.map((d) => ({ action: d.knownCase.action, context: finalContext }));
+            : detections.map((d) => ({ action: d.knownError.action, context: finalContext }));
       for (const { action, context: actionContext } of actions) {
         // An abort during an action stops the dispatch: the run ends aborted, with the trace collected so far.
         if (isAborted(finalContext)) break;
@@ -448,36 +448,36 @@ export class RunbookEngine {
   }
 
   /**
-   * Evaluates every known case against the final context and returns the detections.
+   * Evaluates every known error against the final context and returns the detections.
    *
    * Cases are evaluated in declaration order and every match is kept. A case listed in the `supersedes` of another
    * matching case leaves the detections and stays in the trace with `supersededBy`. The detections are ordered by the
    * time of their evidence: `firstSeenAt` ascending, declaration order on ties, untimed detections last.
    *
-   * @param knownCases - Known cases of the runbook
+   * @param knownErrors - Known errors of the runbook
    * @param context - Final context
    * @param traceBuilder - Trace of the execution
    * @param nodeId - Error-tree node the cases are evaluated on
    * @returns The detections, in their order
    */
-  private detectKnownCases(
-    knownCases: ReadonlyArray<KnownCase>,
+  private detectKnownErrors(
+    knownErrors: ReadonlyArray<KnownError>,
     context: RunbookContext,
     traceBuilder: TraceBuilder,
     nodeId?: string,
-  ): ReadonlyArray<KnownCaseDetection> {
+  ): ReadonlyArray<KnownErrorDetection> {
     const matches = new Map<string, CaseMatch>();
-    const evaluations: { knownCase: KnownCase; resolvedValues: Readonly<Record<string, unknown>> }[] = [];
+    const evaluations: { knownError: KnownError; resolvedValues: Readonly<Record<string, unknown>> }[] = [];
 
-    for (const [declarationIndex, knownCase] of knownCases.entries()) {
+    for (const [declarationIndex, knownError] of knownErrors.entries()) {
       throwIfRunbookAborted(context);
-      const { matched, resolvedValues, evidence } = sharedConditionEvaluator.evaluate(knownCase.condition, context, {
+      const { matched, resolvedValues, evidence } = sharedConditionEvaluator.evaluate(knownError.condition, context, {
         withResolvedValues: true,
       });
-      evaluations.push({ knownCase, resolvedValues });
+      evaluations.push({ knownError, resolvedValues });
       if (matched) {
-        matches.set(knownCase.id, {
-          knownCase,
+        matches.set(knownError.code, {
+          knownError,
           declarationIndex,
           resolvedValues,
           evidence,
@@ -490,10 +490,10 @@ export class RunbookEngine {
     // of them. A superseding case without row evidence (variables only) replaces it whole.
     const covering = new Map<string, { readonly by: string; whole: boolean; readonly rows: EvidenceIndices }>();
     for (const match of matches.values()) {
-      for (const replacedId of match.knownCase.supersedes ?? []) {
+      for (const replacedId of match.knownError.supersedes ?? []) {
         if (!matches.has(replacedId)) continue;
         const entry = covering.get(replacedId) ?? {
-          by: match.knownCase.id,
+          by: match.knownError.code,
           whole: false,
           rows: new Map<string, Set<number>>(),
         };
@@ -516,7 +516,7 @@ export class RunbookEngine {
       const again =
         residual === undefined
           ? undefined
-          : sharedConditionEvaluator.evaluate(replaced.knownCase.condition, residual, { withResolvedValues: true });
+          : sharedConditionEvaluator.evaluate(replaced.knownError.condition, residual, { withResolvedValues: true });
       if (residual === undefined || again?.matched !== true || countEvidence(again.evidence) === 0) {
         supersededBy.set(replacedId, entry.by);
       } else {
@@ -528,10 +528,10 @@ export class RunbookEngine {
       }
     }
 
-    for (const { knownCase, resolvedValues } of evaluations) {
-      const match = matches.get(knownCase.id);
-      const replacedBy = supersededBy.get(knownCase.id);
-      traceBuilder.traceCaseEvaluation(knownCase, match !== undefined, resolvedValues, {
+    for (const { knownError, resolvedValues } of evaluations) {
+      const match = matches.get(knownError.code);
+      const replacedBy = supersededBy.get(knownError.code);
+      traceBuilder.traceCaseEvaluation(knownError, match !== undefined, resolvedValues, {
         ...(match?.firstMs !== undefined ? { firstSeenAt: new Date(match.firstMs).toISOString() } : {}),
         ...(match?.lastMs !== undefined ? { lastSeenAt: new Date(match.lastMs).toISOString() } : {}),
         ...(match !== undefined ? { evidenceRows: match.evidenceRows } : {}),
@@ -540,10 +540,10 @@ export class RunbookEngine {
     }
 
     const ordered = [...matches.values()]
-      .filter((match) => !supersededBy.has(match.knownCase.id))
+      .filter((match) => !supersededBy.has(match.knownError.code))
       .sort(compareCaseMatches);
-    const detections = ordered.map((match): KnownCaseDetection => ({
-      knownCase: match.knownCase,
+    const detections = ordered.map((match): KnownErrorDetection => ({
+      knownError: match.knownError,
       ...(match.firstMs !== undefined ? { firstSeenAt: new Date(match.firstMs).toISOString() } : {}),
       ...(match.lastMs !== undefined ? { lastSeenAt: new Date(match.lastMs).toISOString() } : {}),
       evidenceRows: match.evidenceRows,
@@ -551,13 +551,13 @@ export class RunbookEngine {
     }));
     // The detections of an error tree are traced and narrated once, for the whole tree.
     if (nodeId !== undefined) return detections;
-    traceBuilder.traceDetections(detections.map((detection) => detection.knownCase.id));
+    traceBuilder.traceDetections(detections.map((detection) => detection.knownError.code));
 
     if (detections.length > 0) {
       const description =
         detections.length === 1
-          ? `Known case identified: ${detections[0]?.knownCase.description ?? ''}`
-          : `Known cases identified (${String(detections.length)}): ${detections.map((d) => d.knownCase.description).join(' | ')}`;
+          ? `Known error identified: ${detections[0]?.knownError.description ?? ''}`
+          : `Known errors identified (${String(detections.length)}): ${detections.map((d) => d.knownError.description).join(' | ')}`;
       this.logger.success(description);
     }
     return detections;
@@ -579,7 +579,7 @@ export class RunbookEngine {
     const tree = runbook.tree;
     if (tree === undefined) throw new Error(`Runbook "${runbook.metadata.id}" has no error tree.`);
     const { maxIterations, traceBuilder, state } = execution;
-    const executor = new ErrorTreeExecutor(tree, computeCaseLevels(runbook.knownCases, tree), runbook.knownCases, {
+    const executor = new ErrorTreeExecutor(tree, computeCaseLevels(runbook.knownErrors, tree), runbook.knownErrors, {
       runSteps: async (steps, context, scope) =>
         this.runNodeSteps(steps, context, scope, {
           maxIterations,
@@ -590,7 +590,8 @@ export class RunbookEngine {
       recordRead: (read, identifiers, result, startedAtMs) => {
         recordTreeRead(traceBuilder, read, identifiers, result, startedAtMs);
       },
-      evaluateCases: (knownCases, context, nodeId) => this.detectKnownCases(knownCases, context, traceBuilder, nodeId),
+      evaluateCases: (knownErrors, context, nodeId) =>
+        this.detectKnownErrors(knownErrors, context, traceBuilder, nodeId),
       ledger: state.ledger,
     });
     return executor.run(window);
@@ -653,12 +654,12 @@ export class RunbookEngine {
   private logTreeDetections(run: ErrorTreeRun): void {
     const recognized = run.nodes.filter((node) => node.detections.length > 0);
     if (recognized.length === 0) return;
-    const caseIds = [...new Set(recognized.flatMap((node) => node.detections.map((d) => d.knownCase.id)))];
+    const knownErrorCodes = [...new Set(recognized.flatMap((node) => node.detections.map((d) => d.knownError.code)))];
     // An error reached by several paths is one error.
     const errors = (nodes: ReadonlyArray<ErrorTreeNode>): string => String(new Set(nodes.map((n) => n.errorKey)).size);
     this.logger.success(
-      `Known cases identified on ${errors(recognized)} of ${errors(run.nodes)} errors ` +
-        `(${String(recognized.length)} of ${String(run.nodes.length)} error nodes): ${caseIds.join(', ')}`,
+      `Known errors identified on ${errors(recognized)} of ${errors(run.nodes)} errors ` +
+        `(${String(recognized.length)} of ${String(run.nodes.length)} error nodes): ${knownErrorCodes.join(', ')}`,
     );
   }
 
@@ -852,7 +853,7 @@ function recordTreeRead(
  * @param run - Investigated tree
  * @returns The detections
  */
-function orderedTreeDetections(run: ErrorTreeRun): ReadonlyArray<KnownCaseDetection> {
+function orderedTreeDetections(run: ErrorTreeRun): ReadonlyArray<KnownErrorDetection> {
   const all = run.nodes.flatMap((node) => node.detections);
   return all
     .map((detection, index) => ({ detection, index, firstMs: timeOf(detection.firstSeenAt) }))
@@ -868,8 +869,8 @@ function timeOf(iso: string | undefined): number | undefined {
 }
 
 /** Declaration index of every case. */
-function caseOrderOf(knownCases: ReadonlyArray<KnownCase>): ReadonlyMap<string, number> {
-  return new Map(knownCases.map((knownCase, index) => [knownCase.id, index]));
+function caseOrderOf(knownErrors: ReadonlyArray<KnownError>): ReadonlyMap<string, number> {
+  return new Map(knownErrors.map((knownError, index) => [knownError.code, index]));
 }
 
 /**
@@ -895,9 +896,9 @@ function treeActions(
       const context = run.contexts.get(nodeId);
       if (node === undefined || context === undefined) continue;
       for (const detection of node.detections) {
-        if (done.has(detection.knownCase.id)) continue;
-        done.add(detection.knownCase.id);
-        actions.push({ action: detection.knownCase.action, context });
+        if (done.has(detection.knownError.code)) continue;
+        done.add(detection.knownError.code);
+        actions.push({ action: detection.knownError.action, context });
       }
     }
   }

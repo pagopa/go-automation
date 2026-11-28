@@ -50,7 +50,7 @@ function fakeSource(): RunbookCatalogSource {
       {
         product: 'SEND',
         steps: [{}, {}, {}],
-        knownCases: [{ analysis: {} }, {}],
+        knownErrors: [{ analysis: {} }, {}],
       },
     ],
     [
@@ -58,7 +58,7 @@ function fakeSource(): RunbookCatalogSource {
       {
         product: 'INTEROP',
         steps: [{}],
-        knownCases: [{ analysis: {} }],
+        knownErrors: [{ analysis: {} }],
       },
     ],
   ]);
@@ -71,7 +71,7 @@ function fakeSource(): RunbookCatalogSource {
       return {
         descriptor: descriptors.find((item) => item.key === key),
         product: runbook.product,
-        build: () => ({ steps: runbook.steps, knownCases: runbook.knownCases }),
+        build: () => ({ steps: runbook.steps, knownErrors: runbook.knownErrors }),
       };
     },
   } as unknown as RunbookCatalogSource;
@@ -91,8 +91,8 @@ describe('collectRunbookCatalogEntries', () => {
     assert.equal(zeta.product, 'SEND');
     assert.equal(zeta.kind, 'LAMBDA');
     assert.equal(zeta.stepCount, 3);
-    assert.equal(zeta.knownCaseCount, 2);
-    assert.equal(zeta.annotatedKnownCaseCount, 1);
+    assert.equal(zeta.knownErrorCount, 2);
+    assert.equal(zeta.annotatedKnownErrorCount, 1);
     assert.deepEqual(zeta.alarmNames, ['zeta-dev', 'zeta-prod']);
   });
 
@@ -104,7 +104,7 @@ describe('collectRunbookCatalogEntries', () => {
       assert.ok(item.key.length > 0);
       assert.ok(item.product.length > 0);
       assert.ok(item.kind.length > 0);
-      assert.ok(item.annotatedKnownCaseCount <= item.knownCaseCount);
+      assert.ok(item.annotatedKnownErrorCount <= item.knownErrorCount);
     }
   });
 });

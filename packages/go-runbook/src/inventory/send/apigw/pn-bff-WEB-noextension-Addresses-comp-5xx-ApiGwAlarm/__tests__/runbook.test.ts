@@ -60,8 +60,8 @@ describe('WEB Addresses API Gateway runbook', () => {
     const { result, draft, queries } = await execute();
     assert.equal(result.status, 'completed');
     assert.deepEqual(
-      result.detections.map(({ knownCase }) => knownCase.id),
-      ['bff-get-addresses-read-timeout'],
+      result.detections.map(({ knownError }) => knownError.code),
+      ['SEND_APIGW_PBWEBNAC5AGA_BFF-GET-ADD-REA-TIM'],
     );
     assert.equal(draft?.kind, 'KNOWN_CASE');
     assert.equal(draft.proposedStatus, 'IN_PROGRESS');
@@ -78,12 +78,12 @@ describe('WEB Addresses API Gateway runbook', () => {
     const { result, queries } = await execute({ errorMessage: 'Execution failed due to an internal error' });
     assert.ok(queries.some(({ groups }) => groups[0]?.startsWith('API-Gateway-Execution-Logs_') === true));
     assert.ok(queries.some(({ groups }) => groups[0] === '/aws/ecs/pn-bff'));
-    assert.equal(result.detections[0]?.knownCase.id, 'bff-get-addresses-read-timeout');
+    assert.equal(result.detections[0]?.knownError.code, 'SEND_APIGW_PBWEBNAC5AGA_BFF-GET-ADD-REA-TIM');
   });
 
   it('recognizes the configured authorizer timeout without declaring recovery', async () => {
     const { result, draft, queries } = await execute({ authorizerStatus: '500', authorizerLatency: '5000' });
-    assert.equal(result.detections[0]?.knownCase.id, 'api-gw-authorizer-timeout');
+    assert.equal(result.detections[0]?.knownError.code, 'SEND_APIGW_COMMON_API-GW-AUT-TIM');
     assert.equal(draft?.kind, 'KNOWN_CASE');
     assert.equal(draft?.proposedStatus, 'IN_PROGRESS');
     assert.equal(draft?.conclusionNotes, 'Risoluzione non documentata.');

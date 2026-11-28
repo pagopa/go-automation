@@ -14,7 +14,7 @@ export const scriptMetadata: GOScriptMetadata = {
   name: 'Go Analyze Alarm',
   version: '1.0.0',
   description:
-    'Analyzes an alarm, executes its associated runbook, and determines the correct operational outcome and next action based on collected evidence and known cases.',
+    'Analyzes an alarm, executes its associated runbook, and determines the correct operational outcome and next action based on collected evidence and known errors.',
   authors: ['Team GO - Gestione Operativa'],
 };
 

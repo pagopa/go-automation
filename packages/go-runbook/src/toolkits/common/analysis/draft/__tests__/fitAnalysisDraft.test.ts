@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { fitAnalysisDraft } from '../fitAnalysisDraft.js';
-import type { KnownCaseAnalysisDraft } from '../KnownCaseAnalysisDraft.js';
+import type { KnownErrorAnalysisDraft } from '../KnownErrorAnalysisDraft.js';
 
 const LIMITS = { textLength: 5_000, draftBytes: 4_000 } as const;
 
-function draft(overrides: Partial<KnownCaseAnalysisDraft> = {}): KnownCaseAnalysisDraft {
+function draft(overrides: Partial<KnownErrorAnalysisDraft> = {}): KnownErrorAnalysisDraft {
   return {
     schemaVersion: 1,
     kind: 'KNOWN_CASE',

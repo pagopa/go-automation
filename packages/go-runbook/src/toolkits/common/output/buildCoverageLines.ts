@@ -22,7 +22,7 @@ const UNIT_WORDS: Readonly<Record<ObservedErrorUnit, string>> = {
  * The coverage lines of an execution: compact counts by reason, never the text of a provider error.
  *
  * - `Errori senza caso noto: K (errori in fondo a una catena che nessun caso noto riconosce)` when some leaves of the
- *   error tree matched no known case;
+ *   error tree matched no known error;
  * - `Catene interrotte: K (<reason> N, …)` when some chains of the error tree were interrupted;
  * - `Non esaminati: [almeno] K <unit>` when the runbook observed more errors than it examined;
  * - `Evidenza incompleta: K fonti (<reason> N, …)` when some sources are incomplete.

@@ -1,5 +1,5 @@
 import type { Condition } from '../types/Condition.js';
-import type { KnownCase } from '../types/KnownCase.js';
+import type { KnownError } from '../types/KnownError.js';
 import { parseStepRef } from '../context/parseStepRef.js';
 import { conditionLeafRefs } from './conditionLeafRefs.js';
 
@@ -7,7 +7,7 @@ import { conditionLeafRefs } from './conditionLeafRefs.js';
 const RELATED_PATHS: ReadonlySet<string> = new Set(['siblings', 'context']);
 
 /**
- * The first known case with an `all(...)` that reads the rows of the same level read in two of its branches, none of
+ * The first known error with an `all(...)` that reads the rows of the same level read in two of its branches, none of
  * them on the related rows (`steps.<id>.siblings`, `steps.<id>.context`).
  *
  * In an error tree every error row of a level read is a node: two predicates on the rows of the same read would need
@@ -16,7 +16,7 @@ const RELATED_PATHS: ReadonlySet<string> = new Set(['siblings', 'context']);
  *
  * Complexity: O(C) over the nodes of the conditions.
  *
- * @param knownCases - Cases of the runbook
+ * @param knownErrors - Cases of the runbook
  * @param levelReads - Ids of the reads of the levels below the root
  * @returns The case and the read, or nothing
  *
@@ -26,12 +26,12 @@ const RELATED_PATHS: ReadonlySet<string> = new Set(['siblings', 'context']);
  * ```
  */
 export function findUnanchoredRowPredicates(
-  knownCases: ReadonlyArray<KnownCase>,
+  knownErrors: ReadonlyArray<KnownError>,
   levelReads: ReadonlySet<string>,
-): { readonly caseId: string; readonly stepId: string } | undefined {
-  for (const knownCase of knownCases) {
-    const stepId = findIn(knownCase.condition, levelReads);
-    if (stepId !== undefined) return { caseId: knownCase.id, stepId };
+): { readonly knownErrorCode: string; readonly stepId: string } | undefined {
+  for (const knownError of knownErrors) {
+    const stepId = findIn(knownError.condition, levelReads);
+    if (stepId !== undefined) return { knownErrorCode: knownError.code, stepId };
   }
   return undefined;
 }

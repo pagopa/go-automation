@@ -1,4 +1,4 @@
-/** A node of an error chain: one error at one level, with the known cases that recognize it. */
+/** A node of an error chain: one error at one level, with the known errors that recognize it. */
 export interface ErrorChainNode {
   /** 0 = root. */
   readonly level: number;
@@ -8,7 +8,7 @@ export interface ErrorChainNode {
   readonly label: string;
   /** Descriptions of the cases that recognize the node, when they differ from the label. */
   readonly description?: string;
-  /** Known cases that recognize the node; empty for an unrecognized node («?»). */
-  readonly caseIds: ReadonlyArray<string>;
+  /** Known errors that recognize the node; empty for an unrecognized node («?»). */
+  readonly knownErrorCodes: ReadonlyArray<string>;
   readonly status: 'recognized' | 'unrecognized' | 'failed';
 }

@@ -2,7 +2,7 @@ import { omitUndefined } from '@pagopa/go-common/utils';
 import type {
   CaseAction,
   IdentifierObservation,
-  KnownCaseDetection,
+  KnownErrorDetection,
   Runbook,
   RunbookContext,
   RunbookExecutionResult,
@@ -24,7 +24,7 @@ import { RUNBOOK_OUTPUT_SCHEMA_VERSION } from './RUNBOOK_OUTPUT_SCHEMA_VERSION.j
 import { detectionContext, detectionObservations, representativeContext } from './resultContexts.js';
 import type { RunbookCoverageOutput } from './RunbookCoverageOutput.js';
 import type { BuildRunbookOutputOptions } from './BuildRunbookOutputOptions.js';
-import type { KnownCaseDetectionOutput } from './KnownCaseDetectionOutput.js';
+import type { KnownErrorDetectionOutput } from './KnownErrorDetectionOutput.js';
 
 /**
  * Builds the output of a runbook execution: metadata, execution, outcome, error chains, coverage, analysis draft,
@@ -111,13 +111,13 @@ function buildOutcome(runbook: Runbook, result: RunbookExecutionResult, view: Er
   }
 
   if (result.detections.length > 0) {
-    return buildKnownCaseMatchedOutcome(result, view);
+    return buildKnownErrorMatchedOutcome(result, view);
   }
 
   if (runbook.metadata.type === 'alarm-resolution') {
     const complete = evidenceComplete(result, view);
     return {
-      kind: complete ? 'unknown-case' : 'inconclusive',
+      kind: complete ? 'unknown-error' : 'inconclusive',
       casesEvaluated: result.trace.caseMatching.casesEvaluated,
       ...resolvedActionMessage(runbook.fallbackAction, result, view),
       message: complete ? 'Nessun caso noto individuato' : 'Nessun caso noto individuato, con evidenza incompleta',
@@ -131,7 +131,7 @@ function buildOutcome(runbook: Runbook, result: RunbookExecutionResult, view: Er
   return buildProcedureSuccessOutcome(result);
 }
 
-function buildKnownCaseMatchedOutcome(result: RunbookExecutionResult, view: ErrorTreeView): RunbookOutcome {
+function buildKnownErrorMatchedOutcome(result: RunbookExecutionResult, view: ErrorTreeView): RunbookOutcome {
   const executed = result.trace.actionsExecuted.filter((action) => action.executed);
   const detected = result.detections.map((detection, index) => {
     const node = view.nodeOf(detection);
@@ -140,7 +140,7 @@ function buildKnownCaseMatchedOutcome(result: RunbookExecutionResult, view: Erro
         detection,
         detectionObservations(view, detection),
         (result.tree === undefined ? executed[index]?.resolvedMessage : undefined) ??
-          resolveOutcomeMessage(detection.knownCase.action, detectionContext(result, view, detection)),
+          resolveOutcomeMessage(detection.knownError.action, detectionContext(result, view, detection)),
       ),
       // Without a tree every detection is an error of its own.
       errorKey: node?.errorKey ?? `detection:${String(index)}`,
@@ -156,18 +156,22 @@ function buildKnownCaseMatchedOutcome(result: RunbookExecutionResult, view: Erro
     cases.length === 1
       ? `Individuato caso noto: ${named[0] ?? ''}`
       : `Individuati ${String(cases.length)} casi noti: ${named.join(' | ')}`;
-  return { kind: 'known-case-matched', detections: detectionOccurrences(detected), message };
+  return { kind: 'known-error-matched', detections: detectionOccurrences(detected), message };
 }
 
 function detectionOutput(
-  detection: KnownCaseDetection,
+  detection: KnownErrorDetection,
   observations: ReadonlyArray<IdentifierObservation>,
   resolvedMessage: string | undefined,
-): KnownCaseDetectionOutput {
+): KnownErrorDetectionOutput {
   return {
-    caseId: detection.knownCase.id,
-    description: detection.knownCase.description,
-    ...omitUndefined({ firstSeenAt: detection.firstSeenAt, lastSeenAt: detection.lastSeenAt }),
+    code: detection.knownError.code,
+    description: detection.knownError.description,
+    ...omitUndefined({
+      analysisType: detection.knownError.analysis?.analysisType,
+      firstSeenAt: detection.firstSeenAt,
+      lastSeenAt: detection.lastSeenAt,
+    }),
     evidenceRows: detection.evidenceRows,
     errors: 1,
     ...(resolvedMessage !== undefined ? { resolvedMessage } : {}),

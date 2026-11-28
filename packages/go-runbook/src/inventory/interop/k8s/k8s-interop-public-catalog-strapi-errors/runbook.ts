@@ -5,7 +5,7 @@
 import { interop } from '../../../../toolkits/interop/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 import { PUBLIC_CATALOG_STRAPI_ALARM as alarm } from './alarmDefinition.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { STRAPI_QUERY_PROFILE } from './queryProfile.js';
 import { POD_CONTEXT } from './podContext.js';
 
@@ -30,7 +30,7 @@ export function buildRunbook(): Runbook {
       tags: ['interop', 'k8s', 'public-catalog', 'strapi'],
     },
     queryProfile: STRAPI_QUERY_PROFILE,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 5 },
 
     podContext: {

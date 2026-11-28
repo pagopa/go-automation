@@ -1,7 +1,7 @@
 import { lambda } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { DOWNSTREAMS, LAMBDA_FUNCTION } from './knownServices.js';
 import { SENDER_DASHBOARD_DATA_INDEXER_ALARM } from './alarmDefinition.js';
 
@@ -30,7 +30,7 @@ export function buildRunbook(): Runbook {
     },
     lambda: LAMBDA_FUNCTION,
     downstreams: DOWNSTREAMS,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     analysisDefaults: {
       runbookName: SENDER_DASHBOARD_DATA_INDEXER_ALARM,
       links: [

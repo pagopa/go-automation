@@ -1,18 +1,22 @@
 /**
- * Downstream error patterns for the {{RUNBOOK_ID}} runbook.
- *
- * The Lambda analog of API Gateway known URLs: a pattern matched in the
- * Lambda error message routes the analysis to a downstream microservice
- * (declared in knownServices.ts) and sets `vars.lambdaDownstreamTarget`.
- *
- * TODO: populate when the Lambda calls downstream microservices.
+ * Known errors for the {{RUNBOOK_ID}} runbook.
  */
-import type { lambda } from '../../../../toolkits/send/index.js';
 
-export const DOWNSTREAM_ERROR_PATTERNS: ReadonlyArray<lambda.DownstreamErrorPattern> = [
-  // {
-  //   pattern: 'External service pn-some-service returned errors',
-  //   target: 'pn-some-service',
-  //   description: 'Errore restituito dal servizio downstream pn-some-service.',
-  // },
+import { lambda } from '../../../../toolkits/send/index.js';
+import type { KnownError } from '../../../../engine/index.js';
+// Uncomment with the example below:
+// import { knownError } from '../../../../toolkits/send/index.js';
+// import { stepEvidenceMatches } from '../../../../engine/index.js';
+
+export const KNOWN_ERRORS: ReadonlyArray<KnownError> = [
+  ...lambda.LAMBDA_RUNTIME_KNOWN_ERRORS,
+  // add alarm-specific cases here, e.g.:
+  // knownError({
+  //   code: '{{KNOWN_ERROR_CODE}}',
+  //   description: 'Caso noto da log applicativo',
+  //   condition: stepEvidenceMatches('query-lambda-errors', 'some error pattern'),
+  //   resolution: 'Chiusura - caso noto',
+  //   details: [['Errore', '{{vars.{{LAMBDA_VAR_PREFIX}}ErrorMsg}}']],
+  //   analysis: { proposedStatus: 'COMPLETED', analysisType: 'ANALYZABLE' },
+  // }),
 ];

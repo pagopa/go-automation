@@ -46,6 +46,34 @@ describe('RUNBOOK_CATALOG', () => {
     assert.doesNotThrow(() => validateCloudRunbookRegistry());
   });
 
+  it('publishes the product and the known errors of every runbook, with the four COMMON codes shared', () => {
+    const descriptors = RUNBOOK_CATALOG.listDescriptors();
+    for (const descriptor of descriptors) {
+      const resolved = RUNBOOK_CATALOG.resolveByKey(descriptor.key);
+      assert.strictEqual(descriptor.product, resolved?.product);
+      assert.deepStrictEqual(
+        descriptor.knownErrors.map(({ code }) => code),
+        resolved?.build().knownErrors.map(({ code }) => code),
+      );
+    }
+    const published = descriptors.flatMap(({ knownErrors }) => knownErrors);
+    assert.ok(
+      published.every(({ title }) => !title.includes('{{')),
+      'a catalog title never interpolates the occurrence',
+    );
+    assert.strictEqual(
+      published.find(({ code }) => code === 'SEND_LAMBDA_COMMON_LAM-TIM')?.title,
+      'Timeout runtime della Lambda',
+    );
+    const codes = published.map(({ code }) => code);
+    assert.deepStrictEqual([...new Set(codes.filter((code) => code.includes('_COMMON_')))].sort(), [
+      'SEND_APIGW_COMMON_API-GW-AUT-ERR',
+      'SEND_APIGW_COMMON_API-GW-AUT-TIM',
+      'SEND_LAMBDA_COMMON_LAM-OUT-OF-MEM',
+      'SEND_LAMBDA_COMMON_LAM-TIM',
+    ]);
+  });
+
   it('builds lazily: nothing at construction, one build per resolved descriptor, a fresh build per execution', () => {
     let buildCalls = 0;
     const source = registrationOf('pn-delivery-B2B-ApiGwAlarm');
@@ -71,9 +99,11 @@ describe('RUNBOOK_CATALOG', () => {
     assert.notStrictEqual(resolved.build(), resolved.build(), 'every execution gets a fresh runbook');
     assert.strictEqual(buildCalls, 3);
     assert.deepStrictEqual(registry.listDescriptors(), [resolved.descriptor]);
-    assert.strictEqual(buildCalls, 3, 'listDescriptors reuses the memoized descriptors');
+    assert.strictEqual(buildCalls, 4, 'listDescriptors reuses the descriptors, and builds once to check the codes');
+    registry.listDescriptors();
+    assert.strictEqual(buildCalls, 4, 'the listed descriptors are memoized');
     registry.validateForCloud();
-    assert.strictEqual(buildCalls, 4, 'validateForCloud builds every runbook again');
+    assert.strictEqual(buildCalls, 5, 'validateForCloud builds every runbook again');
   });
 
   it('resolves complete descriptors on a cold catalog, identical to the listed ones', () => {

@@ -25,7 +25,7 @@ import { defaultInteropApiGwRunbookStepIds } from './createInteropApiGwAlarmRunb
  * contain is rejected even when it looks like a sibling.
  *
  * @param spec - The identifiers that distinguish this runbook
- * @returns The alarm definition consumed by the runbook, its known cases and the registry
+ * @returns The alarm definition consumed by the runbook, its known errors and the registry
  *
  * @example
  * ```typescript

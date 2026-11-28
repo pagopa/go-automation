@@ -6,7 +6,7 @@ import { service } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
 import { SERVICE } from './knownServices.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 
 /**
  * Builds the {{RUNBOOK_ID}} runbook definition.
@@ -25,6 +25,6 @@ export function buildRunbook(): Runbook {
       tags: {{METADATA_TAGS}},
     },
     service: SERVICE,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
   });
 }

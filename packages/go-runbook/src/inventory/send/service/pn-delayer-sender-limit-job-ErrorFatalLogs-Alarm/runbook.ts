@@ -1,9 +1,9 @@
-import { service, unknownCaseFallback } from '../../../../toolkits/send/index.js';
+import { service, unknownErrorFallback } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
 import { DELAYER_SENDER_LIMIT_JOB_ALARM } from './alarmDefinition.js';
 import { ClassifyDelayerAlarmDayStep } from './ClassifyDelayerAlarmDayStep.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 import { SERVICE } from './knownServices.js';
 
 const RUNBOOK_URL =
@@ -26,13 +26,13 @@ export function buildRunbook(): Runbook {
       tags: ['service', 'pn-delayer', 'sender-limit', 'batch-job'],
     },
     service: SERVICE,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
     hooks: [{ at: 'after-service-analysis', step: new ClassifyDelayerAlarmDayStep(), silent: true }],
     analysisDefaults: {
       runbookName: DELAYER_SENDER_LIMIT_JOB_ALARM,
       links: [{ url: RUNBOOK_URL, name: DELAYER_SENDER_LIMIT_JOB_ALARM, type: 'CONFLUENCE' }],
     },
-    fallbackAction: unknownCaseFallback('Errore pn-delayer non censito nella tabella dei casi noti', [
+    fallbackAction: unknownErrorFallback('Errore pn-delayer non censito nella tabella dei casi noti', [
       ['Servizio', 'pn-delayer'],
       ['Job', 'pn-delayer-sender-limit-job'],
       ['Errore', '{{vars.delayerSenderLimitJobErrorMsg}}'],

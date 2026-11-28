@@ -3,11 +3,11 @@ import type { RunbookExtensions } from '../types/RunbookExtensions.js';
 import type { RunbookMetadata } from '../types/RunbookMetadata.js';
 import type { Step } from '../types/Step.js';
 import type { StepDescriptor } from '../types/StepDescriptor.js';
-import type { KnownCase } from '../types/KnownCase.js';
+import type { KnownError } from '../types/KnownError.js';
 import type { CaseAction } from '../types/CaseAction.js';
 import type { ValidationErrorEntry } from '../validation/ValidationErrorEntry.js';
 import { RunbookValidationError } from '../validation/RunbookValidationError.js';
-import { findUnwiredKnownCaseStepRef } from '../validation/findUnwiredKnownCaseStepRef.js';
+import { findUnwiredKnownErrorStepRef } from '../validation/findUnwiredKnownErrorStepRef.js';
 import { validateErrorTree } from '../validation/validateErrorTree.js';
 import { findUnanchoredRowPredicates } from '../validation/findUnanchoredRowPredicates.js';
 import { levelStepIds } from '../tree/levelStepIds.js';
@@ -31,7 +31,7 @@ import type { ReadPolicy } from '../types/ReadPolicy.js';
  *   })
  *   .step(new CloudWatchLogsQueryStep({ ... }))
  *   .step(new SetVarStep({ ... }), { continueOnFailure: true })
- *   .knownCase({ ... })
+ *   .knownError({ ... })
  *   .fallback(logAction({ ... }))
  *   .build();
  * ```
@@ -41,7 +41,7 @@ export class RunbookBuilder {
   private meta?: Omit<RunbookMetadata, 'id'>;
   /** Steps wired so far, in order; subclasses read them to validate their extensions. */
   protected readonly stepDescriptors: StepDescriptor[] = [];
-  private readonly cases: KnownCase[] = [];
+  private readonly cases: KnownError[] = [];
   private treeDefinition: ErrorTreeDefinition | undefined;
   private fallbackAction?: CaseAction;
   private iterationsLimit?: number;
@@ -163,18 +163,18 @@ export class RunbookBuilder {
   }
 
   /**
-   * Adds a known case to the runbook.
+   * Adds a known error to the runbook.
    *
-   * @param knownCase - Known case definition
+   * @param knownError - Known error definition
    * @returns This builder for chaining
    */
-  knownCase(knownCase: KnownCase): this {
-    this.cases.push(knownCase);
+  knownError(knownError: KnownError): this {
+    this.cases.push(knownError);
     return this;
   }
 
   /**
-   * Sets the fallback action for when no known case matches.
+   * Sets the fallback action for when no known error matches.
    *
    * @param action - Fallback action
    * @returns This builder for chaining
@@ -197,8 +197,8 @@ export class RunbookBuilder {
 
   /**
    * Validates the runbook configuration.
-   * Checks: duplicate step IDs, duplicate KnownCase IDs, unknown or cyclic `supersedes`,
-   * the levels of the error tree and the step references of the known cases.
+   * Checks: duplicate step IDs, duplicate KnownError IDs, unknown or cyclic `supersedes`,
+   * the levels of the error tree and the step references of the known errors.
    *
    * @returns Array of validation errors (empty if valid)
    */
@@ -240,17 +240,17 @@ export class RunbookBuilder {
       stepIds.add(descriptor.step.id);
     }
 
-    // 3. Check duplicate KnownCase IDs
-    const caseIds = new Set<string>();
-    for (const knownCase of this.cases) {
-      if (caseIds.has(knownCase.id)) {
+    // 3. Check duplicate KnownError IDs
+    const knownErrorCodes = new Set<string>();
+    for (const knownError of this.cases) {
+      if (knownErrorCodes.has(knownError.code)) {
         errors.push({
-          code: 'DUPLICATE_CASE_ID',
-          message: `Duplicate KnownCase ID: "${knownCase.id}". Each case must have a unique ID.`,
-          caseId: knownCase.id,
+          code: 'DUPLICATE_KNOWN_ERROR_CODE',
+          message: `Duplicate KnownError ID: "${knownError.code}". Each case must have a unique ID.`,
+          knownErrorCode: knownError.code,
         });
       }
-      caseIds.add(knownCase.id);
+      knownErrorCodes.add(knownError.code);
     }
 
     // 4. Check the cases each case supersedes
@@ -267,20 +267,20 @@ export class RunbookBuilder {
         errors.push({
           code: 'UNANCHORED_ROW_PREDICATES',
           message:
-            `KnownCase "${unanchored.caseId}" reads the rows of "${unanchored.stepId}" twice in one all(...): ` +
+            `KnownError "${unanchored.knownErrorCode}" reads the rows of "${unanchored.stepId}" twice in one all(...): ` +
             'anchor one predicate on the node and read the other from its siblings or its context.',
-          caseId: unanchored.caseId,
+          knownErrorCode: unanchored.knownErrorCode,
         });
       }
     }
 
-    // 6. Known cases must reference only steps the runbook wires, the levels of the error tree included
-    const unwired = findUnwiredKnownCaseStepRef(this.cases, this.wiredStepIds());
+    // 6. Known errors must reference only steps the runbook wires, the levels of the error tree included
+    const unwired = findUnwiredKnownErrorStepRef(this.cases, this.wiredStepIds());
     if (unwired !== undefined) {
       errors.push({
         code: 'UNWIRED_CASE_STEP_REF',
-        message: `KnownCase "${unwired.caseId}" references step "${unwired.stepId}" which is not wired in this runbook.`,
-        caseId: unwired.caseId,
+        message: `KnownError "${unwired.knownErrorCode}" references step "${unwired.stepId}" which is not wired in this runbook.`,
+        knownErrorCode: unwired.knownErrorCode,
       });
     }
 
@@ -312,7 +312,7 @@ export class RunbookBuilder {
         ...this.meta, // Safe: validated in validate()
       },
       steps: [...this.stepDescriptors],
-      knownCases: [...this.cases],
+      knownErrors: [...this.cases],
       fallbackAction: this.fallbackAction, // Safe: validated in validate()
       ...(this.policy !== undefined ? { readPolicy: this.policy } : {}),
       // After the engine fields, in the toolkit's order: the RTA fingerprint depends on key order.
@@ -325,33 +325,33 @@ export class RunbookBuilder {
 }
 
 /**
- * Validates the `supersedes` of the known cases: every replaced case exists, no case replaces itself, and the
+ * Validates the `supersedes` of the known errors: every replaced case exists, no case replaces itself, and the
  * replacements form no cycle.
  *
  * Complexity: O(C + S) over cases and supersedes entries.
  *
- * @param cases - Known cases of the runbook
+ * @param cases - Known errors of the runbook
  * @returns The validation errors, empty when the replacements are sound
  */
-function validateSupersedes(cases: ReadonlyArray<KnownCase>): ReadonlyArray<ValidationErrorEntry> {
+function validateSupersedes(cases: ReadonlyArray<KnownError>): ReadonlyArray<ValidationErrorEntry> {
   const errors: ValidationErrorEntry[] = [];
-  const ids = new Set(cases.map((knownCase) => knownCase.id));
+  const ids = new Set(cases.map((knownError) => knownError.code));
   const edges = new Map<string, ReadonlyArray<string>>();
-  for (const knownCase of cases) {
-    const replaced = knownCase.supersedes ?? [];
-    edges.set(knownCase.id, replaced);
+  for (const knownError of cases) {
+    const replaced = knownError.supersedes ?? [];
+    edges.set(knownError.code, replaced);
     for (const target of replaced) {
-      if (target === knownCase.id) {
+      if (target === knownError.code) {
         errors.push({
           code: 'SUPERSEDES_CYCLE',
-          message: `KnownCase "${knownCase.id}" supersedes itself.`,
-          caseId: knownCase.id,
+          message: `KnownError "${knownError.code}" supersedes itself.`,
+          knownErrorCode: knownError.code,
         });
       } else if (!ids.has(target)) {
         errors.push({
           code: 'UNKNOWN_SUPERSEDED_CASE',
-          message: `KnownCase "${knownCase.id}" supersedes "${target}", which is not a case of this runbook.`,
-          caseId: knownCase.id,
+          message: `KnownError "${knownError.code}" supersedes "${target}", which is not a case of this runbook.`,
+          knownErrorCode: knownError.code,
         });
       }
     }
@@ -368,12 +368,12 @@ function validateSupersedes(cases: ReadonlyArray<KnownCase>): ReadonlyArray<Vali
     done.add(id);
     return cyclic;
   };
-  for (const knownCase of cases) {
-    if (!done.has(knownCase.id) && visit(knownCase.id)) {
+  for (const knownError of cases) {
+    if (!done.has(knownError.code) && visit(knownError.code)) {
       errors.push({
         code: 'SUPERSEDES_CYCLE',
-        message: `The supersedes of KnownCase "${knownCase.id}" form a cycle.`,
-        caseId: knownCase.id,
+        message: `The supersedes of KnownError "${knownError.code}" form a cycle.`,
+        knownErrorCode: knownError.code,
       });
     }
   }

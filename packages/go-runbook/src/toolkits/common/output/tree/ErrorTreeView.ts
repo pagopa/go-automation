@@ -2,7 +2,7 @@ import type {
   ErrorChainInterruptionReason,
   ErrorTreeNode,
   IdentifierObservation,
-  KnownCaseDetection,
+  KnownErrorDetection,
   ObservedErrors,
   RunbookExecutionResult,
   TreeChain,
@@ -37,7 +37,7 @@ export class ErrorTreeView {
   readonly chains: ReadonlyArray<TreeChainGroup>;
   private readonly nodes: ReadonlyArray<ErrorTreeNode>;
   private readonly byId: ReadonlyMap<string, ErrorTreeNode>;
-  private readonly byDetection: ReadonlyMap<KnownCaseDetection, ErrorTreeNode>;
+  private readonly byDetection: ReadonlyMap<KnownErrorDetection, ErrorTreeNode>;
 
   /**
    * @param result - The tree and the chains of an execution
@@ -84,7 +84,7 @@ export class ErrorTreeView {
    * @param detection - A detection of the tree
    * @returns The node that recognized it, or nothing for a window detection
    */
-  nodeOf(detection: KnownCaseDetection): ErrorTreeNode | undefined {
+  nodeOf(detection: KnownErrorDetection): ErrorTreeNode | undefined {
     return this.byDetection.get(detection);
   }
 

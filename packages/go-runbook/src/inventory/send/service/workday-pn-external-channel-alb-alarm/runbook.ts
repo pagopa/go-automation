@@ -6,7 +6,7 @@ import { service } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
 import { SERVICE } from './knownServices.js';
-import { KNOWN_CASES } from './knownCases.js';
+import { KNOWN_ERRORS } from './knownErrors.js';
 
 /**
  * Builds the workday-pn-external-channel-alb-alarm runbook definition.
@@ -26,6 +26,6 @@ export function buildRunbook(): Runbook {
       tags: ['service', 'pn-external-channel', 'workday'],
     },
     service: SERVICE,
-    knownCases: KNOWN_CASES,
+    knownErrors: KNOWN_ERRORS,
   });
 }
