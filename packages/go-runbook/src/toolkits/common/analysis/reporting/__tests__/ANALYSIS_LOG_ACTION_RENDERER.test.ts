@@ -37,7 +37,7 @@ describe('ANALYSIS_LOG_ACTION_RENDERER', () => {
         renderAs: 'known-error',
         title: '[DOWNSTREAM] Service PersonalDataVault returned errors=500',
         details: [
-          ['Risoluzione', 'Chiusura - caso noto'],
+          ['Risoluzione', 'Chiusura - errore noto'],
           ['Downstream', 'PersonalDataVault'],
         ],
       },
@@ -106,7 +106,7 @@ describe('ANALYSIS_LOG_ACTION_RENDERER', () => {
     );
 
     const joined = handler.events.map((event) => event.message).join('\n');
-    assert.match(joined, /Caso non riconosciuto/);
+    assert.match(joined, /Errore non riconosciuto/);
     assert.match(joined, /Errori API Gateway/);
     // Never a raw placeholder, and no row for a value the run did not produce.
     assert.doesNotMatch(joined, /\{\{vars\./u);
